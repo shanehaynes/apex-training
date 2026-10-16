@@ -394,6 +394,49 @@ final class TrackerModelTests: XCTestCase {
         XCTAssertTrue(model.sync.isIdle)
     }
 
+    /// The summary's volume reads the profile the Schedule tab cached: a
+    /// 120 lb × 3 is 360 to a pounds lifter and 163 to a kg one.
+    @MainActor
+    func testTheVolumeReadsInTheCachedProfilesUnit() async throws {
+        let press1 = SetKey(section: "exercise", exerciseId: "fx-press", setNumber: 1)
+        let (pounds, _) = make(healthy())
+        await pounds.open()
+        XCTAssertNil(pounds.sessionVolume, "nothing logged yet")
+        pounds.setValue("120 lb", .weight, at: press1)
+        pounds.setValue("3", .reps, at: press1)
+        XCTAssertEqual(pounds.weightContext, .default, "nothing cached: pounds")
+        XCTAssertEqual(pounds.sessionVolume, 360)
+
+        let cache = MemoryCacheStore()
+        let profile = ProfileResponse(hasAnthropicKey: false, anthropicKeyLast4: nil, termsAccepted: nil, termsCurrent: true,
+                                      weightUnit: "kg", bodyWeightLb: 180)
+        try await cache.write(CacheEntry(kind: .profile, key: ScheduleCacheKey.profile,
+                                         json: JSONEncoder().encode(profile), fetchedAt: Self.now))
+        let (kilos, _) = make(healthy(), cache: cache)
+        await kilos.open()
+        kilos.setValue("120 lb", .weight, at: press1)
+        kilos.setValue("3", .reps, at: press1)
+        XCTAssertEqual(kilos.weightContext, Weight.Context(unit: .kg, bodyWeightLb: 180))
+        XCTAssertEqual(kilos.sessionVolume, 163, "360 lb is 163.3 kg")
+    }
+
+    /// A profile that lands after the tracker opened — a fresh install whose
+    /// Schedule had not loaded yet, or a unit changed on the web — is read at
+    /// Finish, so the summary's volume is in the right unit.
+    @MainActor
+    func testTheWeightContextIsReadAgainAtFinish() async throws {
+        let cache = MemoryCacheStore()
+        let (model, _) = make(healthy(), cache: cache)
+        await model.open()
+        XCTAssertEqual(model.weightContext, .default)
+        let profile = ProfileResponse(hasAnthropicKey: false, anthropicKeyLast4: nil, termsAccepted: nil, termsCurrent: true,
+                                      weightUnit: "kg", bodyWeightLb: nil)
+        try await cache.write(CacheEntry(kind: .profile, key: ScheduleCacheKey.profile,
+                                         json: JSONEncoder().encode(profile), fetchedAt: Self.now))
+        await model.requestFinish(force: true)
+        XCTAssertEqual(model.weightContext.unit, .kg)
+    }
+
     /// The #422 metadata through the model: a warm-up toggle and a rating
     /// are edits like any other — one debounced save carries both — and the
     /// rating settles when its field is left.

@@ -309,6 +309,10 @@ final class FixtureContractTests: XCTestCase {
         // W6: the seeded user has no model pick, so the label is the default's.
         XCTAssertNil(profile.coachModel)
         XCTAssertEqual(profile.coachModelLabel, "Opus 5.5")
+        // phase55: the seeded user weighs in pounds with no body weight set.
+        XCTAssertEqual(profile.weightUnit, "lb")
+        XCTAssertNil(profile.bodyWeightLb)
+        XCTAssertEqual(profile.weightContext, .default)
         // phase58: the seeded user has never had a client write a zone.
         XCTAssertNil(profile.timezone)
     }

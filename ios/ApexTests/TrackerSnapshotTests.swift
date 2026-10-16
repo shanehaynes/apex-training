@@ -220,6 +220,25 @@ final class TrackerSnapshotTests: XCTestCase {
         snapshot(TrackerPreviews.summary(model: model, summary: unavailable), named: "summary-coach-unavailable")
     }
 
+    /// The volume line under the title (`sessionTonnage`): 120 × 3 + 115 × 3
+    /// working, with set 2's warm-up of 95 × 5 kept out — "Volume 705".
+    @MainActor
+    func testSummaryVolume() async throws {
+        let (model, _) = await model()
+        let press = { SetKey(section: "exercise", exerciseId: "fx-press", setNumber: $0) }
+        model.setValue("120 lb", .weight, at: press(1))
+        model.setValue("3", .reps, at: press(1))
+        model.setValue("115 lb", .weight, at: press(2))
+        model.setValue("3", .reps, at: press(2))
+        model.addSet(section: "exercise", exerciseId: "fx-press")
+        model.setValue("95 lb", .weight, at: press(3))
+        model.setValue("5", .reps, at: press(3))
+        model.setWarmup(true, at: press(3))
+        XCTAssertEqual(model.sessionVolume, 705)
+        await model.requestFinish(force: true)
+        snapshot(TrackerScreen(model: model, onClose: {}), named: "summary-volume")
+    }
+
     /// Planned · shadow · logged · extra · a cardio card with one ghost, plus a
     /// pending-sync strip once an edit is queued offline.
     @MainActor
