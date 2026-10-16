@@ -394,6 +394,32 @@ final class TrackerModelTests: XCTestCase {
         XCTAssertTrue(model.sync.isIdle)
     }
 
+    /// The summary's volume reads the profile the Schedule tab cached: a
+    /// 120 lb × 3 is 360 to a pounds lifter and 163 to a kg one.
+    @MainActor
+    func testTheVolumeReadsInTheCachedProfilesUnit() async throws {
+        let press1 = SetKey(section: "exercise", exerciseId: "fx-press", setNumber: 1)
+        let (pounds, _) = make(healthy())
+        await pounds.open()
+        XCTAssertNil(pounds.sessionVolume, "nothing logged yet")
+        pounds.setValue("120 lb", .weight, at: press1)
+        pounds.setValue("3", .reps, at: press1)
+        XCTAssertEqual(pounds.weightContext, .default, "nothing cached: pounds")
+        XCTAssertEqual(pounds.sessionVolume, 360)
+
+        let cache = MemoryCacheStore()
+        let profile = ProfileResponse(hasAnthropicKey: false, anthropicKeyLast4: nil, termsAccepted: nil, termsCurrent: true,
+                                      weightUnit: "kg", bodyWeightLb: 180)
+        try await cache.write(CacheEntry(kind: .profile, key: ScheduleCacheKey.profile,
+                                         json: JSONEncoder().encode(profile), fetchedAt: Self.now))
+        let (kilos, _) = make(healthy(), cache: cache)
+        await kilos.open()
+        kilos.setValue("120 lb", .weight, at: press1)
+        kilos.setValue("3", .reps, at: press1)
+        XCTAssertEqual(kilos.weightContext, Weight.Context(unit: .kg, bodyWeightLb: 180))
+        XCTAssertEqual(kilos.sessionVolume, 163, "360 lb is 163.3 kg")
+    }
+
     /// D-015: the first non-empty reps of a row starts the exercise's rest, the
     /// island gets the same end, a second keystroke on the row is not a second
     /// set, +15 s and skip move it, and a rest that ran out while the tracker

@@ -103,6 +103,10 @@ public final class TrackerModel {
 
     /// `.sensoryFeedback` triggers (design-spec §9): bump, never reset.
     public private(set) var loggedSetCount = 0
+    /// How this athlete's weights read (the profile's unit and body weight),
+    /// for the summary's volume. From the profile the Schedule tab caches, so
+    /// an offline finish reads it too; pounds when nothing is cached yet.
+    public private(set) var weightContext: Weight.Context = .default
     public private(set) var prCount = 0
     public private(set) var confirmCount = 0
     public private(set) var completedCount = 0
@@ -144,8 +148,19 @@ public final class TrackerModel {
     /// Cache → render → replay the queue → flush → network → refresh what is
     /// not ahead locally. On `.network` with a cached peek and no session, this
     /// is the offline start: stamp now, queue `start`, and remember it.
+    private func loadWeightContext() async {
+        guard let entry = try? await services.cache.read(kind: .profile, key: ScheduleCacheKey.profile),
+              let profile = try? JSONDecoder().decode(ProfileResponse.self, from: entry.json) else { return }
+        weightContext = profile.weightContext
+    }
+
+    /// Σ weight × reps over this session's working sets, in the profile's
+    /// unit — the summary's volume line (`sessionTonnage`).
+    public var sessionVolume: Int? { Weight.sessionTonnage(editor.groups, weightContext) }
+
     public func open() async {
         isPresented = true
+        await loadWeightContext()
         let cached = await readCachedBootstrap()
         if let cached { apply(cached) }
         await replayQueue()
