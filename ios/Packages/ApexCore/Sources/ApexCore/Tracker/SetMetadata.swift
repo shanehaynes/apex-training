@@ -8,9 +8,12 @@ public enum SetMetadata {
     public static let rpeRange: ClosedRange<Double> = 1...10
 
     /// `parseRpe`: a number in 1–10, rounded to the nearest half; anything
-    /// else (blank, out of range, not a number) is no rating.
+    /// else (blank, out of range, not a number) is no rating. A decimal comma
+    /// is read as a point — the keypad types "7,5" in comma locales — which
+    /// the web's `Number()` does not do.
     public static func parseRpe(_ text: String?) -> Double? {
-        guard let trimmed = text?.trimmingCharacters(in: .whitespaces), !trimmed.isEmpty,
+        guard let trimmed = text?.trimmingCharacters(in: .whitespacesAndNewlines)
+                .replacingOccurrences(of: ",", with: "."), !trimmed.isEmpty,
               let n = Double(trimmed), n.isFinite, rpeRange.contains(n) else { return nil }
         return (n * 2).rounded() / 2
     }

@@ -483,6 +483,7 @@ final class TrackerEditorTests: XCTestCase {
         XCTAssertEqual(SetMetadata.parseRpe("7.2"), 7)
         XCTAssertEqual(SetMetadata.parseRpe("1"), 1)
         XCTAssertEqual(SetMetadata.parseRpe("10"), 10)
+        XCTAssertEqual(SetMetadata.parseRpe("7,5"), 7.5, "a comma locale's keypad")
         for bad in ["", "  ", "0", "0.5", "10.5", "11", "-3", "hard", "inf", nil] as [String?] {
             XCTAssertNil(SetMetadata.parseRpe(bad), "\(String(describing: bad))")
         }
@@ -597,6 +598,21 @@ final class TrackerEditorTests: XCTestCase {
         XCTAssertEqual(fresh.set(at: bench1)?.rpe, "6.5")
         XCTAssertEqual(fresh.set(at: pitch1)?.ascentStyle, "flash")
         XCTAssertEqual(fresh.set(at: pitch1)?.attempts, "1")
+    }
+
+    func testAReplayedPitchRowForAnUnseenAddedExerciseComesBackAsAPitch() throws {
+        var editor = handBuilt()
+        let row = SetLogRow(
+            eventId: "eid", eventDate: "2026-07-06", section: "exercise", exerciseId: "added-1", exerciseName: "Extra Pitch",
+            setNumber: 1, actualWeight: "5.9", isPitch: true, ascentStyle: "flash", attempts: 1
+        )
+        editor.apply(SavePayload(setLogs: [row]))
+        let tracked = try XCTUnwrap(editor.exercise(section: "exercise", id: "added-1"))
+        XCTAssertEqual(tracked.exercise.category, "climbing")
+        let key = SetKey(section: "exercise", exerciseId: "added-1", setNumber: 1)
+        XCTAssertEqual(editor.set(at: key)?.ascentStyle, "flash")
+        let resent = TrackerEditor.setToRow(session: editor.session, tracked: tracked, set: try XCTUnwrap(editor.set(at: key)))
+        XCTAssertTrue(try wire(resent).contains(#""ascent_style":"flash""#))
     }
 
     func testARowQueuedBeforeTheMetadataStillDecodes() throws {

@@ -140,11 +140,11 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
 ## Recent sessions
 - 2026-10-16 · Tracker set metadata · Mac. The phone edits what the web's #422 tracker does
   (D-058): the set number is the warm-up toggle (a W), an RPE field per set behind You → Training's
-  "Rate sets by effort" (device preference under the web's `apex.tracker.rpe` key), and a pitch's
-  ascent style and attempts on a second line. `SetLogRow` sends `rpe`/`is_warmup` on every row and
+  "Rate sets by effort" (device preference under the web's `apex.tracker.rpe` key) and a pitch's
+  ascent style and attempts, each on a line under the row. `SetLogRow` sends `rpe`/`is_warmup` on every row and
   `ascent_style`/`attempts` on a pitch's only (`setToRow`'s keys); zero-fills reset them; a queued
-  row replays them. The summary tags warm-ups and ratings. Tracker snapshots re-recorded (the
-  stale ones included) plus `tracker-metadata`. Next up: session volume on the summary.
+  row replays them. The summary tags warm-ups and ratings. Tracker and You snapshots re-recorded
+  (the stale ones included) plus `tracker-metadata` at 393 and 375. Next up: session volume on the summary.
 - 2026-10-15 · Profile time zone · Mac. The app writes `TimeZone.current` to `profiles.timezone`
   (phase58, #449) after sign-in, on every foreground and after accepting updated terms, when it
   differs from what `GET /api/profile` reports (D-057). `ProfileResponse.timezone`,

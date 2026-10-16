@@ -168,6 +168,8 @@ final class TrackerSnapshotTests: XCTestCase {
         model.stepAttempts(by: 1, at: pitch)
         model.stepAttempts(by: 1, at: pitch)
         snapshot(TrackerScreen(model: model, onClose: {}), named: "tracker-metadata", size: CGSize(width: 393, height: 2200))
+        // The narrowest phone iOS 17 runs on: the rating's own line keeps every row inside its card.
+        snapshot(TrackerScreen(model: model, onClose: {}), named: "tracker-metadata-375", size: CGSize(width: 375, height: 2200))
     }
 
     @MainActor

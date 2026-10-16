@@ -1197,8 +1197,12 @@ same rows (`setToRow`'s keys byte for byte: `rpe` and `is_warmup` on every row, 
 - **RPE is a device preference**, not a profile column — the web keeps it in localStorage — under
   the same key (`apex.tracker.rpe`) in UserDefaults, switched in You → Training. The field is in
   the keyboard's Next order after its set's fields, and settles on leaving it (`normalizeRpeText`).
-- **A pitch's ascent goes on a second line** under the grade: a style menu and an attempts
-  stepper do not fit beside it on a phone. A boulder offers no "Followed".
+  Unlike the web, a decimal comma is read as a point — a comma locale's keypad types "7,5".
+- **The set's metadata goes on lines of its own** under the row: the rating ("RPE [ ]"), and for
+  a pitch the style menu and attempts stepper. A 48pt rating beside weight and reps overflowed
+  375–390pt phones and clipped any three-field row; the style menu and stepper do not fit beside
+  a grade either. A boulder offers no "Followed". The warm-up toggle draws 22pt wide and takes
+  taps across 44.
 - **The summary has no volume line.** The web's "Volume" sums performed sets through its weight
   parser; iOS has no port of that parser, so the brief's "warm-up excluded from the summary
   volume" has nothing to apply to here. The summary tags warm-ups and ratings instead, and the

@@ -431,7 +431,7 @@ public struct TrackerEditor: Sendable, Equatable {
         for row in payload.setLogs {
             if locate(section: row.section, exerciseId: row.exerciseId) == nil, Self.isAddedExerciseId(row.exerciseId) {
                 insertAdded(section: row.section, exerciseId: row.exerciseId, name: row.exerciseName,
-                            definitionId: row.definitionId, isCardio: false)
+                            definitionId: row.definitionId, isCardio: false, isPitch: row.isPitch)
             }
             guard let (g, e) = locate(section: row.section, exerciseId: row.exerciseId) else { continue }
             if let s = groups[g].exercises[e].sets.firstIndex(where: { $0.setNumber == row.setNumber }) {
@@ -463,7 +463,7 @@ public struct TrackerEditor: Sendable, Equatable {
         for row in payload.cardioLogs {
             if locate(section: row.section, exerciseId: row.exerciseId) == nil, Self.isAddedExerciseId(row.exerciseId) {
                 insertAdded(section: row.section, exerciseId: row.exerciseId, name: row.exerciseName,
-                            definitionId: row.definitionId, isCardio: true)
+                            definitionId: row.definitionId, isCardio: true, isPitch: false)
             }
             guard let (g, e) = locate(section: row.section, exerciseId: row.exerciseId),
                   groups[g].exercises[e].cardio != nil else { continue }
@@ -489,10 +489,15 @@ public struct TrackerEditor: Sendable, Equatable {
 
     /// A queued row for an added exercise the cached model has not seen yet —
     /// the shape the server rebuilds it in once the save lands.
-    private mutating func insertAdded(section: String, exerciseId: String, name: String, definitionId: String?, isCardio: Bool) {
+    /// A row that names pitch columns is a pitch's, so the entry comes back as
+    /// climbing — what the server rebuilds it as (plan.ts).
+    private mutating func insertAdded(
+        section: String, exerciseId: String, name: String, definitionId: String?, isCardio: Bool, isPitch: Bool
+    ) {
+        let category = isCardio ? "cardio" : isPitch ? "climbing" : "strength"
         let tracked = TrackedExercise(
             section: section,
-            exercise: Exercise(id: exerciseId, name: name, category: isCardio ? "cardio" : "strength", definitionId: definitionId),
+            exercise: Exercise(id: exerciseId, name: name, category: category, definitionId: definitionId),
             isCardio: isCardio, sets: [], cardio: isCardio ? CardioLog() : nil, isAdded: true
         )
         insert(tracked, sectionLabel: Self.defaultLabels[section] ?? section)
