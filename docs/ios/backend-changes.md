@@ -483,6 +483,15 @@ Live Activity push token (hex, upsert on the token; sweeps the user's rows older
 `live-activity-end.json` is written by `api/__tests__/live-activity.test.ts`, not the integration
 emitter.
 
+### `profiles.timezone`: `GET /api/profile` → `timezone`, `PATCH { timezone }` (D-057, phase58, #449)
+`GET` returns `timezone: string | null` — the stored IANA zone, null when unset or before the
+column exists (fixture `profile.json` carries `"timezone": null`). `PATCH { timezone }` takes a
+name the server's Intl accepts (400 otherwise), `null` clears it, and a database without the
+column answers 409 `column-missing`. The server computes "today" in it wherever no client sends
+one (MCP fallbacks, the nightly reflection, the starter-plan copy, the provider cron's
+fallback). The app writes `TimeZone.current` after sign-in, on foreground and after accepting
+terms (`AppModel.syncTimezone`).
+
 ## W16 — Apple Health (planned, D-056)
 Full contracts in [workstreams/W16-apple-health.md](workstreams/W16-apple-health.md); landing
 order M0 → M2b → M3b. Nothing here has landed yet. The privacy-version bump that comes with
