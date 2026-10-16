@@ -10,8 +10,9 @@ import type { NameDateRow } from './stats';
 // history it could not load.
 
 // Per-table bound on one exercise's history fetch. No reason was recorded when
-// it landed (519f5707); PostgREST's max_rows (1000, supabase/config.toml) caps
-// each response below it anyway.
+// it landed (519f5707). PostgREST's max_rows (1000 locally in
+// supabase/config.toml, and Supabase's hosted default) truncates each response
+// below it, so history past the newest 1000 rows is silently dropped.
 const HISTORY_ROW_CAP = 2000;
 
 /**
