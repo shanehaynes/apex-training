@@ -141,6 +141,14 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
    (`printf` the two ids back after a tidy) — both git-ignored, so never from the primary checkout.
 
 ## Recent sessions
+- 2026-10-15 · Write-queue store failures · Mac. `WriteQueue.drain` no longer discards its six
+  store writes with `try?`: a failed write stops the drain, emits the new `QueueEvent.storeFailed`
+  (not `failed` — nothing was refused, so no refusal UI fires) and retries the session after a
+  backoff. The attempt it could not record is carried in memory, so the backoff doubles and
+  `maxAttempts` still arrives while the store is down. Before, a store that kept failing handed the
+  same op straight back and re-sent it in a loop; two of the four new `WriteQueueStoreFailureTests`
+  hang the old code. ApexCore 553/553 on macOS and Linux. The app does not surface `storeFailed` yet (the pending-sync chip stays up); the
+  user-action paths still use `try?` (docs/improvements/04-clean-code/ios-core.md).
 - 2026-10-14 · Tracker field parity · Mac. ApexCore decodes what the bootstrap already carried: set
   metadata (`resolvedPlannedWeight`, `rpe`, `isWarmup`, `ascentStyle`, `attempts`), every PR kind's
   fields (counts as Double: a fractional rep no longer fails the response) and the score record's

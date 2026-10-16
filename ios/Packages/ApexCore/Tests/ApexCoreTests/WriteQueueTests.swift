@@ -1202,3 +1202,158 @@ final class WriteQueueTests: XCTestCase {
         XCTAssertEqual(TrackerOpPayload.meal(edit).action.rawValue, "meal")
     }
 }
+
+/// A queue store whose writes fail on demand — a full disk, a locked SQLite
+/// file. Reads always work, so the queue keeps seeing the op it could not
+/// update.
+actor FailingWritesStore: WriteQueueStore {
+    let inner = MemoryWriteQueueStore()
+    var failUpdates = false
+    var failDeletes = false
+    private(set) var failedWrites = 0
+
+    struct StoreDown: Error {}
+
+    func setFailing(updates: Bool, deletes: Bool) {
+        failUpdates = updates
+        failDeletes = deletes
+    }
+
+    func append(_ op: TrackerOp) async throws -> Int64 { try await inner.append(op) }
+    func update(_ op: TrackerOp) async throws {
+        if failUpdates { failedWrites += 1; throw StoreDown() }
+        try await inner.update(op)
+    }
+    func delete(id: Int64) async throws {
+        if failDeletes { failedWrites += 1; throw StoreDown() }
+        try await inner.delete(id: id)
+    }
+    func tail(for session: SessionKey) async throws -> TrackerOp? { try await inner.tail(for: session) }
+    func nextPending(for session: SessionKey) async throws -> TrackerOp? { try await inner.nextPending(for: session) }
+    func ops(for session: SessionKey) async throws -> [TrackerOp] { try await inner.ops(for: session) }
+    func sessionsWithPending() async throws -> [SessionKey] { try await inner.sessionsWithPending() }
+    func purge(session: SessionKey) async throws { try await inner.purge(session: session) }
+    func purgeAll() async throws { try await inner.purgeAll() }
+}
+
+/// A store write that fails mid-drain stops the drain, emits `storeFailed`, and waits a
+/// backoff — it used to be discarded with `try?`, which handed the same op
+/// straight back and re-sent it in a loop.
+final class WriteQueueStoreFailureTests: XCTestCase {
+    private let session = fixtureSession
+
+    private func save() -> TrackerOpPayload {
+        .save(SavePayload(setLogs: [setRow(1, weight: "100")], removedSets: []))
+    }
+
+    func testAFailedDeleteAfterASendStopsTheDrainAndBacksOff() async throws {
+        let transport = ScriptedTransport([.ok()])
+        let store = FailingWritesStore()
+        let clock = HeldClock()
+        let queue = WriteQueue(store: store, client: makeClient(transport), clock: clock)
+        let recorder = EventRecorder()
+        await recorder.start(await queue.subscribe())
+        try await queue.enqueue(save(), for: session)
+        await store.setFailing(updates: false, deletes: true)
+
+        await queue.flush(session)
+
+        let sent = await transport.requests.count
+        XCTAssertEqual(sent, 1, "one send, not a loop re-sending the op its failed delete left behind")
+        let expected = QueueEvent.storeFailed(session)
+        let events = await recorder.waitFor { $0.contains(expected) }
+        XCTAssertTrue(events.contains(expected))
+
+        // The store recovers: the retry re-sends once and clears the row.
+        await store.setFailing(updates: false, deletes: false)
+        clock.open()
+        await queue.awaitRetries()
+        let resent = await transport.requests.count
+        XCTAssertEqual(resent, 2)
+        let left = await store.inner.all.count
+        XCTAssertEqual(left, 0)
+        XCTAssertEqual(clock.sleeps.count, 1, "exactly one backoff before the re-send")
+        await recorder.stop()
+    }
+
+    func testAFailedUpdateOnARefusalDoesNotResendInALoop() async throws {
+        let transport = ScriptedTransport([.status(400, body: "Invalid setLogs")])
+        let store = FailingWritesStore()
+        let clock = HeldClock()
+        let queue = WriteQueue(store: store, client: makeClient(transport), clock: clock)
+        try await queue.enqueue(save(), for: session)
+        await store.setFailing(updates: true, deletes: false)
+
+        await queue.flush(session)
+
+        let sent = await transport.requests.count
+        XCTAssertEqual(sent, 1)
+        let failedWrites = await store.failedWrites
+        XCTAssertEqual(failedWrites, 1)
+
+        // Recovered, the retry re-sends once and records the refusal.
+        await store.setFailing(updates: false, deletes: false)
+        clock.open()
+        await queue.awaitRetries()
+        let resent = await transport.requests.count
+        XCTAssertEqual(resent, 2)
+        XCTAssertEqual(clock.sleeps.count, 1)
+        let kept = await store.inner.all
+        XCTAssertEqual(kept.map(\.state), [.failed])
+    }
+
+    func testAFailedUpdateOnTheTimestampStripStopsTheDrainAndRetriesTheStampedOp() async throws {
+        let transport = ScriptedTransport([.status(400, body: "startedAt must be an ISO timestamp within the last 7 days"), .ok()])
+        let store = FailingWritesStore()
+        let clock = HeldClock()
+        let queue = WriteQueue(store: store, client: makeClient(transport), clock: clock)
+        try await queue.enqueue(.start(startedAt: "2026-08-01T00:00:00.000Z"), for: session)
+        await store.setFailing(updates: true, deletes: false)
+
+        await queue.flush(session)
+
+        let sent = await transport.requests.count
+        XCTAssertEqual(sent, 1, "the stamped op is not re-sent in a loop")
+
+        await store.setFailing(updates: false, deletes: false)
+        clock.open()
+        await queue.awaitRetries()
+        let requests = await transport.requests
+        XCTAssertEqual(requests.map(\.action), ["start", "start"])
+        // The strip was never stored, so the retry sends the stamped original.
+        XCTAssertEqual(requests[1].body?["startedAt"] as? String, "2026-08-01T00:00:00.000Z")
+        let left = await store.inner.all.count
+        XCTAssertEqual(left, 0)
+    }
+
+    func testWhileTheStoreStaysDownTheBackoffGrowsAndTheOpGivesUp() async throws {
+        // Every send fails on the network; every write fails on the device.
+        let transport = ScriptedTransport([.throwNetwork])
+        let store = FailingWritesStore()
+        let clock = HeldClock()
+        let policy = RetryPolicy(baseDelay: 1, maxDelay: 300, maxAttempts: 2)
+        let queue = WriteQueue(store: store, client: makeClient(transport), clock: clock, policy: policy)
+        try await queue.enqueue(save(), for: session)
+        await store.setFailing(updates: true, deletes: true)
+
+        await queue.flush(session)
+        // Each held retry is let through one at a time; the count rides in
+        // memory, so the waits grow and the policy's ceiling still arrives.
+        for _ in 0..<4 {
+            while clock.heldSleeps == 0 { await Task.yield() }
+            clock.releaseHeld()
+        }
+        while clock.heldSleeps == 0 { await Task.yield() }
+        XCTAssertEqual(clock.sleeps, [2, 4, 8, 16, 32], "one backoff per store failure, doubling")
+        let sent = await transport.requests.count
+        XCTAssertEqual(sent, 5)
+
+        // The store recovers: the op is recorded as given up, not retried forever.
+        await store.setFailing(updates: false, deletes: false)
+        clock.open()
+        await queue.awaitRetries()
+        let ops = await store.inner.all
+        XCTAssertEqual(ops.map(\.state), [.failed])
+        XCTAssertEqual(ops.first?.gaveUp, true)
+    }
+}

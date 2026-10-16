@@ -51,7 +51,7 @@ source when this log was assembled. These want a `fix/` lane, not a refactor bac
 5. **The iOS write queue discards store failures.** `WriteQueue.swift` uses `try?` on fourteen store
    calls (e.g. `:187`–`:258`); a failed `update` means an op never reaches its retry limit, and at
    `:222` a store that keeps failing hands the same op back, tight-looping the drain.
-   → [ios-core](ios-core.md)
+   → [ios-core](ios-core.md) **Drain fixed in #455; the user-action paths still use `try?`.**
 6. **A failed query reads as "no history".** `library/repo.ts:23` ignores the Supabase error;
    `tracking/sessionRepo.ts:86` turns any load failure into an offline session.
    → [web-lib-domain](web-lib-domain.md)

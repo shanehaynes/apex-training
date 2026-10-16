@@ -11,6 +11,11 @@ public enum QueueEvent: Sendable, Equatable {
     /// degraded paths), it just has nothing to show.
     case finished(SessionKey, FinishResponse?)
     case failed(SessionKey, TrackerAction, String)
+    /// This device could not write the queue itself (a full disk, a locked
+    /// SQLite file) after a send. Not `failed`: the server neither refused
+    /// nor gave up on anything, so no refusal UI applies. The op stays
+    /// pending and the session is retried after a backoff.
+    case storeFailed(SessionKey)
     case paused
     case resumed
 }
@@ -77,6 +82,12 @@ public actor WriteQueue {
     /// being called off. What `awaitRetries` waits for.
     private var retryTasks: [UUID: Task<Void, Never>] = [:]
     private var subscribers: [UUID: AsyncStream<QueueEvent>.Continuation] = [:]
+    /// Attempts that ended in a failed store write, by op id. They could not
+    /// be persisted (the write that failed was the one recording them), so
+    /// they are carried here and added to the row's count: the backoff still
+    /// grows and `RetryPolicy.maxAttempts` still arrives while the store is
+    /// down. Cleared by the op's next successful write.
+    private var storeFailures: [Int64: Int] = [:]
 
     public init(
         store: any WriteQueueStore, client: ApexClient,
@@ -167,7 +178,8 @@ public actor WriteQueue {
     private func drain(_ session: SessionKey) async {
         while !isPaused {
             if let gate = notBefore[session], gate > clock.now { return }
-            guard let op = await next(in: session) else { return }
+            guard var op = await next(in: session) else { return }
+            op.attempts += storeFailures[op.id, default: 0]
 
             inFlight[op.id] = session
             let resumesBefore = resumes
@@ -184,7 +196,7 @@ public actor WriteQueue {
             if cancelledMidFlight.remove(session) != nil {
                 // Purged while this was in the air: its row is gone and its result
                 // is moot. The cancel that follows is what matters now.
-                try? await store.delete(id: op.id)
+                guard await record({ try await self.store.delete(id: op.id) }, for: op, in: session) else { return }
                 continue
             }
 
@@ -200,12 +212,12 @@ public actor WriteQueue {
                     next.attempts += 1
                     next.lastError = message
                     next.state = .failed
-                    try? await store.update(next)
+                    guard await record({ try await self.store.update(next) }, for: op, in: session) else { return }
                     emit(.failed(session, op.payload.action, message))
                     emit(.changed(session))
                     continue
                 }
-                try? await store.delete(id: op.id)
+                guard await record({ try await self.store.delete(id: op.id) }, for: op, in: session) else { return }
                 if case .finish = op.payload {
                     emit(.finished(session, try? JSONDecoder().decode(FinishResponse.self, from: data)))
                 }
@@ -219,7 +231,7 @@ public actor WriteQueue {
                     next.payload = stripped
                     next.attempts += 1
                     next.lastError = error.description
-                    try? await store.update(next)
+                    guard await record({ try await self.store.update(next) }, for: op, in: session) else { return }
                     continue
                 }
                 switch verdict(for: error, op: op, in: session) {
@@ -227,7 +239,7 @@ public actor WriteQueue {
                     var next = op
                     next.attempts += 1
                     next.lastError = error.description
-                    try? await store.update(next)
+                    guard await record({ try await self.store.update(next) }, for: op, in: session) else { return }
                     if session == .outbox, resumes != resumesBefore {
                         // The network came back while this was in the air.
                         continue
@@ -255,7 +267,7 @@ public actor WriteQueue {
                     // take: the op waits like any give-up, but the cap is no
                     // reason to offer letting it go.
                     if next.gaveUp, !RetryPolicy.isRateLimited(error) { next.giveUpCount += 1 }
-                    try? await store.update(next)
+                    guard await record({ try await self.store.update(next) }, for: op, in: session) else { return }
                     if !next.gaveUp, case .completion(let row, _) = op.payload {
                         // The plan-fill queued behind a completion the server
                         // refused would log a session for an occurrence it did
@@ -266,6 +278,34 @@ public actor WriteQueue {
                     emit(.changed(session))
                 }
             }
+        }
+    }
+
+    /// A store write the drain cannot go on without. When it fails, the op's
+    /// row still reads as it did before the send, so draining on would hand
+    /// the same op straight back: re-sent at once, and in a tight loop for as
+    /// long as the store stays broken, with an attempt count that never
+    /// reaches `RetryPolicy.maxAttempts`. So the drain stops instead: it emits
+    /// `storeFailed`, counts the attempt in `storeFailures`, and tries the
+    /// session again after a backoff that grows with that count.
+    /// An op that landed but could not be deleted is sent again on that retry,
+    /// as it always was — only now once per backoff, not in a loop.
+    private func record(
+        _ write: () async throws -> Void, for op: TrackerOp, in session: SessionKey
+    ) async -> Bool {
+        do {
+            try await write()
+            storeFailures[op.id] = nil
+            return true
+        } catch {
+            storeFailures[op.id, default: 0] += 1
+            emit(.storeFailed(session))
+            emit(.changed(session))
+            // A gate set here may outlast a `resume()` or a `cancelSession`
+            // that landed during the write: the outbox or the cancel then
+            // waits one backoff. Only while the store is failing.
+            scheduleRetry(session, after: policy.backoff(attempts: op.attempts + 1))
+            return false
         }
     }
 
