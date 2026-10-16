@@ -1,6 +1,5 @@
 import { ApiError, authHeaders, postJson } from '../api';
 import { supabase } from '../supabaseClient';
-import { notify } from '../notify';
 import { createWireCollector } from '../coach/wire';
 import type { CardioLogRow, SetLogRow, TrackedSection, WorkoutSessionRow } from '../db/types';
 import type { WorkoutEvent } from '../../types/workout';
@@ -101,11 +100,6 @@ export interface SaveLogsOptions {
    * (64 KiB) and a batch is far smaller than that.
    */
   keepalive?: boolean;
-  /** No failure toast (still the console.warn): retries of a streak that
-   *  already toasted once — the Unsaved bar carries the state after that.
-   *  A refusal (4xx other than 408/429) or an auth failure (401/403) never
-   *  toasts here: the hook shows its own message once instead. */
-  quiet?: boolean;
 }
 
 /**
@@ -138,7 +132,8 @@ export function parseRetryAfterMs(header: string | null): number | undefined {
 /**
  * Idempotent upsert of everything the user touched since the last flush.
  * Rejects with an AutosaveError on failure — the save queue keeps the keys
- * dirty and retries. Its own fetch rather than postJson: the queue needs
+ * dirty and retries. It never toasts: whether a failure is worth telling the
+ * user about is the save queue's call (useWorkoutSession), not the transport's. Its own fetch rather than postJson: the queue needs
  * `keepalive` and the 429's Retry-After, which the shared transport does
  * not expose.
  */
@@ -167,14 +162,11 @@ export async function saveLogs(
     });
   } catch (err) {
     console.warn(`[apex] ${label} failed:`, err);
-    if (!opts.quiet) notify(`${label} failed`);
     throw new AutosaveError(`${label} failed`, null);
   }
   if (!res.ok) {
     const detail = await res.text().catch(() => '');
     console.warn(`[apex] ${label} failed (${res.status}):`, detail);
-    const ownMessage = res.status >= 400 && res.status <= 499 && res.status !== 408 && res.status !== 429;
-    if (!opts.quiet && !ownMessage) notify(`${label} failed`);
     throw new AutosaveError(
       detail || `${label} failed`,
       res.status,
