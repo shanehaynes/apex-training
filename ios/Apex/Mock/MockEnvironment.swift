@@ -288,7 +288,7 @@ actor FixtureTransport: HTTPTransport {
                     if !skippedRows.contains(id) { skippedRows.append(id) }
                 }
                 if let id = body?["setup_unskip"] as? String { skippedRows.removeAll { $0 == id } }
-                for key in ["display_name", "avatar_key", "coach_goal", "coach_context", "coach_model", "max_hr", "threshold_hr"] {
+                for key in ["display_name", "avatar_key", "coach_goal", "coach_context", "coach_model", "max_hr", "threshold_hr", "timezone"] {
                     if let value = body?[key] { profileEdits[key] = value }
                 }
                 return ok(Data(#"{"ok":true,"hasAnthropicKey":\(hasKey),"anthropicKeyLast4":\(hasKey ? "\"mock\"" : "null")}"#.utf8))

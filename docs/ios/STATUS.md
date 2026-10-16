@@ -141,6 +141,11 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
    (`printf` the two ids back after a tidy) — both git-ignored, so never from the primary checkout.
 
 ## Recent sessions
+- 2026-10-15 · Profile time zone · Mac. The app writes `TimeZone.current` to `profiles.timezone`
+  (phase58, #449) after sign-in, on every foreground and after accepting updated terms, when it
+  differs from what `GET /api/profile` reports (D-057). `ProfileResponse.timezone`,
+  `Endpoint.setTimezone`, `timezoneToSend(device:)` in ApexCore; `AppModel.syncTimezone()`;
+  the mock replays the PATCH. `TimezoneSyncTests` (3) and ApexCore tests. Next up unchanged.
 - 2026-10-14 · Tracker field parity · Mac. ApexCore decodes what the bootstrap already carried: set
   metadata (`resolvedPlannedWeight`, `rpe`, `isWarmup`, `ascentStyle`, `attempts`), every PR kind's
   fields (counts as Double: a fractional rep no longer fails the response) and the score record's
