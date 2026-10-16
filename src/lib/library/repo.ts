@@ -56,24 +56,31 @@ export async function fetchExerciseHistory(
 ): Promise<{ setRows: SetLogRow[]; cardioRows: CardioLogRow[] }> {
   const db = supabase;
   if (!db || spellings.length === 0) return { setRows: [], cardioRows: [] };
-  // `id` breaks event_date ties so the pages are a total order: without it a
-  // set could sit on two pages, or on neither.
+  // Ordered by each table's unique key, ascending — the server readers'
+  // order. A total order keeps a row from landing on two pages or on none,
+  // it lists a session's sets as logged (stats keeps row order within a
+  // date), and a set logged mid-drain sorts after the pages already read.
   const [setRows, cardioRows] = await Promise.all([
     fetchAllRows('set history', (from, to) =>
       db
         .from('workout_set_logs')
         .select('*')
         .in('exercise_name', spellings)
-        .order('event_date', { ascending: false })
-        .order('id')
+        .order('event_date')
+        .order('event_id')
+        .order('section')
+        .order('exercise_id')
+        .order('set_number')
         .range(from, to)),
     fetchAllRows('cardio history', (from, to) =>
       db
         .from('workout_cardio_logs')
         .select('*')
         .in('exercise_name', spellings)
-        .order('event_date', { ascending: false })
-        .order('id')
+        .order('event_date')
+        .order('event_id')
+        .order('section')
+        .order('exercise_id')
         .range(from, to)),
   ]);
   return { setRows: setRows as SetLogRow[], cardioRows: cardioRows as CardioLogRow[] };
