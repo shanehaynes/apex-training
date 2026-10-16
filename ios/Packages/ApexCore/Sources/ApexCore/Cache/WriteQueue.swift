@@ -82,6 +82,12 @@ public actor WriteQueue {
     /// being called off. What `awaitRetries` waits for.
     private var retryTasks: [UUID: Task<Void, Never>] = [:]
     private var subscribers: [UUID: AsyncStream<QueueEvent>.Continuation] = [:]
+    /// Attempts that ended in a failed store write, by op id. They could not
+    /// be persisted (the write that failed was the one recording them), so
+    /// they are carried here and added to the row's count: the backoff still
+    /// grows and `RetryPolicy.maxAttempts` still arrives while the store is
+    /// down. Cleared by the op's next successful write.
+    private var storeFailures: [Int64: Int] = [:]
 
     public init(
         store: any WriteQueueStore, client: ApexClient,
@@ -172,7 +178,8 @@ public actor WriteQueue {
     private func drain(_ session: SessionKey) async {
         while !isPaused {
             if let gate = notBefore[session], gate > clock.now { return }
-            guard let op = await next(in: session) else { return }
+            guard var op = await next(in: session) else { return }
+            op.attempts += storeFailures[op.id, default: 0]
 
             inFlight[op.id] = session
             let resumesBefore = resumes
@@ -277,9 +284,10 @@ public actor WriteQueue {
     /// A store write the drain cannot go on without. When it fails, the op's
     /// row still reads as it did before the send, so draining on would hand
     /// the same op straight back: re-sent at once, and in a tight loop for as
-    /// long as the store stays broken — and a failed attempt count never
+    /// long as the store stays broken, with an attempt count that never
     /// reaches `RetryPolicy.maxAttempts`. So the drain stops instead: it emits
-    /// `storeFailed`, and the session is tried again after a backoff.
+    /// `storeFailed`, counts the attempt in `storeFailures`, and tries the
+    /// session again after a backoff that grows with that count.
     /// An op that landed but could not be deleted is sent again on that retry,
     /// as it always was — only now once per backoff, not in a loop.
     private func record(
@@ -287,10 +295,15 @@ public actor WriteQueue {
     ) async -> Bool {
         do {
             try await write()
+            storeFailures[op.id] = nil
             return true
         } catch {
+            storeFailures[op.id, default: 0] += 1
             emit(.storeFailed(session))
             emit(.changed(session))
+            // A gate set here may outlast a `resume()` or a `cancelSession`
+            // that landed during the write: the outbox or the cancel then
+            // waits one backoff. Only while the store is failing.
             scheduleRetry(session, after: policy.backoff(attempts: op.attempts + 1))
             return false
         }
