@@ -2,7 +2,7 @@
 
 **Machine:** both (M0, M2b, M3b Linux · M1, MT, M2i, M3i, M4 Mac) · **Depends on:** W4, W11, W12;
 1.0 App Review approval before M1 merges · **Unblocks:** Apple Watch companion (later)
-**Status:** not started — brief drafted 2026-10-14 (D-056 supersedes D-018)
+**Status:** in progress — M1 (#430) and MT (#438) shipped in 1.1.0 (561); M0 (`phase59_apple_health.sql`) in review, HELD for its production paste; M2b next. Brief drafted 2026-10-14 (D-056 supersedes D-018)
 
 ## Goal
 Apex is a citizen of the Apple Health ecosystem: a workout finished in the tracker shows up in
@@ -135,7 +135,7 @@ Acceptance:
 - [x] Smoke leg on `-apexMockTermsStale`; snapshot of the sheet.
 - [ ] In a released build that most testers have installed **before** `PRIVACY_VERSION` moves.
 
-### M0 — Migration `phaseN_apple_health.sql` (one file for M2 and M3) · Linux · HELD
+### M0 — Migration `phase59_apple_health.sql` (one file for M2 and M3) · Linux · HELD
 Claim `N` with `scripts/next-phase.sh` at PR time. SQL before code; the account export reads
 `daily_metrics` the moment this deploys, so the table must exist in prod first.
 - `provider_connections.provider` CHECK → `IN ('coros','apple')`; `+ categories jsonb NOT NULL

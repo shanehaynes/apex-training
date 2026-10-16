@@ -498,7 +498,7 @@ order M0 → M2b → M3b. Nothing here has landed yet. The privacy-version bump 
 M2b waits for an iOS build that can re-accept terms while signed in (W16 MT): a bump answers
 403 `terms-acceptance-required` on every JWT route.
 
-### Migration `phaseN_apple_health.sql` (M0)
+### Migration `phase59_apple_health.sql` (M0)
 `provider_connections.provider` CHECK widened to `('coros','apple')` and `+ categories jsonb`;
 `provider_activity_imports.mode` gains `'skipped'`; new service-role-only `daily_metrics`
 (PK `user_id, date, provider`); `profiles + body_weight_updated_at, body_weight_source`.
