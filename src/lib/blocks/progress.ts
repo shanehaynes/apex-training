@@ -98,6 +98,29 @@ interface WindowActuals {
 const inWindow = (date: string, period: StatsPeriod) =>
   date >= period.startDate && date < period.endDateExclusive;
 
+export interface SessionTally {
+  cardioMinutes: number;
+  strengthSessions: number;
+  climbingSessions: number;
+  longestSessionMinutes: number;
+}
+
+/**
+ * The per-session tally both sides of attainment share: what was done
+ * (completions) and what the calendar implies (planned events). One loop,
+ * so the two can never count a session type differently.
+ */
+export function tallySessions(items: readonly { type: string; minutes: number }[]): SessionTally {
+  const tally: SessionTally = { cardioMinutes: 0, strengthSessions: 0, climbingSessions: 0, longestSessionMinutes: 0 };
+  for (const { type, minutes } of items) {
+    if (minutes > tally.longestSessionMinutes) tally.longestSessionMinutes = minutes;
+    if (CARDIO_TYPES.has(type)) tally.cardioMinutes += minutes;
+    if (STRENGTH_TYPES.has(type)) tally.strengthSessions += 1;
+    if (CLIMBING_TYPES.has(type)) tally.climbingSessions += 1;
+  }
+  return tally;
+}
+
 /**
  * Actuals for one window. Deliberately avoids computeReviewStats: that runs
  * full-history PR detection, and calling it per week would make a 52-week
@@ -112,27 +135,12 @@ function windowActuals(
   const seconds = sessionSecondsMap(sessions.filter(s => inWindow(s.event_date, period)));
   const done = completions.filter(c => c.is_completed && inWindow(c.event_date, period));
 
-  let cardioMinutes = 0;
-  let strengthSessions = 0;
-  let climbingSessions = 0;
-  let longestSessionMinutes = 0;
-
-  for (const completion of done) {
-    const minutes = durationMinutesFor(completion, seconds);
-    if (minutes > longestSessionMinutes) longestSessionMinutes = minutes;
-    if (CARDIO_TYPES.has(completion.event_type)) cardioMinutes += minutes;
-    if (STRENGTH_TYPES.has(completion.event_type)) strengthSessions += 1;
-    if (CLIMBING_TYPES.has(completion.event_type)) climbingSessions += 1;
-  }
-
+  const tally = tallySessions(done.map(c => ({ type: c.event_type, minutes: durationMinutesFor(c, seconds) })));
   const cardio = computeCardioStats(cardioLogs, period);
 
   return {
     sessionsCompleted: done.length,
-    cardioMinutes,
-    strengthSessions,
-    climbingSessions,
-    longestSessionMinutes,
+    ...tally,
     distanceByUnit: cardio.distanceByUnit,
     elevationByUnit: cardio.elevationByUnit,
   };
@@ -160,20 +168,11 @@ function derivedTargets(
   const planned = plannedEvents.filter(e => inWindow(e.date, period));
   const perWeek = (total: number) => (weeks > 0 ? total / weeks : 0);
 
-  let cardioMinutes = 0;
-  let strengthSessions = 0;
-  let climbingSessions = 0;
-  let longestSessionMinutes = 0;
+  const tally = tallySessions(planned.map(e => ({ type: e.type, minutes: e.estimatedDuration ?? 0 })));
   const distanceUnits: Record<string, number> = {};
   const vertUnits: Record<string, number> = {};
 
   for (const event of planned) {
-    const minutes = event.estimatedDuration ?? 0;
-    if (minutes > longestSessionMinutes) longestSessionMinutes = minutes;
-    if (CARDIO_TYPES.has(event.type)) cardioMinutes += minutes;
-    if (STRENGTH_TYPES.has(event.type)) strengthSessions += 1;
-    if (CLIMBING_TYPES.has(event.type)) climbingSessions += 1;
-
     const distance = parseQuantity(event.cardioTargets?.distance);
     if (distance) distanceUnits[distance.unit] = (distanceUnits[distance.unit] ?? 0) + distance.value;
     const vert = parseQuantity(event.cardioTargets?.elevationGain);
@@ -181,10 +180,10 @@ function derivedTargets(
   }
 
   return {
-    cardioMinutes:      perWeek(cardioMinutes),
-    strengthSessions:   perWeek(strengthSessions),
-    climbingSessions:   perWeek(climbingSessions),
-    longSessionMinutes: longestSessionMinutes,
+    cardioMinutes:      perWeek(tally.cardioMinutes),
+    strengthSessions:   perWeek(tally.strengthSessions),
+    climbingSessions:   perWeek(tally.climbingSessions),
+    longSessionMinutes: tally.longestSessionMinutes,
     _distanceUnits:     distanceUnits,
     _vertUnits:         vertUnits,
   };
