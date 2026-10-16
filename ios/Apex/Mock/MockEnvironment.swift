@@ -291,7 +291,9 @@ actor FixtureTransport: HTTPTransport {
                 for key in ["display_name", "avatar_key", "coach_goal", "coach_context", "coach_model", "max_hr", "threshold_hr", "timezone"] {
                     if let value = body?[key] { profileEdits[key] = value }
                 }
-                return ok(Data(#"{"ok":true,"hasAnthropicKey":\(hasKey),"anthropicKeyLast4":\(hasKey ? "\"mock\"" : "null")}"#.utf8))
+                // `\#(…)`: a bare `\(…)` is not interpolated inside `#"…"#`, and
+                // this reply went out as invalid JSON, so every PATCH read as failed.
+                return ok(Data(#"{"ok":true,"hasAnthropicKey":\#(hasKey),"anthropicKeyLast4":\#(hasKey ? "\"mock\"" : "null")}"#.utf8))
             // W13: the starter plan. Idempotent like the handler; the mock's
             // schedule does not grow (the fixture window is what it is).
             case ("POST", "/api/template-copy"):

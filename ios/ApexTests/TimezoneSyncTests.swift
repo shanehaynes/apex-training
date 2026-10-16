@@ -64,6 +64,42 @@ final class TimezoneSyncTests: XCTestCase {
         XCTAssertEqual(zones, ["America/Chicago", "Asia/Tokyo"])
     }
 
+    /// The trip case through the real hook: a foreground notices the new zone.
+    @MainActor
+    func testAForegroundAfterATripWritesTheNewZone() async throws {
+        let env = MockEnvironment(termsStale: false)
+        let model = await signedIn(env, zone: "America/Chicago")
+        _ = await eventually { await Self.sentZones(env).count == 1 }
+        _ = await waitFor { !model.isSyncingTimezone }
+
+        model.deviceTimeZone = { "Asia/Tokyo" }
+        model.scenePhase(.active)
+        let sent = await eventually { await Self.sentZones(env) == ["America/Chicago", "Asia/Tokyo"] }
+        XCTAssertTrue(sent)
+    }
+
+    /// Once confirmed, an unchanged zone costs a foreground nothing: no profile
+    /// read, and no write even if the web has since stored another spelling.
+    @MainActor
+    func testAConfirmedZoneSkipsTheProfileRead() async throws {
+        let env = MockEnvironment(termsStale: false)
+        let model = await signedIn(env, zone: "America/Chicago")
+        _ = await eventually { await Self.sentZones(env).count == 1 }
+        _ = await waitFor { !model.isSyncingTimezone }
+
+        // Other models read the profile on their own clocks after sign-in
+        // (onboarding); let them land before taking the baseline.
+        try await Task.sleep(for: .milliseconds(800))
+        let reads = { await env.transport.requests.filter { $0.method == "GET" && $0.path == "/api/profile" }.count }
+        let before = await reads()
+        await model.syncTimezone()
+        await model.syncTimezone()
+        let after = await reads()
+        XCTAssertEqual(after, before)
+        let zones = await Self.sentZones(env)
+        XCTAssertEqual(zones, ["America/Chicago"])
+    }
+
     @MainActor
     func testNothingIsSentBehindTheTermsGateAndTheZoneFollowsTheAcceptance() async throws {
         let env = MockEnvironment(termsStale: true)

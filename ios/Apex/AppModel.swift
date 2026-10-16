@@ -91,11 +91,21 @@ final class AppModel {
     /// A 403 arrived while that check was out; it is answered when the check is back.
     private var gateMetMidCheck = false
     /// The device's IANA time zone, read fresh at each sync — a trip changes
-    /// it while the app is alive. A seam for the tests, which cannot move the
-    /// simulator's zone.
-    var deviceTimeZone: () -> String = { TimeZone.current.identifier }
+    /// it while the app is alive. The cache reset makes a zone change made
+    /// while the app was suspended visible here. A seam for the tests, which
+    /// cannot move the simulator's zone.
+    var deviceTimeZone: () -> String = {
+        NSTimeZone.resetSystemTimeZone()
+        return TimeZone.current.identifier
+    }
     /// A time-zone write is out; a foreground and a sign-in landing together send one.
     private(set) var isSyncingTimezone = false
+    /// The device zone this account's profile was last seen or made to hold.
+    /// While the device still reports it, a foreground costs nothing — no
+    /// profile read — and the app does not fight the web over spelling: Chrome
+    /// writes a legacy alias ("Asia/Calcutta") where iOS says "Asia/Kolkata",
+    /// and without this each would overwrite the other on every load.
+    private var confirmedTimezone: String?
     /// The realtime hub ran out of rejoin attempts for some group (#223):
     /// what is on screen is only as fresh as the last refresh. Persistent on
     /// purpose — the toast announces it once, this stays until a join lands.
@@ -636,11 +646,18 @@ final class AppModel {
     /// queued one could only ever be stale.
     func syncTimezone() async {
         guard case .signedIn = state, let client, termsUpdate == nil, !isSyncingTimezone else { return }
+        let device = deviceTimeZone()
+        guard device != confirmedTimezone else { return }
         isSyncingTimezone = true
         defer { isSyncingTimezone = false }
-        guard let profile = try? await client.send(.profile, as: ProfileResponse.self),
-              let zone = profile.timezoneToSend(device: deviceTimeZone()) else { return }
-        _ = try? await client.send(.setTimezone(zone), as: ProfileUpdateResponse.self)
+        guard let profile = try? await client.send(.profile, as: ProfileResponse.self), profile.termsCurrent else { return }
+        guard let zone = profile.timezoneToSend(device: device) else {
+            confirmedTimezone = device
+            return
+        }
+        if (try? await client.send(.setTimezone(zone), as: ProfileUpdateResponse.self)) != nil {
+            confirmedTimezone = zone
+        }
     }
 
     func signOut() {
@@ -681,6 +698,8 @@ final class AppModel {
         onboarding = nil
         termsUpdate = nil
         gateMetMidCheck = false
+        // The next account's profile holds whatever it holds.
+        confirmedTimezone = nil
         queueOwner = nil
         await hub?.reset()
         if purgeCache {

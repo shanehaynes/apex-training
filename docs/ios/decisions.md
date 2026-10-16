@@ -1173,7 +1173,17 @@ writes it on every load; the app does the same so an iOS-only athlete stops defa
   only ever be stale; a failure (offline, 403, a 409 `column-missing` from a server older than
   the column) is quiet and the next foreground asks again. One sync at a time: a second
   trigger while one is out is dropped, not queued.
+- **A confirmed zone costs nothing.** The app remembers, per account (cleared at tear-down), the
+  device zone the profile was last seen or made to hold, and skips the sync — no profile read —
+  while the device still reports it. That keeps foregrounds free and stops a fight with the web
+  over spelling: Chrome stores a legacy alias ("Asia/Calcutta") where iOS says "Asia/Kolkata", so
+  without it each would overwrite the other on every load; now the app writes at most once per
+  launch. The read resets Foundation's cached system zone first, so a change made while the app
+  was suspended is seen.
+- **It lives in `AppModel`, beside `checkTerms`**, not the You tab's profile service the brief
+  named: the You model only starts when the tab is opened, and the sync has to run at sign-in.
 - **Proved by app tests, not a smoke leg.** `TimezoneSyncTests` drives `AppModel` over the mock
   transport and reads every request it sent — one PATCH on sign-in, none when the zone matches,
-  one more after a trip, none behind the terms gate and one after accepting. A UI smoke could
+  one more after a trip (also through `scenePhase(.active)`), no profile read once confirmed,
+  none behind the terms gate and one after accepting. A UI smoke could
   not observe a request at all, so the brief's `-apexMockProfileTimezone` flag was not added.

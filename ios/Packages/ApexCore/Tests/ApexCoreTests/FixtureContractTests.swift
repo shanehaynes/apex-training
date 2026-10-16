@@ -326,6 +326,14 @@ final class FixtureContractTests: XCTestCase {
         XCTAssertNil(profile(nil).timezoneToSend(device: ""), "no zone name")
     }
 
+    /// The emitter's key decodes: a null alone could not tell it from a misspelling.
+    func testProfileTimezoneKeyDecodes() throws {
+        let text = String(decoding: try load("profile.json"), as: UTF8.self)
+        XCTAssertTrue(text.contains(#""timezone": null"#), "the emitter writes the key")
+        let set = Data(text.replacingOccurrences(of: #""timezone": null"#, with: #""timezone": "America/Chicago""#).utf8)
+        XCTAssertEqual(try JSONDecoder().decode(ProfileResponse.self, from: set).timezone, "America/Chicago")
+    }
+
     /// A profile from a server older than the column still decodes, as nil.
     func testProfileWithoutTimezoneDecodes() throws {
         let json = Data(#"{"hasAnthropicKey":false,"anthropicKeyLast4":null,"termsAccepted":null,"termsCurrent":true}"#.utf8)
