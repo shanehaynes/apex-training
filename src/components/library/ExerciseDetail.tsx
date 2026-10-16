@@ -55,13 +55,14 @@ export default function ExerciseDetail({ definition, onBack, onClose }: Props) {
   );
 
   useEffect(() => {
-    let cancelled = false;
+    // Aborting stops the paged reads too, not just the state updates.
+    const abort = new AbortController();
     setHistoryFailed(false);
     const index = buildAliasIndex(definitions.values());
     const spellings = index.spellings.get(definition.canonicalName) ?? [definition.canonicalName];
-    fetchExerciseHistory(spellings)
+    fetchExerciseHistory(spellings, abort.signal)
       .then(({ setRows, cardioRows }) => {
-        if (cancelled) return;
+        if (abort.signal.aborted) return;
         setStats(buildExerciseStats(
           canonicalizeLogNames(setRows, index),
           canonicalizeLogNames(cardioRows, index),
@@ -69,10 +70,11 @@ export default function ExerciseDetail({ definition, onBack, onClose }: Props) {
         ));
       })
       .catch(err => {
+        if (abort.signal.aborted) return;
         console.warn('[apex] exercise history load failed:', err);
-        if (!cancelled) setHistoryFailed(true);
+        setHistoryFailed(true);
       });
-    return () => { cancelled = true; };
+    return () => abort.abort();
   }, [definition, definitions, weightContext]);
 
   const trendData = stats?.trend ?? [];

@@ -15,6 +15,8 @@ public struct TrackerScreen: View {
     @State private var swapTarget: SwapTarget?
     @State private var addingExercise = false
     @State private var durationModeToggle = 0
+    /// You → Training's "Rate sets by effort": an RPE field on every set row.
+    @AppStorage(TrackerModel.rpePreferenceKey) private var showsRpe = false
     /// A select-all asked for before the field took over as first responder.
     @State private var selectAllPending = false
     /// The field that began editing since the last focus change, if any.
@@ -164,13 +166,14 @@ public struct TrackerScreen: View {
         let exerciseKey = CardioKey(section: tracked.section, exerciseId: tracked.exercise.id)
         let focused: FieldID? = switch focus {
         case .set(let key, _) where key.exerciseKey == exerciseKey: focus
+        case .rpe(let key) where key.exerciseKey == exerciseKey: focus
         case .cardio(let key, _) where key == exerciseKey: focus
         default: nil
         }
         return ExerciseRowInput(
             tracked: tracked, fields: model.inputFields(for: tracked), perSideWarning: model.perSideWarning(for: tracked),
             canSwap: model.canSwap(tracked), inLibrary: model.libraryDefinition(for: tracked) != nil,
-            focusedField: focused, durationModeToggle: durationModeToggle
+            focusedField: focused, durationModeToggle: durationModeToggle, showsRpe: showsRpe
         )
     }
 
@@ -276,8 +279,10 @@ public struct TrackerScreen: View {
     /// first keystroke replaces rather than appends (the web's `focusShadow`).
     private func focusChanged(from old: FieldID?, to new: FieldID?) {
         if case .set(let key, _) = old { model.didLeaveSet(key) }
+        if case .rpe(let key) = old { model.didLeaveRpe(key) }
         let wantsSelectAll: Bool = switch new {
         case .set(let key, _): model.focusSet(at: key)
+        case .rpe: false
         case .cardio(let key, let field): model.focusCardio(field, at: key)
         case nil: false
         }

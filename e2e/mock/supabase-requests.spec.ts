@@ -29,13 +29,13 @@ function recordRest(page: Page) {
   return {
     read: (table: string, filter = '') =>
       [...counts.keys()].some(u => u.includes(`/rest/v1/${table}?`) && u.includes(filter)),
-    async expectClean({ maxPerUrl = 2 } = {}) {
+    async expectClean() {
       // The first retry lands 1s after its failure; give one the chance to show.
       await page.waitForTimeout(1500);
       expect(failed, 'REST reads that failed at the network level').toEqual([]);
       expect(retried, 'REST reads postgrest-js retried').toEqual([]);
-      const overfetched = [...counts].filter(([, n]) => n > maxPerUrl).map(([url, n]) => `${url} ×${n}`);
-      expect(overfetched, `REST URLs requested more than ${maxPerUrl} times`).toEqual([]);
+      const overfetched = [...counts].filter(([, n]) => n > 2).map(([url, n]) => `${url} ×${n}`);
+      expect(overfetched, 'REST URLs requested more than StrictMode\'s two mounts').toEqual([]);
     },
   };
 }
