@@ -53,9 +53,9 @@ test('a calendar load answers every Supabase REST read first time', async ({ pag
   expect(rest.read('workout_completions'), 'workout_completions was read').toBe(true);
 });
 
-test('block detail answers its progress reads first time', async ({ page }) => {
-  // training_blocks stubs empty by default, so no block detail — and none of
-  // its reads — happen without one. The mock clock is 2026-09-07.
+// training_blocks stubs empty by default, so no block detail — and none of
+// its reads — happen without one. The mock clock is 2026-09-07.
+async function stubBaseBlock(page: Page) {
   await page.route(/rest\/v1\/training_blocks/, route => route.fulfill({
     status: 200, contentType: 'application/json', body: JSON.stringify([{
       id: 'blk-base', user_id: 'mock-user', objective_id: null, name: 'Base', intent: 'Aerobic foundation.',
@@ -63,6 +63,10 @@ test('block detail answers its progress reads first time', async ({ page }) => {
       weekly_targets: { cardio_minutes: 300 }, created_at: '2026-09-01T00:00:00Z', updated_at: '2026-09-01T00:00:00Z',
     }]),
   }));
+}
+
+test('block detail answers its progress reads first time', async ({ page }) => {
+  await stubBaseBlock(page);
   const rest = recordRest(page);
   await page.goto('/');
   await expect(page.locator('.top-nav')).toBeVisible({ timeout: 20000 });
@@ -74,4 +78,30 @@ test('block detail answers its progress reads first time', async ({ page }) => {
   const blockWindow = 'event_date=gte.2026-09-07';
   expect(rest.read('workout_completions', blockWindow), 'block completions were read').toBe(true);
   expect(rest.read('workout_sessions', blockWindow), 'block sessions were read').toBe(true);
+});
+
+test('block detail does not re-read its logs when the schedule changes under it', async ({ page }) => {
+  // Whether the schedule's completion sync lands before or after the detail
+  // mounts is a race, so the test above only sometimes sees an `events`
+  // change while the detail is open. Hold that sync until the detail has
+  // rendered, then release it: `events` takes a new identity with the detail
+  // mounted, every time.
+  await stubBaseBlock(page);
+  let release!: () => void;
+  const held = new Promise<void>(r => { release = r; });
+  await page.route(/rest\/v1\/workout_completions\?select=event_id/, async route => {
+    await held;
+    await route.fulfill({ status: 200, contentType: 'application/json', body: '[]' });
+  });
+  const rest = recordRest(page);
+  await page.goto('/');
+  await expect(page.locator('.top-nav')).toBeVisible({ timeout: 20000 });
+  await page.getByTestId('nav-blocks').click();
+  await page.locator('.block-row', { hasText: 'Base' }).click();
+  await expect(page.getByText(/of 4 weeks complete/)).toBeVisible({ timeout: 3000 });
+  expect((await apexState<{ isSyncing: boolean }>(page, 'schedule')).isSyncing, 'schedule sync still held').toBe(true);
+  release();
+  await expect.poll(async () => (await apexState<{ isSyncing: boolean }>(page, 'schedule')).isSyncing).toBe(false);
+  await rest.expectClean();
+  expect(rest.read('workout_set_logs', 'event_date=gte.2026-09-07'), 'block set logs were read').toBe(true);
 });
