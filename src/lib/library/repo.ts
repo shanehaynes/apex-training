@@ -9,6 +9,11 @@ import type { NameDateRow } from './stats';
 // rather than reading as empty, so a caller never shows "no history" for
 // history it could not load.
 
+// Per-table bound on one exercise's history fetch. No reason was recorded when
+// it landed (519f5707); PostgREST's max_rows (1000, supabase/config.toml) caps
+// each response below it anyway.
+const HISTORY_ROW_CAP = 2000;
+
 /**
  * Most recent log date per exercise name, for the list view's last-performed
  * column. The phase31 aggregate does the max() server-side: this used to pull
@@ -41,13 +46,13 @@ export async function fetchExerciseHistory(
       .select('*')
       .in('exercise_name', spellings)
       .order('event_date', { ascending: false })
-      .limit(2000),
+      .limit(HISTORY_ROW_CAP),
     supabase
       .from('workout_cardio_logs')
       .select('*')
       .in('exercise_name', spellings)
       .order('event_date', { ascending: false })
-      .limit(2000),
+      .limit(HISTORY_ROW_CAP),
   ]);
   if (sets.error) throw new Error(`set history load failed: ${sets.error.message}`);
   if (cardio.error) throw new Error(`cardio history load failed: ${cardio.error.message}`);
