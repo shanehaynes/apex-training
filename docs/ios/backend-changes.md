@@ -425,7 +425,7 @@ The caller's threads for one coach surface, newest activity first, capped at 20.
 ```
 
 ### `GET /api/coach-conversations?id=<uuid>`
-One thread's messages, oldest first, capped at the same 80 `/api/chat` accepts.
+One thread's messages, oldest first, capped at the same 160 `/api/chat` accepts (`api/_lib/coach/limits.ts`).
 
 ```jsonc
 {
@@ -444,7 +444,7 @@ One thread's messages, oldest first, capped at the same 80 `/api/chat` accepts.
 ### `POST /api/coach-conversations { mode, title? }` · `{ id, messages: [] }`
 The two POSTs are told apart by the body: `messages` present is an append, absent is a create.
 An append stores the batch and bumps `updated_at`; `413 Conversation too large` once the thread
-would pass 80 messages or the batch passes 400 KB — the same caps `api/chat.ts:179` enforces,
+would pass 160 messages or the batch passes 400 KB — the same caps `api/chat.ts` enforces (`api/_lib/coach/limits.ts`),
 moved to where the growth happens. Each message is `{ role, api_content, display_text, kind }`
 and must carry at least one of `api_content` / `display_text`.
 
@@ -482,6 +482,15 @@ Live Activity push token (hex, upsert on the token; sweeps the user's rows older
 `recordCompletion` (completed) and the provider import; a no-op without `APNS_*`. Fixture
 `live-activity-end.json` is written by `api/__tests__/live-activity.test.ts`, not the integration
 emitter.
+
+### `profiles.timezone`: `GET /api/profile` → `timezone`, `PATCH { timezone }` (D-057, phase58, #449)
+`GET` returns `timezone: string | null` — the stored IANA zone, null when unset or before the
+column exists (fixture `profile.json` carries `"timezone": null`). `PATCH { timezone }` takes a
+name the server's Intl accepts (400 otherwise), `null` clears it, and a database without the
+column answers 409 `column-missing`. The server computes "today" in it wherever no client sends
+one (MCP fallbacks, the nightly reflection, the starter-plan copy, the provider cron's
+fallback). The app writes `TimeZone.current` after sign-in, on foreground and after accepting
+terms (`AppModel.syncTimezone`).
 
 ## W16 — Apple Health (planned, D-056)
 Full contracts in [workstreams/W16-apple-health.md](workstreams/W16-apple-health.md); landing

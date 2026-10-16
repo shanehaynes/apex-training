@@ -33,6 +33,10 @@ public struct ProfileResponse: Codable, Sendable, Equatable {
     /// server-side with the web's own progress logic (D-008, D-035). Optional
     /// because a profile cached by an older build must still decode.
     public let onboarding: OnboardingState?
+    /// The athlete's IANA time zone (`profiles.timezone`, phase58): what the
+    /// server computes "today" in when no client is there to say. nil until a
+    /// client has written one, and from a server older than the column.
+    public let timezone: String?
 
     public init(
         hasAnthropicKey: Bool, anthropicKeyLast4: String?, termsAccepted: TermsAcceptance?,
@@ -41,7 +45,7 @@ public struct ProfileResponse: Codable, Sendable, Equatable {
         coachGoal: String? = nil, coachContext: String? = nil,
         maxHr: Int? = nil, thresholdHr: Int? = nil,
         calendarFeedUrl: String? = nil, coachModels: [CoachModelOption]? = nil,
-        onboarding: OnboardingState? = nil
+        onboarding: OnboardingState? = nil, timezone: String? = nil
     ) {
         self.hasAnthropicKey = hasAnthropicKey
         self.anthropicKeyLast4 = anthropicKeyLast4
@@ -58,6 +62,16 @@ public struct ProfileResponse: Codable, Sendable, Equatable {
         self.calendarFeedUrl = calendarFeedUrl
         self.coachModels = coachModels
         self.onboarding = onboarding
+        self.timezone = timezone
+    }
+
+    /// The zone to write to the profile, or nil when there is nothing to do:
+    /// the device's zone, when it is a real name and differs from the stored
+    /// one. Nothing while the terms are not current — every gated route
+    /// answers 403 until they are, so the write would only be refused.
+    public func timezoneToSend(device: String) -> String? {
+        guard termsCurrent, !device.isEmpty, device != timezone else { return nil }
+        return device
     }
 
     /// `onboarding` on the profile response.

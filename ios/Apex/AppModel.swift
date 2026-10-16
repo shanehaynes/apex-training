@@ -90,6 +90,22 @@ final class AppModel {
     private var isCheckingTerms = false
     /// A 403 arrived while that check was out; it is answered when the check is back.
     private var gateMetMidCheck = false
+    /// The device's IANA time zone, read fresh at each sync — a trip changes
+    /// it while the app is alive. The cache reset makes a zone change made
+    /// while the app was suspended visible here. A seam for the tests, which
+    /// cannot move the simulator's zone.
+    var deviceTimeZone: () -> String = {
+        NSTimeZone.resetSystemTimeZone()
+        return TimeZone.current.identifier
+    }
+    /// A time-zone write is out; a foreground and a sign-in landing together send one.
+    private(set) var isSyncingTimezone = false
+    /// The device zone this account's profile was last seen or made to hold.
+    /// While the device still reports it, a foreground costs nothing — no
+    /// profile read — and the app does not fight the web over spelling: Chrome
+    /// writes a legacy alias ("Asia/Calcutta") where iOS says "Asia/Kolkata",
+    /// and without this each would overwrite the other on every load.
+    private var confirmedTimezone: String?
     /// The realtime hub ran out of rejoin attempts for some group (#223):
     /// what is on screen is only as fresh as the last refresh. Persistent on
     /// purpose — the toast announces it once, this stays until a join lands.
@@ -305,7 +321,10 @@ final class AppModel {
         Task { await onboardingModel.start() }
         observeRealtimeAvailability()
         // Off the launch path: an offline phone learns nothing and keeps working.
-        Task { await checkTerms() }
+        Task {
+            await checkTerms()
+            await syncTimezone()
+        }
     }
 
     /// Mirror the hub's join verdict into observable state (#223): once the
@@ -607,8 +626,38 @@ final class AppModel {
             await schedule.refresh(reason: .retry)
             await analytics.refresh(reason: .retry)
             await you?.refreshProfile()
+            await syncTimezone()
         }
         return nil
+    }
+
+    // MARK: - Time zone (phase58)
+
+    /// Writes the device's zone to `profiles.timezone` when it differs from the
+    /// stored one, so the server's paths with no client to ask — MCP calls
+    /// without `today`, the nightly reflection, the starter-plan copy — compute
+    /// "today" where the athlete is. The web does the same on every load.
+    ///
+    /// Run after sign-in, on every foreground (a trip changes the zone) and
+    /// after the terms are accepted. Quiet and fire-and-forget: offline, a 403
+    /// behind the terms gate, or a 409 `column-missing` from a server that
+    /// predates the column all mean "not now", and the next foreground asks
+    /// again. Not the write queue: the value is recomputed every time, so a
+    /// queued one could only ever be stale.
+    func syncTimezone() async {
+        guard case .signedIn = state, let client, termsUpdate == nil, !isSyncingTimezone else { return }
+        let device = deviceTimeZone()
+        guard device != confirmedTimezone else { return }
+        isSyncingTimezone = true
+        defer { isSyncingTimezone = false }
+        guard let profile = try? await client.send(.profile, as: ProfileResponse.self), profile.termsCurrent else { return }
+        guard let zone = profile.timezoneToSend(device: device) else {
+            confirmedTimezone = device
+            return
+        }
+        if (try? await client.send(.setTimezone(zone), as: ProfileUpdateResponse.self)) != nil {
+            confirmedTimezone = zone
+        }
     }
 
     func signOut() {
@@ -649,6 +698,8 @@ final class AppModel {
         onboarding = nil
         termsUpdate = nil
         gateMetMidCheck = false
+        // The next account's profile holds whatever it holds.
+        confirmedTimezone = nil
         queueOwner = nil
         await hub?.reset()
         if purgeCache {
@@ -671,6 +722,7 @@ final class AppModel {
                 await hub?.resume()
                 await schedule.refresh(reason: .foreground)
                 await analytics.refresh(reason: .foreground)
+                await syncTimezone()
             }
         case .background:
             // The write queue's visibilitychange analog (architecture.md §7).

@@ -309,6 +309,35 @@ final class FixtureContractTests: XCTestCase {
         // W6: the seeded user has no model pick, so the label is the default's.
         XCTAssertNil(profile.coachModel)
         XCTAssertEqual(profile.coachModelLabel, "Opus 5.5")
+        // phase58: the seeded user has never had a client write a zone.
+        XCTAssertNil(profile.timezone)
+    }
+
+    /// The device's zone is written when it differs from the stored one, and
+    /// only while the terms are current (every gated route 403s otherwise).
+    func testTimezoneToSend() {
+        func profile(_ zone: String?, current: Bool = true) -> ProfileResponse {
+            ProfileResponse(hasAnthropicKey: false, anthropicKeyLast4: nil, termsAccepted: nil, termsCurrent: current, timezone: zone)
+        }
+        XCTAssertEqual(profile(nil).timezoneToSend(device: "America/Chicago"), "America/Chicago", "never written")
+        XCTAssertEqual(profile("UTC").timezoneToSend(device: "America/Chicago"), "America/Chicago", "travelled")
+        XCTAssertNil(profile("America/Chicago").timezoneToSend(device: "America/Chicago"), "matches")
+        XCTAssertNil(profile(nil, current: false).timezoneToSend(device: "America/Chicago"), "terms gate up")
+        XCTAssertNil(profile(nil).timezoneToSend(device: ""), "no zone name")
+    }
+
+    /// The emitter's key decodes: a null alone could not tell it from a misspelling.
+    func testProfileTimezoneKeyDecodes() throws {
+        let text = String(decoding: try load("profile.json"), as: UTF8.self)
+        XCTAssertTrue(text.contains(#""timezone": null"#), "the emitter writes the key")
+        let set = Data(text.replacingOccurrences(of: #""timezone": null"#, with: #""timezone": "America/Chicago""#).utf8)
+        XCTAssertEqual(try JSONDecoder().decode(ProfileResponse.self, from: set).timezone, "America/Chicago")
+    }
+
+    /// A profile from a server older than the column still decodes, as nil.
+    func testProfileWithoutTimezoneDecodes() throws {
+        let json = Data(#"{"hasAnthropicKey":false,"anthropicKeyLast4":null,"termsAccepted":null,"termsCurrent":true}"#.utf8)
+        XCTAssertNil(try JSONDecoder().decode(ProfileResponse.self, from: json).timezone)
     }
 
     /// A profile cached by a build that predates the coach fields still decodes.

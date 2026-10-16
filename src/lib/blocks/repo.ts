@@ -22,7 +22,10 @@ export interface BlockLogs {
 
 const EMPTY: BlockLogs = { completions: [], sessions: [], setLogs: [], cardioLogs: [] };
 
-/** Logs covering a block's window. Offline (supabase === null) yields nothing. */
+/**
+ * Logs covering a block's window. Offline (supabase === null) yields nothing;
+ * a failed query throws, so the caller can tell "no logs" from "no answer".
+ */
 export async function loadBlockLogs(block: TrainingBlock): Promise<BlockLogs> {
   if (!supabase) return EMPTY;
   const { startDate, endDateExclusive } = blockPeriod(block);
@@ -57,7 +60,7 @@ export async function loadBlockLogs(block: TrainingBlock): Promise<BlockLogs> {
   ]);
 
   for (const [label, res] of Object.entries({ completions, sessions, setLogs, cardioLogs })) {
-    if (res.error) console.warn(`[apex] block ${label} load failed:`, res.error.message);
+    if (res.error) throw new Error(`block ${label} load failed: ${res.error.message}`);
   }
 
   return {

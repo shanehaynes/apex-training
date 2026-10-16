@@ -1159,3 +1159,31 @@ the coach, body weight both ways, meals as dietary samples. Brief:
 - **Shane's approvals, 2026-10-14:** the privacy-policy bump (timing as above: after M2b, once MT
   is adopted); enabling HealthKit on the App ID; mentioning Health in the App Store description
   (on the 1.1 version, since 1.0 does not write to Health).
+
+## D-057 · The app writes the device's time zone to the profile, directly, on sign-in and foreground
+**Status:** decided · session call · 2026-10-15
+`profiles.timezone` (phase58, #449) is what the server computes "today" in when no client is
+there to say: MCP calls without `today`, the nightly reflection, the starter-plan copy. The web
+writes it on every load; the app does the same so an iOS-only athlete stops defaulting to UTC.
+- **When:** after sign-in (beside the terms check), on every foreground (a trip changes the
+  zone while the app is alive), and after the terms are accepted. Only when the device's zone
+  differs from the one `GET /api/profile` reports, and never while the terms are not current —
+  every gated route answers 403 until they are.
+- **Direct, not the write queue.** The value is recomputed at every sync, so a queued one could
+  only ever be stale; a failure (offline, 403, a 409 `column-missing` from a server older than
+  the column) is quiet and the next foreground asks again. One sync at a time: a second
+  trigger while one is out is dropped, not queued.
+- **A confirmed zone costs nothing.** The app remembers, per account (cleared at tear-down), the
+  device zone the profile was last seen or made to hold, and skips the sync — no profile read —
+  while the device still reports it. That keeps foregrounds free and stops a fight with the web
+  over spelling: Chrome stores a legacy alias ("Asia/Calcutta") where iOS says "Asia/Kolkata", so
+  without it each would overwrite the other on every load; now the app writes at most once per
+  launch. The read resets Foundation's cached system zone first, so a change made while the app
+  was suspended is seen.
+- **It lives in `AppModel`, beside `checkTerms`**, not the You tab's profile service the brief
+  named: the You model only starts when the tab is opened, and the sync has to run at sign-in.
+- **Proved by app tests, not a smoke leg.** `TimezoneSyncTests` drives `AppModel` over the mock
+  transport and reads every request it sent — one PATCH on sign-in, none when the zone matches,
+  one more after a trip (also through `scenePhase(.active)`), no profile read once confirmed,
+  none behind the terms gate and one after accepting. A UI smoke could
+  not observe a request at all, so the brief's `-apexMockProfileTimezone` flag was not added.

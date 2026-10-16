@@ -14,9 +14,14 @@ import type { PersonalRecord, SessionScore, WorkoutScoreRecord } from './records
 // model is built SERVER-SIDE: /api/workout-sessions `bootstrap` returns the
 // resolved TrackedSectionGroup[] (plan × saved rows × last-session shadows)
 // and `finish` returns PRs + the score record, so this client owns only its
-// edits. Writes go through /api/workout-sessions (service role). Owns the
-// no-backend fallback: with Supabase unconfigured the session is tracked in
-// memory only, like completions are.
+// edits. Writes go through /api/workout-sessions (service role). Owns two
+// fallbacks to an in-memory session built from the plan: with Supabase
+// unconfigured, like completions are; and when the bootstrap fails (no signal
+// at the gym, a 5xx), so the athlete can still log sets. A network error or
+// an error status other than 402 toasts "Starting session failed" (postJson);
+// a 402 or a malformed 200 falls back with only the console warning below.
+// Either way a reopened finished session shows as a fresh one until the next
+// load.
 
 export type SessionInfo = Pick<
   WorkoutSessionRow,
