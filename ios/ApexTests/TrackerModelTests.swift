@@ -394,6 +394,27 @@ final class TrackerModelTests: XCTestCase {
         XCTAssertTrue(model.sync.isIdle)
     }
 
+    /// The #422 metadata through the model: a warm-up toggle and a rating
+    /// are edits like any other — one debounced save carries both — and the
+    /// rating settles when its field is left.
+    @MainActor
+    func testWarmupAndRpeRideTheNextSave() async throws {
+        let transport = healthy()
+        let (model, _) = make(transport, store: MemoryWriteQueueStore())
+        await model.open()
+
+        model.setWarmup(true, at: press2)
+        model.setRpe("7.3", at: press2)
+        model.didLeaveRpe(press2)
+        XCTAssertEqual(model.set(at: press2)?.rpe, "7.5")
+        await model.flushEdits()
+        let saves = transport.requests(action: "save")
+        XCTAssertEqual(saves.count, 1)
+        XCTAssertTrue(saves[0].body!.contains(#""is_warmup":true"#))
+        XCTAssertTrue(saves[0].body!.contains(#""rpe":7.5"#))
+        XCTAssertFalse(saves[0].body!.contains("ascent_style"), "a set's row names no pitch columns")
+    }
+
     /// D-015: the first non-empty reps of a row starts the exercise's rest, the
     /// island gets the same end, a second keystroke on the row is not a second
     /// set, +15 s and skip move it, and a rest that ran out while the tracker

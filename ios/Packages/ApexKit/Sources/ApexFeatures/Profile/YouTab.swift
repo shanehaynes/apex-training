@@ -54,6 +54,9 @@ public struct YouRootView: View {
     /// create opens the new exercise); the stack's path is the tab's.
     private let open: ((YouRoute) -> Void)?
     @Environment(\.scenePhase) private var scenePhase
+    /// "Rate sets by effort" (the web's `RpeTrackingToggle`): a device
+    /// preference, so it needs no profile column.
+    @AppStorage(TrackerModel.rpePreferenceKey) private var tracksRpe = false
 
     public init(model: YouModel, open: ((YouRoute) -> Void)? = nil) {
         self.model = model
@@ -153,7 +156,7 @@ public struct YouRootView: View {
         // Library are what a training week touches; the two libraries are one
         // screen with a segment, and heart-rate zones sit beside the watch
         // whose data they interpret.
-        SettingsSection("Training") {
+        SettingsSection("Training", footer: "Rating sets by effort adds an RPE field (1–10) to every set in the tracker. Remembered on this device.") {
             if model.blocks != nil {
                 SettingsLink("Training blocks", value: model.blocks?.current?.name, to: YouRoute.blocks, identifier: "you.row.blocks")
                 SettingsDivider()
@@ -163,6 +166,8 @@ public struct YouRootView: View {
                 SettingsDivider()
             }
             SettingsLink("Library", value: "Exercises · Workouts", to: YouRoute.library, identifier: "you.row.library")
+            SettingsDivider()
+            SettingsToggle("Rate sets by effort (RPE)", isOn: $tracksRpe, identifier: "you.toggle.rpe")
         }
 
         SettingsSection("AI coach", footer: "The coach runs on your own Anthropic key — every chat, post-workout summary and monthly review is billed to it.") {

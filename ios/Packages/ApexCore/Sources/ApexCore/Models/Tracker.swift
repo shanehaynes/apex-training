@@ -152,9 +152,9 @@ public struct TrackedSet: Codable, Sendable, Equatable {
     /// resolved by the server at bootstrap (D-008). Absent when the target is
     /// not a percentage, the lift has no history or the profile's unit is unknown.
     public var resolvedPlannedWeight: String?
-    /// The set metadata (phase55). Decoded so a fixture or cache carries it;
-    /// the save row does not send it yet (SetLogRow's allowlist), matching
-    /// what this client lets the user edit.
+    /// The set metadata (phase55), as the server hydrates it and the tracker
+    /// edits it: the rating as typed, the warm-up flag, and for a pitch its
+    /// ascent. `TrackerEditor.setToRow` sends it (D-058).
     public var rpe: String?
     public var isWarmup: Bool?
     /// Climbing pitches only: how the ascent went, and the goes it took.

@@ -156,6 +156,22 @@ final class TrackerSnapshotTests: XCTestCase {
         snapshot(TrackerScreen(model: model, onClose: {}), named: "tracker-percent-pitch", size: CGSize(width: 393, height: 2200))
     }
 
+    /// The #422 metadata on the full fixture: squat set 1 a warm-up (its W),
+    /// RPE on (a rating typed on set 2), and the pitch flashed in two tries.
+    @MainActor
+    func testWarmupRpeAndPitchAscent() async {
+        UserDefaults.standard.set(true, forKey: TrackerModel.rpePreferenceKey)
+        defer { UserDefaults.standard.removeObject(forKey: TrackerModel.rpePreferenceKey) }
+        let (model, _) = await model(full: true)
+        model.setRpe("8", at: SetKey(section: "exercise", exerciseId: "mx-squat", setNumber: 2))
+        let pitch = SetKey(section: "exercise", exerciseId: "mx-pitch", setNumber: 1)
+        model.stepAttempts(by: 1, at: pitch)
+        model.stepAttempts(by: 1, at: pitch)
+        snapshot(TrackerScreen(model: model, onClose: {}), named: "tracker-metadata", size: CGSize(width: 393, height: 2200))
+        // The narrowest phone iOS 17 runs on: the rating's own line keeps every row inside its card.
+        snapshot(TrackerScreen(model: model, onClose: {}), named: "tracker-metadata-375", size: CGSize(width: 375, height: 2200))
+    }
+
     @MainActor
     func testTrackerFinished() async {
         let (model, _) = await model(finished: true)

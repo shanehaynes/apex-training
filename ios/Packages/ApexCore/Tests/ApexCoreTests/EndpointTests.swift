@@ -106,7 +106,7 @@ final class TrackerEndpointTests: XCTestCase {
         )
         XCTAssertEqual(
             body(.tracker(.save(payload), session: session)),
-            #"{"action":"save","cardioLogs":[{"avg_heart_rate":145,"definition_id":null,"distance":null,"duration_minutes":42.5,"elevation_gain":null,"event_date":"2026-09-08","event_id":"e1","exercise_id":"r","exercise_name":"Run","is_autofilled":false,"section":"exercise"}],"eventDate":"2026-09-08","eventId":"e1","removedSets":[{"exerciseId":"x","section":"exercise","setNumber":4}],"setLogs":[{"actual_duration":null,"actual_reps":"5","actual_weight":null,"definition_id":null,"event_date":"2026-09-08","event_id":"e1","exercise_id":"x","exercise_name":"X","is_autofilled":false,"planned_duration":null,"planned_reps":null,"planned_weight":null,"section":"exercise","set_number":1}]}"#
+            #"{"action":"save","cardioLogs":[{"avg_heart_rate":145,"definition_id":null,"distance":null,"duration_minutes":42.5,"elevation_gain":null,"event_date":"2026-09-08","event_id":"e1","exercise_id":"r","exercise_name":"Run","is_autofilled":false,"section":"exercise"}],"eventDate":"2026-09-08","eventId":"e1","removedSets":[{"exerciseId":"x","section":"exercise","setNumber":4}],"setLogs":[{"actual_duration":null,"actual_reps":"5","actual_weight":null,"definition_id":null,"event_date":"2026-09-08","event_id":"e1","exercise_id":"x","exercise_name":"X","is_autofilled":false,"is_warmup":false,"planned_duration":null,"planned_reps":null,"planned_weight":null,"rpe":null,"section":"exercise","set_number":1}]}"#
         )
     }
 

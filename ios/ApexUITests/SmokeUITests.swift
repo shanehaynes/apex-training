@@ -218,6 +218,14 @@ final class SmokeUITests: XCTestCase {
         let cleared = expectation(for: NSPredicate(format: "exists == false"), evaluatedWith: syncText)
         wait(for: [cleared], timeout: 30)
 
+        // The set number is the warm-up toggle (#422): it turns into a W and
+        // the set saves again; the summary tags it.
+        let warmup = app.buttons["tracker.warmup.fx-press.2"]
+        XCTAssertTrue(warmup.waitForExistence(timeout: 10))
+        warmup.tap()
+        XCTAssertTrue(app.buttons["Set 2 is a warm-up — tap to count it"].waitForExistence(timeout: 5))
+        attach(app, name: "08b-tracker-warmup")
+
         // Finish: set 1 was never touched, so the gate asks first.
         app.buttons["tracker.finish"].tap()
         let finishAnyway = app.buttons["Finish anyway"]
@@ -231,6 +239,7 @@ final class SmokeUITests: XCTestCase {
         let coach = app.staticTexts["Strong session — a new estimated 1RM on Fixture Press."]
         XCTAssertTrue(coach.waitForExistence(timeout: 20), "the fixture stream renders")
         XCTAssertTrue(app.staticTexts.containing(NSPredicate(format: "label CONTAINS 'est. 1RM 132'")).firstMatch.exists)
+        XCTAssertTrue(app.staticTexts["warm-up"].exists, "the summary tags the warm-up set")
         attach(app, name: "10-tracker-summary")
 
         app.buttons["tracker.summary.back"].tap()

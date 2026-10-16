@@ -21,13 +21,24 @@ public struct SetLogRow: Codable, Sendable, Equatable {
     public var actualReps: String?
     public var actualDuration: String?
     public var isAutofilled: Bool
+    /// Per-set metadata (phase55): `parseRpe`'s number, and the warm-up flag
+    /// every row carries.
+    public var rpe: Double?
+    public var isWarmup: Bool
+    /// A climbing pitch's row (the exercise's category is `climbing`): only
+    /// then are `ascent_style` and `attempts` sent, so a set's row stays
+    /// exactly what it was before the columns existed (`setToRow`).
+    public var isPitch: Bool
+    public var ascentStyle: String?
+    public var attempts: Int?
 
     public init(
         eventId: String, eventDate: String, section: String, exerciseId: String, exerciseName: String,
         definitionId: String? = nil, setNumber: Int,
         plannedWeight: String? = nil, plannedReps: String? = nil, plannedDuration: String? = nil,
         actualWeight: String? = nil, actualReps: String? = nil, actualDuration: String? = nil,
-        isAutofilled: Bool = false
+        isAutofilled: Bool = false, rpe: Double? = nil, isWarmup: Bool = false,
+        isPitch: Bool = false, ascentStyle: String? = nil, attempts: Int? = nil
     ) {
         self.eventId = eventId
         self.eventDate = eventDate
@@ -43,6 +54,11 @@ public struct SetLogRow: Codable, Sendable, Equatable {
         self.actualReps = actualReps
         self.actualDuration = actualDuration
         self.isAutofilled = isAutofilled
+        self.rpe = rpe
+        self.isWarmup = isWarmup
+        self.isPitch = isPitch
+        self.ascentStyle = ascentStyle
+        self.attempts = attempts
     }
 
     public var key: SetKey { SetKey(section: section, exerciseId: exerciseId, setNumber: setNumber) }
@@ -62,6 +78,35 @@ public struct SetLogRow: Codable, Sendable, Equatable {
         case actualReps = "actual_reps"
         case actualDuration = "actual_duration"
         case isAutofilled = "is_autofilled"
+        case rpe
+        case isWarmup = "is_warmup"
+        case ascentStyle = "ascent_style"
+        case attempts
+    }
+
+    /// Lenient on the metadata: a payload queued by a build before it decodes
+    /// as no rating, not a warm-up, not a pitch.
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        eventId = try c.decode(String.self, forKey: .eventId)
+        eventDate = try c.decode(String.self, forKey: .eventDate)
+        section = try c.decode(String.self, forKey: .section)
+        exerciseId = try c.decode(String.self, forKey: .exerciseId)
+        exerciseName = try c.decode(String.self, forKey: .exerciseName)
+        definitionId = try c.decodeIfPresent(String.self, forKey: .definitionId)
+        setNumber = try c.decode(Int.self, forKey: .setNumber)
+        plannedWeight = try c.decodeIfPresent(String.self, forKey: .plannedWeight)
+        plannedReps = try c.decodeIfPresent(String.self, forKey: .plannedReps)
+        plannedDuration = try c.decodeIfPresent(String.self, forKey: .plannedDuration)
+        actualWeight = try c.decodeIfPresent(String.self, forKey: .actualWeight)
+        actualReps = try c.decodeIfPresent(String.self, forKey: .actualReps)
+        actualDuration = try c.decodeIfPresent(String.self, forKey: .actualDuration)
+        isAutofilled = try c.decode(Bool.self, forKey: .isAutofilled)
+        rpe = try c.decodeIfPresent(Double.self, forKey: .rpe)
+        isWarmup = try c.decodeIfPresent(Bool.self, forKey: .isWarmup) ?? false
+        isPitch = c.contains(.ascentStyle) || c.contains(.attempts)
+        ascentStyle = try c.decodeIfPresent(String.self, forKey: .ascentStyle)
+        attempts = try c.decodeIfPresent(Int.self, forKey: .attempts)
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -80,6 +125,12 @@ public struct SetLogRow: Codable, Sendable, Equatable {
         try c.encode(actualReps, forKey: .actualReps)
         try c.encode(actualDuration, forKey: .actualDuration)
         try c.encode(isAutofilled, forKey: .isAutofilled)
+        try c.encode(rpe, forKey: .rpe)
+        try c.encode(isWarmup, forKey: .isWarmup)
+        if isPitch {
+            try c.encode(ascentStyle, forKey: .ascentStyle)
+            try c.encode(attempts, forKey: .attempts)
+        }
     }
 }
 
