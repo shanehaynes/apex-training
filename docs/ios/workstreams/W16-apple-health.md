@@ -2,7 +2,7 @@
 
 **Machine:** both (M0, M2b, M3b Linux · M1, MT, M2i, M3i, M4 Mac) · **Depends on:** W4, W11, W12;
 1.0 App Review approval before M1 merges · **Unblocks:** Apple Watch companion (later)
-**Status:** in progress — M1 (#430) and MT (#438) shipped in 1.1.0 (561); M0 landed (phase59, #469, in production); M2b in review; then the privacy bump and M2i, and M3b. Brief drafted 2026-10-14 (D-056 supersedes D-018)
+**Status:** in progress — M1 (#430) and MT (#438) shipped in 1.1.0 (561); M0 landed (phase59, #469, in production); M2b (#472) and M3b in review; then the privacy bump and M2i, then M3i. Brief drafted 2026-10-14 (D-056 supersedes D-018)
 
 ## Goal
 Apex is a citizen of the Apple Health ecosystem: a workout finished in the tracker shows up in
@@ -342,11 +342,13 @@ Scope:
   for M3; HR-derived load later).
 
 Acceptance:
-- [ ] `daily-metrics.test.ts` (merge, null-clears, category gate, body-weight recency),
+- [x] `daily-metrics.test.ts` (merge, null-clears, category gate, body-weight recency),
       `coach-physiology.test.ts`, `physiology.test.ts`, `profile.test.ts`, `router.test.ts`,
-      `account.test.ts` green.
+      `account.test.ts` green. (Merge, null-clears, consent and recency against the stack in
+      `integration/daily-metrics.integration.test.ts`; the daily lines in
+      `src/lib/physiology/__tests__/daily.test.ts`.)
 - [ ] `eval-analyst` run before merge — prompt text moves and the gate baseline is HELD.
-- [ ] Fixtures: `daily-metrics.json`; `profile.json` regenerated.
+- [x] Fixtures: `daily-metrics.json`; `profile.json` regenerated.
 
 ### M3i — iOS: daily metrics + body weight both ways · Mac
 Backend contract consumed: M3b. After M2i (server toggles, health lane).

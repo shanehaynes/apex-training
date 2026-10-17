@@ -29,6 +29,7 @@ import workoutDraftHandler from '../../_lib/handlers/workoutDraft';
 import mutationsLogHandler from '../../_lib/handlers/mutationsLog';
 import mcpTokensHandler from '../../_lib/handlers/mcpTokens';
 import blockCycleHandler from '../../_lib/handlers/blockCycle';
+import dailyMetricsHandler from '../../_lib/handlers/dailyMetrics';
 import { handleTrainingBlocks } from '../../_lib/trainingBlocks';
 import { handleMealFavorites } from '../../_lib/mealFavorites';
 import { generateCycle, type CycleSpec } from '../../../src/lib/blocks/cadence';
@@ -349,6 +350,7 @@ describe.skipIf(!RUN)('W0 read foundation against the local stack', () => {
     // apply writes events keyed `coros-<activityId>` rather than FX-prefixed
     // ones, so they are named rather than matched.
     await admin.from('provider_connections').delete().eq('user_id', agent2.userId).in('provider', ['coros', 'apple']);
+    await admin.from('daily_metrics').delete().eq('user_id', agent2.userId);
     await admin.from('provider_activity_imports').delete().eq('user_id', agent2.userId);
     for (const id of [`coros-${SYNC.runId}`, `coros-${SYNC.rideId}`]) {
       await admin.from('workout_completions').delete().eq('event_id', id);
@@ -1360,6 +1362,32 @@ describe.skipIf(!RUN)('W0 read foundation against the local stack', () => {
       ],
     });
     fixture('provider-preview-apple.json', applePreview.body);
+
+    // W16 M3b: two days of Apple Health metrics, read back the way the phone
+    // reads them. The date bounds read the clock, so Date is pinned again.
+    const optIn = await providerSync({ action: 'set-categories', provider: 'apple', client: 'ios', categories: { dailyMetrics: true } });
+    expect(optIn.statusCode).toBe(200);
+    vi.useFakeTimers({ toFake: ['Date'], now: new Date('2026-09-10T12:00:00Z') });
+    let dailyRead: { statusCode: number; body: unknown };
+    try {
+      const posted = makeRes();
+      await dailyMetricsHandler(makeReq({ method: 'POST', token: agent2.token, body: {
+        provider: 'apple', timezone: SYNC_TZ,
+        days: [
+          { date: '2026-09-09', sleepMinutes: 418, sleepStages: { core: 240, deep: 70, rem: 90, awake: 18 }, hrvSdnnMs: 47.5, restingHr: 53, steps: 11240 },
+          { date: '2026-09-10', sleepMinutes: 432, sleepStart: '2026-09-10T04:05:00Z', sleepEnd: '2026-09-10T11:17:00Z', hrvSdnnMs: 51, restingHr: 52 },
+        ],
+      } }), posted.res);
+      expect(posted.statusCode).toBe(200);
+      const read = makeRes();
+      await dailyMetricsHandler(makeReq({ method: 'GET', token: agent2.token, query: { start: '2026-09-09', end: '2026-09-10' } }), read.res);
+      dailyRead = read;
+    } finally {
+      vi.useRealTimers();
+    }
+    expect(dailyRead.statusCode).toBe(200);
+    expect((dailyRead.body as { days: unknown[] }).days).toHaveLength(2);
+    fixture('daily-metrics.json', dailyRead.body);
   });
 
   // W10 — Library, Blocks, Meals. Blocks and objectives are on agent, whose

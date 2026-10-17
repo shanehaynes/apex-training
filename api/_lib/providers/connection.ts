@@ -333,8 +333,10 @@ export async function completeOAuth(
 }
 
 export class NotConnectedError extends Error {
-  constructor(readonly reason: 'disconnected' | 'expired') {
+  readonly reason: 'disconnected' | 'expired';
+  constructor(reason: 'disconnected' | 'expired') {
     super(`provider connection ${reason}`);
+    this.reason = reason;
   }
 }
 

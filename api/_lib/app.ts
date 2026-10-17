@@ -29,6 +29,7 @@ import reflectionCron from './handlers/reflectionCron.js';
 import version from './handlers/version.js';
 import termsAcceptance from './handlers/termsAcceptance.js';
 import liveActivityTokens from './handlers/liveActivityTokens.js';
+import dailyMetrics from './handlers/dailyMetrics.js';
 import account from './handlers/account.js';
 import schedule from './handlers/schedule.js';
 import query from './handlers/query.js';
@@ -158,6 +159,7 @@ app.all('/terms-acceptance', bridge(termsAcceptance));
 // Open sign-up behind Turnstile; unauthenticated, GoTrue's /signup stays shut.
 app.all('/signup', bridge(signup));
 app.all('/live-activity-tokens', bridge(liveActivityTokens));
+app.all('/daily-metrics', bridge(dailyMetrics));
 app.all('/account', bridge(account));
 // Distinctive message: if /api/chat (or another standalone route) ever lands
 // here, filesystem precedence over the catch-all broke — see the plan's
