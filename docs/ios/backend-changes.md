@@ -519,7 +519,14 @@ unchanged, `{ proposals }`), reasons `already-imported | own-app | out-of-window
 duplicate`; `apply` refuses a fill or create of a set-aside workout with that reason in `errors`
 (`skip` is always allowed) and answers `skipped` beside `created`/`filled`; `ingest` ledgers
 `duplicate` and `own-app` as skipped, never `in-progress`. Every apple action but `disconnect`
-needs `client:'ios'`. An unfinished tracker session counts as in progress for at most 12 h. The
+needs `client:'ios'`. A finished session is a `duplicate` only when the two share at least half
+of the shorter interval; a zero-length session (quick-complete, a coach log) never matches;
+sessions are found by when they ran (`started_at`), not by their occurrence's date. A tracker
+session opened and never finished counts as in progress for 12 h, then is abandoned and
+blocks nothing. `summaryExtras` cannot set any field the server computes or the coach reads
+(`avgHr`, `durationSec`, `trainingLoad`, `hrv`, `hrZones`, …). **Known gap:** dedup is Apple-side
+only — a COROS import that arrives after the Apple copy of the same workout still creates a
+second one (COROS is unchanged by M2b); a follow-up brief. The
 account export gains `providerConnectionSummary` (provider, status, dates, Health categories —
 no tokens).
 

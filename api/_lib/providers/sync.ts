@@ -53,8 +53,12 @@ const APPLE_BATCH_LEAD_MS = 24 * 3600 * 1000;
 /** Health workouts start no later than this past "now" (clock skew). */
 const FUTURE_SKEW_MS = 5 * 60 * 1000;
 /** A tracker session started and never finished counts as in progress for
- *  this long; past it an abandoned session would block every later import. */
+ *  this long; past it the session is abandoned and blocks nothing. */
 const OPEN_SESSION_MS = 12 * 3600 * 1000;
+/** Two workouts are the same one when they share at least this much of the
+ *  shorter: a Watch strength session recorded alongside the Apex tracker
+ *  does; a walk home that brushes the session's last minute does not. */
+const SAME_WORKOUT_OVERLAP = 0.5;
 /** Another provider's copy of the same workout: start within ±2 min,
  *  duration within ±10 %. */
 const CROSS_PROVIDER_START_MS = 120 * 1000;
@@ -167,15 +171,17 @@ async function loadSyncContext(
     : new CorosClient(source.accessToken).fetchRecentActivities(windowStartIso, windowEndIso);
   const [activities, ledger, expanded, completions, dedup] = await Promise.all([
     fetchActivities,
-    supabase
-      .from('provider_activity_imports')
-      .select('activity_id, mode, event_id, event_date')
-      .eq('user_id', userId)
-      .eq('provider', provider),
+    // Apple: only this batch's ids — the ledger holds every declined workout
+    // too and would outgrow one PostgREST page.
+    (source.provider === 'apple'
+      ? supabase.from('provider_activity_imports').select('activity_id, mode, event_id, event_date')
+        .eq('user_id', userId).eq('provider', provider).in('activity_id', source.activities.map(a => a.activityId))
+      : supabase.from('provider_activity_imports').select('activity_id, mode, event_id, event_date')
+        .eq('user_id', userId).eq('provider', provider)),
     fetchExpandedSchedule(supabase, userId, windowStartIso.slice(0, 10)),
     fetchCompletionsInRange(supabase, userId, windowStartIso.slice(0, 10), windowEndIso.slice(0, 10)),
     provider === 'apple'
-      ? loadDedupContext(supabase, userId, provider, dayBefore(windowStartIso))
+      ? loadDedupContext(supabase, userId, provider, dayBefore(windowStartIso), new Date(windowStart.getTime() - OPEN_SESSION_MS).toISOString())
       : Promise.resolve({ sessions: [], otherProviderActivities: [] }),
   ]);
   if (ledger.error) throw new Error(`ledger read failed: ${ledger.error.message}`);
@@ -199,14 +205,15 @@ async function loadSyncContext(
 /** What a Health workout could be a second copy of: Apex's own tracker
  *  sessions (any provider, or none) and other providers' imports. */
 async function loadDedupContext(
-  supabase: Admin, userId: string, provider: SyncProvider, fromDate: string,
+  supabase: Admin, userId: string, provider: SyncProvider, fromDate: string, fromInstant: string,
 ): Promise<Pick<SyncContext, 'sessions' | 'otherProviderActivities'>> {
   const [sessions, streams] = await Promise.all([
+    // By when it ran, not by its occurrence's date: an overdue workout
+    // tracked today belongs to an occurrence dated days ago.
     supabase.from('workout_sessions')
       .select('started_at, finished_at')
       .eq('user_id', userId)
-      .gte('event_date', fromDate)
-      .not('started_at', 'is', null),
+      .gte('started_at', fromInstant),
     supabase.from('activity_streams')
       .select('provider, summary')
       .eq('user_id', userId)
@@ -247,14 +254,18 @@ export type AppleSkipReason = 'own-app' | 'duplicate' | 'in-progress' | 'out-of-
 export function classifyApple(activity: ProviderActivity, ctx: SyncContext, now = Date.now()): AppleSkipReason | null {
   if (ctx.ledgerActivityIds.has(activity.activityId)) return 'already-imported';
   if (isOwnAppActivity(activity)) return 'own-app';
-  const start = Date.parse(activity.startUtc);
+  const { start, end } = activityInterval(activity);
   if (start < now - FIRST_SYNC_DAYS * 86_400_000 || start > now + FUTURE_SKEW_MS) return 'out-of-window';
-  const end = start + activity.durationSec * 1000;
   const overlaps = (s: number, e: number) => start < e && s < end;
-  if (ctx.sessions.some(s => s.end === null && overlaps(s.start, Math.min(s.start + OPEN_SESSION_MS, Math.max(now, s.start + 1))))) {
+  // An open session counts while it is plausibly running; one opened and
+  // abandoned more than OPEN_SESSION_MS ago blocks nothing.
+  if (ctx.sessions.some(s => s.end === null && now - s.start <= OPEN_SESSION_MS && overlaps(s.start, Math.max(now, s.start + 1)))) {
     return 'in-progress';
   }
-  if (ctx.sessions.some(s => s.end !== null && overlaps(s.start, s.end))) return 'duplicate';
+  // A finished session is the same workout only when the two share most of
+  // the shorter one. Zero-length sessions — a quick-complete, a workout the
+  // coach logged — are a tap, not a workout, and never match.
+  if (ctx.sessions.some(s => s.end !== null && s.end > s.start && sameWorkout(start, end, s.start, s.end))) return 'duplicate';
   if (ctx.otherProviderActivities.some(o =>
     Math.abs(o.start - start) <= CROSS_PROVIDER_START_MS
     && Math.abs(o.durationSec - activity.durationSec) <= CROSS_PROVIDER_DURATION_RATIO * Math.max(o.durationSec, activity.durationSec),
@@ -262,11 +273,28 @@ export function classifyApple(activity: ProviderActivity, ctx: SyncContext, now 
   return null;
 }
 
-/** Remember an imported workout's interval, so a second copy in the same
- *  batch (Watch and a phone app both writing to Health) is a duplicate. */
-function rememberSession(ctx: SyncContext, activity: ProviderActivity): void {
+/** A Health workout's wall-clock interval: start to the end Health
+ *  recorded (a paused workout's duration is shorter than its span), else
+ *  start + duration. */
+function activityInterval(activity: ProviderActivity): { start: number; end: number } {
   const start = Date.parse(activity.startUtc);
-  ctx.sessions.push({ start, end: start + activity.durationSec * 1000 });
+  const recordedEnd = typeof activity.summaryExtras.endUtc === 'string' ? Date.parse(activity.summaryExtras.endUtc) : NaN;
+  return { start, end: Number.isFinite(recordedEnd) && recordedEnd > start ? recordedEnd : start + activity.durationSec * 1000 };
+}
+
+/** Whether two intervals share at least SAME_WORKOUT_OVERLAP of the shorter. */
+function sameWorkout(aStart: number, aEnd: number, bStart: number, bEnd: number): boolean {
+  const shared = Math.min(aEnd, bEnd) - Math.max(aStart, bStart);
+  const shorter = Math.min(aEnd - aStart, bEnd - bStart);
+  return shorter > 0 && shared >= SAME_WORKOUT_OVERLAP * shorter;
+}
+
+/** Remember an imported (or proposed) workout's interval, so a second copy
+ *  in the same batch (Watch and a phone app both writing to Health) is a
+ *  duplicate. */
+function rememberSession(ctx: SyncContext, activity: ProviderActivity): void {
+  const { start, end } = activityInterval(activity);
+  ctx.sessions.push({ start, end });
 }
 
 /** "Don't import": the ledger remembers the decision and nothing else is
@@ -440,6 +468,8 @@ function buildProposals(ctx: SyncContext, timezone: string): { proposals: Propos
         continue;
       }
       proposals.push(proposalFor(ctx, activity, timezone, filled));
+      // As apply and ingest do: a second copy in this batch is a duplicate.
+      rememberSession(ctx, activity);
       continue;
     }
     if (ctx.ledgerActivityIds.has(activity.activityId)) continue;

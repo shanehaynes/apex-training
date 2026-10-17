@@ -20,6 +20,20 @@ export const MAX_APPLE_ACTIVITIES = 100;
 const MAX_DURATION_SEC = 24 * 3600;
 const MAX_TEXT = 200;
 const MAX_EXTRAS_BYTES = 8_000;
+/** A duration may fall short of the recorded span (a paused workout), never
+ *  exceed it by more than clock slack. */
+const DURATION_SLACK_SEC = 60;
+/** HKWorkout UUIDs; the charset also keeps `apple-<id>` event ids distinct. */
+const ACTIVITY_ID_RE = /^[A-Za-z0-9-]{1,100}$/;
+const ISO_INSTANT_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d{1,9})?)?(Z|[+-]\d{2}:?\d{2})$/;
+
+/** Keys the server computes or validates: a client's summaryExtras may not
+ *  set them. The coach reads trainingLoad, hrv and hrZones from the stored
+ *  summary, and Apple carries none of them (D-056). */
+const RESERVED_EXTRAS = new Set([
+  'sport', 'sportLabel', 'startUtc', 'endUtc', 'durationSec', 'distanceMeters', 'elevationGainMeters',
+  'avgHr', 'maxHr', 'calories', 'trainingLoad', 'hrv', 'hrZones', 'activityName', 'sourceName', 'sourceBundleId',
+]);
 
 interface AppleType {
   label: string;
@@ -140,7 +154,9 @@ function text(v: unknown, max = MAX_TEXT): string | null {
 }
 
 function isoInstant(v: unknown): string | null {
-  if (typeof v !== 'string' || v.length > 40) return null;
+  // ISO 8601 with a zone only: Date.parse also reads "Oct 17 2026", in the
+  // server's own zone.
+  if (typeof v !== 'string' || v.length > 40 || !ISO_INSTANT_RE.test(v)) return null;
   const t = Date.parse(v);
   return Number.isFinite(t) ? new Date(t).toISOString() : null;
 }
@@ -156,6 +172,7 @@ function parseHrStream(raw: unknown): [number, number][] | null | undefined {
     if (typeof bpm !== 'number' || !Number.isFinite(bpm) || bpm < 20 || bpm > 250) return null;
     points.push([sec, bpm]);
   }
+  points.sort((a, b) => a[0] - b[0]);
   // The phone thins to the cap; a longer series is thinned here rather than
   // refused, the way the COROS path treats a FIT file.
   return points.length > MAX_STREAM_POINTS ? downsample(points) : points;
@@ -165,7 +182,7 @@ function parseHrStream(raw: unknown): [number, number][] | null | undefined {
  *  field is malformed or out of bounds. */
 export function parseAppleActivity(raw: unknown): ProviderActivity | null {
   if (!isRecord(raw)) return null;
-  const activityId = text(raw.activityId, 100);
+  const activityId = typeof raw.activityId === 'string' && ACTIVITY_ID_RE.test(raw.activityId) ? raw.activityId : null;
   const activityType = raw.activityType;
   if (!activityId || typeof activityType !== 'number' || !Number.isInteger(activityType) || activityType < 0) return null;
   const startUtc = isoInstant(raw.startUtc);
@@ -173,6 +190,7 @@ export function parseAppleActivity(raw: unknown): ProviderActivity | null {
   if (!startUtc || !endUtc || Date.parse(endUtc) < Date.parse(startUtc)) return null;
   const durationSec = finite(raw.durationSec, 1, MAX_DURATION_SEC);
   if (typeof durationSec !== 'number') return null;
+  if (durationSec > (Date.parse(endUtc) - Date.parse(startUtc)) / 1000 + DURATION_SLACK_SEC) return null;
 
   const bounded = {
     distanceMeters: finite(raw.distanceMeters, 0, 1_000_000),
@@ -191,10 +209,14 @@ export function parseAppleActivity(raw: unknown): ProviderActivity | null {
   if ((raw.sourceBundleId !== undefined && !sourceBundleId) || (raw.sourceName !== undefined && !sourceName)
       || (raw.activityName !== undefined && !activityName)) return null;
 
-  let extras: Record<string, unknown> = {};
+  // Whatever else the phone read, kept as data — minus every key the server
+  // computes or the coach reads, which only the validated fields may set.
+  const extras: Record<string, unknown> = {};
   if (raw.summaryExtras !== undefined) {
     if (!isRecord(raw.summaryExtras) || JSON.stringify(raw.summaryExtras).length > MAX_EXTRAS_BYTES) return null;
-    extras = raw.summaryExtras;
+    for (const [key, value] of Object.entries(raw.summaryExtras)) {
+      if (!RESERVED_EXTRAS.has(key) && key !== '__proto__') extras[key] = value;
+    }
   }
 
   let streams: ProviderActivity['streams'];

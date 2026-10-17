@@ -44,6 +44,9 @@ const RIDE_START = now - 3 * HOUR;
 const WALK_START = now - 2 * 24 * HOUR;
 const TRACKED_START = now - 26 * HOUR;
 const OPEN_START = now - 20 * 60_000;
+// An overdue workout tracked this morning: its occurrence is dated ten days
+// ago, but the session ran today — dedup goes by when it ran.
+const OVERDUE_START = now - 6 * HOUR;
 
 const ACT = {
   run: workout('it-apple-run', RUN_START, 2700, 37),
@@ -52,6 +55,7 @@ const ACT = {
   dupe: workout('it-apple-dupe', TRACKED_START + 5 * 60_000, 2400, 50),
   open: workout('it-apple-open', OPEN_START + 2 * 60_000, 300, 63),
   own: workout('it-apple-own', now - 30 * HOUR, 1800, 50, { sourceBundleId: APEX_BUNDLE_ID, sourceName: 'Apex' }),
+  overdue: workout('it-apple-overdue', OVERDUE_START + 2 * 60_000, 3000, 50),
 };
 const ALL_IDS = Object.values(ACT).map(a => a.activityId);
 
@@ -126,6 +130,8 @@ describe.skipIf(!RUN)('provider-sync: Apple Health against the local stack', () 
         started_at: iso(TRACKED_START), finished_at: iso(TRACKED_START + 50 * 60_000), total_duration_seconds: 3000 },
       { user_id: uid, event_id: 'it-apple-open-session', event_date: localDateOf(OPEN_START),
         started_at: iso(OPEN_START), finished_at: null },
+      { user_id: uid, event_id: 'it-apple-overdue-session', event_date: localDateOf(now - 10 * 24 * HOUR),
+        started_at: iso(OVERDUE_START), finished_at: iso(OVERDUE_START + 55 * 60_000), total_duration_seconds: 3300 },
     ]);
   });
 
@@ -169,6 +175,7 @@ describe.skipIf(!RUN)('provider-sync: Apple Health against the local stack', () 
       'it-apple-dupe': 'duplicate',
       'it-apple-open': 'in-progress',
       'it-apple-own': 'own-app',
+      'it-apple-overdue': 'duplicate',
     });
     // Preview writes nothing.
     const { data: ledger } = await admin.from('provider_activity_imports').select('activity_id').eq('user_id', agent.userId);
