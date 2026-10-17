@@ -348,7 +348,7 @@ describe.skipIf(!RUN)('W0 read foundation against the local stack', () => {
     // W11 (agent2's side). The provider rows are a per-user singleton, and
     // apply writes events keyed `coros-<activityId>` rather than FX-prefixed
     // ones, so they are named rather than matched.
-    await admin.from('provider_connections').delete().eq('user_id', agent2.userId).eq('provider', 'coros');
+    await admin.from('provider_connections').delete().eq('user_id', agent2.userId).in('provider', ['coros', 'apple']);
     await admin.from('provider_activity_imports').delete().eq('user_id', agent2.userId);
     for (const id of [`coros-${SYNC.runId}`, `coros-${SYNC.rideId}`]) {
       await admin.from('workout_completions').delete().eq('event_id', id);
@@ -1287,9 +1287,20 @@ describe.skipIf(!RUN)('W0 read foundation against the local stack', () => {
       return c;
     };
 
+    // W16 M2b: Apple Health connected beside COROS, so the status fixture
+    // carries both blocks.
+    const appleConnect = await providerSync({
+      action: 'connect', provider: 'apple', client: 'ios', timezone: SYNC_TZ,
+      categories: { workoutsRead: true, workoutsWrite: true },
+    });
+    expect(appleConnect.statusCode).toBe(200);
+
     const status = await providerSync({ action: 'status' });
     expect(status.statusCode).toBe(200);
-    expect(status.body).toMatchObject({ coros: { status: 'connected', configured: true, autoSync: true } });
+    expect(status.body).toMatchObject({
+      coros: { status: 'connected', configured: true, autoSync: true },
+      apple: { status: 'connected', categories: { workoutsRead: true, workoutsWrite: true } },
+    });
     fixture('provider-status.json', status.body);
 
     // preview writes nothing: the trail run matches the planned event (a fill
@@ -1314,6 +1325,41 @@ describe.skipIf(!RUN)('W0 read foundation against the local stack', () => {
     expect(apply.statusCode).toBe(200);
     expect(apply.body).toEqual({ created: 1, filled: 1, errors: [] });
     fixture('provider-apply.json', apply.body);
+
+    // W16 M2b: an Apple Health preview, read-only. The Watch recorded the same
+    // run and ride COROS just imported — duplicates — plus an unplanned walk
+    // (a proposal) and a workout Apex wrote to Health itself (own-app). The
+    // dedup rules read the clock, so Date alone is pinned to the fixture's
+    // week; the database never sees it.
+    const appleWorkout = (id: string, startUtc: string, durationSec: number, activityType: number, sourceBundleId = 'com.apple.health.watch') => ({
+      activityId: id, activityType, sourceBundleId, sourceName: 'Apple Watch', startUtc,
+      endUtc: new Date(Date.parse(startUtc) + durationSec * 1000).toISOString(), durationSec, avgHr: 140,
+    });
+    vi.useFakeTimers({ toFake: ['Date'], now: new Date('2026-09-10T12:00:00Z') });
+    let applePreview: Awaited<ReturnType<typeof providerSync>>;
+    try {
+      applePreview = await providerSync({
+        action: 'preview', provider: 'apple', client: 'ios', timezone: SYNC_TZ,
+        activities: [
+          appleWorkout('ios-fixture-apple-run', SYNC.runUtc, 2820, 37),
+          appleWorkout('ios-fixture-apple-ride', SYNC.rideUtc, 5400, 13),
+          appleWorkout('ios-fixture-apple-walk', '2026-09-10T01:30:00Z', 1800, 52),
+          appleWorkout('ios-fixture-apple-own', '2026-09-08T15:00:00Z', 2400, 50, 'com.shanehaynes.apextraining'),
+        ],
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+    expect(applePreview.statusCode).toBe(200);
+    expect(applePreview.body).toMatchObject({
+      proposals: [{ activity: { activityId: 'ios-fixture-apple-walk', sportLabel: 'Walk' }, match: null }],
+      skipped: [
+        { activityId: 'ios-fixture-apple-own', reason: 'own-app' },
+        { activityId: 'ios-fixture-apple-run', reason: 'duplicate' },
+        { activityId: 'ios-fixture-apple-ride', reason: 'duplicate' },
+      ],
+    });
+    fixture('provider-preview-apple.json', applePreview.body);
   });
 
   // W10 — Library, Blocks, Meals. Blocks and objectives are on agent, whose

@@ -84,6 +84,7 @@ describe('provider-sync handler', () => {
         status: 'disconnected', lastSyncedAt: null, connectedAt: null,
         configured: false, autoSync: true, pendingFillCount: 0,
       },
+      apple: { status: 'disconnected', connectedAt: null, lastSyncedAt: null, categories: {} },
     });
   });
 

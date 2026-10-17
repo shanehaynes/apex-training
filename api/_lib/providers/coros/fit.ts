@@ -1,4 +1,4 @@
-import { downsample } from './client.js';
+import { downsample } from '../streams.js';
 
 // FIT-file stream extraction: heart rate, GPS track, and altitude from the
 // binary activity files COROS exposes through its FIT download tools —

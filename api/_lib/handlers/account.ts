@@ -78,7 +78,7 @@ export const NON_CASCADING_TABLES = ['phase32_quarantine'] as const;
 const REDACTED_TABLES = {
   user_api_keys: 'Your saved Anthropic API key is stored encrypted and is deliberately not exported. Remove or replace it in Profile → Anthropic key.',
   mcp_tokens: 'Access tokens are stored only as hashes and cannot be recovered. Their names and usage dates are in the summary below.',
-  provider_connections: 'Watch-provider OAuth tokens are stored encrypted and are deliberately not exported.',
+  provider_connections: 'Watch-provider OAuth tokens are stored encrypted and are deliberately not exported. Each connection — the provider, its status, its dates and, for Apple Health, the categories you switched on — is in the summary below.',
   oauth_clients: 'OAuth client registrations belong to the connecting application, not to your account data.',
   oauth_codes: 'Short-lived OAuth authorization codes; they expire within minutes and are not exported.',
 } as const;
@@ -122,11 +122,19 @@ async function buildExport(supabase: Admin, userId: string) {
     .select('name, token_last4, kind, created_at, last_used_at, revoked_at, expires_at')
     .eq('user_id', userId);
 
+  // Connections without their tokens: which providers, since when, and the
+  // Health categories the athlete consented to (phase59) — theirs to see.
+  const { data: connections } = await supabase
+    .from('provider_connections')
+    .select('provider, status, connected_at, last_synced_at, auto_sync, categories')
+    .eq('user_id', userId);
+
   return {
     exportedAt: new Date().toISOString(),
     userId,
     notes: REDACTED_TABLES,
     mcpTokenSummary: tokens ?? [],
+    providerConnectionSummary: connections ?? [],
     data,
   };
 }
