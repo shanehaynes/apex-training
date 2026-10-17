@@ -2,7 +2,7 @@
 
 **Machine:** both (M0, M2b, M3b Linux · M1, MT, M2i, M3i, M4 Mac) · **Depends on:** W4, W11, W12;
 1.0 App Review approval before M1 merges · **Unblocks:** Apple Watch companion (later)
-**Status:** not started — brief drafted 2026-10-14 (D-056 supersedes D-018)
+**Status:** in progress — M1 (#430) and MT (#438) shipped in 1.1.0 (561); M0 (`phase59_apple_health.sql`) in review, HELD for its production paste; M2b next. Brief drafted 2026-10-14 (D-056 supersedes D-018)
 
 ## Goal
 Apex is a citizen of the Apple Health ecosystem: a workout finished in the tracker shows up in
@@ -135,7 +135,7 @@ Acceptance:
 - [x] Smoke leg on `-apexMockTermsStale`; snapshot of the sheet.
 - [ ] In a released build that most testers have installed **before** `PRIVACY_VERSION` moves.
 
-### M0 — Migration `phaseN_apple_health.sql` (one file for M2 and M3) · Linux · HELD
+### M0 — Migration `phase59_apple_health.sql` (one file for M2 and M3) · Linux · HELD
 Claim `N` with `scripts/next-phase.sh` at PR time. SQL before code; the account export reads
 `daily_metrics` the moment this deploys, so the table must exist in prod first.
 - `provider_connections.provider` CHECK → `IN ('coros','apple')`; `+ categories jsonb NOT NULL
@@ -157,6 +157,12 @@ Acceptance:
       clean; `prod-schema-check` exit 0 after Shane pastes it.
 
 ### M2b — Backend: Health workouts in as provider `apple` · Linux
+(Also in scope, from the M0 review: `provider_connections` is redacted whole from the account
+export as "Watch-provider OAuth tokens", but an `apple` row holds no token and its `categories`
+are the athlete's Health consent. Export a summary without token columns — provider, status,
+`categories`, `connected_at` — the way `mcpTokenSummary` exports token metadata, and reword
+the redaction note.)
+
 The phone *is* the provider: activities arrive in the body and there is no token
 (`handleSyncAction` skips `getFreshAccessToken` for `apple`).
 Contract — all `POST /api/provider-sync` (JWT; bucket `providerSync` 60/h; `client:'ios'`
@@ -311,6 +317,9 @@ GET  /api/daily-metrics?start&end (≤ 400 days) → { days }
 - **Body weight never moves backwards.** `bodyMassLb` writes `profiles.body_weight_lb` +
   `body_weight_updated_at` + `body_weight_source='apple'` only when `bodyMassAt` is newer than
   `body_weight_updated_at`; a backfilled or older sample leaves a newer manual entry alone.
+  phase59's CHECK allows exactly `'user'` and `'apple'`, and stamped every weight entered before
+  it as `'user'` at the row's `updated_at`, so a NULL `body_weight_updated_at` means no body
+  weight at all — a sample then writes.
 - `GET /api/profile` already returns `weightUnit` and `bodyWeightLb` (`profile.ts:125-126`); it
   gains `bodyWeightUpdatedAt` and `bodyWeightSource`. `PATCH body_weight_lb` stamps
   `updated_at = now()` and `source='user'`.

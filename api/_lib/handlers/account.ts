@@ -51,6 +51,7 @@ export const USER_DATA_TABLES = [
   'coach_messages',
   'coach_memory',
   'live_activity_tokens',
+  'daily_metrics',
 ] as const;
 
 /**
@@ -84,6 +85,11 @@ const REDACTED_TABLES = {
 
 type Admin = NonNullable<ReturnType<typeof getSupabaseAdmin>>;
 
+/** PostgREST's "no such table" (its schema cache) or Postgres's own. */
+function isTableMissing(error: { code?: string }): boolean {
+  return error.code === 'PGRST205' || error.code === '42P01';
+}
+
 async function buildExport(supabase: Admin, userId: string) {
   const data: Record<string, unknown> = {};
 
@@ -97,6 +103,14 @@ async function buildExport(supabase: Admin, userId: string) {
   // single click becomes a database incident.
   for (const table of USER_DATA_TABLES) {
     const { data: rows, error } = await supabase.from(table).select('*').eq('user_id', userId);
+    // A table whose migration has not reached this database yet holds no
+    // rows for anyone: export it empty rather than fail the whole export.
+    // Migrations are pasted into production by hand and can trail the code
+    // that lists their tables here (phase59's daily_metrics).
+    if (error && isTableMissing(error)) {
+      data[table] = [];
+      continue;
+    }
     if (error) throw new Error(`${table}: ${error.message}`);
     data[table] = rows ?? [];
   }

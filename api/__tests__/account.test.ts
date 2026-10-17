@@ -22,6 +22,8 @@ interface AdminState {
   deleteUserError?: string;
   tableDeleteError?: { table: string; message: string };
   rows?: Record<string, unknown[]>;
+  /** A select on this table answers with this error (e.g. a table not migrated yet). */
+  selectErrors?: Record<string, { code: string; message: string }>;
 }
 
 function makeAdmin(state: AdminState) {
@@ -45,7 +47,9 @@ function makeAdmin(state: AdminState) {
           const leaf: Record<string, unknown> = {
             maybeSingle: async () => ({ data: state.rows?.[table]?.[0] ?? null, error: null }),
             then: (resolve: (v: unknown) => unknown) =>
-              Promise.resolve({ data: state.rows?.[table] ?? [], error: null }).then(resolve),
+              Promise.resolve(state.selectErrors?.[table]
+                ? { data: null, error: state.selectErrors[table] }
+                : { data: state.rows?.[table] ?? [], error: null }).then(resolve),
           };
           return () => leaf;
         })();
@@ -98,6 +102,20 @@ describe('GET /api/account — export', () => {
     expect(statusCode()).toBe(200);
     for (const table of USER_DATA_TABLES) expect(state.selectedFrom).toContain(table);
     expect(state.selectedFrom).toContain('profiles');
+  });
+
+  it('exports a table its migration has not reached yet as empty, and fails on any other error', async () => {
+    state.selectErrors = { daily_metrics: { code: 'PGRST205', message: "Could not find the table 'public.daily_metrics'" } };
+    const { res, statusCode, body } = makeRes();
+    await handler(makeReq('GET'), res);
+    expect(statusCode()).toBe(200);
+    expect(JSON.parse(body() as string).data.daily_metrics).toEqual([]);
+
+    state.selectErrors = { daily_metrics: { code: '57014', message: 'canceling statement due to statement timeout' } };
+    const failed = makeRes();
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    await handler(makeReq('GET'), failed.res);
+    expect(failed.statusCode()).toBe(500);
   });
 
   it('serves as a downloadable attachment', async () => {
