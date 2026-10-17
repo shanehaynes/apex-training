@@ -268,7 +268,11 @@ makes granting it a small decision rather than a large one:
   touching `supabase/migrations/` merges, the babysitter runs
   `scripts/prod-schema-check.mjs`; unless production has every object
   `origin/main` already expects, the PR is `HOLD`ed with the missing objects
-  and the migrations that create them. `shipit` does not waive it: the label
+  and the migrations that create them. Then the same check runs against the
+  PR's head, so the PR's own migration must already be in production's
+  `migration_ledger` as written: until it is, the HOLD says "apply <file> to
+  production before merging". The order is DDL first, merge second, and the
+  merge is pinned to the head that was checked. `shipit` does not waive it: the label
   grants the PR, not a gap under it. Could-not-check holds too (fail closed).
   A migration PR still waiting for `shipit` gets the same check, printed
   under its HOLD, so a gap shows before the label goes on.
@@ -571,8 +575,9 @@ object must name the migration you are about to apply. Anything else names an
 older migration production skipped — apply that one first, in phase order,
 because a migration pasted over a gap can fail halfway or build on objects
 that are not there. (On 2026-10-14 two older migrations surfaced exactly this
-way.) After: it must exit 0. The babysitter enforces the "before" half on
-every migration PR ("Autonomous merging" below); whoever applies DDL by
+way.) After: it must exit 0. A migration PR is applied to production before
+it merges: the babysitter holds it until both halves pass, against `main` and
+against the PR's head ("Autonomous merging" below); whoever applies DDL by
 hand runs both itself.
 
 **Every migration ends with its own ledger stamp.** PostgREST cannot see
