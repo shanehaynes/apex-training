@@ -42,9 +42,43 @@ function tonnageLine(byWeek: WeekTonnage[]): string {
 }
 
 function hrvLine(hrv: NonNullable<PhysiologySummary['hrv']>): string {
+  // Activity-attached HRV keeps the line it always had; Health's overnight
+  // SDNN says what it is.
+  const label = hrv.source === 'daily' ? 'HRV (overnight SDNN, Apple Health)' : 'HRV';
   return hrv.mean7d === null
-    ? `HRV: 28d mean ${hrv.mean28d} ms (no reading in the last 7 days)`
-    : `HRV: 7d mean ${hrv.mean7d} ms vs 28d mean ${hrv.mean28d} ms`;
+    ? `${label}: 28d mean ${hrv.mean28d} ms (no reading in the last 7 days)`
+    : `${label}: 7d mean ${hrv.mean7d} ms vs 28d mean ${hrv.mean28d} ms`;
+}
+
+/** 432 → "7h 12m". */
+function hoursMinutes(minutes: number): string {
+  const m = Math.round(minutes);
+  return `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, '0')}m`;
+}
+
+const shortDate = (iso: string) => format(parseISO(iso), 'MMM d');
+
+function sleepLine(sleep: NonNullable<PhysiologySummary['sleep']>): string {
+  const last = sleep.lastNight === null ? 'no reading for last night' : `last night ${hoursMinutes(sleep.lastNight)}`;
+  const recent = sleep.mean7d === null ? '' : `7d mean ${hoursMinutes(sleep.mean7d)} vs `;
+  return `Sleep (Apple Health): ${last} · ${recent}28d mean ${hoursMinutes(sleep.mean28d)}`;
+}
+
+function restingHrLine(hr: NonNullable<PhysiologySummary['restingHr']>): string {
+  const recent = hr.mean7d === null ? '' : `7d mean ${hr.mean7d} vs `;
+  return `Resting HR (Apple Health): ${hr.latest.bpm} bpm on ${shortDate(hr.latest.date)} · ${recent}28d mean ${hr.mean28d} bpm`;
+}
+
+function stepsLine(steps: NonNullable<PhysiologySummary['steps']>): string {
+  const recent = steps.mean7d === null ? '' : `7d mean ${steps.mean7d.toLocaleString('en-US')} vs `;
+  return `Steps per completed day (Apple Health): ${recent}28d mean ${steps.mean28d.toLocaleString('en-US')}`;
+}
+
+function bodyMassLine(mass: NonNullable<PhysiologySummary['bodyMass']>): string {
+  const change = mass.change28dLb === null
+    ? ''
+    : ` (${mass.change28dLb > 0 ? '+' : ''}${mass.change28dLb} lb over 28 days)`;
+  return `Body mass (Apple Health): ${mass.latest.lb} lb on ${shortDate(mass.latest.date)}${change}`;
 }
 
 export function describePhysiology(summary: PhysiologySummary): string {
@@ -53,6 +87,10 @@ export function describePhysiology(summary: PhysiologySummary): string {
   if (summary.load) lines.push(loadLine(summary.load));
   if (summary.tonnageByWeek) lines.push(tonnageLine(summary.tonnageByWeek));
   if (summary.hrv) lines.push(hrvLine(summary.hrv));
+  if (summary.sleep) lines.push(sleepLine(summary.sleep));
+  if (summary.restingHr) lines.push(restingHrLine(summary.restingHr));
+  if (summary.steps) lines.push(stepsLine(summary.steps));
+  if (summary.bodyMass) lines.push(bodyMassLine(summary.bodyMass));
   if (lines.length === 0) return '';
 
   return [

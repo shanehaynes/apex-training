@@ -5,7 +5,12 @@ import { minutesForBareDuration } from '../review/stats.js';
 import { DEFAULT_WEIGHT_CONTEXT, type WeightContext } from '../tracking/weight.js';
 import type {
   ActivityInput,
+  BodyMassSummary,
+  DailyMetricInput,
   HrvSummary,
+  RestingHrSummary,
+  SleepSummary,
+  StepsSummary,
   LoadSummary,
   PhysiologyInputs,
   PhysiologySummary,
@@ -211,15 +216,87 @@ function computeTonnage(setLogs: SetLogInput[], weekStarts: string[], inWindow: 
   });
 }
 
-function computeHrv(activities: ActivityInput[], todayIso: string, inWindow: (date: string) => boolean): HrvSummary | null {
+/** The 7- and 28-day windows (today included) every daily figure uses. */
+function recentWindows(todayIso: string) {
   const today = parseISO(todayIso);
-  const sevenStart = format(subDays(today, 6), ISO);
-  const monthStart = format(subDays(today, 27), ISO);
+  return { sevenStart: format(subDays(today, 6), ISO), monthStart: format(subDays(today, 27), ISO) };
+}
+
+/** Readings of one field in the last 28 days: [date, value], positive and finite, by date. */
+function dailyReadings(
+  daily: DailyMetricInput[], field: 'sleepMinutes' | 'hrvSdnnMs' | 'restingHr' | 'steps' | 'bodyMassLb',
+  todayIso: string, inWindow: (date: string) => boolean, opts: { allowZero?: boolean } = {},
+): Array<[string, number]> {
+  const { monthStart } = recentWindows(todayIso);
+  return daily
+    .filter(d => inWindow(d.date) && d.date >= monthStart)
+    .flatMap((d): Array<[string, number]> => {
+      const v = d[field];
+      return finite(v) && (opts.allowZero ? v >= 0 : v > 0) ? [[d.date, v]] : [];
+    })
+    .sort((a, b) => a[0].localeCompare(b[0]));
+}
+
+function meanOf(values: number[], places = 0): number {
+  return round(values.reduce((s, v) => s + v, 0) / values.length, places);
+}
+
+function computeHrv(
+  activities: ActivityInput[], daily: DailyMetricInput[], todayIso: string, inWindow: (date: string) => boolean,
+): HrvSummary | null {
+  const { sevenStart, monthStart } = recentWindows(todayIso);
+  // Health's overnight SDNN wins whenever there is any: it is one consistent
+  // measurement, where an activity's HRV is whatever that device reported.
+  const nightly = dailyReadings(daily, 'hrvSdnnMs', todayIso, inWindow);
+  if (nightly.length > 0) {
+    const recent = nightly.filter(([d]) => d >= sevenStart).map(([, v]) => v);
+    return { mean7d: recent.length ? meanOf(recent) : null, mean28d: meanOf(nightly.map(([, v]) => v)), source: 'daily' };
+  }
   const readings = activities.filter(a => inWindow(a.eventDate) && finite(a.hrv) && a.hrv! > 0 && a.eventDate >= monthStart);
   if (readings.length === 0) return null;
   const mean = (rows: ActivityInput[]) => round(rows.reduce((sum, a) => sum + a.hrv!, 0) / rows.length);
   const recent = readings.filter(a => a.eventDate >= sevenStart);
   return { mean7d: recent.length ? mean(recent) : null, mean28d: mean(readings) };
+}
+
+function computeSleep(daily: DailyMetricInput[], todayIso: string, inWindow: (date: string) => boolean): SleepSummary | null {
+  const readings = dailyReadings(daily, 'sleepMinutes', todayIso, inWindow);
+  if (readings.length === 0) return null;
+  const { sevenStart } = recentWindows(todayIso);
+  const recent = readings.filter(([d]) => d >= sevenStart).map(([, v]) => v);
+  return {
+    lastNight: readings.find(([d]) => d === todayIso)?.[1] ?? null,
+    mean7d: recent.length ? meanOf(recent) : null,
+    mean28d: meanOf(readings.map(([, v]) => v)),
+  };
+}
+
+function computeRestingHr(daily: DailyMetricInput[], todayIso: string, inWindow: (date: string) => boolean): RestingHrSummary | null {
+  const readings = dailyReadings(daily, 'restingHr', todayIso, inWindow);
+  if (readings.length === 0) return null;
+  const { sevenStart } = recentWindows(todayIso);
+  const recent = readings.filter(([d]) => d >= sevenStart).map(([, v]) => v);
+  const [date, bpm] = readings[readings.length - 1];
+  return { latest: { date, bpm }, mean7d: recent.length ? meanOf(recent) : null, mean28d: meanOf(readings.map(([, v]) => v)) };
+}
+
+function computeSteps(daily: DailyMetricInput[], todayIso: string, inWindow: (date: string) => boolean): StepsSummary | null {
+  // Completed days only: today's count is a running total.
+  const readings = dailyReadings(daily, 'steps', todayIso, inWindow, { allowZero: true }).filter(([d]) => d < todayIso);
+  if (readings.length === 0) return null;
+  const { sevenStart } = recentWindows(todayIso);
+  const recent = readings.filter(([d]) => d >= sevenStart).map(([, v]) => v);
+  return { mean7d: recent.length ? meanOf(recent) : null, mean28d: meanOf(readings.map(([, v]) => v)) };
+}
+
+function computeBodyMass(daily: DailyMetricInput[], todayIso: string, inWindow: (date: string) => boolean): BodyMassSummary | null {
+  const readings = dailyReadings(daily, 'bodyMassLb', todayIso, inWindow);
+  if (readings.length === 0) return null;
+  const [date, lb] = readings[readings.length - 1];
+  return {
+    latest: { date, lb: round(lb, 1) },
+    change28dLb: readings.length > 1 ? round(lb - readings[0][1], 1) : null,
+  };
 }
 
 // ─── Entry point ──────────────────────────────────────────────────────────────
@@ -243,8 +320,17 @@ export function computePhysiology(inputs: PhysiologyInputs): PhysiologySummary {
   if (load) summary.load = load;
   const tonnage = computeTonnage(inputs.setLogs, weekStarts, inWindow, inputs.weight ?? DEFAULT_WEIGHT_CONTEXT);
   if (tonnage) summary.tonnageByWeek = tonnage;
-  const hrv = computeHrv(inputs.activities, inputs.today, inWindow);
+  const daily = inputs.dailyMetrics ?? [];
+  const hrv = computeHrv(inputs.activities, daily, inputs.today, inWindow);
   if (hrv) summary.hrv = hrv;
+  const sleep = computeSleep(daily, inputs.today, inWindow);
+  if (sleep) summary.sleep = sleep;
+  const restingHr = computeRestingHr(daily, inputs.today, inWindow);
+  if (restingHr) summary.restingHr = restingHr;
+  const steps = computeSteps(daily, inputs.today, inWindow);
+  if (steps) summary.steps = steps;
+  const bodyMass = computeBodyMass(daily, inputs.today, inWindow);
+  if (bodyMass) summary.bodyMass = bodyMass;
   return summary;
 }
 
