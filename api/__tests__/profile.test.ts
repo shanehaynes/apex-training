@@ -69,6 +69,7 @@ const PROFILE_DEFAULTS = {
   coachContract: null, reflectionOptIn: false,
   maxHr: null, thresholdHr: null, calendarFeedUrl: null,
   weightUnit: 'lb', bodyWeightLb: null, timezone: null,
+  bodyWeightUpdatedAt: null, bodyWeightSource: null,
   // W13: a fresh account with no key — the welcome flow is due, nothing ticked.
   onboarding: {
     dismissedAt: null, applies: true, setup: { template: false, key: false, goal: false }, tipsSeen: [], skipped: [],
@@ -564,6 +565,36 @@ describe('PATCH /api/profile — HR-zone settings (phase 35)', () => {
       expect(statusCode()).toBe(400);
       expect(state.profileUpdate).toBeUndefined();
     }
+  });
+});
+
+describe('body weight provenance (phase59, W16 M3b)', () => {
+  it('a Profile weight save stamps it the athlete\'s own, now', async () => {
+    const state: AdminState = { key: null };
+    mockedAdmin.mockReturnValue(makeAdmin(state));
+    const { res, statusCode } = makeRes();
+    const before = Date.now();
+    await handler(makeReq('PATCH', { body_weight_lb: 182.5 }), res);
+    expect(statusCode()).toBe(200);
+    expect(state.profileUpdate).toMatchObject({ body_weight_lb: 182.5, body_weight_source: 'user' });
+    expect(Date.parse(state.profileUpdate!.body_weight_updated_at as string)).toBeGreaterThanOrEqual(before);
+  });
+
+  it('a save that does not touch the weight leaves the stamp alone', async () => {
+    const state: AdminState = { key: null };
+    mockedAdmin.mockReturnValue(makeAdmin(state));
+    const { res } = makeRes();
+    await handler(makeReq('PATCH', { weight_unit: 'kg' }), res);
+    expect(state.profileUpdate).not.toHaveProperty('body_weight_source');
+  });
+
+  it('GET reports who set the weight and when', async () => {
+    mockedAdmin.mockReturnValue(makeAdmin({ key: null, profile: {
+      body_weight_lb: 182.5, body_weight_updated_at: '2026-10-16T07:00:00+00:00', body_weight_source: 'apple',
+    } }));
+    const { res, body } = makeRes();
+    await handler(makeReq('GET'), res);
+    expect(body()).toMatchObject({ bodyWeightUpdatedAt: '2026-10-16T07:00:00+00:00', bodyWeightSource: 'apple' });
   });
 });
 

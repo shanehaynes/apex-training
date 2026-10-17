@@ -12,6 +12,8 @@
   "weightUnit": "lb",
   "bodyWeightLb": null,
   "timezone": null,
+  "bodyWeightUpdatedAt": null,
+  "bodyWeightSource": null,
   "coachModel": null,
   "coachModelLabel": "Opus 5.5",
   "calendarFeedUrl": "http://localhost/api/calendar-feed?token=<uuid>",

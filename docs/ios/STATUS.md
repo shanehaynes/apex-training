@@ -25,29 +25,23 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
 | W13 | Release + polish | done (#190, #191, #193, #194) · **App Store: 1.0 (509) rejected 2026-10-09 — 2.1 Information Needed; reply + recording pending (app-store.md §3)** | Mac | 2026-10-09: build 10 = 1.0.0 (509) from `testflight.yml` run 37964880205 carries W15, #383–#388; phase52 in prod; Push Notifications enabled on the App ID; version 1.0 at *Prepare for Submission*, manual release set |
 | W14 | UX review implementation | done (#283–#292, #296, #297) | Mac | ux-review.md §7; decisions D-037…D-044; **TestFlight build 8 (0.9.0/424) uploaded 2026-09-22 by the first `testflight.yml` run**; snapshots re-recorded on the iPhone 17 (#300); Shane's device run on build 8 is next |
 | W15 | Connector access level (look-only / full tokens) | done (#379) | Mac | after #371/#376 gave `/api/mcp` write access; brief [W15](workstreams/W15-connector-access.md) |
-| W16 | Apple Health (write, read workouts, daily metrics, body weight, meals) | M1 (#430) + MT (#438) shipped in TestFlight 1.1.0 (561); M0 landed (phase59, #469); M2b in review; M3b next | both | D-056 supersedes D-018; M1 (write, no migration) merges after 1.0 is approved and ships as 1.1; MT (in-app terms re-acceptance) gates the privacy bump; brief [W16](workstreams/W16-apple-health.md) |
+| W16 | Apple Health (write, read workouts, daily metrics, body weight, meals) | M1 (#430) + MT (#438) shipped in TestFlight 1.1.0 (561); M0 landed (phase59, #469); M2b (#472) and M3b in review; privacy bump, then M2i next | both | D-056 supersedes D-018; M1 (write, no migration) merges after 1.0 is approved and ships as 1.1; MT (in-app terms re-acceptance) gates the privacy bump; brief [W16](workstreams/W16-apple-health.md) |
 
 ## Next up
-0. **W16 M3b — daily metrics, body weight both ways, and the coach (Linux).** Goal: last night's
-   sleep, HRV, resting HR, steps and body mass from Health reach the server and the coach's
-   `<physiology>` block, and a Health weigh-in updates the profile's body weight without ever
-   overwriting a newer manual one. Scope (full contract: [W16 brief, M3b](workstreams/W16-apple-health.md)):
-   `POST /api/daily-metrics` (1..62 days, upsert per `(user_id, date, provider)`, absent fields
-   untouched, `null` clears; 409 `not-connected`, 409 `category-off` naming the category —
-   `dailyMetrics` for sleep/HRV/resting HR/steps, `bodyMass` for weight) and `GET` (≤ 400 days),
-   behind the Hono router in `api/_lib/handlers/`; `bodyMassLb` writes `profiles.body_weight_lb`
-   + `body_weight_updated_at` + `body_weight_source='apple'` only when `bodyMassAt` is newer
-   (phase59 stamped older weights `'user'`); `PATCH /api/profile body_weight_lb` stamps
-   `'user'`/now; `GET /api/profile` gains `bodyWeightUpdatedAt`/`bodyWeightSource`; the coach's
-   physiology gains sleep, resting HR, HRV (daily SDNN preferred), steps and body mass lines.
-   Acceptance: the brief's M3b boxes; an integration test that a profile weight PATCH lands with
-   `'user'` (the M0 review's guard); fixtures `daily-metrics.json`, `profile.json`. **Coach
-   surface:** `api/_lib/coach/` and `src/lib/physiology/` change, so `coach-gate` applies — budget
-   an `npm run eval:gate` (and the attestation is already stale from #425). Owns: the new
-   handler and service, `profile.ts`'s weight stamping, `src/lib/physiology/*`,
-   `api/_lib/coach/physiology.ts`, their tests. Not blocked by the privacy bump (server-only), but
-   nothing reaches it until M3i ships after the bump. **Shane, meanwhile:** the privacy bump
-   (approved 2026-10-14) once testers are on 561, then M2i (Mac).
+0. **W16 M2i — iOS reads Health workouts (Mac), after the privacy bump.** Goal: a Watch,
+   Garmin-via-Health or Whoop-via-Health workout reaches the server as provider `apple` (M2b,
+   #472) from the phone, durable through kills and offline, and a match the athlete has not
+   decided is never lost. **First, Shane:** the privacy bump approved 2026-10-14 (`legal/privacy-v2.md`
+   + `PRIVACY_VERSION`, text naming Health categories, server storage and Anthropic for daily
+   metrics) once testers are on 561 — M2i ships only after it. Scope (full contract:
+   [W16 brief, M2i](workstreams/W16-apple-health.md)): `HealthWorkoutReader` (anchored query,
+   now−30d start, own source excluded, HR per workout, background delivery that only enqueues);
+   its own queue lane `SessionKey.health` (429 backs off; 409 drops and refreshes status); the
+   `.healthIngest` op holds the activities; the anchor saved after the enqueue; `pending`
+   proposals saved to `healthPending` before anything else and decided in a `ProviderSyncModel`
+   extracted from `CorosModel`; toggles move to the server (`connect`/`set-categories`). HELD
+   files: the background-delivery entitlement, `PrivacyInfo.xcprivacy`. Acceptance: the brief's
+   M2i boxes. Owns: `ApexHealth`, the health lane, `HealthModel`, `ProviderSyncModel`, their tests.
 0. **W16 M1 — write finished sessions to Apple Health (Mac).** Goal: a tracker finish writes an
    Apex-branded `HKWorkout` with the real start and end, the mapped activity type and
    `HKMetadataKeySyncIdentifier`/`SyncVersion` so a re-save replaces; cancel-after-finish deletes
@@ -145,6 +139,13 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
    (`printf` the two ids back after a tidy) — both git-ignored, so never from the primary checkout.
 
 ## Recent sessions
+- 2026-10-17 · W16 M3b · Linux-shaped, on the Mac. `POST`/`GET /api/daily-metrics`: one upsert
+  per day (absent untouched, null clears), consent per category for the whole batch before any
+  write, and a Health weigh-in moving `profiles.body_weight_lb` only when newer (one conditional
+  UPDATE); Profile weight saves stamp `'user'`/now; `GET /api/profile` reports the provenance. The
+  coach's physiology gains sleep, resting HR, steps (completed days) and body mass lines, and
+  prefers Health's overnight SDNN for HRV. Built on M2b (#472, merged in). The eval gate is
+  Shane's call. Next up: privacy bump, then M2i.
 - 2026-10-17 · W16 M2b · Linux-shaped, on the Mac. Health workouts come in as provider `apple`
   on the COROS rails: `connect`/`set-categories`/`status`/`disconnect` (with `purgeMetrics`),
   `preview`/`apply` (with `'skip'`)/`ingest` with the activities in the body; consent enforced

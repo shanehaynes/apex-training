@@ -1,0 +1,39 @@
+{
+  "days": [
+    {
+      "date": "2026-09-09",
+      "provider": "apple",
+      "sleepMinutes": 418,
+      "sleepStages": {
+        "rem": 90,
+        "core": 240,
+        "deep": 70,
+        "awake": 18
+      },
+      "sleepStart": null,
+      "sleepEnd": null,
+      "hrvSdnnMs": 47.5,
+      "restingHr": 53,
+      "steps": 11240,
+      "bodyMassLb": null,
+      "bodyMassAt": null,
+      "sources": null,
+      "updatedAt": "<timestamp>"
+    },
+    {
+      "date": "2026-09-10",
+      "provider": "apple",
+      "sleepMinutes": 432,
+      "sleepStages": null,
+      "sleepStart": "2026-09-10T04:05:00+00:00",
+      "sleepEnd": "2026-09-10T11:17:00+00:00",
+      "hrvSdnnMs": 51,
+      "restingHr": 52,
+      "steps": null,
+      "bodyMassLb": null,
+      "bodyMassAt": null,
+      "sources": null,
+      "updatedAt": "<timestamp>"
+    }
+  ]
+}
