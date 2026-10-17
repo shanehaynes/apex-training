@@ -118,6 +118,15 @@ describe('GET /api/account — export', () => {
     expect(failed.statusCode()).toBe(500);
   });
 
+  it('summarises provider connections without their tokens', async () => {
+    state.rows = { provider_connections: [{ provider: 'apple', status: 'connected', categories: { workoutsRead: true } }] };
+    const { res, body } = makeRes();
+    await handler(makeReq('GET'), res);
+    const payload = JSON.parse(body() as string);
+    expect(payload.providerConnectionSummary).toEqual([{ provider: 'apple', status: 'connected', categories: { workoutsRead: true } }]);
+    expect(payload.data).not.toHaveProperty('provider_connections');
+  });
+
   it('serves as a downloadable attachment', async () => {
     const { res, headers } = makeRes();
     await handler(makeReq('GET'), res);

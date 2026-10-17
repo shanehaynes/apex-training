@@ -494,7 +494,7 @@ terms (`AppModel.syncTimezone`).
 
 ## W16 — Apple Health (planned, D-056)
 Full contracts in [workstreams/W16-apple-health.md](workstreams/W16-apple-health.md); landing
-order M0 → M2b → M3b. Nothing here has landed yet. The privacy-version bump that comes with
+order M0 → M2b → M3b. M0 landed (phase59, #469, applied to production); M2b is in review. The privacy-version bump that comes with
 M2b waits for an iOS build that can re-accept terms while signed in (W16 MT): a bump answers
 403 `terms-acceptance-required` on every JWT route.
 
@@ -514,6 +514,14 @@ earliest start, not the watermark; an activity overlapping a finished tracker se
 ignored by the edit-times import check. Idempotent on the ledger PK
 `(user_id, 'apple', activityId = HKWorkout.uuid)`. Fixtures `provider-status.json` (apple block),
 `provider-preview-apple.json`.
+As built: `preview` answers `{ proposals, skipped:[{ activityId, reason }] }` for apple (COROS
+unchanged, `{ proposals }`), reasons `already-imported | own-app | out-of-window | in-progress |
+duplicate`; `apply` refuses a fill or create of a set-aside workout with that reason in `errors`
+(`skip` is always allowed) and answers `skipped` beside `created`/`filled`; `ingest` ledgers
+`duplicate` and `own-app` as skipped, never `in-progress`. Every apple action but `disconnect`
+needs `client:'ios'`. An unfinished tracker session counts as in progress for at most 12 h. The
+account export gains `providerConnectionSummary` (provider, status, dates, Health categories —
+no tokens).
 
 ### `POST` / `GET /api/daily-metrics` + profile weight fields (M3b)
 Upsert per `(user_id, date, provider)`, absent fields untouched, `null` clears; fields from an

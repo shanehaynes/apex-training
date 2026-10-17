@@ -248,7 +248,7 @@ export type CoachMemoryRow = Row<'coach_memory', {
 // ─── Provider sync (phase 27) ────────────────────────────────────────────────
 // COROS today; provider strings widen for Garmin/Apple later.
 
-export type SyncProvider = 'coros';
+export type SyncProvider = 'coros' | 'apple';
 
 /** Service-role only (RLS with no policies) — the browser never sees this row,
  *  only the status/timestamp projection returned by /api/provider-sync.

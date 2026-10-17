@@ -25,25 +25,29 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
 | W13 | Release + polish | done (#190, #191, #193, #194) · **App Store: 1.0 (509) rejected 2026-10-09 — 2.1 Information Needed; reply + recording pending (app-store.md §3)** | Mac | 2026-10-09: build 10 = 1.0.0 (509) from `testflight.yml` run 37964880205 carries W15, #383–#388; phase52 in prod; Push Notifications enabled on the App ID; version 1.0 at *Prepare for Submission*, manual release set |
 | W14 | UX review implementation | done (#283–#292, #296, #297) | Mac | ux-review.md §7; decisions D-037…D-044; **TestFlight build 8 (0.9.0/424) uploaded 2026-09-22 by the first `testflight.yml` run**; snapshots re-recorded on the iPhone 17 (#300); Shane's device run on build 8 is next |
 | W15 | Connector access level (look-only / full tokens) | done (#379) | Mac | after #371/#376 gave `/api/mcp` write access; brief [W15](workstreams/W15-connector-access.md) |
-| W16 | Apple Health (write, read workouts, daily metrics, body weight, meals) | M1 (#430) + MT (#438) shipped in TestFlight 1.1.0 (561); M0 in review (phase59, HELD); M2b next | both | D-056 supersedes D-018; M1 (write, no migration) merges after 1.0 is approved and ships as 1.1; MT (in-app terms re-acceptance) gates the privacy bump; brief [W16](workstreams/W16-apple-health.md) |
+| W16 | Apple Health (write, read workouts, daily metrics, body weight, meals) | M1 (#430) + MT (#438) shipped in TestFlight 1.1.0 (561); M0 landed (phase59, #469); M2b in review; M3b next | both | D-056 supersedes D-018; M1 (write, no migration) merges after 1.0 is approved and ships as 1.1; MT (in-app terms re-acceptance) gates the privacy bump; brief [W16](workstreams/W16-apple-health.md) |
 
 ## Next up
-0. **W16 M2b — Health workouts in as provider `apple` (Linux).** Goal: a Watch, Garmin-via-Health
-   or Whoop-via-Health workout reaches the schedule the way a COROS activity does — matched,
-   filled or created, with HR streams and ledger dedup — through `POST /api/provider-sync` with
-   the phone as the provider. Scope (full contract: [W16 brief, M2b](workstreams/W16-apple-health.md)):
-   `connect` / `set-categories` / `status` / `disconnect` (with `purgeMetrics`) / `preview` /
-   `apply` / `ingest` for `apple` on phase59's columns; consent enforced server-side (409
-   `category-off` without `categories.workoutsRead`, 409 `not-connected` without a row); the
-   match window from the batch, not the watermark; dedup against finished tracker sessions
-   (`duplicate`) and open ones (`in-progress`, no ledger row) and against other providers'
-   streams; `mode:'skipped'` ledger rows that never lock a session's times; an Apple
-   activity-type mapper keyed on the integer `HKWorkoutActivityType`. Acceptance: the brief's
-   M2b boxes — `provider-sync.test.ts`, a new `apple-activity.test.ts`, the
-   `provider-sync.integration` apple cases, `edit-times` with a skipped row, `provider-cron`
-   listing no apple rows; `backend-changes.md` W16 updated. Owns: `api/_lib/providers/*`,
-   `api/_lib/handlers/providerSync.ts`, `trackerSession.ts`'s import count, their tests. Needs
-   phase59 in production first (this lane's M0 PR, HELD).
+0. **W16 M3b — daily metrics, body weight both ways, and the coach (Linux).** Goal: last night's
+   sleep, HRV, resting HR, steps and body mass from Health reach the server and the coach's
+   `<physiology>` block, and a Health weigh-in updates the profile's body weight without ever
+   overwriting a newer manual one. Scope (full contract: [W16 brief, M3b](workstreams/W16-apple-health.md)):
+   `POST /api/daily-metrics` (1..62 days, upsert per `(user_id, date, provider)`, absent fields
+   untouched, `null` clears; 409 `not-connected`, 409 `category-off` naming the category —
+   `dailyMetrics` for sleep/HRV/resting HR/steps, `bodyMass` for weight) and `GET` (≤ 400 days),
+   behind the Hono router in `api/_lib/handlers/`; `bodyMassLb` writes `profiles.body_weight_lb`
+   + `body_weight_updated_at` + `body_weight_source='apple'` only when `bodyMassAt` is newer
+   (phase59 stamped older weights `'user'`); `PATCH /api/profile body_weight_lb` stamps
+   `'user'`/now; `GET /api/profile` gains `bodyWeightUpdatedAt`/`bodyWeightSource`; the coach's
+   physiology gains sleep, resting HR, HRV (daily SDNN preferred), steps and body mass lines.
+   Acceptance: the brief's M3b boxes; an integration test that a profile weight PATCH lands with
+   `'user'` (the M0 review's guard); fixtures `daily-metrics.json`, `profile.json`. **Coach
+   surface:** `api/_lib/coach/` and `src/lib/physiology/` change, so `coach-gate` applies — budget
+   an `npm run eval:gate` (and the attestation is already stale from #425). Owns: the new
+   handler and service, `profile.ts`'s weight stamping, `src/lib/physiology/*`,
+   `api/_lib/coach/physiology.ts`, their tests. Not blocked by the privacy bump (server-only), but
+   nothing reaches it until M3i ships after the bump. **Shane, meanwhile:** the privacy bump
+   (approved 2026-10-14) once testers are on 561, then M2i (Mac).
 0. **W16 M1 — write finished sessions to Apple Health (Mac).** Goal: a tracker finish writes an
    Apex-branded `HKWorkout` with the real start and end, the mapped activity type and
    `HKMetadataKeySyncIdentifier`/`SyncVersion` so a re-save replaces; cancel-after-finish deletes
@@ -141,6 +145,14 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
    (`printf` the two ids back after a tidy) — both git-ignored, so never from the primary checkout.
 
 ## Recent sessions
+- 2026-10-17 · W16 M2b · Linux-shaped, on the Mac. Health workouts come in as provider `apple`
+  on the COROS rails: `connect`/`set-categories`/`status`/`disconnect` (with `purgeMetrics`),
+  `preview`/`apply` (with `'skip'`)/`ingest` with the activities in the body; consent enforced
+  server-side (`not-connected`, `category-off`); the window from the batch; dedup against
+  tracker sessions (`duplicate`, `in-progress` without a ledger row, ≤ 12 h for an unfinished
+  one), other providers' imports and Apex's own Health writes (`own-app`); a mapper on the
+  integer `HKWorkoutActivityType` pinned to the iOS 26.5 SDK. Fixtures `provider-status.json`
+  (apple block), `provider-preview-apple.json`. Next up: M3b.
 - 2026-10-16 · W16 M0 · Linux-shaped, on the Mac. `phase59_apple_health.sql`: provider CHECK
   widened to `('coros','apple')` with `categories jsonb` (`{}` for COROS), `provider_activity_imports`
   mode gains `'skipped'`, a service-role-only `daily_metrics` (PK `user_id, date, provider`, the
