@@ -8,11 +8,18 @@ import XCTest
 /// app `{"id":"\(id)"}` instead of the id, and nothing else in the suite reads
 /// these replies closely enough to notice.
 final class MockReplyTests: XCTestCase {
-    private func reply(_ method: String, _ path: String, body: [String: Any]? = nil) async throws -> [String: Any] {
+    private func reply(
+        _ method: String, _ path: String, body: [String: Any]? = nil,
+        on transport: FixtureTransport? = nil
+    ) async throws -> [String: Any] {
         var request = URLRequest(url: URL(string: "http://127.0.0.1\(path)")!)
         request.httpMethod = method
         if let body { request.httpBody = try JSONSerialization.data(withJSONObject: body) }
-        let response = try await MockEnvironment(termsStale: false).transport.send(request)
+        let response = if let transport {
+            try await transport.send(request)
+        } else {
+            try await MockEnvironment(termsStale: false).transport.send(request)
+        }
         XCTAssertEqual(response.status, 200, "\(method) \(path)")
         let text = String(decoding: response.body, as: UTF8.self)
         let object = try? JSONSerialization.jsonObject(with: response.body) as? [String: Any]
@@ -39,10 +46,17 @@ final class MockReplyTests: XCTestCase {
         XCTAssertEqual(object["id"] as? String, "tile-1")
     }
 
+    /// One transport throughout: the default is `true`, so only the round trip
+    /// off and back on proves the reply follows the body.
     func testCorosAutoSyncReportsTheNewValue() async throws {
-        let off = try await reply("POST", "/api/provider-sync", body: ["action": "set-auto-sync", "enabled": false])
+        let transport = await MockEnvironment(termsStale: false).transport
+        let off = try await reply("POST", "/api/provider-sync", body: ["action": "set-auto-sync", "enabled": false], on: transport)
         XCTAssertEqual(off["autoSync"] as? Bool, false)
-        let on = try await reply("POST", "/api/provider-sync", body: ["action": "set-auto-sync", "enabled": true])
+        let offStatus = try await reply("POST", "/api/provider-sync", body: ["action": "status"], on: transport)
+        XCTAssertEqual((offStatus["coros"] as? [String: Any])?["autoSync"] as? Bool, false)
+        let on = try await reply("POST", "/api/provider-sync", body: ["action": "set-auto-sync", "enabled": true], on: transport)
         XCTAssertEqual(on["autoSync"] as? Bool, true)
+        let onStatus = try await reply("POST", "/api/provider-sync", body: ["action": "status"], on: transport)
+        XCTAssertEqual((onStatus["coros"] as? [String: Any])?["autoSync"] as? Bool, true)
     }
 }
