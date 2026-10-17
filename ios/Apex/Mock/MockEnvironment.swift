@@ -366,13 +366,13 @@ actor FixtureTransport: HTTPTransport {
                 return ok(try applyDraft(body))
             case ("PATCH", "/api/workout-templates"):
                 edits.archivedTemplates[queryValue("id", in: query)] = body?["archived_at"] ?? NSNull()
-                return ok(Data(#"{"id":"\(queryValue("id", in: query))"}"#.utf8))
+                return ok(Data(#"{"id":"\#(queryValue("id", in: query))"}"#.utf8))
             case ("POST", "/api/exercise-definitions"):
                 edits.addedDefinitions.append([
                     "id": body?["id"] ?? "", "canonicalName": body?["canonical_name"] ?? "", "category": body?["category"] ?? "strength",
                     "aliases": [], "muscleGroups": [], "equipment": [], "isUnilateral": body?["is_unilateral"] ?? false,
                 ])
-                return ok(Data(#"{"id":"\(body?["id"] as? String ?? "")"}"#.utf8))
+                return ok(Data(#"{"id":"\#(body?["id"] as? String ?? "")"}"#.utf8))
             case ("PATCH", "/api/exercise-definitions"):
                 return try patchDefinition(id: queryValue("id", in: query), fields: body?["fields"] as? [String: Any] ?? [:])
             case ("POST", "/api/query"):
@@ -494,7 +494,7 @@ actor FixtureTransport: HTTPTransport {
                     return HTTPResponse(status: 404, headers: [:], body: Data("Tile not found".utf8))
                 }
                 tileEdits.deleted.insert(id)
-                return ok(Data(#"{"id":"\(id)"}"#.utf8))
+                return ok(Data(#"{"id":"\#(id)"}"#.utf8))
             case ("POST", "/api/coach-summary"):
                 return HTTPResponse(
                     status: 200, headers: ["Content-Type": "application/x-ndjson; charset=utf-8"],
@@ -712,7 +712,7 @@ actor FixtureTransport: HTTPTransport {
             return ok(Data(#"{"ok":true}"#.utf8))
         case "set-auto-sync":
             corosAutoSync = body?["enabled"] as? Bool ?? true
-            return ok(Data(#"{"ok":true,"autoSync":\(corosAutoSync)}"#.utf8))
+            return ok(Data(#"{"ok":true,"autoSync":\#(corosAutoSync)}"#.utf8))
         case "preview":
             guard corosStatus == "connected" else { return HTTPResponse(status: 409, headers: [:], body: Data("provider-expired".utf8)) }
             return ok(try Fixtures.data("provider-preview.json"))
@@ -798,7 +798,7 @@ actor FixtureTransport: HTTPTransport {
     private func saveTile(_ body: [String: Any]?) throws -> Data {
         guard let draft = body?["draft"] as? [String: Any] else {
             // The web's spec body — accepted, not replayed.
-            return Data(#"{"id":"\(body?["id"] as? String ?? "")"}"#.utf8)
+            return Data(#"{"id":"\#(body?["id"] as? String ?? "")"}"#.utf8)
         }
         let title = (draft["title"] as? String ?? "").trimmingCharacters(in: .whitespaces)
         guard !title.isEmpty else {
