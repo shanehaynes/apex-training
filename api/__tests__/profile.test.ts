@@ -580,6 +580,14 @@ describe('body weight provenance (phase59, W16 M3b)', () => {
     expect(Date.parse(state.profileUpdate!.body_weight_updated_at as string)).toBeGreaterThanOrEqual(before);
   });
 
+  it('clearing the weight clears its provenance', async () => {
+    const state: AdminState = { key: null };
+    mockedAdmin.mockReturnValue(makeAdmin(state));
+    const { res } = makeRes();
+    await handler(makeReq('PATCH', { body_weight_lb: null }), res);
+    expect(state.profileUpdate).toMatchObject({ body_weight_lb: null, body_weight_updated_at: null, body_weight_source: null });
+  });
+
   it('a save that does not touch the weight leaves the stamp alone', async () => {
     const state: AdminState = { key: null };
     mockedAdmin.mockReturnValue(makeAdmin(state));

@@ -406,8 +406,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     fields.body_weight_lb = body.body_weight_lb;
     // The athlete's own entry, as of now: a Health weigh-in older than this
     // never overwrites it (services/dailyMetrics.ts applyHealthWeight).
-    fields.body_weight_updated_at = new Date().toISOString();
-    fields.body_weight_source = 'user';
+    // Clearing the weight clears its provenance too — no body weight means
+    // no stamp (phase59), and the next Health weigh-in then writes.
+    fields.body_weight_updated_at = body.body_weight_lb === null ? null : new Date().toISOString();
+    fields.body_weight_source = body.body_weight_lb === null ? null : 'user';
   }
 
   // The athlete's zone (phase58), written by the client from Intl. Validated

@@ -245,14 +245,17 @@ function computeHrv(
   activities: ActivityInput[], daily: DailyMetricInput[], todayIso: string, inWindow: (date: string) => boolean,
 ): HrvSummary | null {
   const { sevenStart, monthStart } = recentWindows(todayIso);
-  // Health's overnight SDNN wins whenever there is any: it is one consistent
-  // measurement, where an activity's HRV is whatever that device reported.
+  // Health's overnight SDNN wins while it is current — a reading in the last
+  // 7 days: it is one consistent measurement, where an activity's HRV is
+  // whatever that device reported. A stale one never hides fresh activity
+  // readings; with no activity readings at all it still speaks. Never mixed.
   const nightly = dailyReadings(daily, 'hrvSdnnMs', todayIso, inWindow);
-  if (nightly.length > 0) {
+  const readings = activities.filter(a => inWindow(a.eventDate) && finite(a.hrv) && a.hrv! > 0 && a.eventDate >= monthStart);
+  const nightlyCurrent = nightly.some(([d]) => d >= sevenStart);
+  if (nightly.length > 0 && (nightlyCurrent || readings.length === 0)) {
     const recent = nightly.filter(([d]) => d >= sevenStart).map(([, v]) => v);
     return { mean7d: recent.length ? meanOf(recent) : null, mean28d: meanOf(nightly.map(([, v]) => v)), source: 'daily' };
   }
-  const readings = activities.filter(a => inWindow(a.eventDate) && finite(a.hrv) && a.hrv! > 0 && a.eventDate >= monthStart);
   if (readings.length === 0) return null;
   const mean = (rows: ActivityInput[]) => round(rows.reduce((sum, a) => sum + a.hrv!, 0) / rows.length);
   const recent = readings.filter(a => a.eventDate >= sevenStart);

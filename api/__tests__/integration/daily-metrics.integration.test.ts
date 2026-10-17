@@ -98,7 +98,13 @@ describe.skipIf(!RUN)('daily metrics against the local stack', () => {
     const weight = await post([{ date: yesterday, bodyMassLb: 181, bodyMassAt: `${yesterday}T12:00:00Z` }]);
     expect(weight.statusCode).toBe(409);
     expect(weight.body).toEqual({ error: 'category-off', category: 'bodyMass' });
-    // Nothing was written for the refused batch.
+    // A batch is refused whole: the allowed day before the refused one is
+    // not written either.
+    const mixed = await post([
+      { date: yesterday, steps: 1000 },
+      { date: today, bodyMassLb: 181, bodyMassAt: new Date().toISOString() },
+    ]);
+    expect(mixed.body).toEqual({ error: 'category-off', category: 'bodyMass' });
     const { count } = await admin.from('daily_metrics').select('date', { count: 'exact', head: true }).eq('user_id', agent.userId);
     expect(count).toBe(0);
   });
@@ -142,6 +148,40 @@ describe.skipIf(!RUN)('daily metrics against the local stack', () => {
   it('the coach reads them: the physiology inputs carry the days', async () => {
     const inputs = await fetchPhysiologyInputs(admin as never, agent.userId, today);
     expect(inputs.dailyMetrics?.find(d => d.date === yesterday)).toMatchObject({ sleepMinutes: 432, hrvSdnnMs: 48.5, restingHr: 52 });
+  });
+
+  it('consent governs the read too: a category switched off stops reaching the coach at once', async () => {
+    await call(providerSyncHandler, makeReq('POST', agent.token, {
+      action: 'set-categories', provider: 'apple', client: 'ios', categories: { dailyMetrics: false },
+    }));
+    const inputs = await fetchPhysiologyInputs(admin as never, agent.userId, today);
+    const day = inputs.dailyMetrics?.find(d => d.date === yesterday);
+    // Body mass is still on; sleep, HRV, resting HR and steps are withheld.
+    expect(day).toMatchObject({ sleepMinutes: null, hrvSdnnMs: null, restingHr: null, steps: null, bodyMassLb: 185 });
+    // Clearing still works with the category off: removing data needs no consent.
+    expect((await post([{ date: yesterday, sleepMinutes: null }])).statusCode).toBe(200);
+    await call(providerSyncHandler, makeReq('POST', agent.token, {
+      action: 'set-categories', provider: 'apple', client: 'ios', categories: { dailyMetrics: true },
+    }));
+  });
+
+  it('a disconnect without purging keeps the rows but stops them reaching the coach', async () => {
+    await call(providerSyncHandler, makeReq('POST', agent.token, { action: 'disconnect', provider: 'apple' }));
+    expect((await fetchPhysiologyInputs(admin as never, agent.userId, today)).dailyMetrics).toBeUndefined();
+    const { count } = await admin.from('daily_metrics').select('date', { count: 'exact', head: true }).eq('user_id', agent.userId);
+    expect(count).toBe(2);
+    await connect({ workoutsRead: true, dailyMetrics: true, bodyMass: true });
+  });
+
+  it('with no body weight at all, a Health weigh-in writes; an identical instant does not write twice', async () => {
+    await call(profileHandler, makeReq('PATCH', agent.token, { body_weight_lb: null }));
+    expect(await profileRow()).toEqual({ body_weight_lb: null, body_weight_updated_at: null, body_weight_source: null });
+    const at = new Date(Date.now() - 60_000).toISOString();
+    const first = await post([{ date: today, bodyMassLb: 177, bodyMassAt: at }]);
+    expect(first.body).toEqual({ ok: true, upserted: 1, profileBodyWeightLb: 177 });
+    const again = await post([{ date: today, bodyMassLb: 176, bodyMassAt: at }]);
+    expect(again.body).toEqual({ ok: true, upserted: 1 });
+    expect((await profileRow()).body_weight_lb).toBe(177);
   });
 
   it('disconnect with purgeMetrics removes them', async () => {

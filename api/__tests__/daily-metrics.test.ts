@@ -34,6 +34,19 @@ describe('parseDays', () => {
     expect(day.bodyMass).toBeNull();
   });
 
+  it('clearing needs no consent, and sources need none of their own', () => {
+    const [cleared] = ok([{ date: '2026-10-16', sleepMinutes: null, bodyMassLb: null, bodyMassAt: null }]);
+    expect([...cleared.categories]).toEqual([]);
+    const [weighIn] = ok([{ date: '2026-10-16', bodyMassLb: 180, bodyMassAt: '2026-10-16T07:00:00Z', sources: { bodyMass: 'Withings' } }]);
+    expect([...weighIn.categories]).toEqual(['bodyMass']);
+  });
+
+  it('instants are ISO with a zone, and not in the future', () => {
+    for (const at of ['1', '2026-10-16 07:00', '2026-10-16T07:00:00', '+275760-09-13T00:00:00.000Z', '2099-01-01T00:00:00Z']) {
+      expect(refusal([{ date: '2026-10-16', bodyMassLb: 180, bodyMassAt: at }]), at).toMatch(/bodyMassAt/);
+    }
+  });
+
   it('takes stages and sources as objects', () => {
     const [day] = ok([{ date: '2026-10-16', sleepStages: { core: 200, deep: 80, rem: 100, awake: 20 }, sources: { sleep: 'Apple Watch' } }]);
     expect(day.columns.sleep_stages).toEqual({ core: 200, deep: 80, rem: 100, awake: 20 });

@@ -545,9 +545,14 @@ written; 400s name the field and day. Each day is its own upsert (a batch would 
 fields a day did not carry). The body-weight write is one conditional `UPDATE` (newer than the
 stored stamp, or no stamp), so racing writes cannot move it backwards. `PATCH /api/profile
 body_weight_lb` stamps `body_weight_updated_at` = now and `body_weight_source` = `'user'`. The
-coach reads up to 28 days of `daily_metrics`; steps means use completed days only; HRV prefers the
-daily SDNN and never mixes it with activity readings (`HrvSummary.source:'daily'`), and with no
-daily data the panel is byte-identical to before.
+coach reads `daily_metrics` from the five-week window and computes over 28 days, **only for what
+the athlete has switched on now** — a category turned off, or a disconnect without purging, stops
+its stored values reaching the prompt at once (the same read feeds the nightly reflection and the
+weekly review). Steps means use completed days only; HRV prefers the daily SDNN while it has a
+reading in the last 7 days, never mixing it with activity readings (`HrvSummary.source:'daily'`);
+with no daily data the panel is byte-identical to before. Clearing a field with `null` needs no
+consent; `sources` needs no category of its own; instants are ISO with a zone and not in the
+future. Clearing the profile weight (`body_weight_lb: null`) clears its provenance too.
 
 ## Not in this roadmap (Backlog)
 `device_tokens` migration + `/api/devices` + APNs sender (push).

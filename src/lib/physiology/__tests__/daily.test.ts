@@ -73,6 +73,15 @@ describe('daily metrics in computePhysiology', () => {
     expect(computePhysiology(inputs({ activities: [activity] })).hrv).toEqual({ mean7d: 90, mean28d: 90 });
   });
 
+  it('a stale SDNN reading never hides fresh activity HRV; alone it still speaks', () => {
+    const fresh = [21, 22, 23].map(d => ({
+      eventId: `a${d}`, eventDate: `2026-09-${d}`, durationSec: 3600, avgHr: 140, hrZones: null, trainingLoad: null, hrv: 70,
+    }));
+    const stale = [day('2026-09-01', { hrvSdnnMs: 40 })];
+    expect(computePhysiology(inputs({ activities: fresh, dailyMetrics: stale })).hrv).toEqual({ mean7d: 70, mean28d: 70 });
+    expect(computePhysiology(inputs({ dailyMetrics: stale })).hrv).toEqual({ mean7d: null, mean28d: 40, source: 'daily' });
+  });
+
   it('ignores zero, negative and future readings', () => {
     const summary = computePhysiology(inputs({
       dailyMetrics: [day('2026-09-24', { sleepMinutes: 0, restingHr: -1 }), day('2026-09-26', { sleepMinutes: 400 })],

@@ -1,6 +1,7 @@
 import type { getSupabaseAdmin } from '../supabaseAdmin.js';
 import { fetchAllPages } from '../pagination.js';
 import { readWeightContext } from '../weightContext.js';
+import { getConnection } from '../providers/connection.js';
 import { physiologyWindowStart } from '../../../src/lib/physiology/index.js';
 import type {
   ActivityInput,
@@ -77,8 +78,16 @@ export function dailyFromRow(row: DailyRow): DailyMetricInput {
 
 /** Apple Health's days (W16 M3b), quiet and optional like the weight
  *  context: a missing table or a failed read costs these lines, not the
- *  panel. 28 days is the furthest any daily figure looks back. */
+ *  panel. Consent governs the read as well as the write (D-056): what
+ *  reaches the prompt — and so Anthropic — is only what the athlete has
+ *  switched on now. A disconnected provider, or a category turned off,
+ *  stops its stored values at once, without waiting for them to age out. */
 async function readDailyMetrics(supabase: Admin, userId: string, startDate: string, todayIso: string): Promise<DailyMetricInput[]> {
+  const connection = await getConnection(supabase, userId, 'apple').catch(() => null);
+  if (!connection || connection.status !== 'connected') return [];
+  const daily = connection.categories.dailyMetrics === true;
+  const bodyMass = connection.categories.bodyMass === true;
+  if (!daily && !bodyMass) return [];
   const { data, error } = await supabase
     .from('daily_metrics')
     .select('date, sleep_minutes, hrv_sdnn_ms, resting_hr, steps, body_mass_lb')
@@ -90,7 +99,11 @@ async function readDailyMetrics(supabase: Admin, userId: string, startDate: stri
     console.warn('[api/chat] daily metrics unavailable for the prompt:', error.message);
     return [];
   }
-  return ((data ?? []) as DailyRow[]).map(dailyFromRow);
+  return ((data ?? []) as DailyRow[]).map(dailyFromRow).map(d => ({
+    ...d,
+    ...(daily ? {} : { sleepMinutes: null, hrvSdnnMs: null, restingHr: null, steps: null }),
+    ...(bodyMass ? {} : { bodyMassLb: null }),
+  }));
 }
 
 function emptyInputs(todayIso: string): PhysiologyInputs {

@@ -30,7 +30,8 @@ const FIELD_CATEGORY: Record<string, AppleCategory> = {
   steps: 'dailyMetrics',
   bodyMassLb: 'bodyMass',
   bodyMassAt: 'bodyMass',
-  sources: 'dailyMetrics',
+  // `sources` (which device or app each value came from) is metadata about
+  // the fields beside it, whose own categories already gate the day.
 };
 
 const COLUMN: Record<string, string> = {
@@ -70,7 +71,13 @@ const number = (min: number, max: number, opts: { integer?: boolean; exclusiveMi
     && (opts.exclusiveMax ? v < max : v <= max)
     && (!opts.integer || Number.isInteger(v));
 
-const instant: FieldCheck = v => typeof v === 'string' && v.length <= 40 && Number.isFinite(Date.parse(v));
+// ISO 8601 with a zone, not in the future (5 minutes of clock skew):
+// Date.parse alone takes strings Postgres refuses ("1"), and a far-future
+// weigh-in stamp would freeze the body-weight sync behind it.
+const ISO_INSTANT_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d{1,9})?)?(Z|[+-]\d{2}:?\d{2})$/;
+const FUTURE_SKEW_MS = 5 * 60_000;
+const instant: FieldCheck = v => typeof v === 'string' && v.length <= 40 && ISO_INSTANT_RE.test(v)
+  && Number.isFinite(Date.parse(v)) && Date.parse(v) <= Date.now() + FUTURE_SKEW_MS;
 
 const STAGES = ['core', 'deep', 'rem', 'awake'] as const;
 const stages: FieldCheck = v => isRecord(v)
@@ -129,7 +136,9 @@ export function parseDays(raw: unknown, todayLocal: string): ServiceResult<DayPa
       if (!check) return fail(400, `unknown field ${field}`);
       if (value !== null && !check(value)) return fail(400, `${field} on ${date} is out of bounds`);
       columns[COLUMN[field]] = value;
-      categories.add(FIELD_CATEGORY[field]);
+      // Clearing (null) needs no consent: removing data is always allowed,
+      // including after the category was switched off.
+      if (value !== null && FIELD_CATEGORY[field]) categories.add(FIELD_CATEGORY[field]);
     }
     if (Object.keys(columns).length === 0) return fail(400, `day ${date} carries no fields`);
     // A weigh-in is a value and the instant it was taken; one without the
