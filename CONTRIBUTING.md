@@ -272,7 +272,11 @@ makes granting it a small decision rather than a large one:
   PR's head, so the PR's own migration must already be in production's
   `migration_ledger` as written: until it is, the HOLD says "apply <file> to
   production before merging". The order is DDL first, merge second, and the
-  merge is pinned to the head that was checked. `shipit` does not waive it: the label
+  merge is pinned to the head that was checked. DDL first is safe only for an
+  additive migration, since the deployed code runs against it until the merge
+  deploys: a contracting one (a drop, a rename, a new NOT NULL that current
+  code does not fill) is split into expand now, contract in a later PR once
+  no deployed code needs the old shape. `shipit` does not waive it: the label
   grants the PR, not a gap under it. Could-not-check holds too (fail closed).
   A migration PR still waiting for `shipit` gets the same check, printed
   under its HOLD, so a gap shows before the label goes on.

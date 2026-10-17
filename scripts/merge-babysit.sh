@@ -200,6 +200,7 @@ run_head_check() {
 schema_preflight() {
   local counts changed seen mig head_oid=""
   preflight_touched=0
+  preflight_head=""
   preflight_what="touches supabase/migrations/"
   preflight_out=""
   preflight_reason=""
@@ -224,6 +225,7 @@ schema_preflight() {
     return 1
   fi
   run_head_check "$1" "$head_oid"
+  preflight_head=$head_oid
   if [ "$schema_code" -eq 0 ]; then
     checked_heads="$checked_heads $1:$head_oid"
     echo "CHECK #$1 $preflight_what — production passes the schema check against origin/main and against the PR's head"
@@ -519,6 +521,12 @@ fleet_pass() {
     fi
     if ! head_sha=$(git rev-parse --quiet --verify "refs/remotes/origin/$head"); then
       echo "SKIP  #$number — origin/$head is not a branch of this repo (a fork?). ($title)"
+      skipped="$skipped $number"
+      continue
+    fi
+    # The fold must be the head production was checked against — the merge is pinned to it.
+    if [ "$preflight_touched" -eq 1 ] && [ "$head_sha" != "$preflight_head" ]; then
+      echo "SKIP  #$number — its head moved between the fetch and the schema check ($head_sha vs $preflight_head); next pass. ($title)"
       skipped="$skipped $number"
       continue
     fi

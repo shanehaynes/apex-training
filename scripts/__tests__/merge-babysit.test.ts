@@ -22,6 +22,8 @@ const FIXTURE = 'phase999_babysit_fixture.sql';
 
 const gitEnv = {
   ...process.env,
+  GIT_CONFIG_GLOBAL: '/dev/null',
+  GIT_CONFIG_NOSYSTEM: '1',
   GIT_AUTHOR_NAME: 'test',
   GIT_AUTHOR_EMAIL: 'test@example.invalid',
   GIT_COMMITTER_NAME: 'test',
@@ -59,7 +61,9 @@ describe('merge-babysit.sh: a migration PR merges only onto a production that al
   const git = (...args: string[]) => execFileSync('git', args, { cwd: work, encoding: 'utf8', env: gitEnv }).trim();
 
   beforeAll(async () => {
-    tmp = mkdtempSync(join(tmpdir(), 'apex-babysit-'));
+    // Without jq the stub cannot answer, and the script backs off for minutes before failing.
+    execFileSync('jq', ['--version']);
+    tmp =mkdtempSync(join(tmpdir(), 'apex-babysit-'));
     work = join(tmp, 'work');
     execFileSync('git', ['init', '-q', '--bare', '-b', 'main', join(tmp, 'origin.git')]);
     execFileSync('git', ['init', '-q', '-b', 'main', work]);
@@ -116,17 +120,18 @@ describe('merge-babysit.sh: a migration PR merges only onto a production that al
     return { name: file.replace(/\.sql$/, ''), fingerprint: fingerprint(sql) };
   };
 
-  const babysit = async (labels: string[]) => {
+  /** stdout of a run (a non-zero exit too — a --yes run ends at the missing deploy-verify.sh), and every gh call it made. */
+  const babysit = async (labels: string[], { args = [] as string[], number = PR, headRefOid = headSha } = {}) => {
     const fixture = join(tmp, `gh-${Math.random().toString(36).slice(2)}.json`);
     writeFileSync(fixture, JSON.stringify({
       pr: {
-        number: PR,
+        number,
         title: 'Add a migration',
         baseRefName: 'main',
         isDraft: false,
         mergeStateStatus: 'CLEAN',
         headRefName: 'db/fixture',
-        headRefOid: headSha,
+        headRefOid,
         changedFiles: 1,
         files: [{ path: `supabase/migrations/${FIXTURE}` }],
         labels: labels.map((name) => ({ name })),
@@ -136,18 +141,25 @@ describe('merge-babysit.sh: a migration PR merges only onto a production that al
     writeFileSync(gh, GH_STUB);
     chmodSync(gh, 0o755);
     const { port } = server.address() as AddressInfo;
-    const { stdout } = await run('bash', [join(work, 'scripts/merge-babysit.sh')], {
-      cwd: work,
-      env: {
-        ...gitEnv,
-        GH: gh,
-        GH_FIXTURE: fixture,
-        VITE_SUPABASE_URL: `http://127.0.0.1:${port}`,
-        SUPABASE_SERVICE_ROLE_KEY: 'fake-key',
-      },
-    });
-    return stdout;
+    let out: string;
+    try {
+      out = (await run('bash', [join(work, 'scripts/merge-babysit.sh'), ...args], {
+        cwd: work,
+        env: {
+          ...gitEnv,
+          GH: gh,
+          GH_FIXTURE: fixture,
+          VITE_SUPABASE_URL: `http://127.0.0.1:${port}`,
+          SUPABASE_SERVICE_ROLE_KEY: 'fake-key',
+        },
+      })).stdout;
+    } catch (err) {
+      out = (err as { stdout: string }).stdout;
+    }
+    ghCalls = readFileSync(`${fixture}.calls`, 'utf8').trim().split('\n').map((l) => JSON.parse(l) as string[]);
+    return out;
   };
+  let ghCalls: string[][] = [];
 
   it("HOLDs a shipit migration PR while production's ledger lacks the PR's own migration", async () => {
     ledger = onMain();
@@ -172,6 +184,30 @@ describe('merge-babysit.sh: a migration PR merges only onto a production that al
     expect(out).toContain(`CHECK #${PR} touches supabase/migrations/ — production passes the schema check against origin/main and against the PR's head`);
     expect(out).toMatch(new RegExp(`WOULD MERGE #${PR}`));
     expect(out).not.toMatch(/HOLD/);
+  });
+
+  it('merges, under --yes, only the head that was checked', async () => {
+    ledger = [...onMain(), pullHead()];
+    const out = await babysit(['shipit'], { args: ['--yes', '--max-minutes=0'] });
+    expect(out).toContain(`MERGE #${PR}`);
+    expect(ghCalls).toContainEqual(['pr', 'merge', String(PR), '--squash', '--match-head-commit', headSha]);
+  });
+
+  it('HOLDs, fail closed, when the head GitHub reports is not the one fetched', async () => {
+    ledger = [...onMain(), pullHead()];
+    const out = await babysit(['shipit'], { headRefOid: '1'.repeat(40) });
+    expect(out).toMatch(new RegExp(`HOLD  #${PR} `));
+    expect(out).toContain("the PR's head moved while it was being checked");
+    expect(out).toContain("could not verify production against the PR's head");
+    expect(out).not.toMatch(/WOULD MERGE/);
+  });
+
+  it('HOLDs, fail closed, when the head cannot be fetched at all', async () => {
+    ledger = [...onMain(), pullHead()];
+    const out = await babysit(['shipit'], { number: PR + 1 });
+    expect(out).toMatch(new RegExp(`HOLD  #${PR + 1} `));
+    expect(out).toContain("could not fetch the PR's head");
+    expect(out).not.toMatch(/WOULD MERGE/);
   });
 
   it('HOLDs when production ran different SQL under the same name', async () => {
