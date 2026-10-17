@@ -172,8 +172,10 @@ export interface PostOutcome {
 
 /** A 409 the phone acts on, as JSON. */
 export class ConsentError extends Error {
-  constructor(readonly body: { error: 'not-connected' } | { error: 'category-off'; category: AppleCategory }) {
+  readonly body: { error: 'not-connected' } | { error: 'category-off'; category: AppleCategory };
+  constructor(body: ConsentError['body']) {
     super(body.error);
+    this.body = body;
   }
 }
 
