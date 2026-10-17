@@ -193,13 +193,14 @@ describe('merge-babysit.sh: a migration PR merges only onto a production that al
     expect(ghCalls).toContainEqual(['pr', 'merge', String(PR), '--squash', '--match-head-commit', headSha]);
   });
 
-  it('HOLDs, fail closed, when the head GitHub reports is not the one fetched', async () => {
+  it('waits, without merging or giving up on the PR, when the head GitHub reports is not the one fetched', async () => {
     ledger = [...onMain(), pullHead()];
     const out = await babysit(['shipit'], { headRefOid: '1'.repeat(40) });
-    expect(out).toMatch(new RegExp(`HOLD  #${PR} `));
+    expect(out).toMatch(new RegExp(`WAIT  #${PR} — its head moved while production was checked against it`));
     expect(out).toContain("the PR's head moved while it was being checked");
-    expect(out).toContain("could not verify production against the PR's head");
-    expect(out).not.toMatch(/WOULD MERGE/);
+    expect(out).not.toMatch(/WOULD MERGE|HOLD/);
+    // A push mid-check is transient: the PR stays in the run for the next pass.
+    expect(out).not.toMatch(/needs a human\/worktree/);
   });
 
   it('HOLDs, fail closed, when the head cannot be fetched at all', async () => {

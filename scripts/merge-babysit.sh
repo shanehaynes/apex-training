@@ -171,11 +171,14 @@ run_schema_check() {
 # The check against PR $1's head, which GitHub reported as $2. Run after
 # run_schema_check, whose origin/main is the base the PR's own migrations are
 # diffed against. A head that cannot be fetched, or that moved since GitHub
-# reported it, is a could-not-check (2). Sets schema_out, schema_code and
-# head_pending (the PR's migrations the check names as not applied as written).
+# reported it, is a could-not-check (2). Sets schema_out, schema_code,
+# head_moved (1 for the second: a push mid-check, retried next pass rather
+# than skipped for the run) and head_pending (the PR's migrations the check
+# names as not applied as written).
 run_head_check() {
   local pr=$1 oid=$2 fetched files f
   head_pending=""
+  head_moved=0
   if [ -z "$oid" ] || ! git fetch -q origin "refs/pull/$pr/head" 2>/dev/null \
      || ! fetched=$(git rev-parse --verify -q 'FETCH_HEAD^{commit}'); then
     schema_out="could not fetch the PR's head — its own migrations cannot be compared with production"
@@ -185,6 +188,7 @@ run_head_check() {
   if [ "$fetched" != "$oid" ]; then
     schema_out="the PR's head moved while it was being checked (GitHub said $oid, fetched $fetched)"
     schema_code=2
+    head_moved=1
     return 0
   fi
   schema_out=$(node scripts/prod-schema-check.mjs --ref "$oid" 2>&1) && schema_code=0 || schema_code=$?
@@ -201,6 +205,7 @@ schema_preflight() {
   local counts changed seen mig head_oid=""
   preflight_touched=0
   preflight_head=""
+  preflight_retry=0
   preflight_what="touches supabase/migrations/"
   preflight_out=""
   preflight_reason=""
@@ -226,6 +231,7 @@ schema_preflight() {
   fi
   run_head_check "$1" "$head_oid"
   preflight_head=$head_oid
+  preflight_retry=$head_moved
   if [ "$schema_code" -eq 0 ]; then
     checked_heads="$checked_heads $1:$head_oid"
     echo "CHECK #$1 $preflight_what — production passes the schema check against origin/main and against the PR's head"
@@ -283,6 +289,11 @@ held_preflight() {
 }
 
 preflight_hold() {
+  if [ "$preflight_retry" -eq 1 ]; then
+    echo "WAIT  #$1 — its head moved while production was checked against it; re-checked next pass. ($2)"
+    printf '%s\n' "$preflight_out" | sed 's/^/      /'
+    return 0
+  fi
   echo "HOLD  #$1 — $preflight_what and production is not proven current; shipit does not waive this. ($2)"
   printf '%s\n' "$preflight_out" | sed 's/^/      /'
   echo "      $preflight_reason"
@@ -509,7 +520,7 @@ fleet_pass() {
     fi
     if ! schema_preflight "$number"; then
       preflight_hold "$number" "$title"
-      skipped="$skipped $number"
+      if [ "$preflight_retry" -eq 1 ]; then actionable=1; else skipped="$skipped $number"; fi
       continue
     fi
     # The check proved production against main as it is now; a second
@@ -526,8 +537,8 @@ fleet_pass() {
     fi
     # The fold must be the head production was checked against — the merge is pinned to it.
     if [ "$preflight_touched" -eq 1 ] && [ "$head_sha" != "$preflight_head" ]; then
-      echo "SKIP  #$number — its head moved between the fetch and the schema check ($head_sha vs $preflight_head); next pass. ($title)"
-      skipped="$skipped $number"
+      echo "WAIT  #$number — its head moved between the fetch and the schema check ($head_sha vs $preflight_head); re-checked next pass. ($title)"
+      actionable=1
       continue
     fi
     if ! tree=$(git merge-tree --write-tree "$cur" "$head_sha" 2>/dev/null); then
@@ -580,9 +591,15 @@ EOF
     return 0
   fi
 
+  # The proof was of the whole union: once one merge fails (a pinned head that
+  # moved, say), the rest would land on a tree nobody proved — fold again instead.
   before=$merged_count
   for ((i = 0; i < n; i++)); do
-    merge_pr "${numbers[i]}" "${titles[i]}" fleet || true
+    if ! merge_pr "${numbers[i]}" "${titles[i]}" fleet; then
+      echo "── fleet: #${numbers[i]} did not merge — the rest of this fleet waits for a fresh fold and proof next pass"
+      actionable=1
+      break
+    fi
   done
   echo "── fleet: $(( merged_count - before )) of $n merged"
 }
@@ -761,7 +778,7 @@ EOF
         fi
         if ! schema_preflight "$number"; then
           preflight_hold "$number" "$title"
-          skipped="$skipped $number"
+          if [ "$preflight_retry" -eq 1 ]; then actionable=1; else skipped="$skipped $number"; fi
           continue
         fi
         if [ "$apply" -eq 1 ]; then
