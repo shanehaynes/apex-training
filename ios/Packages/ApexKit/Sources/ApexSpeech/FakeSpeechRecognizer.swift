@@ -4,14 +4,16 @@ import Foundation
 /// `-apexMockSpeech` smoke's. Two ways to drive it.
 ///
 /// **Scripted**: give it utterances and each `listen` plays the next one at
-/// once — `.listening`, the words as growing partials (each partial is the
-/// whole utterance so far, as the real recognizer's hypotheses are), then
-/// `.final([utterance])`.
+/// once, in the adapter's sequence — `.listening`, the empty partial the
+/// recognizer sends when it first detects speech, the words as growing
+/// partials (each partial is the whole utterance so far, as the real
+/// hypotheses are), then `.final([utterance])`.
 ///
 /// **Step-wise**: with the script empty (or used up), `listen` yields
 /// `.listening` and waits for the test to `emit` partials, `emitFinal()` or
 /// `fail(_:)`, so an end-of-utterance policy can be exercised over `TestClock`
-/// one event at a time. `finish()` delivers the last partial as the final
+/// one event at a time. `finish()` delivers the last partial as the final —
+/// or `.failed(.noSpeech)` when nothing was heard, as the adapter does —
 /// unless `finishDeliversFinal` is off, which is how a test reaches the
 /// "final never arrived" deadline path.
 ///
@@ -93,6 +95,7 @@ public nonisolated final class FakeSpeechRecognizer: SpeechRecognizing, @uncheck
         }
         utterance.yield(.listening)
         if let scripted {
+            utterance.yield(.partial(""))
             var heard: [Substring] = []
             for word in scripted.split(separator: " ") {
                 heard.append(word)
@@ -107,29 +110,37 @@ public nonisolated final class FakeSpeechRecognizer: SpeechRecognizing, @uncheck
                 _finishes += 1
                 return _finishDeliversFinal
             }
-            guard delivers, utterance.yield(.final([utterance.text])) else { return }
+            guard delivers, utterance.yield(Self.ending(for: utterance.text)) else { return }
             lock.withLock { if current === utterance { current = nil } }
         }
+    }
+
+    /// Nothing heard is `.failed(.noSpeech)`, as the adapter reports a
+    /// recognizer that finishes with no result; never an empty final.
+    private static func ending(for text: String) -> SpeechEvent {
+        text.isEmpty ? .failed(.noSpeech) : .final([text])
     }
 
     // MARK: - Step-wise drive
 
     /// Feeds the live utterance one event. A `.partial` grows the transcript
-    /// `emitFinal()` delivers; a `.final` or `.failed` ends it. Nothing happens
-    /// without a live utterance.
-    public func emit(_ event: SpeechEvent) {
-        guard let utterance = lock.withLock({ current }), utterance.yield(event) else { return }
+    /// `emitFinal()` delivers; a `.final` or `.failed` ends it. False, and
+    /// nothing happens, without a live utterance.
+    @discardableResult
+    public func emit(_ event: SpeechEvent) -> Bool {
+        guard let utterance = lock.withLock({ current }), utterance.yield(event) else { return false }
         switch event {
         case .final, .failed: lock.withLock { if current === utterance { current = nil } }
         case .listening, .partial: break
         }
+        return true
     }
 
     /// The final is the last partial, the way the recognizer's final repeats
-    /// its last hypothesis.
+    /// its last hypothesis; with nothing heard it is `.failed(.noSpeech)`.
     public func emitFinal() {
         guard let utterance = lock.withLock({ current }) else { return }
-        emit(.final([utterance.text]))
+        emit(Self.ending(for: utterance.text))
     }
 
     public func fail(_ failure: SpeechFailure) { emit(.failed(failure)) }

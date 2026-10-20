@@ -40,19 +40,15 @@ public nonisolated final class SFSpeechRecognizerAdapter: NSObject, SpeechRecogn
         return .available(locale: localeIdentifier)
     }
 
+    /// Both sheets' answers as one, the way `requestAuthorization()` ends:
+    /// either denial is `.denied` (a denied microphone is not worth a Speech
+    /// sheet), either open question is `.notDetermined`.
     public func authorization() -> SpeechAuthorization {
         guard recognizer != nil else { return .unavailable }
-        switch SFSpeechRecognizer.authorizationStatus() {
-        case .authorized: break
-        case .denied, .restricted: return .denied
-        case .notDetermined: return .notDetermined
-        @unknown default: return .notDetermined
-        }
-        switch AVAudioApplication.shared.recordPermission {
-        case .granted: return .authorized
-        case .denied: return .denied
-        case .undetermined: return .notDetermined
-        @unknown default: return .notDetermined
+        switch (SFSpeechRecognizer.authorizationStatus(), AVAudioApplication.shared.recordPermission) {
+        case (.denied, _), (.restricted, _), (_, .denied): return .denied
+        case (.authorized, .granted): return .authorized
+        default: return .notDetermined
         }
     }
 
@@ -118,7 +114,10 @@ public nonisolated final class SFSpeechRecognizerAdapter: NSObject, SpeechRecogn
         case ("kAFAssistantErrorDomain", 1110): return .noSpeech
         case ("kAFAssistantErrorDomain", 1101), ("kAFAssistantErrorDomain", 1107): return .serviceFailed
         case ("kAFAssistantErrorDomain", 1700): return .notAuthorized
-        default: return .serviceFailed
+        default:
+            // iOS 17's SFSpeechErrorDomain can carry the real reason underneath.
+            if let underlying = error.userInfo[NSUnderlyingErrorKey] as? NSError { return failure(for: underlying) }
+            return .serviceFailed
         }
     }
 
@@ -136,6 +135,7 @@ public nonisolated final class SFSpeechRecognizerAdapter: NSObject, SpeechRecogn
         private let request = SFSpeechAudioBufferRecognitionRequest()
         private var task: SFSpeechRecognitionTask?
         private var tapInstalled = false
+        private var engineStarted = false
         private var sessionActive = false
         private var observing = false
         private var heardHypothesis = false
@@ -147,10 +147,19 @@ public nonisolated final class SFSpeechRecognizerAdapter: NSObject, SpeechRecogn
             self.bias = bias
         }
 
+        /// The adapter holds its live utterance; if the adapter itself goes
+        /// (the services are rebuilt on an account switch), the microphone,
+        /// the ducking and the stream go with it rather than outliving it.
+        deinit {
+            end(with: nil)
+        }
+
         /// The per-tap sequence: session, input check, tap, engine, `.listening`,
         /// then the task. Nothing is touched before the tap, so ducking and the
         /// orange indicator start with the listen, not with the tracker.
         func start(recognizer: SFSpeechRecognizer) {
+            // Already over (the consumer cancelled at once): touch nothing.
+            guard lock.withLock({ state == .running }) else { return }
             let session = AVAudioSession.sharedInstance()
             do {
                 // No HFP in v1: it would take Bluetooth input and drop music to
@@ -184,6 +193,7 @@ public nonisolated final class SFSpeechRecognizerAdapter: NSObject, SpeechRecogn
                 abort(.noInput)
                 return
             }
+            lock.withLock { engineStarted = true }
             observe(session)
             yield(.listening)
             request.requiresOnDeviceRecognition = true
@@ -195,9 +205,14 @@ public nonisolated final class SFSpeechRecognizerAdapter: NSObject, SpeechRecogn
                 self.task = task
                 return state == .ended
             }
-            // Aborted between the tap and here (a cancelled consumer): the task
-            // must not outlive the stream.
-            if ended { task.cancel() }
+            // Aborted while this was running (a cancelled consumer, a second
+            // listen, the service lost): that abort released what existed at
+            // the time; the task and whatever was acquired since go now.
+            // `stopAudio` is idempotent for exactly this reason.
+            if ended {
+                task.cancel()
+                stopAudio()
+            }
         }
 
         /// The consumer's end of utterance: the microphone goes off now and the
@@ -243,17 +258,20 @@ public nonisolated final class SFSpeechRecognizerAdapter: NSObject, SpeechRecogn
         /// whatever was playing. Idempotent: `finish()` runs it early and the
         /// final's `end` runs it again.
         private func stopAudio() {
-            let (tap, active, observing): (Bool, Bool, Bool) = lock.withLock {
+            // Each flag is read and cleared in one lock hold, so two callers
+            // (a `finish()` and a notification) release each resource once.
+            let (tap, started, active, observing): (Bool, Bool, Bool, Bool) = lock.withLock {
                 defer {
                     tapInstalled = false
+                    engineStarted = false
                     sessionActive = false
                     self.observing = false
                 }
-                return (tapInstalled, sessionActive, self.observing)
+                return (tapInstalled, engineStarted, sessionActive, self.observing)
             }
             if observing { NotificationCenter.default.removeObserver(self) }
             if tap { engine.inputNode.removeTap(onBus: 0) }
-            if engine.isRunning { engine.stop() }
+            if started { engine.stop() }
             if active { try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation) }
         }
 

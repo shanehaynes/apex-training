@@ -43,8 +43,11 @@ public nonisolated enum SpeechFailure: Sendable, Equatable {
 }
 
 /// What one utterance emits, in order: `.listening` once the microphone is
-/// live, `.partial` as the transcript grows (each one is the whole utterance so
-/// far), then exactly one of `.final` (alternatives, best first) or `.failed`.
+/// live; `.partial` as the transcript grows — each one is the whole utterance
+/// so far, and the first may be `""` (speech detected, no hypothesis yet,
+/// which is a reason to keep listening); then exactly one of `.final`
+/// (alternatives, best first) or `.failed`. Nothing heard at the end is
+/// `.failed(.noSpeech)`, never an empty final.
 public nonisolated enum SpeechEvent: Sendable, Equatable {
     case listening
     case partial(String)

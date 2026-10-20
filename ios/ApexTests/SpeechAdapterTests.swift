@@ -26,12 +26,13 @@ final class SpeechAdapterTests: XCTestCase {
         let fake = FakeSpeechRecognizer(authorization: .authorized, script: ["bench 225 for 5", "again"])
         await assertEvents(fake.listen(bias: SpeechBias(names: ["Bench Press", "Back Squat"])), [
             .listening,
+            .partial(""),  // speech detected, no hypothesis yet — the adapter's first partial
             .partial("bench"), .partial("bench 225"), .partial("bench 225 for"), .partial("bench 225 for 5"),
             .final(["bench 225 for 5"]),
         ])
         XCTAssertFalse(fake.isListening, "a final ends the utterance")
 
-        await assertEvents(fake.listen(bias: SpeechBias(names: [])), [.listening, .partial("again"), .final(["again"])])
+        await assertEvents(fake.listen(bias: SpeechBias(names: [])), [.listening, .partial(""), .partial("again"), .final(["again"])])
         XCTAssertEqual(fake.biases[0], ["Bench Press", "Back Squat"], "the names passed to listen(bias:)")
         XCTAssertEqual(fake.biases, [["Bench Press", "Back Squat"], []])
 
@@ -55,8 +56,21 @@ final class SpeechAdapterTests: XCTestCase {
 
         utterance.finish()
         XCTAssertEqual(fake.finishCount, 1, "a second finish is a no-op")
-        fake.emit(.partial("too late"))
-        await assertEvents(utterance, [], "nothing after the final")
+        XCTAssertFalse(fake.emit(.partial("too late")), "nothing after the final")
+    }
+
+    func testNothingHeardIsNoSpeechNeverAnEmptyFinal() async {
+        let fake = FakeSpeechRecognizer(authorization: .authorized)
+        let finished = fake.listen(bias: SpeechBias(names: []))
+        finished.finish()
+        await assertEvents(finished, [.listening, .failed(.noSpeech)], "finish() with nothing heard")
+        XCTAssertEqual(fake.finishCount, 1)
+
+        let emitted = fake.listen(bias: SpeechBias(names: []))
+        fake.emit(.partial(""))
+        fake.emitFinal()
+        await assertEvents(emitted, [.listening, .partial(""), .failed(.noSpeech)], "emitFinal() with only the detection partial")
+        XCTAssertFalse(fake.isListening)
     }
 
     func testEmitFinalRepeatsTheLastPartialAndAFailureEndsTheStream() async {
@@ -181,6 +195,8 @@ final class SpeechAdapterTests: XCTestCase {
         XCTAssertEqual(SFSpeechRecognizerAdapter.failure(for: error("kAFAssistantErrorDomain", 1700)), .notAuthorized)
         XCTAssertEqual(SFSpeechRecognizerAdapter.failure(for: error("kAFAssistantErrorDomain", 201)), .serviceFailed, "a code from the wrong domain is not trusted")
         XCTAssertEqual(SFSpeechRecognizerAdapter.failure(for: error(NSURLErrorDomain, NSURLErrorNotConnectedToInternet)), .serviceFailed)
+        let wrapped = NSError(domain: "SFSpeechErrorDomain", code: 1, userInfo: [NSUnderlyingErrorKey: error("kLSRErrorDomain", 201)])
+        XCTAssertEqual(SFSpeechRecognizerAdapter.failure(for: wrapped), .dictationDisabled, "the reason underneath an SFSpeechErrorDomain wrapper")
     }
 
     func testTheAdapterPicksTheFirstEnglishLanguageElseEnUS() {
@@ -190,21 +206,25 @@ final class SpeechAdapterTests: XCTestCase {
         XCTAssertEqual(SFSpeechRecognizerAdapter.locale(preferring: []).identifier, "en-US")
     }
 
-    /// The real adapter on this simulator: it constructs, and answers both
-    /// questions without a microphone or a sheet (nothing here may request
-    /// authorization). What the simulator says about on-device support goes
-    /// to the log, for the PR body; the device answer is a pin on a phone.
+    /// A construction smoke, nothing more: the real adapter on this simulator
+    /// builds and answers both questions without a microphone or a sheet
+    /// (nothing here may request authorization), and the two answers agree on
+    /// whether a recognizer exists. What the simulator says about on-device
+    /// support goes to the log, for the PR body; the device answer is a pin.
     func testTheAdapterConstructsAndAnswersWithoutASheet() {
         let adapter = SFSpeechRecognizerAdapter()
         let availability = adapter.availability()
         let authorization = adapter.authorization()
         print("SFSpeechRecognizerAdapter on this simulator: \(availability) · \(authorization)")
-        switch availability {
-        case .available(let locale):
-            XCTAssertTrue(locale.hasPrefix("en"), locale)
-            XCTAssertNotEqual(authorization, .unavailable, "a recognizer exists, so authorization is a real answer")
-        case .unavailable(let reason):
-            XCTAssertFalse(reason.isEmpty, "an unavailable recognizer says why")
+        switch (availability, authorization) {
+        case (.unavailable(let reason), .unavailable):
+            XCTAssertTrue(reason.hasPrefix("No speech recognizer"), "no recognizer at all: \(reason)")
+        case (.unavailable(let reason), _):
+            XCTAssertTrue(reason.hasPrefix("On-device recognition is not supported"), "a recognizer without on-device support: \(reason)")
+        case (.available, .unavailable):
+            XCTFail("a recognizer exists for availability() but not for authorization()")
+        case (.available, _):
+            break
         }
     }
 }
