@@ -40,7 +40,10 @@ const PROFILE_COLUMNS = 'display_name, avatar_key, coach_goal, coach_context, co
 // a tip was dismissed) came first; coach_contract and reflection_opt_in
 // (lane D01), the weight-entry pair (phase55) and the time zone (phase58)
 // ride the same pattern.
-const TRAILING_COLUMNS = ['tips_seen', 'coach_contract', 'reflection_opt_in', 'weight_unit', 'body_weight_lb', 'timezone'] as const;
+const TRAILING_COLUMNS = [
+  'tips_seen', 'coach_contract', 'reflection_opt_in', 'weight_unit', 'body_weight_lb', 'timezone',
+  'body_weight_updated_at', 'body_weight_source',
+] as const;
 const TRAILING_COLUMN_RE = new RegExp(TRAILING_COLUMNS.join('|'));
 
 function isTrailingColumnMissing(error: { code?: string; message?: string } | null): boolean {
@@ -105,6 +108,7 @@ async function profileFields(
   const trailing = (data ?? {}) as {
     tips_seen?: unknown; coach_contract?: unknown; reflection_opt_in?: unknown;
     weight_unit?: unknown; body_weight_lb?: unknown; timezone?: unknown;
+    body_weight_updated_at?: unknown; body_weight_source?: unknown;
   };
   const tipsSeen = tipsSeenRecord(trailing.tips_seen);
   const weight = weightContextFromProfile(trailing);
@@ -129,6 +133,10 @@ async function profileFields(
     // The athlete's IANA zone (phase58), null until a client has written one
     // or while the column is missing; the server computes in UTC meanwhile.
     timezone: isValidTimezone(trailing.timezone) ? trailing.timezone : null,
+    // Where the body weight came from and when (phase59, W16 M3b): 'user'
+    // from Profile, 'apple' from a newer Health weigh-in. Null until set.
+    bodyWeightUpdatedAt: typeof trailing.body_weight_updated_at === 'string' ? trailing.body_weight_updated_at : null,
+    bodyWeightSource: trailing.body_weight_source === 'user' || trailing.body_weight_source === 'apple' ? trailing.body_weight_source : null,
     coachModel: stored,
     coachModelLabel: resolveCoachModel(stored).label,
     calendarFeedUrl: data?.ics_token ? `${publicOrigin(req)}/api/calendar-feed?token=${data.ics_token}` : null,
@@ -396,6 +404,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return;
     }
     fields.body_weight_lb = body.body_weight_lb;
+    // The athlete's own entry, as of now: a Health weigh-in older than this
+    // never overwrites it (services/dailyMetrics.ts applyHealthWeight).
+    // Clearing the weight clears its provenance too — no body weight means
+    // no stamp (phase59), and the next Health weigh-in then writes.
+    fields.body_weight_updated_at = body.body_weight_lb === null ? null : new Date().toISOString();
+    fields.body_weight_source = body.body_weight_lb === null ? null : 'user';
   }
 
   // The athlete's zone (phase58), written by the client from Intl. Validated

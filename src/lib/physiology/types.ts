@@ -49,6 +49,19 @@ export interface SetLogInput {
   isWarmup?: boolean;
 }
 
+/** One daily_metrics row (W16 M3b, phase59): what Health said about a day.
+ *  Every field is independent — HealthKit delivers piecemeal. */
+export interface DailyMetricInput {
+  /** YYYY-MM-DD: the athlete's day (sleep is filed under the day it ended). */
+  date: string;
+  sleepMinutes: number | null;
+  /** Mean overnight SDNN, ms. */
+  hrvSdnnMs: number | null;
+  restingHr: number | null;
+  steps: number | null;
+  bodyMassLb: number | null;
+}
+
 export interface PhysiologyInputs {
   /** YYYY-MM-DD, the athlete's local calendar date. */
   today: string;
@@ -63,6 +76,9 @@ export interface PhysiologyInputs {
    * stays in pounds either way (tonnageLb): the coach reads machine facts.
    */
   weight?: WeightContext;
+  /** Apple Health's daily metrics in the window (W16 M3b). Absent or empty
+   *  leaves every existing line exactly as it was. */
+  dailyMetrics?: DailyMetricInput[];
 }
 
 /** Minutes in Z1…Z5, in that order. */
@@ -97,6 +113,36 @@ export interface HrvSummary {
   mean7d: number | null;
   /** Mean of readings in the last 28 days. */
   mean28d: number;
+  /** 'daily' when the readings are Health's overnight SDNN, preferred
+   *  whenever any exists; absent for readings a provider attached to
+   *  activities (the shape this summary always had). Never mixed: the two
+   *  measure different things. */
+  source?: 'daily';
+}
+
+export interface SleepSummary {
+  /** The night that ended this morning (filed under today), or null. */
+  lastNight: number | null;
+  mean7d: number | null;
+  mean28d: number;
+}
+
+export interface RestingHrSummary {
+  latest: { date: string; bpm: number };
+  mean7d: number | null;
+  mean28d: number;
+}
+
+export interface StepsSummary {
+  /** Means over completed days only: today's count is still climbing. */
+  mean7d: number | null;
+  mean28d: number;
+}
+
+export interface BodyMassSummary {
+  latest: { date: string; lb: number };
+  /** Latest minus the earliest reading in the last 28 days; null with one reading. */
+  change28dLb: number | null;
 }
 
 /**
@@ -115,4 +161,8 @@ export interface PhysiologySummary {
   load?: LoadSummary;
   tonnageByWeek?: WeekTonnage[];
   hrv?: HrvSummary;
+  sleep?: SleepSummary;
+  restingHr?: RestingHrSummary;
+  steps?: StepsSummary;
+  bodyMass?: BodyMassSummary;
 }
