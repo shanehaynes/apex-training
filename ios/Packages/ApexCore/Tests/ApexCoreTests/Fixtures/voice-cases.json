@@ -1,0 +1,489 @@
+{
+  "version": 1,
+  "readme": [
+    "W17 voice set logging (D-059): the grammar's contract. Hand-authored, never emitted; it only grows.",
+    "A case names one or more alternatives (`input`), the context it is parsed in, and what `VoiceParser.parse(alternatives:context:)` must return.",
+    "`rules` is the set of slot rules (R1–R17, docs/ios/workstreams/W17-voice-set-logging.md) that fire for the chosen alternative, in any order.",
+    "`expect.intent` is `{kind: log, sets, values}` or `{kind: repeat}` or null (status empty or invalid); `values` is `SpokenValues` (absent keys are nil/false).",
+    "`expect.exercise` is `{kind: current}`, `{kind: resolved, scope, id, name, match}`, `{kind: needsConfirmation, phrase, candidates: [{scope, id, name, match, distance}]}` or `{kind: unresolved, phrase}`.",
+    "`storage` is what `VoiceStorage.text(for:unit:)` writes for the values: a weight with no spoken unit is stored bare, a spoken unit is kept, durations are `formatSeconds`, RPE is a half step.",
+    "`source` is `authored` or `journal:<yyyy-mm-dd>` for a case that came from a real transcript. Session exercises list their logged `fields` by name (weight, reps, duration).",
+    "A context with `base` copies that context's `session` and `library`; `unit` and `currentExerciseId` are always spelled out."
+  ],
+  "contexts": {
+    "upper": {
+      "unit": "lb",
+      "currentExerciseId": "bench",
+      "session": [
+        { "id": "bench", "section": "exercise", "name": "Bench Press", "definitionId": "def-bench", "fields": ["weight", "reps"] },
+        { "id": "squat", "section": "exercise", "name": "Back Squat", "definitionId": "def-squat", "fields": ["weight", "reps"] },
+        { "id": "pullups", "section": "exercise", "name": "Weighted Pull-Ups", "definitionId": "def-pullups", "fields": ["weight", "reps"] },
+        { "id": "plank", "section": "exercise", "name": "Plank", "definitionId": "def-plank", "fields": ["duration"] },
+        { "id": "hammer", "section": "exercise", "name": "Hammer Curl", "definitionId": "def-hammer", "fields": ["weight", "reps"] },
+        { "id": "dbcurl", "section": "exercise", "name": "Dumbbell Curl", "definitionId": "def-dbcurl", "fields": ["weight", "reps"] }
+      ],
+      "library": [
+        { "id": "def-bench", "canonicalName": "Bench Press" },
+        { "id": "def-squat", "canonicalName": "Back Squat" },
+        { "id": "def-pullups", "canonicalName": "Weighted Pull-Ups" },
+        { "id": "def-plank", "canonicalName": "Plank" },
+        { "id": "def-hammer", "canonicalName": "Hammer Curl", "aliases": ["Hammer Curls"] },
+        { "id": "def-dbcurl", "canonicalName": "Dumbbell Curl" },
+        { "id": "front-squat", "canonicalName": "Front Squat" },
+        { "id": "rdl", "canonicalName": "Romanian Deadlift", "aliases": ["Stiff-Leg Deadlift"] },
+        { "id": "ohp", "canonicalName": "Overhead Press" },
+        { "id": "ring-dips", "canonicalName": "Ring Dips" },
+        { "id": "lat-pulldown", "canonicalName": "Lat Pulldown" },
+        { "id": "lat-pulldown-close", "canonicalName": "Lat Pulldown (Close Grip)" },
+        { "id": "incline-press", "canonicalName": "Incline Press", "archivedAt": "2026-01-01T00:00:00Z" },
+        { "id": "easy-run", "canonicalName": "Easy Run", "category": "cardio" }
+      ]
+    },
+    "kg": { "base": "upper", "unit": "kg", "currentExerciseId": "bench" },
+    "nocurrent": { "base": "upper", "unit": "lb", "currentExerciseId": null }
+  },
+  "cases": [
+    {
+      "id": "01", "name": "named exercise, reps marked, bare weight", "source": "authored", "rules": ["R2", "R12"], "context": "upper",
+      "input": ["back squat for 5 reps and 225"],
+      "expect": { "status": "ok", "chosen": 0, "intent": { "kind": "log", "sets": 1, "values": { "weight": { "value": 225 }, "reps": 5 } },
+                  "exercise": { "kind": "resolved", "scope": "session", "id": "squat", "name": "Back Squat", "match": "exact" }, "ignored": [], "problems": [] },
+      "storage": { "weight": "225", "reps": "5" }
+    },
+    {
+      "id": "02", "name": "contained name, reps at weight", "source": "authored", "rules": ["R10"], "context": "upper",
+      "input": ["bench 5 at 225"],
+      "expect": { "status": "ok", "chosen": 0, "intent": { "kind": "log", "sets": 1, "values": { "weight": { "value": 225 }, "reps": 5 } },
+                  "exercise": { "kind": "resolved", "scope": "session", "id": "bench", "name": "Bench Press", "match": "contained" }, "ignored": [], "problems": [] },
+      "storage": { "weight": "225", "reps": "5" }
+    },
+    {
+      "id": "03", "name": "weight for reps, no name", "source": "authored", "rules": ["R9"], "context": "upper",
+      "input": ["225 for 5"],
+      "expect": { "status": "ok", "chosen": 0, "intent": { "kind": "log", "sets": 1, "values": { "weight": { "value": 225 }, "reps": 5 } },
+                  "exercise": { "kind": "current" }, "ignored": [], "problems": [] },
+      "storage": { "weight": "225", "reps": "5" }
+    },
+    {
+      "id": "04", "name": "number words, gym shorthand", "source": "authored", "rules": ["R10"], "context": "upper",
+      "input": ["five at two twenty five"],
+      "expect": { "status": "ok", "chosen": 0, "intent": { "kind": "log", "sets": 1, "values": { "weight": { "value": 225 }, "reps": 5 } },
+                  "exercise": { "kind": "current" }, "ignored": [], "problems": [] },
+      "storage": { "weight": "225", "reps": "5" }
+    },
+    {
+      "id": "05", "name": "shorthand weight for word reps", "source": "authored", "rules": ["R9"], "context": "upper",
+      "input": ["one thirty five for eight"],
+      "expect": { "status": "ok", "chosen": 0, "intent": { "kind": "log", "sets": 1, "values": { "weight": { "value": 135 }, "reps": 8 } },
+                  "exercise": { "kind": "current" }, "ignored": [], "problems": [] },
+      "storage": { "weight": "135", "reps": "8" }
+    },
+    {
+      "id": "06", "name": "a hundred and five kilos", "source": "authored", "rules": ["R1", "R8"], "context": "upper",
+      "input": ["a hundred and five kilos for three"],
+      "expect": { "status": "ok", "chosen": 0, "intent": { "kind": "log", "sets": 1, "values": { "weight": { "value": 105, "unit": "kg" }, "reps": 3 } },
+                  "exercise": { "kind": "current" }, "ignored": [], "problems": [] },
+      "storage": { "weight": "105 kg", "reps": "3" }
+    },
+    {
+      "id": "07", "name": "two oh five by five", "source": "authored", "rules": ["R11"], "context": "upper",
+      "input": ["two oh five by five"],
+      "expect": { "status": "ok", "chosen": 0, "intent": { "kind": "log", "sets": 1, "values": { "weight": { "value": 205 }, "reps": 5 } },
+                  "exercise": { "kind": "current" }, "ignored": [], "problems": [] },
+      "storage": { "weight": "205", "reps": "5" }
+    },
+    {
+      "id": "08", "name": "sets x reps at weight", "source": "authored", "rules": ["R11", "R7", "R17"], "context": "upper",
+      "input": ["3 x 5 at 225"],
+      "expect": { "status": "ok", "chosen": 0, "intent": { "kind": "log", "sets": 3, "values": { "weight": { "value": 225 }, "reps": 5 } },
+                  "exercise": { "kind": "current" }, "ignored": [], "problems": [] },
+      "storage": { "weight": "225", "reps": "5" }
+    },
+    {
+      "id": "09", "name": "sets of reps at weight", "source": "authored", "rules": ["R3", "R7", "R17"], "context": "upper",
+      "input": ["3 sets of 5 at 225"],
+      "expect": { "status": "ok", "chosen": 0, "intent": { "kind": "log", "sets": 3, "values": { "weight": { "value": 225 }, "reps": 5 } },
+                  "exercise": { "kind": "current" }, "ignored": [], "problems": [] },
+      "storage": { "weight": "225", "reps": "5" }
+    },
+    {
+      "id": "10", "name": "weight x reps", "source": "authored", "rules": ["R11"], "context": "upper",
+      "input": ["225 x 5"],
+      "expect": { "status": "ok", "chosen": 0, "intent": { "kind": "log", "sets": 1, "values": { "weight": { "value": 225 }, "reps": 5 } },
+                  "exercise": { "kind": "current" }, "ignored": [], "problems": [] },
+      "storage": { "weight": "225", "reps": "5" }
+    },
+    {
+      "id": "11", "name": "reps by weight, small numbers", "source": "authored", "rules": ["R11"], "context": "upper",
+      "input": ["12 by 20"],
+      "expect": { "status": "ok", "chosen": 0, "intent": { "kind": "log", "sets": 1, "values": { "weight": { "value": 20 }, "reps": 12 } },
+                  "exercise": { "kind": "current" }, "ignored": [], "problems": [] },
+      "storage": { "weight": "20", "reps": "12" }
+    },
+    {
+      "id": "12", "name": "sets x reps", "source": "authored", "rules": ["R11", "R17"], "context": "upper",
+      "input": ["5 x 5"],
+      "expect": { "status": "ok", "chosen": 0, "intent": { "kind": "log", "sets": 5, "values": { "reps": 5 } },
+                  "exercise": { "kind": "current" }, "ignored": [], "problems": [] },
+      "storage": { "reps": "5" }
+    },
+    {
+      "id": "13", "name": "plural name, both units marked", "source": "authored", "rules": ["R2", "R1"], "context": "upper",
+      "input": ["squats 5 reps 225 pounds"],
+      "expect": { "status": "ok", "chosen": 0, "intent": { "kind": "log", "sets": 1, "values": { "weight": { "value": 225, "unit": "lb" }, "reps": 5 } },
+                  "exercise": { "kind": "resolved", "scope": "session", "id": "squat", "name": "Back Squat", "match": "contained" }, "ignored": [], "problems": [] },
+      "storage": { "weight": "225 lb", "reps": "5" }
+    },
+    {
+      "id": "14", "name": "kg profile, bare weight stays bare", "source": "authored", "rules": ["R9"], "context": "kg",
+      "input": ["100 for 5"],
+      "expect": { "status": "ok", "chosen": 0, "intent": { "kind": "log", "sets": 1, "values": { "weight": { "value": 100 }, "reps": 5 } },
+                  "exercise": { "kind": "current" }, "ignored": [], "problems": [] },
+      "storage": { "weight": "100", "reps": "5" }
+    },
+    {
+      "id": "15", "name": "kg profile, fraction and spoken unit", "source": "authored", "rules": ["R1", "R8"], "context": "kg",
+      "input": ["sixty two and a half kilos for eight"],
+      "expect": { "status": "ok", "chosen": 0, "intent": { "kind": "log", "sets": 1, "values": { "weight": { "value": 62.5, "unit": "kg" }, "reps": 8 } },
+                  "exercise": { "kind": "current" }, "ignored": [], "problems": [] },
+      "storage": { "weight": "62.5 kg", "reps": "8" }
+    },
+    {
+      "id": "16", "name": "rpe digits", "source": "authored", "rules": ["R4", "R10"], "context": "upper",
+      "input": ["5 at 225 rpe 8"],
+      "expect": { "status": "ok", "chosen": 0, "intent": { "kind": "log", "sets": 1, "values": { "weight": { "value": 225 }, "reps": 5, "rpe": 8 } },
+                  "exercise": { "kind": "current" }, "ignored": [], "problems": [] },
+      "storage": { "weight": "225", "reps": "5", "rpe": "8" }
+    },
+    {
+      "id": "17", "name": "second at is the rating", "source": "authored", "rules": ["R10", "R7"], "context": "upper",
+      "input": ["5 at 225 at eight and a half"],
+      "expect": { "status": "ok", "chosen": 0, "intent": { "kind": "log", "sets": 1, "values": { "weight": { "value": 225 }, "reps": 5, "rpe": 8.5 } },
+                  "exercise": { "kind": "current" }, "ignored": [], "problems": [] },
+      "storage": { "weight": "225", "reps": "5", "rpe": "8.5" }
+    },
+    {
+      "id": "18", "name": "warm up flag", "source": "authored", "rules": ["R15", "R10"], "context": "upper",
+      "input": ["warm up 5 at 135"],
+      "expect": { "status": "ok", "chosen": 0, "intent": { "kind": "log", "sets": 1, "values": { "weight": { "value": 135 }, "reps": 5, "isWarmup": true } },
+                  "exercise": { "kind": "current" }, "ignored": [], "problems": [] },
+      "storage": { "weight": "135", "reps": "5" }
+    },
+    {
+      "id": "19", "name": "bodyweight for reps", "source": "authored", "rules": ["R6", "R8"], "context": "upper",
+      "input": ["pull ups bodyweight for 8"],
+      "expect": { "status": "ok", "chosen": 0, "intent": { "kind": "log", "sets": 1, "values": { "weight": { "bodyweight": true }, "reps": 8 } },
+                  "exercise": { "kind": "resolved", "scope": "session", "id": "pullups", "name": "Weighted Pull-Ups", "match": "contained" }, "ignored": [], "problems": [] },
+      "storage": { "weight": "BW", "reps": "8" }
+    },
+    {
+      "id": "20", "name": "hyphenated exact name, bodyweight plus", "source": "authored", "rules": ["R6", "R8"], "context": "upper",
+      "input": ["weighted pull-ups bodyweight plus 25 for 5"],
+      "expect": { "status": "ok", "chosen": 0, "intent": { "kind": "log", "sets": 1, "values": { "weight": { "bodyweight": true, "sign": 1, "value": 25 }, "reps": 5 } },
+                  "exercise": { "kind": "resolved", "scope": "session", "id": "pullups", "name": "Weighted Pull-Ups", "match": "exact" }, "ignored": [], "problems": [] },
+      "storage": { "weight": "BW+25", "reps": "5" }
+    },
+    {
+      "id": "21", "name": "body weight plus kilos", "source": "authored", "rules": ["R6", "R8"], "context": "upper",
+      "input": ["pull ups body weight plus 10 kilos for 6"],
+      "expect": { "status": "ok", "chosen": 0, "intent": { "kind": "log", "sets": 1, "values": { "weight": { "bodyweight": true, "sign": 1, "value": 10, "unit": "kg" }, "reps": 6 } },
+                  "exercise": { "kind": "resolved", "scope": "session", "id": "pullups", "name": "Weighted Pull-Ups", "match": "contained" }, "ignored": [], "problems": [] },
+      "storage": { "weight": "BW+10 kg", "reps": "6" }
+    },
+    {
+      "id": "22", "name": "seconds", "source": "authored", "rules": ["R5"], "context": "upper",
+      "input": ["plank 45 seconds"],
+      "expect": { "status": "ok", "chosen": 0, "intent": { "kind": "log", "sets": 1, "values": { "durationSeconds": 45 } },
+                  "exercise": { "kind": "resolved", "scope": "session", "id": "plank", "name": "Plank", "match": "exact" }, "ignored": [], "problems": [] },
+      "storage": { "duration": "45s" }
+    },
+    {
+      "id": "23", "name": "a minute thirty", "source": "authored", "rules": ["R5"], "context": "upper",
+      "input": ["plank for a minute thirty"],
+      "expect": { "status": "ok", "chosen": 0, "intent": { "kind": "log", "sets": 1, "values": { "durationSeconds": 90 } },
+                  "exercise": { "kind": "resolved", "scope": "session", "id": "plank", "name": "Plank", "match": "exact" }, "ignored": [], "problems": [] },
+      "storage": { "duration": "1:30" }
+    },
+    {
+      "id": "24", "name": "bare number on a duration exercise", "source": "authored", "rules": ["R12"], "context": "upper",
+      "input": ["plank 60"],
+      "expect": { "status": "ok", "chosen": 0, "intent": { "kind": "log", "sets": 1, "values": { "durationSeconds": 60 } },
+                  "exercise": { "kind": "resolved", "scope": "session", "id": "plank", "name": "Plank", "match": "exact" }, "ignored": [], "problems": [] },
+      "storage": { "duration": "1:00" }
+    },
+    {
+      "id": "25", "name": "clock is a duration under a duration hint", "source": "authored", "rules": ["R5"], "context": "upper",
+      "input": ["1:30 plank"],
+      "expect": { "status": "ok", "chosen": 0, "intent": { "kind": "log", "sets": 1, "values": { "durationSeconds": 90 } },
+                  "exercise": { "kind": "resolved", "scope": "session", "id": "plank", "name": "Plank", "match": "exact" }, "ignored": [], "problems": [] },
+      "storage": { "duration": "1:30" }
+    },
+    {
+      "id": "26", "name": "again", "source": "authored", "rules": ["R16"], "context": "upper",
+      "input": ["again"],
+      "expect": { "status": "ok", "chosen": 0, "intent": { "kind": "repeat" }, "exercise": { "kind": "current" }, "ignored": [], "problems": [] },
+      "storage": {}
+    },
+    {
+      "id": "27", "name": "named repeat", "source": "authored", "rules": ["R16"], "context": "upper",
+      "input": ["squat again"],
+      "expect": { "status": "ok", "chosen": 0, "intent": { "kind": "repeat" },
+                  "exercise": { "kind": "resolved", "scope": "session", "id": "squat", "name": "Back Squat", "match": "contained" }, "ignored": [], "problems": [] },
+      "storage": {}
+    },
+    {
+      "id": "28", "name": "alias is exact", "source": "authored", "rules": ["R10"], "context": "upper",
+      "input": ["hammer curls 10 at 30"],
+      "expect": { "status": "ok", "chosen": 0, "intent": { "kind": "log", "sets": 1, "values": { "weight": { "value": 30 }, "reps": 10 } },
+                  "exercise": { "kind": "resolved", "scope": "session", "id": "hammer", "name": "Hammer Curl", "match": "exact" }, "ignored": [], "problems": [] },
+      "storage": { "weight": "30", "reps": "10" }
+    },
+    {
+      "id": "29", "name": "contained in two session names asks", "source": "authored", "rules": ["R10"], "context": "upper",
+      "input": ["curls 10 at 30"],
+      "expect": { "status": "ok", "chosen": 0, "intent": { "kind": "log", "sets": 1, "values": { "weight": { "value": 30 }, "reps": 10 } },
+                  "exercise": { "kind": "needsConfirmation", "phrase": "curls", "candidates": [
+                    { "scope": "session", "id": "hammer", "name": "Hammer Curl", "match": "contained", "distance": 0 },
+                    { "scope": "session", "id": "dbcurl", "name": "Dumbbell Curl", "match": "contained", "distance": 0 } ] },
+                  "ignored": [], "problems": [] },
+      "storage": { "weight": "30", "reps": "10" }
+    },
+    {
+      "id": "30", "name": "near session name asks", "source": "authored", "rules": ["R10"], "context": "upper",
+      "input": ["back squad 5 at 225"],
+      "expect": { "status": "ok", "chosen": 0, "intent": { "kind": "log", "sets": 1, "values": { "weight": { "value": 225 }, "reps": 5 } },
+                  "exercise": { "kind": "needsConfirmation", "phrase": "back squad", "candidates": [
+                    { "scope": "session", "id": "squat", "name": "Back Squat", "match": "near", "distance": 1 } ] },
+                  "ignored": [], "problems": [] },
+      "storage": { "weight": "225", "reps": "5" }
+    },
+    {
+      "id": "31", "name": "exact library name", "source": "authored", "rules": ["R10"], "context": "upper",
+      "input": ["romanian deadlift 8 at 185"],
+      "expect": { "status": "ok", "chosen": 0, "intent": { "kind": "log", "sets": 1, "values": { "weight": { "value": 185 }, "reps": 8 } },
+                  "exercise": { "kind": "resolved", "scope": "library", "id": "rdl", "name": "Romanian Deadlift", "match": "exact" }, "ignored": [], "problems": [] },
+      "storage": { "weight": "185", "reps": "8" }
+    },
+    {
+      "id": "32", "name": "shorthand expands to a library name", "source": "authored", "rules": ["R10"], "context": "upper",
+      "input": ["RDLs 8 at 185"],
+      "expect": { "status": "ok", "chosen": 0, "intent": { "kind": "log", "sets": 1, "values": { "weight": { "value": 185 }, "reps": 8 } },
+                  "exercise": { "kind": "resolved", "scope": "library", "id": "rdl", "name": "Romanian Deadlift", "match": "exact" }, "ignored": [], "problems": [] },
+      "storage": { "weight": "185", "reps": "8" }
+    },
+    {
+      "id": "33", "name": "ohp", "source": "authored", "rules": ["R10"], "context": "upper",
+      "input": ["ohp 5 at 95"],
+      "expect": { "status": "ok", "chosen": 0, "intent": { "kind": "log", "sets": 1, "values": { "weight": { "value": 95 }, "reps": 5 } },
+                  "exercise": { "kind": "resolved", "scope": "library", "id": "ohp", "name": "Overhead Press", "match": "exact" }, "ignored": [], "problems": [] },
+      "storage": { "weight": "95", "reps": "5" }
+    },
+    {
+      "id": "34", "name": "contained in a library name asks", "source": "authored", "rules": ["R12"], "context": "upper",
+      "input": ["dips 8"],
+      "expect": { "status": "ok", "chosen": 0, "intent": { "kind": "log", "sets": 1, "values": { "reps": 8 } },
+                  "exercise": { "kind": "needsConfirmation", "phrase": "dips", "candidates": [
+                    { "scope": "library", "id": "ring-dips", "name": "Ring Dips", "match": "contained", "distance": 0 } ] },
+                  "ignored": [], "problems": [] },
+      "storage": { "reps": "8" }
+    },
+    {
+      "id": "35", "name": "parenthetical makes two exact library hits", "source": "authored", "rules": ["R10"], "context": "upper",
+      "input": ["lat pulldown 10 at 120"],
+      "expect": { "status": "ok", "chosen": 0, "intent": { "kind": "log", "sets": 1, "values": { "weight": { "value": 120 }, "reps": 10 } },
+                  "exercise": { "kind": "needsConfirmation", "phrase": "lat pulldown", "candidates": [
+                    { "scope": "library", "id": "lat-pulldown", "name": "Lat Pulldown", "match": "exact", "distance": 0 },
+                    { "scope": "library", "id": "lat-pulldown-close", "name": "Lat Pulldown (Close Grip)", "match": "exact", "distance": 0 } ] },
+                  "ignored": [], "problems": [] },
+      "storage": { "weight": "120", "reps": "10" }
+    },
+    {
+      "id": "36", "name": "archived library name is unresolved", "source": "authored", "rules": ["R10"], "context": "upper",
+      "input": ["incline press 5 at 185"],
+      "expect": { "status": "ok", "chosen": 0, "intent": { "kind": "log", "sets": 1, "values": { "weight": { "value": 185 }, "reps": 5 } },
+                  "exercise": { "kind": "unresolved", "phrase": "incline press" }, "ignored": [], "problems": [] },
+      "storage": { "weight": "185", "reps": "5" }
+    },
+    {
+      "id": "37", "name": "for is never four", "source": "authored", "rules": ["R10"], "context": "upper",
+      "input": ["for 5 at 225"],
+      "expect": { "status": "ok", "chosen": 0, "intent": { "kind": "log", "sets": 1, "values": { "weight": { "value": 225 }, "reps": 5 } },
+                  "exercise": { "kind": "current" }, "ignored": [], "problems": [] },
+      "storage": { "weight": "225", "reps": "5" }
+    },
+    {
+      "id": "38", "name": "two weights", "source": "authored", "rules": ["R2", "R1", "R14"], "context": "upper",
+      "input": ["5 reps 225 pounds 100 kilos"],
+      "expect": { "status": "invalid", "chosen": 0, "intent": null, "exercise": { "kind": "current" }, "ignored": [], "problems": ["duplicateWeight"] },
+      "storage": {}
+    },
+    {
+      "id": "39", "name": "too many sets", "source": "authored", "rules": ["R3", "R7", "R17"], "context": "upper",
+      "input": ["15 sets of 5 at 225"],
+      "expect": { "status": "invalid", "chosen": 0, "intent": null, "exercise": { "kind": "current" }, "ignored": [], "problems": ["setsOutOfRange"] },
+      "storage": {}
+    },
+    {
+      "id": "40", "name": "two bare weights", "source": "authored", "rules": ["R13"], "context": "upper",
+      "input": ["225 185"],
+      "expect": { "status": "invalid", "chosen": 0, "intent": null, "exercise": { "kind": "current" }, "ignored": [], "problems": ["ambiguousNumbers"] },
+      "storage": {}
+    },
+    {
+      "id": "41", "name": "bare pair of small numbers", "source": "authored", "rules": ["R13"], "context": "upper",
+      "input": ["10 20"],
+      "expect": { "status": "ok", "chosen": 0, "intent": { "kind": "log", "sets": 1, "values": { "weight": { "value": 20 }, "reps": 10 } },
+                  "exercise": { "kind": "current" }, "ignored": [], "problems": ["barePair"] },
+      "storage": { "weight": "20", "reps": "10" }
+    },
+    {
+      "id": "42", "name": "only fillers", "source": "authored", "rules": [], "context": "upper",
+      "input": ["okay um"],
+      "expect": { "status": "empty", "chosen": 0, "intent": null, "exercise": { "kind": "current" }, "ignored": [], "problems": [] },
+      "storage": {}
+    },
+    {
+      "id": "43", "name": "the fuller alternative wins", "source": "authored", "rules": ["R10"], "context": "upper",
+      "input": ["for at 225", "5 at 225"],
+      "expect": { "status": "ok", "chosen": 1, "intent": { "kind": "log", "sets": 1, "values": { "weight": { "value": 225 }, "reps": 5 } },
+                  "exercise": { "kind": "current" }, "ignored": [], "problems": [] },
+      "storage": { "weight": "225", "reps": "5" }
+    },
+    {
+      "id": "44", "name": "a split number loses", "source": "authored", "rules": ["R10"], "context": "upper",
+      "input": ["bench 5 at 225", "bench 5 at 2 25"],
+      "expect": { "status": "ok", "chosen": 0, "intent": { "kind": "log", "sets": 1, "values": { "weight": { "value": 225 }, "reps": 5 } },
+                  "exercise": { "kind": "resolved", "scope": "session", "id": "bench", "name": "Bench Press", "match": "contained" }, "ignored": [], "problems": [] },
+      "storage": { "weight": "225", "reps": "5" }
+    },
+    {
+      "id": "45", "name": "a name with no values", "source": "authored", "rules": [], "context": "upper",
+      "input": ["bench press"],
+      "expect": { "status": "empty", "chosen": 0, "intent": null,
+                  "exercise": { "kind": "resolved", "scope": "session", "id": "bench", "name": "Bench Press", "match": "exact" }, "ignored": [], "problems": [] },
+      "storage": {}
+    },
+    {
+      "id": "46", "name": "no current exercise, the UI decides", "source": "authored", "rules": ["R10"], "context": "nocurrent",
+      "input": ["5 at 225"],
+      "expect": { "status": "ok", "chosen": 0, "intent": { "kind": "log", "sets": 1, "values": { "weight": { "value": 225 }, "reps": 5 } },
+                  "exercise": { "kind": "current" }, "ignored": [], "problems": [] },
+      "storage": { "weight": "225", "reps": "5" }
+    },
+    {
+      "id": "47", "name": "clock as a number on a loaded exercise", "source": "authored", "rules": ["R9"], "context": "upper",
+      "input": ["bench 2:25 for 5"],
+      "expect": { "status": "ok", "chosen": 0, "intent": { "kind": "log", "sets": 1, "values": { "weight": { "value": 225 }, "reps": 5 } },
+                  "exercise": { "kind": "resolved", "scope": "session", "id": "bench", "name": "Bench Press", "match": "contained" }, "ignored": [], "problems": [] },
+      "storage": { "weight": "225", "reps": "5" }
+    },
+    {
+      "id": "48", "name": "clock as a number, no name", "source": "authored", "rules": ["R9"], "context": "upper",
+      "input": ["1:35 for 8"],
+      "expect": { "status": "ok", "chosen": 0, "intent": { "kind": "log", "sets": 1, "values": { "weight": { "value": 135 }, "reps": 8 } },
+                  "exercise": { "kind": "current" }, "ignored": [], "problems": [] },
+      "storage": { "weight": "135", "reps": "8" }
+    },
+    {
+      "id": "49", "name": "mixed words and digits", "source": "authored", "rules": ["R10"], "context": "upper",
+      "input": ["five at 225"],
+      "expect": { "status": "ok", "chosen": 0, "intent": { "kind": "log", "sets": 1, "values": { "weight": { "value": 225 }, "reps": 5 } },
+                  "exercise": { "kind": "current" }, "ignored": [], "problems": [] },
+      "storage": { "weight": "225", "reps": "5" }
+    },
+    {
+      "id": "50", "name": "unit marked weight for reps", "source": "authored", "rules": ["R1", "R8"], "context": "upper",
+      "input": ["225 lbs for 5"],
+      "expect": { "status": "ok", "chosen": 0, "intent": { "kind": "log", "sets": 1, "values": { "weight": { "value": 225, "unit": "lb" }, "reps": 5 } },
+                  "exercise": { "kind": "current" }, "ignored": [], "problems": [] },
+      "storage": { "weight": "225 lb", "reps": "5" }
+    },
+    {
+      "id": "51", "name": "glued x, sets", "source": "authored", "rules": ["R11", "R17"], "context": "upper",
+      "input": ["5x5"],
+      "expect": { "status": "ok", "chosen": 0, "intent": { "kind": "log", "sets": 5, "values": { "reps": 5 } },
+                  "exercise": { "kind": "current" }, "ignored": [], "problems": [] },
+      "storage": { "reps": "5" }
+    },
+    {
+      "id": "52", "name": "glued x, weight", "source": "authored", "rules": ["R11"], "context": "upper",
+      "input": ["225x5"],
+      "expect": { "status": "ok", "chosen": 0, "intent": { "kind": "log", "sets": 1, "values": { "weight": { "value": 225 }, "reps": 5 } },
+                  "exercise": { "kind": "current" }, "ignored": [], "problems": [] },
+      "storage": { "weight": "225", "reps": "5" }
+    },
+    {
+      "id": "53", "name": "rpe in words", "source": "authored", "rules": ["R4", "R10"], "context": "upper",
+      "input": ["5 at 225 rpe eight"],
+      "expect": { "status": "ok", "chosen": 0, "intent": { "kind": "log", "sets": 1, "values": { "weight": { "value": 225 }, "reps": 5, "rpe": 8 } },
+                  "exercise": { "kind": "current" }, "ignored": [], "problems": [] },
+      "storage": { "weight": "225", "reps": "5", "rpe": "8" }
+    },
+    {
+      "id": "54", "name": "two reps", "source": "authored", "rules": ["R2", "R14"], "context": "upper",
+      "input": ["5 reps 8 reps"],
+      "expect": { "status": "invalid", "chosen": 0, "intent": null, "exercise": { "kind": "current" }, "ignored": [], "problems": ["duplicateReps"] },
+      "storage": {}
+    },
+    {
+      "id": "55", "name": "two durations", "source": "authored", "rules": ["R5", "R14"], "context": "upper",
+      "input": ["plank 30 seconds 45 seconds"],
+      "expect": { "status": "invalid", "chosen": 0, "intent": null,
+                  "exercise": { "kind": "resolved", "scope": "session", "id": "plank", "name": "Plank", "match": "exact" }, "ignored": [], "problems": ["duplicateDuration"] },
+      "storage": {}
+    },
+    {
+      "id": "56", "name": "a third number after at", "source": "authored", "rules": ["R10", "R7", "R14"], "context": "upper",
+      "input": ["5 at 225 at 12"],
+      "expect": { "status": "invalid", "chosen": 0, "intent": null, "exercise": { "kind": "current" }, "ignored": [], "problems": ["tooManyNumbers"] },
+      "storage": {}
+    },
+    {
+      "id": "57", "name": "rpe out of range is dropped, the set stands", "source": "authored", "rules": ["R4", "R10"], "context": "upper",
+      "input": ["5 at 225 rpe 12"],
+      "expect": { "status": "ok", "chosen": 0, "intent": { "kind": "log", "sets": 1, "values": { "weight": { "value": 225 }, "reps": 5 } },
+                  "exercise": { "kind": "current" }, "ignored": [], "problems": ["rpeOutOfRange"] },
+      "storage": { "weight": "225", "reps": "5" }
+    },
+    {
+      "id": "58", "name": "fractional reps", "source": "authored", "rules": ["R2"], "context": "upper",
+      "input": ["five and a half reps"],
+      "expect": { "status": "invalid", "chosen": 0, "intent": null, "exercise": { "kind": "current" }, "ignored": [], "problems": ["repsNotInteger"] },
+      "storage": {}
+    },
+    {
+      "id": "59", "name": "cardio library name is never a candidate", "source": "authored", "rules": ["R5"], "context": "upper",
+      "input": ["easy run 20 minutes"],
+      "expect": { "status": "ok", "chosen": 0, "intent": { "kind": "log", "sets": 1, "values": { "durationSeconds": 1200 } },
+                  "exercise": { "kind": "unresolved", "phrase": "easy run" }, "ignored": [], "problems": [] },
+      "storage": { "duration": "20:00" }
+    },
+    {
+      "id": "60", "name": "singular name is contained in the plural one", "source": "authored", "rules": ["R12"], "context": "upper",
+      "input": ["pull up 8"],
+      "expect": { "status": "ok", "chosen": 0, "intent": { "kind": "log", "sets": 1, "values": { "reps": 8 } },
+                  "exercise": { "kind": "resolved", "scope": "session", "id": "pullups", "name": "Weighted Pull-Ups", "match": "contained" }, "ignored": [], "problems": [] },
+      "storage": { "reps": "8" }
+    },
+    {
+      "id": "61", "name": "sets alone log nothing", "source": "authored", "rules": ["R3", "R17"], "context": "upper",
+      "input": ["3 sets"],
+      "expect": { "status": "empty", "chosen": 0, "intent": null, "exercise": { "kind": "current" }, "ignored": [], "problems": [] },
+      "storage": {}
+    },
+    {
+      "id": "62", "name": "a repeat word beside numbers is ignored", "source": "authored", "rules": ["R10"], "context": "upper",
+      "input": ["again 5 at 225"],
+      "expect": { "status": "ok", "chosen": 0, "intent": { "kind": "log", "sets": 1, "values": { "weight": { "value": 225 }, "reps": 5 } },
+                  "exercise": { "kind": "current" }, "ignored": ["again"], "problems": [] },
+      "storage": { "weight": "225", "reps": "5" }
+    },
+    {
+      "id": "63", "name": "oh outside shorthand is a filler", "source": "authored", "rules": ["R9"], "context": "upper",
+      "input": ["oh bench 225 for 5"],
+      "expect": { "status": "ok", "chosen": 0, "intent": { "kind": "log", "sets": 1, "values": { "weight": { "value": 225 }, "reps": 5 } },
+                  "exercise": { "kind": "resolved", "scope": "session", "id": "bench", "name": "Bench Press", "match": "contained" }, "ignored": [], "problems": [] },
+      "storage": { "weight": "225", "reps": "5" }
+    }
+  ]
+}
