@@ -1,9 +1,14 @@
 # App Store submission — the console answers, the review notes, the demo account
 
 W13's App Store readiness, in one place. The code side is done (`ios/Apex/PrivacyInfo.xcprivacy`,
-in-app account deletion since W11, the invite link on the sign-in screen); everything below is
+in-app account deletion since W11, in-app Create account since open-signup M3); everything below is
 filled in by hand in [App Store Connect](https://appstoreconnect.apple.com) by Shane, because
 the console has no API for most of it and the demo account needs a real key.
+
+> **Open sign-up (2026-10-19).** The Registration line, recording step 1 and the 5.1.1 row
+> describe builds that carry Create account (docs/specs/open-signup.md M3). Build 1.0.0 (509),
+> the one in review, is invite-only: paste the old wording (git history of this file) for any
+> reply about that build, and the new wording from the first build with M3.
 
 > Who can mint an App Store Connect API key, where each secret is escrowed, and how to recover
 > the Apple Account without the release machine: [ops-runbook.md](../ops-runbook.md).
@@ -40,7 +45,8 @@ same page the About screen links to. Terms: `/terms`.
   apps there need a government permit and Anthropic's API is not offered there
 - **Copyright** © 2026 Shane Haynes
 - **Support URL** `https://github.com/shanehaynes/apex-training` (README + WELCOME.md)
-- **Invite contact** the sign-in screen's "Request an invite" link comes from
+- **Invite contact** (builds before open-signup M3 only — the screen now has Create account
+  instead) the sign-in screen's "Request an invite" link comes from
   `APEX_INVITE_CONTACT` in `ios/Config/Base.xcconfig` — the one line to change, and the only
   place the address lives. It is `support@apex-training.app`, a forwarding alias; it ships in
   the binary and is frozen there once archived (#214). No screenshot is affected; the address is
@@ -90,7 +96,8 @@ are present in production (phase46 and phase47 confirmed applied; the 2026-09-19
 
 ### Sign-in required: the demo account
 
-The app is invite-only, so App Review needs an account that already exists, with an Anthropic
+Create account works in the app, but it sends an email the reviewer cannot read, so App Review
+still needs an account that already exists, with an Anthropic
 key saved so the coach can be exercised. **Shane creates it once**; it is a real account on
 the production project:
 
@@ -124,7 +131,7 @@ Apex is a personal training planner and log with an optional AI coach.
 
 1. SCREEN RECORDING
 Recorded on an iPhone 15 Pro running iOS <version>, build 1.0.0 (509): <link, or "attached to the App Review reply">. It starts at launch and shows sign-in, the schedule, the workout tracker and its Live Activity, meals, training blocks, the exercise library, analytics, the AI coach, sign-out, and account deletion (You > Data > Delete account) on a second account.
-- Registration: there is none in the app. Accounts are by invitation only; the sign-in screen says so and links "Request an invite" (support@apex-training.app).
+- Registration: the sign-in screen has a Create account mode. The user enters an email, accepts the Terms of Service and Privacy Policy, confirms they are 18 or older, and passes a Cloudflare Turnstile check. We then email a link that opens the app to choose a password. Use the demo account above for review; a new account needs an inbox.
 - User-generated content: none is shared between users. Every plan, log and coach conversation is private to its owner, so there is nothing to report or block.
 - Paid content: none. No in-app purchases, subscriptions, prices or ads.
 
@@ -160,7 +167,7 @@ Contact: Shane Haynes, the phone number and email in the form.
 Apple wants a recording from a physical device on the latest iOS, starting at launch. Use
 Control Center → Screen Recording on a TestFlight install of the submitted build, one take:
 
-1. Cold launch → sign-in screen; let the invite-only line and "Request an invite" show.
+1. Cold launch → sign-in screen; tap Create account to show the email, terms and 18+ toggles, then back to Sign in.
 2. Sign in as the demo account. Schedule day and month, open a workout, **Start Workout**, lock
    the phone to show the Live Activity, unlock, log a set, **Finish**.
 3. Meals, Blocks, Library, Analytics — a few seconds each.
@@ -205,7 +212,7 @@ carry a 2026-09-08 date. No text overlays, no device frames: Apple's own frame i
 
 | Risk | Where it is handled |
 |---|---|
-| 5.1.1 — sign-up required but no way to get an account | the sign-in screen states invite-only and links "Request an invite"; the demo account is in the review form |
+| 5.1.1 — sign-up required but no way to get an account | Create account on the sign-in screen (email, terms, 18+, Turnstile → invite email → set password in the app); the demo account is in the review form |
 | 5.1.1(v) — no in-app account deletion | You → Data → Delete account, since W11 |
 | 3.1.1 — "paying" for a feature outside IAP | the key is a credential, not a purchase; no price, no purchase flow, the app works without it — the notes say so |
 | 2.1 — a crash or an empty screen on review | the demo account has a starter plan and one logged workout (§3 step 3) |

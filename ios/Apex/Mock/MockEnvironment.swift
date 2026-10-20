@@ -256,8 +256,9 @@ actor FixtureTransport: HTTPTransport {
         // the acceptance itself, and the account's export and delete.
         let exempt: Set<String> = ["GET /api/profile", "GET /api/terms-acceptance", "POST /api/terms-acceptance",
                                    "GET /api/account", "DELETE /api/account",
-                                   // Unauthenticated: the launch's build check (G8).
-                                   "GET /api/version"]
+                                   // Unauthenticated: the launch's build check (G8)
+                                   // and open sign-up (no account yet).
+                                   "GET /api/version", "POST /api/signup"]
         if termsStale, !exempt.contains("\(method) \(path)") {
             await holdIfMarked(request)
             return HTTPResponse(status: 403, headers: [:], body: Data("terms-acceptance-required".utf8))
@@ -269,6 +270,9 @@ actor FixtureTransport: HTTPTransport {
                 return ok(Data(termsStale
                     ? #"{"accepted":{"termsVersion":"terms-v1","privacyVersion":"privacy-v1","acceptedAt":"2026-08-29T12:00:00.000Z"},"current":false,"termsVersion":"terms-v1","privacyVersion":"privacy-v2"}"#.utf8
                     : #"{"accepted":{"termsVersion":"terms-v1","privacyVersion":"privacy-v2","acceptedAt":"2026-09-08T12:00:00.000Z"},"current":true,"termsVersion":"terms-v1","privacyVersion":"privacy-v2"}"#.utf8))
+            // Open sign-up: the handler answers this for every address it accepts.
+            case ("POST", "/api/signup"):
+                return ok(Data(#"{"status":"pending"}"#.utf8))
             case ("POST", "/api/terms-acceptance"):
                 termsStale = false
                 return ok(Data(#"{"accepted":{"termsVersion":"terms-v1","privacyVersion":"privacy-v2","acceptedAt":"2026-09-08T12:00:00.000Z"},"current":true}"#.utf8))

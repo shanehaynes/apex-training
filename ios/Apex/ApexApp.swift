@@ -79,6 +79,14 @@ struct RootView: View {
         case .signedOut(let reason):
             SignInView(
                 inviteContact: AppConfig.inviteContactURL,
+                signUp: SignUpOptions(
+                    checkURL: AppConfig.publicOrigin.appending(path: "signup-check"),
+                    termsURL: AppConfig.publicOrigin.appending(path: "terms"),
+                    privacyURL: AppConfig.publicOrigin.appending(path: "privacy"),
+                    submit: { email, token, ageConfirmed in
+                        await model.signUp(email: email, captchaToken: token, ageConfirmed: ageConfirmed)
+                    }
+                ),
                 onSignIn: { email, password in
                     await model.signIn(email: email, password: password)
                 },

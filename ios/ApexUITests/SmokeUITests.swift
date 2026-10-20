@@ -96,14 +96,44 @@ final class SmokeUITests: XCTestCase {
         XCTAssertTrue(app.secureTextFields["signin.password"].exists)
         XCTAssertTrue(app.buttons["Sign in"].exists)
 
-        // Invite-only has to be stated, not implied (App Store 5.1.1) — and
-        // stated with a way forward: the contact link, not a dead end (W13).
-        XCTAssertTrue(app.staticTexts.containing(
-            NSPredicate(format: "label CONTAINS[c] 'invite-only'")
-        ).firstMatch.exists)
-        XCTAssertTrue(app.links["signin.invite"].exists || app.buttons["signin.invite"].exists, "no invite contact link")
-
         attach(app, name: "01-sign-in")
+    }
+
+    /// Open sign-up (docs/specs/open-signup.md M3), and App Store 5.1.1's way
+    /// to an account: email, the terms and 18+ toggles (neither enough alone),
+    /// then the human check opens as a sheet.
+    func testCreateAccountNeedsBothTogglesThenOpensTheCheck() {
+        let app = launch(mock: true)
+        let mode = app.segmentedControls["signin.mode"]
+        XCTAssertTrue(mode.waitForExistence(timeout: 10), "no Create account mode")
+        mode.buttons["Create account"].tap()
+
+        XCTAssertFalse(app.secureTextFields["signin.password"].exists, "the invite is where the password is chosen")
+        let submit = app.buttons["signup.submit"]
+        XCTAssertTrue(submit.waitForExistence(timeout: 5))
+        XCTAssertFalse(submit.isEnabled)
+
+        let email = app.textFields["signin.email"]
+        email.tap()
+        email.typeText("someone@example.com")
+        flip(app.switches["signup.terms"])
+        XCTAssertFalse(submit.isEnabled, "terms alone must not be enough")
+        let age = app.switches["signup.age"]
+        XCTAssertEqual(age.value as? String, "0", "the 18+ toggle must never start on")
+        flip(age)
+        XCTAssertTrue(submit.isEnabled)
+        attach(app, name: "01b-create-account")
+
+        submit.tap()
+        XCTAssertTrue(app.otherElements["signup.check"].waitForExistence(timeout: 10)
+            || app.navigationBars["Quick check"].waitForExistence(timeout: 5), "the human check did not open")
+    }
+
+    /// A Toggle's own switch sits at its trailing edge; tapping the middle
+    /// lands on the label, which does not always flip it.
+    private func flip(_ toggle: XCUIElement) {
+        XCTAssertTrue(toggle.waitForExistence(timeout: 5))
+        toggle.coordinate(withNormalizedOffset: CGVector(dx: 0.95, dy: 0.5)).tap()
     }
 
     /// sign in → today → month → day sheet → event → complete, all on fixtures.
