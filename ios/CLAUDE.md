@@ -64,6 +64,21 @@ to persist and the app returns to sign-in on every launch. It looks exactly like
 bug and is not one. Drop the flag (the normal Xcode build signs ad-hoc) whenever you are
 checking sign-in, session restore or sign-out.
 
+**An `ApexWidgets` crash in an xcresult is usually the install, not the widget.** It looks like
+`EXC_BREAKPOINT` / `Trace/BPT trap: 5`, a life of well under a second, and a main thread that is
+only `_assertionFailure` ← `_EXRunningExtension._start(withArguments:count:)` ← `EXExtensionMain`
+← `NSExtensionMain` ← dyld; the app and the test are fine. It is a simulator install race:
+xcodebuild's "Install Actions" replaced `Apex.app` while chronod was launching the old copy's
+widget extension, so ExtensionFoundation's lookup of its own bundle failed before any Apex code
+ran. The proof is in the report's `procPath`, which points into
+`…/com.apple.containermanagerd/Dead/…` (the replaced bundle). The next launch, from the new
+bundle, works. It is rare: 2026-10-19's one report did not come back in 13 UI-test runs and ~50
+reinstalls on main, signed or unsigned, cold or hot. Treat it as real only if the faulting thread
+has a frame in `ApexWidgets` / `ApexWidgets.debug.dylib` / `ApexActivity` / `ApexUI`, if
+`procPath` is under `Containers/Bundle/Application/`, or if it happens again on a fresh install.
+Spawning the executable directly (`simctl spawn … ApexWidgets`) traps too, but in `xpc_main` under
+PlugInKit, which is a different signature.
+
 ## Configuration
 
 `Local` (the scheme's run and test configuration) points at this worktree's vite server and

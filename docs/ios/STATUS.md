@@ -139,6 +139,11 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
    (`printf` the two ids back after a tidy) — both git-ignored, so never from the primary checkout.
 
 ## Recent sessions
+- 2026-10-20 · ApexWidgets sim crash (no WS) · Mac. The 2026-10-19 `ApexWidgets` SIGTRAP in an
+  xcresult is a simulator install race (extension started from the bundle being replaced; its
+  `procPath` is in containermanagerd's `Dead/`), not an Apex bug; not reproduced in 13 UI-test
+  runs + ~50 reinstalls, signed or unsigned. How to tell it apart: ios/CLAUDE.md. Side finding:
+  signed `build-for-testing` fails — `ApexTests`/`ApexUITests` have no Info.plist (HELD fix).
 - 2026-10-17 · W16 M3b · Linux-shaped, on the Mac. `POST`/`GET /api/daily-metrics`: one upsert
   per day (absent untouched, null clears), consent per category for the whole batch before any
   write, and a Health weigh-in moving `profiles.body_weight_lb` only when newer (one conditional
