@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { useAuth } from '../../context/auth';
 import AcceptanceCheckbox from '../legal/AcceptanceCheckbox';
+import AgeCheckbox from '../legal/AgeCheckbox';
 import OpenInAppButton from './OpenInAppButton';
 import TurnstileWidget, { type TurnstileHandle } from './TurnstileWidget';
 import { TURNSTILE_SITE_KEY } from '../../lib/auth/turnstile';
@@ -39,6 +40,7 @@ export default function LoginView() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [accepted, setAccepted] = useState(false);
+  const [ageConfirmed, setAgeConfirmed] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const turnstile = useRef<TurnstileHandle>(null);
@@ -69,9 +71,13 @@ export default function LoginView() {
       setError('Please accept the Terms of Service and Privacy Policy to continue.');
       return;
     }
+    if (needsCaptcha && !ageConfirmed) {
+      setError('Please confirm you are 18 or older to continue.');
+      return;
+    }
     setIsSubmitting(true);
     setError(null);
-    const result = await signUp(email, password, captchaToken ?? undefined);
+    const result = await signUp(email, password, captchaToken ?? undefined, ageConfirmed);
     // Single-use: a failed attempt needs a fresh token for the retry.
     turnstile.current?.reset();
     if (result.error !== null) {
@@ -217,6 +223,10 @@ export default function LoginView() {
               />
             )}
 
+            {isCreate && needsCaptcha && (
+              <AgeCheckbox checked={ageConfirmed} onChange={setAgeConfirmed} disabled={isSubmitting} />
+            )}
+
             {isCreate && TURNSTILE_SITE_KEY && (
               <TurnstileWidget ref={turnstile} siteKey={TURNSTILE_SITE_KEY} onToken={setCaptchaToken} />
             )}
@@ -226,7 +236,7 @@ export default function LoginView() {
             <button
               type="submit"
               className="auth-submit"
-              disabled={isSubmitting || (isCreate && (!accepted || (needsCaptcha && !captchaToken)))}
+              disabled={isSubmitting || (isCreate && (!accepted || (needsCaptcha && (!ageConfirmed || !captchaToken))))}
             >
               {submitLabel}
             </button>

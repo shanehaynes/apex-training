@@ -63,6 +63,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     res.status(400).json({ error: 'Enter a valid email address.' });
     return;
   }
+  // The terms require 18+ (legal/terms-v1.md §2); the attestation is its own
+  // act on the form, and refused here before anything else is spent.
+  if (body.ageConfirmed !== true) {
+    res.status(400).json({ error: 'Please confirm you are 18 or older to continue.' });
+    return;
+  }
   if (!captchaToken || !(await turnstilePasses(secret, captchaToken, clientIp(req)))) {
     res.status(400).json({ error: 'The human check failed — try again.' });
     return;
@@ -107,7 +113,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const { data, error } = await supabase.auth.admin.generateLink({
     type: 'invite',
     email,
-    options: { redirectTo: publicOrigin(req) },
+    // The attestation travels with the account (user metadata), so it is on
+    // record without a table: when, not just that.
+    options: { redirectTo: publicOrigin(req), data: { age_confirmed_at: new Date().toISOString() } },
   });
   if (error) {
     if (error.code === 'email_exists') {

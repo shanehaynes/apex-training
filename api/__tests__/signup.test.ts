@@ -72,7 +72,7 @@ function makeRes() {
   return res as unknown as VercelResponse & { statusCode: number; payload: unknown };
 }
 
-const GOOD = { email: 'New@Example.com ', captchaToken: 'tok' };
+const GOOD = { email: 'New@Example.com ', captchaToken: 'tok', ageConfirmed: true };
 
 let siteverify: Mock<(url: string, init: RequestInit) => Promise<unknown>>;
 let lookups: string[];
@@ -150,6 +150,23 @@ describe('/api/signup', () => {
     await handler(makeReq(GOOD), res);
     expect(res.statusCode).toBe(400);
     expect(state.generateCalls).toHaveLength(0);
+  });
+
+  it('refuses a sign-up without the 18+ attestation, before spending anything', async () => {
+    for (const ageConfirmed of [undefined, false, 'true', 1]) {
+      const res = makeRes();
+      await handler(makeReq({ ...GOOD, ageConfirmed }), res);
+      expect(res.statusCode).toBe(400);
+    }
+    expect(siteverify).not.toHaveBeenCalled();
+    expect(lookups).toHaveLength(0);
+    expect(state.generateCalls).toHaveLength(0);
+  });
+
+  it('records when the age was attested on the invite', async () => {
+    await handler(makeReq(GOOD), makeRes());
+    const data = (state.generateCalls[0].options as { data: { age_confirmed_at: string } }).data;
+    expect(Number.isNaN(Date.parse(data.age_confirmed_at))).toBe(false);
   });
 
   it('validates the email before the human check', async () => {
