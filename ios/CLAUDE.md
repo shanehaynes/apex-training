@@ -62,7 +62,15 @@ to the test process only under a `TEST_RUNNER_` prefix, so it is
 is right for CI — but an unsigned app cannot write the Keychain, so the session silently fails
 to persist and the app returns to sign-in on every launch. It looks exactly like a session-restore
 bug and is not one. Drop the flag (the normal Xcode build signs ad-hoc) whenever you are
-checking sign-in, session restore or sign-out.
+checking sign-in, session restore or sign-out. That includes UI tests: the two test bundles
+generate their Info.plist (`GENERATE_INFOPLIST_FILE` in `project.yml`; before that, signing
+refused both), so a signed `build-for-testing` then `test-without-building
+-only-testing:ApexUITests/SmokeUITests` passes on your own simulator. Two things differ from
+CI's unsigned run. The signed app carries `webcredentials`, so iOS offers "Save Password?" after
+every sign-in; `signIn` dismisses it. And a live sign-in persists: the live test signs out in
+its teardown, but a run killed before that leaves the simulator signed in, and every
+`launch(mock: false)` test fails on a missing sign-in field — `xcrun simctl keychain <udid>
+reset` (simulator booted) clears it.
 
 **An `ApexWidgets` crash in an xcresult is usually the reinstall, not the widget.** It looks like
 `EXC_BREAKPOINT` / `Trace/BPT trap: 5`, a life of well under a second, and a main thread that is

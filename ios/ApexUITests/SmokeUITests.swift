@@ -29,6 +29,17 @@ final class SmokeUITests: XCTestCase {
         type("agent@apex.local", into: app.textFields["signin.email"])
         type("apex-agent-password", into: app.secureTextFields["signin.password"])
         app.buttons["Sign in"].tap()
+        dismissSavePassword(app)
+    }
+
+    /// A signed build carries the app's `webcredentials` entitlement, so iOS
+    /// offers to save the password once the sign-in fields go away, and that
+    /// sheet covers every tap after it. An unsigned build (CI) never gets the
+    /// offer and pays the short wait instead.
+    private func dismissSavePassword(_ app: XCUIApplication) {
+        guard app.textFields["signin.email"].waitForNonExistence(timeout: 10) else { return }
+        let notNow = app.buttons["Not Now"]
+        if notNow.waitForExistence(timeout: 2) { notNow.tap() }
     }
 
     /// Today rides in the Day/Month toolbar menu (ux-review §3.2): four
@@ -298,6 +309,18 @@ final class SmokeUITests: XCTestCase {
         let schedule = app.tabBars.buttons["Schedule"]
         guard schedule.waitForExistence(timeout: 20) else {
             throw XCTSkip("no local Supabase stack reachable from this simulator")
+        }
+        // A signed build keeps this session in the Keychain, and every later
+        // `launch(mock: false)` would open signed in instead of on sign-in.
+        addTeardownBlock { @MainActor in
+            app.tabBars.buttons["You"].tap()
+            // The settings list's button, or the bare one a failed profile
+            // load shows in its place.
+            let signOut = app.buttons.matching(
+                NSPredicate(format: "identifier == 'you.signout' OR label == 'Sign out'")
+            ).firstMatch
+            for _ in 0..<6 where !signOut.isHittable { app.swipeUp() }
+            signOut.tap()
         }
         for tab in ["Schedule", "Coach", "Analytics", "You"] {
             XCTAssertTrue(app.tabBars.buttons[tab].exists, "missing tab: \(tab)")

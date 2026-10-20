@@ -198,6 +198,12 @@ targets:
       - package: ApexKit
         product: ApexHealth
         link: false
+    # Neither test bundle has an Info.plist on disk. Unsigned (CI's
+    # CODE_SIGNING_ALLOWED=NO) never notices; a signed build refuses to sign a
+    # bundle without one, and only a signed app can write the Keychain.
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
 
   ApexUITests:
     type: bundle.ui-testing
@@ -206,6 +212,9 @@ targets:
       - path: ApexUITests
     dependencies:
       - target: Apex
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
 
 schemes:
   Apex:
