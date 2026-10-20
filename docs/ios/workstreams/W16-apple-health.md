@@ -2,7 +2,7 @@
 
 **Machine:** both (M0, M2b, M3b Linux · M1, MT, M2i, M3i, M4 Mac) · **Depends on:** W4, W11, W12;
 1.0 App Review approval before M1 merges · **Unblocks:** Apple Watch companion (later)
-**Status:** in progress — M1 (#430) and MT (#438) shipped in 1.1.0 (561); M0 landed (phase59, #469, in production); M2b (#472) and M3b in review; then the privacy bump and M2i, then M3i. Brief drafted 2026-10-14 (D-056 supersedes D-018)
+**Status:** in progress — M1 (#430) and MT (#438) shipped in 1.1.0 (561); M0 landed (phase59, #469, in production); M2b landed (#472); M3b in review; then the privacy bump and M2i, then M3i. Brief drafted 2026-10-14 (D-056 supersedes D-018)
 
 ## Goal
 Apex is a citizen of the Apple Health ecosystem: a workout finished in the tracker shows up in

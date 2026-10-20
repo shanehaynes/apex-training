@@ -52,6 +52,9 @@
 # A PR touching supabase/migrations/ also needs production to be current:
 # scripts/prod-schema-check.mjs must find every object origin/main expects
 # before it merges, or it HOLDs — shipit grants the PR, not a gap under it.
+# The PR's own migrations must already be in production too: the check runs
+# again against the PR's head, so a shipit-labelled migration waits for its
+# SQL to be pasted instead of deploying code that expects it.
 # A migration PR still waiting for shipit gets the same check, reported with
 # its HOLD, so the gap is visible before the label goes on.
 # After one merges, the run ends by naming what production must now be given.
@@ -134,12 +137,21 @@ policy_check() {
 # scripts/prod-schema-check.mjs must say production matches origin/main. The
 # shipit label does not waive this: it grants the PR, not the gap under it.
 #
+# Then the same check against the PR's head, which is main's migrations plus
+# the PR's own. Main's check alone let a shipit-labelled migration merge and
+# deploy before its SQL reached production (found reviewing #469), leaving
+# the post-merge ACTION line as the only guard. Production DDL goes in first,
+# then the merge: an additive migration is harmless to the code already
+# deployed, while deployed code that expects a missing table 500s.
+#
 # Fails closed like the policy: drift (1), could not check (2) and a broken
 # check (3) all hold. Sets preflight_touched (1 when the PR adds or changes a
 # migration, or its file list is truncated and cannot prove it does not),
 # preflight_out (the check's output) and preflight_reason; non-zero = hold.
 migration_prs=""
 merged_migration_prs=""
+# "<pr>:<sha>" per PR whose head passed the check; merge_pr merges only that sha.
+checked_heads=""
 
 # The check against a freshly fetched origin/main, pinned by SHA. The check's
 # own fetch only warns when it fails, so a stale ref could pass a migration
@@ -152,18 +164,54 @@ run_schema_check() {
     schema_code=2
     return 0
   fi
+  schema_main_sha=$sha
   schema_out=$(node scripts/prod-schema-check.mjs --ref "$sha" 2>&1) && schema_code=0 || schema_code=$?
 }
 
+# The check against PR $1's head, which GitHub reported as $2. Run after
+# run_schema_check, whose origin/main is the base the PR's own migrations are
+# diffed against. A head that cannot be fetched, or that moved since GitHub
+# reported it, is a could-not-check (2). Sets schema_out, schema_code,
+# head_moved (1 for the second: a push mid-check, retried next pass rather
+# than skipped for the run) and head_pending (the PR's migrations the check
+# names as not applied as written).
+run_head_check() {
+  local pr=$1 oid=$2 fetched files f
+  head_pending=""
+  head_moved=0
+  if [ -z "$oid" ] || ! git fetch -q origin "refs/pull/$pr/head" 2>/dev/null \
+     || ! fetched=$(git rev-parse --verify -q 'FETCH_HEAD^{commit}'); then
+    schema_out="could not fetch the PR's head — its own migrations cannot be compared with production"
+    schema_code=2
+    return 0
+  fi
+  if [ "$fetched" != "$oid" ]; then
+    schema_out="the PR's head moved while it was being checked (GitHub said $oid, fetched $fetched)"
+    schema_code=2
+    head_moved=1
+    return 0
+  fi
+  schema_out=$(node scripts/prod-schema-check.mjs --ref "$oid" 2>&1) && schema_code=0 || schema_code=$?
+  [ "$schema_code" -eq 1 ] || return 0
+  files=$(git diff --name-only --diff-filter=AMR "$schema_main_sha...$oid" -- supabase/migrations/ 2>/dev/null) || files=""
+  for f in $files; do
+    f=${f#supabase/migrations/}
+    case "$schema_out" in *"✗ migration $f "*) head_pending="$head_pending, $f" ;; esac
+  done
+  head_pending=${head_pending#, }
+}
+
 schema_preflight() {
-  local counts changed seen mig
+  local counts changed seen mig head_oid=""
   preflight_touched=0
+  preflight_head=""
+  preflight_retry=0
   preflight_what="touches supabase/migrations/"
   preflight_out=""
   preflight_reason=""
-  if counts=$("$GH" pr view "$1" --json files,changedFiles \
-    --jq '"\(.changedFiles) \(.files | length) \([.files[].path | select(startswith("supabase/migrations/"))] | length)"'); then
-    read -r changed seen mig <<<"$counts"
+  if counts=$("$GH" pr view "$1" --json files,changedFiles,headRefOid \
+    --jq '"\(.changedFiles) \(.files | length) \([.files[].path | select(startswith("supabase/migrations/"))] | length) \(.headRefOid)"'); then
+    read -r changed seen mig head_oid <<<"$counts"
     [ "${mig:-0}" -gt 0 ] || [ "$changed" != "$seen" ] || return 0
     [ "${mig:-0}" -gt 0 ] || preflight_what="has a truncated file list (cannot prove it adds no migration)"
   else
@@ -173,14 +221,33 @@ schema_preflight() {
   migration_prs="$migration_prs $1"
   run_schema_check
   preflight_out=$schema_out
+  if [ "$schema_code" -ne 0 ]; then
+    case $schema_code in
+      1) preflight_reason="production is behind main — apply what is named above (missing objects, unapplied or edited migrations) in the Supabase SQL Editor, in phase order, then re-run" ;;
+      2) preflight_reason="could not verify production's schema — a migration merges only onto a production proven current; restore the check's access (~/.config/apex-training/prod.env) and re-run" ;;
+      *) preflight_reason="scripts/prod-schema-check.mjs failed (exit $schema_code) — fix the check and re-run" ;;
+    esac
+    return 1
+  fi
+  run_head_check "$1" "$head_oid"
+  preflight_head=$head_oid
+  preflight_retry=$head_moved
   if [ "$schema_code" -eq 0 ]; then
-    echo "CHECK #$1 $preflight_what — production passes the schema check against origin/main"
+    checked_heads="$checked_heads $1:$head_oid"
+    echo "CHECK #$1 $preflight_what — production passes the schema check against origin/main and against the PR's head"
     return 0
   fi
+  preflight_out=$schema_out
   case $schema_code in
-    1) preflight_reason="production is behind main — apply what is named above (missing objects, unapplied or edited migrations) in the Supabase SQL Editor, in phase order, then re-run" ;;
-    2) preflight_reason="could not verify production's schema — a migration merges only onto a production proven current; restore the check's access (~/.config/apex-training/prod.env) and re-run" ;;
-    *) preflight_reason="scripts/prod-schema-check.mjs failed (exit $schema_code) — fix the check and re-run" ;;
+    1)
+      if [ -n "$head_pending" ]; then
+        preflight_reason="apply $head_pending to production before merging — this PR's own migration(s), in the Supabase SQL Editor in phase order, each ending with its stamp; then re-run"
+      else
+        preflight_reason="production lacks what the PR's head expects (named above) — apply it in the Supabase SQL Editor before merging, then re-run"
+      fi
+      ;;
+    2) preflight_reason="could not verify production against the PR's head — its own migrations must be in production before it merges; re-run (or restore ~/.config/apex-training/prod.env)" ;;
+    *) preflight_reason="scripts/prod-schema-check.mjs failed against the PR's head (exit $schema_code) — fix the check and re-run" ;;
   esac
   return 1
 }
@@ -222,6 +289,11 @@ held_preflight() {
 }
 
 preflight_hold() {
+  if [ "$preflight_retry" -eq 1 ]; then
+    echo "WAIT  #$1 — its head moved while production was checked against it; re-checked next pass. ($2)"
+    printf '%s\n' "$preflight_out" | sed 's/^/      /'
+    return 0
+  fi
   echo "HOLD  #$1 — $preflight_what and production is not proven current; shipit does not waive this. ($2)"
   printf '%s\n' "$preflight_out" | sed 's/^/      /'
   echo "      $preflight_reason"
@@ -265,8 +337,10 @@ protection_strict() {
 # three times before giving the PR up — and never let one failure end the
 # run: the post-merge lifecycle still has to happen for what did land.
 merge_pr() {
-  local number=$1 title=$2 mode=$3 attempt body suffix=""
+  local number=$1 title=$2 mode=$3 attempt body suffix="" pinned
   [ "$mode" = fleet ] && suffix=' [fleet]'
+  # A migration PR merges only the head its preflight proved production ready for.
+  pinned=$(printf '%s\n' $checked_heads | awk -F: -v n="$number" '$1 == n { sha = $2 } END { print sha }')
   echo "MERGE #$number ($title)"
   if [ "$mode" = fleet ]; then
     if [ "$no_check" -eq 1 ]; then
@@ -280,7 +354,7 @@ merge_pr() {
   body="$body Halt future runs with \`touch .claude/AUTOMERGE_OFF\` in the primary checkout."
   "$GH" pr comment "$number" --body "$body" >/dev/null || true
   for attempt in 1 2 3; do
-    if "$GH" pr merge "$number" --squash; then
+    if "$GH" pr merge "$number" --squash ${pinned:+--match-head-commit "$pinned"}; then
       mkdir -p "$(dirname "$merge_log")"
       printf '%s merged #%s %s%s\n' "$(date -u +%FT%TZ)" "$number" "$title" "$suffix" >> "$merge_log"
       merged_this_pass=1
@@ -446,7 +520,7 @@ fleet_pass() {
     fi
     if ! schema_preflight "$number"; then
       preflight_hold "$number" "$title"
-      skipped="$skipped $number"
+      if [ "$preflight_retry" -eq 1 ]; then actionable=1; else skipped="$skipped $number"; fi
       continue
     fi
     # The check proved production against main as it is now; a second
@@ -459,6 +533,12 @@ fleet_pass() {
     if ! head_sha=$(git rev-parse --quiet --verify "refs/remotes/origin/$head"); then
       echo "SKIP  #$number — origin/$head is not a branch of this repo (a fork?). ($title)"
       skipped="$skipped $number"
+      continue
+    fi
+    # The fold must be the head production was checked against — the merge is pinned to it.
+    if [ "$preflight_touched" -eq 1 ] && [ "$head_sha" != "$preflight_head" ]; then
+      echo "WAIT  #$number — its head moved between the fetch and the schema check ($head_sha vs $preflight_head); re-checked next pass. ($title)"
+      actionable=1
       continue
     fi
     if ! tree=$(git merge-tree --write-tree "$cur" "$head_sha" 2>/dev/null); then
@@ -511,9 +591,15 @@ EOF
     return 0
   fi
 
+  # The proof was of the whole union: once one merge fails (a pinned head that
+  # moved, say), the rest would land on a tree nobody proved — fold again instead.
   before=$merged_count
   for ((i = 0; i < n; i++)); do
-    merge_pr "${numbers[i]}" "${titles[i]}" fleet || true
+    if ! merge_pr "${numbers[i]}" "${titles[i]}" fleet; then
+      echo "── fleet: #${numbers[i]} did not merge — the rest of this fleet waits for a fresh fold and proof next pass"
+      actionable=1
+      break
+    fi
   done
   echo "── fleet: $(( merged_count - before )) of $n merged"
 }
@@ -692,7 +778,7 @@ EOF
         fi
         if ! schema_preflight "$number"; then
           preflight_hold "$number" "$title"
-          skipped="$skipped $number"
+          if [ "$preflight_retry" -eq 1 ]; then actionable=1; else skipped="$skipped $number"; fi
           continue
         fi
         if [ "$apply" -eq 1 ]; then

@@ -494,7 +494,7 @@ terms (`AppModel.syncTimezone`).
 
 ## W16 — Apple Health (planned, D-056)
 Full contracts in [workstreams/W16-apple-health.md](workstreams/W16-apple-health.md); landing
-order M0 → M2b → M3b. M0 landed (phase59, #469, applied to production); M2b (#472) and M3b are
+order M0 → M2b → M3b. M0 landed (phase59, #469, applied to production); M2b landed (#472); M3b is
 in review. The privacy-version bump that comes with
 M2b waits for an iOS build that can re-accept terms while signed in (W16 MT): a bump answers
 403 `terms-acceptance-required` on every JWT route.
