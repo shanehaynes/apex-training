@@ -3,8 +3,13 @@
 // from api/** (relative .js imports, no React, no supabase-js).
 export type {
   ActivityInput,
+  BodyMassSummary,
   CardioLogInput,
+  DailyMetricInput,
   HrvSummary,
+  RestingHrSummary,
+  SleepSummary,
+  StepsSummary,
   LoadSummary,
   PhysiologyInputs,
   PhysiologySummary,

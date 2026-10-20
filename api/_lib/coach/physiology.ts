@@ -1,10 +1,12 @@
 import type { getSupabaseAdmin } from '../supabaseAdmin.js';
 import { fetchAllPages } from '../pagination.js';
 import { readWeightContext } from '../weightContext.js';
+import { getConnection } from '../providers/connection.js';
 import { physiologyWindowStart } from '../../../src/lib/physiology/index.js';
 import type {
   ActivityInput,
   CardioLogInput,
+  DailyMetricInput,
   PhysiologyInputs,
   SetLogInput,
 } from '../../../src/lib/physiology/index.js';
@@ -23,6 +25,14 @@ type Admin = NonNullable<ReturnType<typeof getSupabaseAdmin>>;
 
 interface StreamSummaryRow { event_id: string; event_date: string; summary: unknown }
 interface CardioRow { event_id: string; event_date: string; avg_heart_rate: number | null; duration_minutes: number | null }
+interface DailyRow {
+  date: string;
+  sleep_minutes: number | null;
+  hrv_sdnn_ms: number | null;
+  resting_hr: number | null;
+  steps: number | null;
+  body_mass_lb: number | null;
+}
 interface SetRow {
   event_date: string;
   actual_weight: string | null;
@@ -55,6 +65,47 @@ export function activityFromRow(row: StreamSummaryRow): ActivityInput {
   };
 }
 
+export function dailyFromRow(row: DailyRow): DailyMetricInput {
+  return {
+    date: row.date,
+    sleepMinutes: num(row.sleep_minutes),
+    hrvSdnnMs: num(row.hrv_sdnn_ms),
+    restingHr: num(row.resting_hr),
+    steps: num(row.steps),
+    bodyMassLb: num(row.body_mass_lb),
+  };
+}
+
+/** Apple Health's days (W16 M3b), quiet and optional like the weight
+ *  context: a missing table or a failed read costs these lines, not the
+ *  panel. Consent governs the read as well as the write (D-056): what
+ *  reaches the prompt — and so Anthropic — is only what the athlete has
+ *  switched on now. A disconnected provider, or a category turned off,
+ *  stops its stored values at once, without waiting for them to age out. */
+async function readDailyMetrics(supabase: Admin, userId: string, startDate: string, todayIso: string): Promise<DailyMetricInput[]> {
+  const connection = await getConnection(supabase, userId, 'apple').catch(() => null);
+  if (!connection || connection.status !== 'connected') return [];
+  const daily = connection.categories.dailyMetrics === true;
+  const bodyMass = connection.categories.bodyMass === true;
+  if (!daily && !bodyMass) return [];
+  const { data, error } = await supabase
+    .from('daily_metrics')
+    .select('date, sleep_minutes, hrv_sdnn_ms, resting_hr, steps, body_mass_lb')
+    .eq('user_id', userId)
+    .gte('date', startDate)
+    .lte('date', todayIso)
+    .order('date');
+  if (error) {
+    console.warn('[api/chat] daily metrics unavailable for the prompt:', error.message);
+    return [];
+  }
+  return ((data ?? []) as DailyRow[]).map(dailyFromRow).map(d => ({
+    ...d,
+    ...(daily ? {} : { sleepMinutes: null, hrvSdnnMs: null, restingHr: null, steps: null }),
+    ...(bodyMass ? {} : { bodyMassLb: null }),
+  }));
+}
+
 function emptyInputs(todayIso: string): PhysiologyInputs {
   return { today: todayIso, activities: [], cardioLogs: [], setLogs: [], thresholdHr: null, maxHr: null };
 }
@@ -66,7 +117,7 @@ export async function fetchPhysiologyInputs(
 ): Promise<PhysiologyInputs> {
   try {
     const startDate = physiologyWindowStart(todayIso);
-    const [streams, cardio, sets, profileRes, weight] = await Promise.all([
+    const [streams, cardio, sets, profileRes, weight, dailyMetrics] = await Promise.all([
       fetchAllPages<StreamSummaryRow>('activity_streams', (from, to) =>
         supabase.from('activity_streams').select('event_id,event_date,summary').eq('user_id', userId)
           .gte('event_date', startDate).lte('event_date', todayIso)
@@ -89,6 +140,7 @@ export async function fetchPhysiologyInputs(
       // not cost the whole panel, and an unknown context is simply absent
       // (pounds, the pure module's default).
       readWeightContext(supabase, userId),
+      readDailyMetrics(supabase, userId, startDate, todayIso),
     ]);
     if (profileRes.error) throw new Error(`profiles fetch failed: ${profileRes.error.message}`);
 
@@ -114,6 +166,7 @@ export async function fetchPhysiologyInputs(
       thresholdHr: profileRes.data?.threshold_hr ?? null,
       maxHr: profileRes.data?.max_hr ?? null,
       ...(weight ? { weight } : {}),
+      ...(dailyMetrics.length ? { dailyMetrics } : {}),
     };
   } catch (err) {
     console.warn('[api/chat] physiology unavailable for the prompt:', err instanceof Error ? err.message : err);

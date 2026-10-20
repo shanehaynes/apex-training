@@ -494,7 +494,8 @@ terms (`AppModel.syncTimezone`).
 
 ## W16 — Apple Health (planned, D-056)
 Full contracts in [workstreams/W16-apple-health.md](workstreams/W16-apple-health.md); landing
-order M0 → M2b → M3b. M0 landed (phase59, #469, applied to production); M2b is in review. The privacy-version bump that comes with
+order M0 → M2b → M3b. M0 landed (phase59, #469, applied to production); M2b landed (#472); M3b is
+in review. The privacy-version bump that comes with
 M2b waits for an iOS build that can re-accept terms while signed in (W16 MT): a bump answers
 403 `terms-acceptance-required` on every JWT route.
 
@@ -538,6 +539,20 @@ off category are 409 `category-off`. `bodyMassLb` writes `profiles.body_weight_l
 `bodyWeightUpdatedAt`, `bodyWeightSource`. The coach's
 `<physiology>` block gains sleep, resting HR, HRV (SDNN), steps and body mass lines. Fixtures
 `daily-metrics.json`, `profile.json`.
+As built: `POST` answers `{ ok, upserted, profileBodyWeightLb? }`; 409 `{ error:'not-connected' }`
+or `{ error:'category-off', category }`, checked for the whole batch before anything is
+written; 400s name the field and day. Each day is its own upsert (a batch would write nulls into
+fields a day did not carry). The body-weight write is one conditional `UPDATE` (newer than the
+stored stamp, or no stamp), so racing writes cannot move it backwards. `PATCH /api/profile
+body_weight_lb` stamps `body_weight_updated_at` = now and `body_weight_source` = `'user'`. The
+coach reads `daily_metrics` from the five-week window and computes over 28 days, **only for what
+the athlete has switched on now** — a category turned off, or a disconnect without purging, stops
+its stored values reaching the prompt at once (the same read feeds the nightly reflection and the
+weekly review). Steps means use completed days only; HRV prefers the daily SDNN while it has a
+reading in the last 7 days, never mixing it with activity readings (`HrvSummary.source:'daily'`);
+with no daily data the panel is byte-identical to before. Clearing a field with `null` needs no
+consent; `sources` needs no category of its own; instants are ISO with a zone and not in the
+future. Clearing the profile weight (`body_weight_lb: null`) clears its provenance too.
 
 ## Not in this roadmap (Backlog)
 `device_tokens` migration + `/api/devices` + APNs sender (push).
