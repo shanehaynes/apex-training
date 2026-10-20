@@ -51,8 +51,8 @@ export interface AuthContextValue {
   /** Error carried by an expired/used invite or recovery link, for LoginView. */
   linkError: AuthLinkError | null;
   signIn: (email: string, password: string) => Promise<string | null>;
-  /** `captchaToken` is the Turnstile token; with one, sign-up goes through /api/signup and `password` is ignored. */
-  signUp: (email: string, password: string, captchaToken?: string) => Promise<SignUpResult>;
+  /** `captchaToken` is the Turnstile token; with one, sign-up goes through /api/signup, `password` is ignored and `ageConfirmed` is the 18+ attestation. */
+  signUp: (email: string, password: string, captchaToken?: string, ageConfirmed?: boolean) => Promise<SignUpResult>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<string | null>;
   setNewPassword: (password: string) => Promise<string | null>;

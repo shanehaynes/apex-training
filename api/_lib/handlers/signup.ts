@@ -63,6 +63,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     res.status(400).json({ error: 'Enter a valid email address.' });
     return;
   }
+  // The terms require 18+ (legal/terms-v1.md §2); the attestation is its own
+  // act on the form, and refused here before anything else is spent.
+  if (body.ageConfirmed !== true) {
+    res.status(400).json({ error: 'Please confirm you are 18 or older to continue.' });
+    return;
+  }
   if (!captchaToken || !(await turnstilePasses(secret, captchaToken, clientIp(req)))) {
     res.status(400).json({ error: 'The human check failed — try again.' });
     return;
@@ -119,6 +125,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return;
   }
   if (!existing && !(await underAddressLimit(supabase, data.user.id, res))) return;
+
+  // The 18+ attestation, on record with the account: when, not just that.
+  // app_metadata, not generate_link's `data`: GoTrue applies `data` only when
+  // it creates the user (a pending address would keep none), and
+  // user_metadata is the user's own to rewrite. Merged by GoTrue, so the
+  // provider fields beside it survive. Before the mail: no record, no link.
+  const { error: stampErr } = await supabase.auth.admin.updateUserById(data.user.id, {
+    app_metadata: { age_confirmed_at: new Date().toISOString() },
+  });
+  if (stampErr) {
+    console.error('[signup] age stamp failed:', stampErr.message);
+    res.status(500).json({ error: 'Sign-up failed — try again later.' });
+    return;
+  }
 
   try {
     await sendAccountEmail(confirmationEmail(email, data.properties.action_link));
