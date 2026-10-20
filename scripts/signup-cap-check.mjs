@@ -27,7 +27,7 @@ const DAY = 86400;
 /** MAILS_PER_DAY and MAILS_PER_ADDRESS as the handler declares them. */
 export function capsFrom(source) {
   const read = (name) => {
-    const m = source.match(new RegExp(`export const ${name} = (\\d+);`));
+    const m = source.match(new RegExp(`^export const ${name} = (\\d+);`, 'm'));
     if (!m) throw new Error(`${name} not found in api/_lib/handlers/signup.ts`);
     return Number(m[1]);
   };

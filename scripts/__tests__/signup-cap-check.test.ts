@@ -22,6 +22,9 @@ describe('signup-cap-check', () => {
   it("reads the caps out of the handler's own source", () => {
     expect(capsFrom(handler)).toEqual({ perDay: 50, perAddress: 3 });
     expect(() => capsFrom('const nothing = 1;')).toThrow(/MAILS_PER_DAY/);
+    // Only a real declaration counts, not a commented-out one above it.
+    expect(capsFrom('// export const MAILS_PER_DAY = 10;\nexport const MAILS_PER_DAY = 50;\nexport const MAILS_PER_ADDRESS = 3;'))
+      .toEqual({ perDay: 50, perAddress: 3 });
   });
 
   it('starts the day where bump_rate_limit does: UTC midnight', () => {
@@ -48,6 +51,13 @@ describe('signup-cap-check', () => {
     const rows = Array.from({ length: 17 }, () => ({ count: 3 }));
     expect(await main({ creds, fetch: reply(rows), now: NOW, source: handler })).toBe(1);
     expect(log[0]).toBe('signup mails today: 51/50 (17 addresses)');
+  });
+
+  it('exactly at the cap is at the cap — the handler refuses from 50, not 51', async () => {
+    const fifty = [...Array.from({ length: 16 }, () => ({ count: 3 })), { count: 2 }];
+    expect(await main({ creds, fetch: reply(fifty), now: NOW, source: handler })).toBe(1);
+    const fortyNine = [...Array.from({ length: 16 }, () => ({ count: 3 })), { count: 1 }];
+    expect(await main({ creds, fetch: reply(fortyNine), now: NOW, source: handler })).toBe(0);
   });
 
   it('cannot check: no credentials, a refused key or an outage is 2, never an ACTION', async () => {
