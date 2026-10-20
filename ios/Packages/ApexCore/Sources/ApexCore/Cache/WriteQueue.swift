@@ -63,6 +63,7 @@ public actor WriteQueue {
     private var inFlight: [Int64: SessionKey] = [:]
     private var flushing: Set<SessionKey> = []
     private var rerun: Set<SessionKey> = []
+    private var idleWaiters: [SessionKey: [CheckedContinuation<Void, Never>]] = [:]
     private var cancelledMidFlight: Set<SessionKey> = []
     private var notBefore: [SessionKey: Date] = [:]
     /// Bumped by every `resume()`. An outbox send that fails on the network
@@ -162,6 +163,19 @@ public actor WriteQueue {
         await drain(session)
         flushing.remove(session)
         if rerun.remove(session) != nil { await flush(session) }
+        if !flushing.contains(session) {
+            for waiter in idleWaiters.removeValue(forKey: session) ?? [] { waiter.resume() }
+        }
+    }
+
+    /// For tests: wait until no flush of the session is running. A flush that
+    /// arrives mid-flush returns at once (the running one picks up its op), so
+    /// an awaited `flush` alone does not mean the op was sent. Deliberately
+    /// not what `flush` does: a finish must reach the store without waiting on
+    /// somebody else's send.
+    public func untilIdle(_ session: SessionKey) async {
+        guard flushing.contains(session) else { return }
+        await withCheckedContinuation { idleWaiters[session, default: []].append($0) }
     }
 
     private func drain(_ session: SessionKey) async {
