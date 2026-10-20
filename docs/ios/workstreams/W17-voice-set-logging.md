@@ -3,6 +3,16 @@
 **Machine:** both (M1 Linux-able · PR-H and M2 Mac · M3 Shane's device) · **Depends on:** W4
 (tracker + write queue), #466 (`Weight`) · **Unblocks:** —
 **Status:** not started — brief drafted 2026-10-20 (D-059)
+**Owns:** `ios/Packages/ApexCore/Sources/ApexCore/Tracker/Voice/` (new),
+`ApexCore/Tracker/TrackerEditor.swift`, `ApexCore/Library/NearMatch.swift`, `ApexCore/Package.swift` (one
+`exclude` line), `ios/Packages/ApexCore/Tests/ApexCoreTests/`, `ios/Packages/ApexKit/Sources/ApexSpeech/` (new),
+`ios/Packages/ApexKit/Package.swift`, `ApexFeatures/Tracker/{TrackerModel,TrackerModel+Voice,TrackerScreen,TrackerDependencies,VoiceStrip,TrackerPreviews}.swift`,
+`ApexFeatures/Profile/YouTab.swift`, `ApexUI/Icons.swift`, `ios/Apex/{AppModel.swift,Mock/MockEnvironment.swift}`,
+`ios/ApexTests/`, `ios/ApexUITests/SmokeUITests.swift`, the three held files (`ios/Apex/Info.plist`,
+`ios/project.yml`, `scripts/ci-guards.sh`), `docs/ios/*`. · **Forbidden:** `src/`, `vercel.json`,
+`ApexFeatures/Tracker/TrackedExerciseView.swift` (the D-054 scroll surface M2 is measured against),
+`legal/`, `ios/Fixtures/` (emitter-only), `ios/Apex/PrivacyInfo.xcprivacy`, the entitlements, `ios/Config/`,
+`package.json`. Each milestone's Next brief narrows these further.
 
 ## Goal
 During a live workout the user taps a subtle microphone in the tracker, says "back squat for 5
@@ -30,9 +40,11 @@ M1 parser + editor primitives (ApexCore) ─┴─▶ M2 tracker UI (Mac, unheld
 ```
 PR-H ∥ M1 (disjoint files; neither needs the other). M2 after both merge. M3 is a loop of
 ApexCore-only PRs driven by Shane's gym sessions, with an exit criterion and a budget. Worktrees:
-`scripts/git-new.sh feat/w17-<piece> "W17 <piece>: <files>"`. The held PR (PR-H) is tiny on
-purpose: the two usage strings are the only prose Apple sees, and W16 showed a one-file held PR
-(#439) merges fast while a 32-file one (#430) waits.
+`scripts/git-new.sh feat/w17-<piece> "W17 <piece>: <files>"`. Mac lanes run `cd ios && xcodegen generate`
+in their own worktree and use one simulator id per `xcodebuild` run
+(`-destination 'platform=iOS Simulator,id=<udid>'`; two runs on one booted simulator kill each
+other's UI tests). The held PR (PR-H) is tiny on purpose: the two usage strings are the only prose
+Apple sees, and W16's small held PR (#439, two files) merged within the day.
 
 ## Milestones
 
@@ -60,6 +72,7 @@ No behaviour change: no mic, nothing calls `listen` outside tests.
   public protocol SpeechRecognizing: Sendable {
       func availability() -> SpeechAvailability          // live: isAvailable changes at runtime
       func authorization() -> SpeechAuthorization
+      /// Both sheets, Speech then the microphone; a denial of either is `.denied`.
       func requestAuthorization() async -> SpeechAuthorization
       /// At most one utterance at a time; starting another aborts the previous.
       func listen(bias: SpeechBias) -> SpeechUtterance
@@ -131,7 +144,7 @@ Scope (unheld files in the same PR):
 
 Acceptance:
 - [ ] `ios` job green; `ios/scripts/check-deinits.sh` clean; every snapshot byte-identical; no mic exists.
-- [ ] `SpeechAdapterTests` over the Fake: `.listening` then partials then `.final`; cancelling the consumer ends the stream; `finish()` yields the final; `requestCount`; `biases[0]`.
+- [ ] `SpeechAdapterTests` over the Fake: `.listening` then partials then `.final`; cancelling the consumer ends the stream; `finish()` yields the final; `requestCount == 1` after one `requestAuthorization()`; `biases[0]` equals the names passed to `listen(bias:)`.
 - [ ] SDK pins answered in the PR body (device and simulator): `supportsOnDeviceRecognition` on the 15 Pro; `requiresOnDeviceRecognition` with `contextualStrings`; `addsPunctuation` honoured on-device; `AVAudioApplication.requestRecordPermission` on iOS 17; A2DP route keeps AirPods music while listening; `.notifyOthersOnDeactivation` un-ducks; whether the `sdk:` lines are needed; the permission sheet wording. Device-only pins without a device → NOT VERIFIED, not guessed.
 - [ ] The usage strings, project.yml, ci-guards and docs rows as above; `MARKETING_VERSION` untouched.
 
@@ -157,6 +170,7 @@ public struct SpokenParse: Equatable { status: ok|empty|invalid; transcript; cho
 public struct VoiceContext { unit: Weight.Unit?; session: [VoiceSessionExercise]; currentExerciseId: String?; library: [ExerciseDefinition] }
 public struct VoiceSessionExercise { id; section; name; definitionId: String?; fields: [SetField] }
 ```
+`Weight.Unit` gains `Codable` through an extension in `SpokenSet.swift` (same module; `Weight.swift` untouched).
 `VoiceStorage.text(for:unit:)` — the one formatter: weight bare `"225"` when no unit was spoken
 (the profile unit is implied; iOS typed-entry parity, `setToRow` sends what was typed), `"225 lb"`
 / `"62.5 kg"` when one was, `"BW"`, `"BW+25"`, `"BW+10 kg"`, `"BW-10"`; reps `"5"`; duration
@@ -168,20 +182,27 @@ makes the status `invalid`.
 `VoiceExercise.swift` (`voiceWords`, `voiceKey`, `resolveExercisePhrase`), `VoiceSlots.swift`
 (`extractPhrase`, `assignSlots`, `maxSets = 10`, `bareWeightFloor = 50`), `VoiceParser.swift`
 (`parse(_:context:)`, `parse(alternatives:context:)`, `score`), `VoiceStorage.swift`.
-`NearMatch.budget` becomes public (or a public `candidates(for:in:)` overload) so session names get
-the picker's typo budget.
+The resolver reuses `NearMatch.distance` and the internal `NearMatch.budget` (same module, no
+visibility change) so session names get the picker's typo budget.
 
 Pipeline: tokenize → extractPhrase → resolveExercisePhrase (or `.current`) → hint = the target
 session exercise's `fields` (the caller passes the current exercise's fields for `.current`; empty
-for library/unresolved) → assignSlots → intent → score. The hint only disambiguates bare numbers
-and clocks: a spoken field the exercise does not plan is still written — its column appears, as
+for library/unresolved) → assignSlots → intent → score. An empty hint falls through to R12's
+N > 50 rule, so "front squat 225" is a weight, never 225 reps. The hint only disambiguates bare
+numbers and clocks: a spoken field the exercise does not plan is still written — its column appears, as
 the "+ weight" chip's does (`TrackerEditor.inputFields` derives columns from any non-empty value).
 
 **Tokenizer.** Lowercase; `×`→` x `, `@`→` at `, `+`→` plus `, `#`→` lb `; **`x` between digits
 splits** (`5x5`, `225x5`); apostrophes deleted; hyphens → spaces; a comma between digits follows
 `Weight`'s rule, any other comma separates; split on whitespace; strip trailing `.!?`; digits →
 `number`; `d:dd` / `h:mm:ss` → `clock`; glued units split (`225lbs`, `45s`, `2m`, `100k`), single
-letters count as units only when glued.
+letters count as units only when glued. **Keyword vocabulary** — a `word` token that is never part
+of an exercise phrase and ends the leading phrase run: weight units `lb lbs pound pounds kg kgs
+kilo kilos kilogram kilograms`; duration units `second seconds sec secs minute minutes min mins`;
+`rep reps set sets of`; `rpe`; `bw bodyweight body weight plus minus`; the connectives `at for x by
+times and`; `warmup` and the bigram `warm up` (consumed together — `up` alone is not a keyword, so
+"chin up" and "pull ups" stay phrases); the repeat words `again same repeat one more another`; the
+fillers `okay ok um uh did log just i the please`; and every number word.
 
 **Number words.** (1) English 0–9999: `a|an` before `hundred|thousand|half|minute` = 1; tens may
 take one unit word; `hundred` multiplies the open group; `thousand` closes it; `and` is skipped
@@ -211,12 +232,15 @@ contains `.duration`, in which case it is a duration; `h:mm:ss` is always a dura
 | R9 | unmarked `A for B` | A weight, B reps | `225 for 5`, `2:25 for 5` |
 | R10 | unmarked `A at B` | A reps, B weight | `5 at 225`, `five at 225` |
 | R11 | unmarked `A x B` (`by`, `times`) | A≤10 and B≤30 → sets×reps; else reps=min, weight=max; a third item takes the next of [sets, reps, weight] | `5x5`; `225x5`; `12 by 20` |
-| R12 | lone bare number | hint `[duration]` → duration; hint lacks weight → reps; hint lacks reps → weight; else N > 50 → weight, else reps | `plank 60`; `bench 225`; `bench 5` |
+| R12 | lone bare number | hint `[duration]` → duration; hint has reps but not weight → reps; hint has weight but not reps → weight; otherwise (both, or an empty hint) N > 50 → weight, else reps | `plank 60`; `bench 225`; `bench 5`; `front squat 225` → W225 |
 | R13 | bare pair A B (no connective, or `and`/comma) | exactly one > 50 → weight; both ≤ 50 → A reps, B weight + `barePair`; both > 50 → `ambiguousNumbers` | `5 225`; `10 20`; `225 185` |
 | R14 | a third unmarked number, or a slot filled twice | `tooManyNumbers` / `duplicate…` → invalid | |
 | R15 | `warm up`/`warmup` anywhere | isWarmup | |
 | R16 | `again`/`same again`/`same`/`repeat`/`one more`/`another one` with no numbers | intent `repeat` | |
 | R17 | sets absent → 1; outside 1–10 → `setsOutOfRange` | | `15 sets of 5` |
+
+A reps slot that receives a non-integer value (`five and a half reps`, `7.5 reps`) raises
+`repsNotInteger` (invalid).
 
 `extractPhrase`: the leading run of `word` tokens up to the first number/clock/keyword, fillers
 (`okay um did log just i the please`) and a trailing connective stripped; else the trailing run
@@ -232,8 +256,8 @@ over session names + their definition's canonical name and aliases; one → `res
 several → confirm) · **2 contained-session** (every phrase word ∈ candidate words; one →
 `resolved(contained)`, auto-applied — the target is already in today's session and its
 `definitionId` is fixed; several → confirm) · **3 near-session** (`NearMatch.distance` within the
-picker's budget → confirm, by distance then session order) · **4 exact-library** (unarchived →
-`resolved(scope: library)`, which the UI treats as **confirm in v1**) · **5 contained-library,
+picker's budget → confirm, by distance then session order) · **4 exact-library** (unarchived; one →
+`resolved(scope: library)`, which the UI treats as **confirm in v1**; several → confirm) · **5 contained-library,
 near-library** (→ confirm, ≤ 3) · **6 unresolved**. No phrase → `.current`.
 
 **Scoring.** `parse(alternatives:)` keeps the best score, ties keep engine order. ok +100 / empty
@@ -265,11 +289,13 @@ confirm +5, unresolved −10; −5 per ignored token; −3 per problem; reps > 5
 
 **Fixture** — `ios/Packages/ApexCore/Tests/ApexCoreTests/Fixtures/voice-cases.json`, hand-authored
 (so not under `ios/Fixtures/`, which is emitter-only), read via `TestFixtures.local(_:)` beside
-`directory` (`TestSupport.swift:10`). Schema: `version`; `contexts` (`unit`, `currentExerciseId`,
+`directory` (`TestSupport.swift:10`). Add `exclude: ["Fixtures"]` to the `ApexCoreTests` target in
+`ios/Packages/ApexCore/Package.swift` so SwiftPM does not warn about an unhandled file (path reads
+keep working). Schema: `version`; `contexts` (`unit`, `currentExerciseId`,
 `session [{id, section, name, definitionId?, fields}]`, `library [{id, canonicalName, aliases?, archivedAt?}]`);
 `cases [{ id, name, source: "authored" | "journal:<yyyy-mm-dd>", rules, context, input: [String], expect: { status, chosen, intent, exercise, ignored, problems }, storage: {weight?, reps?, duration?, rpe?} }]`
 with `expect.intent.values` typed (`SpokenValues`). Context `upper` (lb, current `bench`):
-session bench=Bench Press, squat=Back Squat, pullups=Weighted Pull-Ups, plank=Plank [duration],
+session bench=Bench Press, squat=Back Squat, pullups=Weighted Pull-Ups, plank=Plank [duration] (every other session exercise logs [weight, reps]),
 hammer=Hammer Curl (alias Hammer Curls), dbcurl=Dumbbell Curl; library adds Front Squat, Romanian
 Deadlift (alias Stiff-Leg Deadlift), Overhead Press, Ring Dips, Lat Pulldown, Lat Pulldown (Close
 Grip), Incline Press (archived). `kg` = same with unit kg; `nocurrent` = currentExerciseId null.
@@ -277,7 +303,7 @@ Notation: W225 = weight 225 no unit (storage `"225"`); W"105 kg" = unit spoken; 
 
 | id | input | values | exercise | note |
 |---|---|---|---|---|
-| 01 | back squat for 5 reps and 225 | W225 R5 | session squat exact | R2 R13 |
+| 01 | back squat for 5 reps and 225 | W225 R5 | session squat exact | R2 R12 |
 | 02 | bench 5 at 225 | R5 W225 | session bench contained | R10 |
 | 03 | 225 for 5 | W225 R5 | current | R9 |
 | 04 | five at two twenty five | R5 W225 | current | words |
@@ -293,7 +319,7 @@ Notation: W225 = weight 225 no unit (storage `"225"`); W"105 kg" = unit spoken; 
 | 14 | 100 for 5 (kg ctx) | W100 R5 | current | storage "100" |
 | 15 | sixty two and a half kilos for eight (kg) | W"62.5 kg" R8 | current | fraction |
 | 16 | 5 at 225 rpe 8 | R5 W225 rpe8 | current | R4 |
-| 17 | 5 at 225 at eight and a half | rpe8.5 | current | R7 |
+| 17 | 5 at 225 at eight and a half | R5 W225 rpe8.5 | current | R7 |
 | 18 | warm up 5 at 135 | warm R5 W135 | current | R15 |
 | 19 | pull ups bodyweight for 8 | BW R8 | session pullups contained | R6 |
 | 20 | weighted pull-ups bodyweight plus 25 for 5 | BW+25 R5 | session pullups exact | hyphen |
@@ -330,6 +356,11 @@ Notation: W225 = weight 225 no unit (storage `"225"`); W"105 kg" = unit spoken; 
 | 51 | 5x5 | sets5 R5 | current | glued x |
 | 52 | 225x5 | W225 R5 | current | glued x |
 | 53 | 5 at 225 rpe eight | R5 W225 rpe8 | current | R4 words |
+| 54 | 5 reps 8 reps | — | current | invalid duplicateReps |
+| 55 | plank 30 seconds 45 seconds | — | session plank exact | invalid duplicateDuration |
+| 56 | 5 at 225 at 12 | — | current | invalid tooManyNumbers (R7) |
+| 57 | 5 at 225 rpe 12 | R5 W225 | current | ok, rpe dropped, problems [rpeOutOfRange] |
+| 58 | five and a half reps | — | current | invalid repsNotInteger |
 
 Acceptance:
 - [ ] `swift test --package-path ios/Packages/ApexCore` green on Linux CI and a Mac; `npm run agent:check` green (ApexCore imports clean).
@@ -342,7 +373,9 @@ Acceptance:
 - [ ] Reviewer report under `## Review`; Session log line below; STATUS recent line.
 
 ### M2 — The tracker · Mac · `feat/w17-voice-logging` · unheld · after PR-H and M1
-**State and logic** (`TrackerModel+Voice.swift`, an extension in ApexFeatures):
+**State and logic** (`TrackerModel.swift` holds the stored state below and relaxes `restCommitted`
+and `scheduleSave` from `private` to internal; `TrackerModel+Voice.swift` is a same-module extension
+holding the methods only — Swift extensions cannot add stored properties):
 - `public private(set) var voice: VoiceLogState = .idle` on `TrackerModel` (value-typed, like
   `rest`/`gate`/`summary` — no child model, no `weak var` back-reference):
   `idle | requesting | activating | listening(partial: String, heardSpeech: Bool) | finishing | applied(VoiceApplied, label: String) | confirming(SpokenValues, sets: Int, candidates: [Candidate]) | unresolved(phrase, values) | failed(SpeechFailure | reason: String) | denied | unavailable`;
@@ -405,7 +438,7 @@ Acceptance:
 - [ ] `VoiceLogStateTests`: denied; unavailable → no mic; dictation-disabled and assets-missing → Settings line; partials → transcript; exact → `.applied`; near → `.confirming` keeping values; unresolved; empty/invalid → `.failed`; `.current` with no current → `.confirming` ≤ 4; `biases[0]` names-first, ≤ 100, no common words.
 - [ ] `VoiceJournalTests`: ring ≤ 200, fields present, no audio bytes, JSON export round-trips.
 - [ ] Mic shown only when toggle ∧ available ∧ `!isFinished`; `ApexIcon.mic` passes the every-case design test; `VoiceStrip` identifiers as listed; snapshots recorded on a Mac.
-- [ ] `ApexUITests.testVoiceLoggingOnFixtures` (the `testTrackerOnFixtures` shape): `["-apexUITest","-apexMockClient","-apexMockSpeech","Fixture Press 115 for 4;fixture pres 120 for 3"]` with the toggle on → Start → `tracker.voice` → `tracker.voice.applied` → set-1 weight reads 115 → `tracker.voice.undo` → empty → mic → chip → 120; `-apexMockSpeech denied` leg shows the Settings line; toggle-off leg has no `tracker.voice`; green under `-test-iterations 2`; `performAccessibilityAudit()` with the strip applied (skip only if the 26.5 runtime pin refuses it, and say so).
+- [ ] `ApexUITests.testVoiceLoggingOnFixtures` (the `testTrackerOnFixtures` shape): `["-apexUITest","-apexMockClient","-apexMockSpeech","Fixture Press 115 for 4;fixture pres 120 for 3"]` with the toggle on (`MockEnvironment.speech()` writes `apex.tracker.voice` true on every launch and false for the `off` literal, so legs never leak into each other) → Start → `tracker.voice` → `tracker.voice.applied` → set-1 weight reads 115 → `tracker.voice.undo` → empty → mic → chip → 120; `-apexMockSpeech denied` leg shows the Settings line; toggle-off leg has no `tracker.voice`; green under `-test-iterations 2`; `performAccessibilityAudit()` with the strip applied (skip only if the 26.5 runtime pin refuses it, and say so).
 - [ ] Scroll: `-apexFrameLog` six flings with the strip visible → late frames ≤ 1 (the D-054 baseline).
 - [ ] Docs: this brief's Status and Session log, STATUS row + recent line, `app-store.md` §3 recording script gains the two sheets, the memory note.
 
@@ -468,8 +501,8 @@ pastes it into a session with one line per disputed entry. That session cuts
 in this brief's Session log **before** touching the parser, adds one `journal:<date>` case per
 failed/undone/disputed utterance (red), changes rules (green), runs the reviewer, opens the PR. The
 ratchet N rises; no case is deleted or weakened. One ApexCore-only, unheld, babysitter-merged PR
-per gym session; a UI/adapter change is its own unheld PR; a Speech-API change is a held
-one-liner. **Exit:** two consecutive sessions of ≥ 20 utterances with zero new failure-sourced
+per gym session; a UI/adapter change is its own unheld PR; a change to a held file is its own small held
+PR. **Exit:** two consecutive sessions of ≥ 20 utterances with zero new failure-sourced
 cases and A2 ≥ 90% → flip the default on (one-line PR), record the library auto-apply decision on
 the evidence, close W17. **Budget:** if not reached by the 6th device session, stop and decide
 D-060 (confirm-everything, a custom language model, or a server-fallback toggle) rather than
@@ -546,9 +579,9 @@ Forbidden: `ios/Packages/ApexCore/**` (M1's), `TrackerModel.swift`/`TrackerScree
 `src/`, `vercel.json`, `PrivacyInfo.xcprivacy`, the entitlements, `legal/`. Mac session; opens
 the PR without the label — Shane grants `shipit`.
 **M1 — the parser** can run in parallel in its own worktree. Goal: the types, tokenizer,
-numbers, slot rules, resolution tiers, scoring, `VoiceStorage`, the fixture with all 53 cases and
+numbers, slot rules, resolution tiers, scoring, `VoiceStorage`, the fixture with all 58 cases and
 the editor primitives (`clearShadow`, `applySpoken`, `revert`, `currentExercise`, the replay
 reset), red-to-green. Acceptance: the eight M1 boxes. Owns: `ios/Packages/ApexCore/Sources/ApexCore/Tracker/Voice/`
 (new), `ApexCore/Tracker/TrackerEditor.swift` (additive), `ApexCore/Library/NearMatch.swift`,
-`ios/Packages/ApexCore/Tests/ApexCoreTests/` (the fixture, `TestSupport.local`, the tests).
+`ios/Packages/ApexCore/Tests/ApexCoreTests/` (the fixture, `TestFixtures.local(_:)`, the tests), `ios/Packages/ApexCore/Package.swift` (the `exclude` line).
 Forbidden: everything outside `ios/Packages/ApexCore/`. Any machine; `swift test` is the gate.
