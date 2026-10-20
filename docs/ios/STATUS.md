@@ -26,7 +26,7 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
 | W14 | UX review implementation | done (#283–#292, #296, #297) | Mac | ux-review.md §7; decisions D-037…D-044; **TestFlight build 8 (0.9.0/424) uploaded 2026-09-22 by the first `testflight.yml` run**; snapshots re-recorded on the iPhone 17 (#300); Shane's device run on build 8 is next |
 | W15 | Connector access level (look-only / full tokens) | done (#379) | Mac | after #371/#376 gave `/api/mcp` write access; brief [W15](workstreams/W15-connector-access.md) |
 | W16 | Apple Health (write, read workouts, daily metrics, body weight, meals) | M1 (#430) + MT (#438) shipped in TestFlight 1.1.0 (561); M0 landed (phase59, #469); M2b landed (#472); M3b in review; privacy bump, then M2i next | both | D-056 supersedes D-018; M1 (write, no migration) merges after 1.0 is approved and ships as 1.1; MT (in-app terms re-acceptance) gates the privacy bump; brief [W16](workstreams/W16-apple-health.md) |
-| W17 | Voice set logging (on-device Speech, no LLM) | ready — brief drafted 2026-10-20 | both | D-059; Swift parser on a JSON fixture, Undo, ships dark behind `apex.tracker.voice`; PR-H (held plumbing) ∥ M1 (parser) → M2 (tracker UI) → M3 dogfood; brief [W17](workstreams/W17-voice-set-logging.md) |
+| W17 | Voice set logging (on-device Speech, no LLM) | PR-H in review (#480, held for `shipit`); M1 in review (`feat/w17-voice-parser`); M2 in review (`feat/w17-voice-logging`, PR pending, stacked on both) | both | D-059; Swift parser on a JSON fixture, Undo, ships dark behind `apex.tracker.voice`; after the three merge: TestFlight with the toggle on, then M3 dogfood; brief [W17](workstreams/W17-voice-set-logging.md) |
 
 ## Next up
 0. **W17 PR-H and M1 — voice set logging, the two parallel first lanes (PR-H Mac + HELD, M1 any).**
@@ -150,6 +150,12 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
    (`printf` the two ids back after a tidy) — both git-ignored, so never from the primary checkout.
 
 ## Recent sessions
+- 2026-10-20 · W17 M2 · Mac. The tracker logs what it hears: `VoiceLogState` on `TrackerModel`,
+  the end-of-utterance policy over the injected clock, `applySpoken` through the typed path, Undo
+  restoring the rest timer whole, chips and Pick…, the strip and the mic, the You → Training
+  toggle with share/clear of the transcript-only journal; 29 unit tests, 13 snapshots, three smoke
+  legs. Stacked on PR-H #480 (held) and M1. Snapshot references need `content_size medium` on the
+  simulator. Device scorecard is Shane's.
 - 2026-10-20 · W17 brief · Mac. Voice set logging planned and decided (D-059): on-device Speech
   only, a deterministic Swift parser on a JSON fixture in ApexCore, log-with-Undo for session
   exercises, confirm-first for near, unknown and library names, ships dark behind

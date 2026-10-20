@@ -10,6 +10,10 @@ import UIKit
 public struct TrackerScreen: View {
     @Bindable private var model: TrackerModel
     private let onClose: () -> Void
+    @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.openURL) private var openURL
+    /// "Pick…" on the voice strip: the picker opens on the spoken phrase.
+    @State private var pickingForVoice = false
 
     @FocusState private var focus: FieldID?
     @State private var swapTarget: SwapTarget?
@@ -31,9 +35,26 @@ public struct TrackerScreen: View {
 
     public var body: some View {
         VStack(spacing: 0) {
-            TrackerHeader(model: model, palette: palette, onClose: onClose)
+            TrackerHeader(model: model, palette: palette, onClose: onClose) {
+                focus = nil
+                model.tapMic()
+            }
             if let label = model.syncLabel {
                 SyncStatusStrip(label: label)
+            }
+            if model.voice != .idle {
+                VoiceStrip(
+                    state: model.voice,
+                    onUndo: { model.undoSpoken() },
+                    onConfirm: { model.confirmSpoken($0) },
+                    onPick: { pickingForVoice = true },
+                    onRetry: {
+                        focus = nil
+                        model.retryVoice()
+                    },
+                    onSettings: { if let url = URL(string: UIApplication.openSettingsURLString) { openURL(url) } },
+                    onDismiss: { model.dismissVoice() }
+                )
             }
             content
         }
@@ -48,6 +69,7 @@ public struct TrackerScreen: View {
         .apexAnimation(model.gate)
         .apexAnimation(model.summary == nil)
         .apexAnimation(model.rest.isRunning)
+        .apexAnimation(model.voice)
         .toolbar { keyboardAccessory }
         .sheet(item: $swapTarget) { target in
             SwapPickerSheet(model: model, target: target) { swapTarget = nil }
@@ -77,7 +99,33 @@ public struct TrackerScreen: View {
             .presentationDragIndicator(.visible)
             .presentationBackground(ApexColor.bgSurface)
         }
+        .sheet(isPresented: $pickingForVoice) {
+            ExercisePickerSheet(
+                definitions: model.definitions,
+                title: "Which exercise?",
+                note: "Added to this workout only — the spoken set goes on it.",
+                restrictTo: TrackerModel.voiceAddableCategories,
+                createCategory: "strength",
+                confirmLabel: "Create & log",
+                initialQuery: model.voicePhrase,
+                onPick: { definition in
+                    pickingForVoice = false
+                    model.pickSpoken(definition)
+                },
+                onCreate: { name, category, isUnilateral in
+                    await model.createDefinition(name: name, category: category, isUnilateral: isUnilateral)
+                },
+                onClose: { pickingForVoice = false }
+            )
+            .accessibilityIdentifier("tracker.voice.picker")
+            .presentationDetents([.large])
+            .presentationDragIndicator(.visible)
+            .presentationBackground(ApexColor.bgSurface)
+        }
         .onChange(of: focus) { old, new in focusChanged(from: old, to: new) }
+        // Away from the screen the microphone goes off and nothing is applied (W17).
+        .onChange(of: scenePhase) { _, phase in if phase != .active { model.cancelVoice() } }
+        .onChange(of: model.voice) { _, state in announce(state) }
         .onReceive(NotificationCenter.default.publisher(for: UITextField.textDidBeginEditingNotification)) { note in
             didBeginEditing(note.object as? UITextField)
         }
@@ -92,7 +140,26 @@ public struct TrackerScreen: View {
         // fired by the tick, so only while the tracker is up — the island
         // carries the countdown when it is not.
         .sensoryFeedback(.success, trigger: model.restEndedCount)
+        // Voice (W17): a listen started, an ask, a failure; the logged set
+        // itself rides on `loggedSetCount` above.
+        .sensoryFeedback(.impact(weight: .light), trigger: model.voiceListenCount)
+        .sensoryFeedback(.warning, trigger: model.voiceConfirmCount)
+        .sensoryFeedback(.error, trigger: model.voiceFailCount)
         .preferredColorScheme(.dark)
+    }
+
+    /// VoiceOver hears what the strip shows the moment it changes; the live
+    /// transcript is hidden from it (the strip updates frequently instead).
+    private func announce(_ state: VoiceLogState) {
+        let text: String
+        switch state {
+        case .applied(_, let label): text = label
+        case .confirming: text = "Did you mean — choose the exercise"
+        case .unresolved(let phrase, _): text = "No exercise named \(phrase)"
+        case .failed(_, let reason), .denied(let reason): text = reason
+        default: return
+        }
+        AccessibilityNotification.Announcement(text).post()
     }
 
     // MARK: - Content
@@ -335,6 +402,8 @@ struct TrackerHeader: View {
     let model: TrackerModel
     let palette: WorkoutPalette
     let onClose: () -> Void
+    /// The microphone (W17); the screen drops the keyboard before the tap.
+    let onVoice: () -> Void
 
     var body: some View {
         VStack(spacing: 0) {
@@ -374,6 +443,11 @@ struct TrackerHeader: View {
                 .padding(.top, 10)
 
                 Spacer(minLength: Spacing.sm)
+
+                if model.showsVoice {
+                    VoiceMicButton(state: model.voice, isDisabled: model.voiceDisabled, action: onVoice)
+                        .padding(.top, 4)
+                }
 
                 if model.isFinished {
                     Button {

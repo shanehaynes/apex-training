@@ -19,6 +19,9 @@ public struct TrackerServices: Sendable {
     /// Voice set logging (W17): the on-device recognizer behind the tracker's
     /// microphone. `NoSpeechRecognizer` means no microphone is shown at all.
     public var speech: any SpeechRecognizing
+    /// The voice journal (W17): transcripts and outcomes, never audio. The
+    /// app's is a file; tests and previews get memory.
+    public var journal: any VoiceJournalStoring
     /// The running session, for anything outside the cover that has to say so
     /// — today the Day view's card (ux-review §3.4). One per signed-in user,
     /// like the queue, because it dies with the services that hold it.
@@ -27,7 +30,8 @@ public struct TrackerServices: Sendable {
     public init(
         client: ApexClient, cache: any CacheStore, queue: WriteQueue, clock: any ApexClock = SystemClock(),
         activity: any TrackerActivityPublishing = NoActivityPublisher(), health: any HealthWorkoutPublishing = NoHealthPublisher(),
-        speech: any SpeechRecognizing = NoSpeechRecognizer(), live: LiveSessionStore = LiveSessionStore()
+        speech: any SpeechRecognizing = NoSpeechRecognizer(), journal: any VoiceJournalStoring = MemoryVoiceJournalStore(),
+        live: LiveSessionStore = LiveSessionStore()
     ) {
         self.client = client
         self.cache = cache
@@ -36,6 +40,7 @@ public struct TrackerServices: Sendable {
         self.activity = activity
         self.health = health
         self.speech = speech
+        self.journal = journal
         self.live = live
     }
 }

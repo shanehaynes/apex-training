@@ -56,6 +56,8 @@ public enum ApexIcon: String, CaseIterable, Sendable {
     case chevronDown = "chevron.down"
     case minus = "minus.circle"
 
+    // W17 — voice set logging.
+    case mic = "mic"
     // W11 — the You tab.
     case copy = "doc.on.clipboard"
     case share = "square.and.arrow.up"

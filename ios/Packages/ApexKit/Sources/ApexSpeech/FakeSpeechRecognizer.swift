@@ -65,6 +65,7 @@ public nonisolated final class FakeSpeechRecognizer: SpeechRecognizing, @uncheck
     public func setAvailability(_ value: SpeechAvailability) { lock.withLock { _availability = value } }
 
     public func availability() -> SpeechAvailability { lock.withLock { _availability } }
+    public func audioRoute() -> String { "Fake Microphone → Fake Speaker" }
     public func authorization() -> SpeechAuthorization { lock.withLock { _authorization } }
 
     public func requestAuthorization() async -> SpeechAuthorization {

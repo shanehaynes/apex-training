@@ -48,6 +48,17 @@ final class YouSnapshotTests: XCTestCase {
 
     /// The AI Coach screens: goal & context, the model picker, and the key
     /// section's two states (the sheet W6 built, from here).
+    /// W17: the Training section with "Log sets by voice" and the voice-log
+    /// rows, tall enough to show them under the sections above.
+    @MainActor
+    func testTrainingVoiceRows() async {
+        let model = await loaded()
+        snapshot(
+            NavigationStack { YouRootView(model: model, voiceJournal: MemoryVoiceJournalStore()) },
+            named: "you-training-voice", size: CGSize(width: 393, height: 1300)
+        )
+    }
+
     @MainActor
     func testCoachSection() async {
         let model = await loaded()

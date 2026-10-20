@@ -1,5 +1,6 @@
 #if DEBUG
 import ApexCore
+import ApexFeatures
 import ApexHealth
 import ApexSpeech
 import Foundation
@@ -44,9 +45,12 @@ import Foundation
 ///                                   growing partials then the final; the
 ///                                   literal `denied` refuses both sheets and
 ///                                   `unavailable` has no recognizer (no mic).
-///                                   Under -apexUITest without it the fake is
-///                                   undecided and hears nothing. Fresh each
-///                                   launch either way.
+///                                   The You → Training toggle follows the flag
+///                                   on every launch — on with it, off without
+///                                   it or with the literal `off` — so no leg
+///                                   inherits another's choice. Under
+///                                   -apexUITest without it the fake is
+///                                   undecided and hears nothing.
 ///
 /// W7: the sheet's and the builder's writes (`/api/events`, `/api/event-instances`,
 /// `/api/workout-draft`, templates, definitions) are remembered and replayed
@@ -104,16 +108,18 @@ struct MockEnvironment {
     /// `-apexMockSpeech <script>`: see the flag list above. Utterances are
     /// separated by `;`; each `listen` plays the next one.
     static func speech() -> FakeSpeechRecognizer {
-        switch argument("-apexMockSpeech") {
+        let script = argument("-apexMockSpeech")
+        UserDefaults.standard.set(script != nil && script != "off", forKey: TrackerModel.voicePreferenceKey)
+        switch script {
         case "denied":
             return FakeSpeechRecognizer(authorization: .denied, grantOnRequest: false)
         case "unavailable":
             return FakeSpeechRecognizer(authorization: .unavailable, availability: .unavailable(reason: "-apexMockSpeech unavailable"))
+        case "off", nil:
+            return FakeSpeechRecognizer()
         case let script?:
             let utterances = script.split(separator: ";").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
             return FakeSpeechRecognizer(script: utterances)
-        case nil:
-            return FakeSpeechRecognizer()
         }
     }
 

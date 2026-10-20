@@ -90,6 +90,13 @@ public nonisolated protocol SpeechRecognizing: Sendable {
     func requestAuthorization() async -> SpeechAuthorization
     /// At most one utterance at a time; starting another aborts the previous.
     func listen(bias: SpeechBias) -> SpeechUtterance
+    /// The input and output the audio session has now, for the voice journal
+    /// ("Built-in Microphone → Speaker"); empty where there is no session.
+    func audioRoute() -> String
+}
+
+extension SpeechRecognizing {
+    public func audioRoute() -> String { "" }
 }
 
 /// No recognizer: the services default and the previews. The tracker shows no
