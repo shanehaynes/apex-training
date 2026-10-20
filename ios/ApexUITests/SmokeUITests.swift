@@ -35,12 +35,19 @@ final class SmokeUITests: XCTestCase {
     /// A signed build carries the app's `webcredentials` entitlement, so iOS
     /// offers to save the password once the sign-in fields go away, and that
     /// sheet covers every tap after it. An unsigned build (CI) never gets the
-    /// offer and pays the short wait instead.
+    /// offer, so it skips the wait.
     private func dismissSavePassword(_ app: XCUIApplication) {
-        guard app.textFields["signin.email"].waitForNonExistence(timeout: 10) else { return }
+        guard Self.isSigned,
+              app.textFields["signin.email"].waitForNonExistence(timeout: 10) else { return }
         let notNow = app.buttons["Not Now"]
-        if notNow.waitForExistence(timeout: 2) { notNow.tap() }
+        if notNow.waitForExistence(timeout: 5) { notNow.tap() }
     }
+
+    /// The test bundle is signed exactly when the app under test is: one
+    /// `xcodebuild` invocation signs both or neither.
+    private static let isSigned = FileManager.default.fileExists(
+        atPath: Bundle(for: SmokeUITests.self).bundleURL.appendingPathComponent("_CodeSignature").path
+    )
 
     /// Today rides in the Day/Month toolbar menu (ux-review §3.2): four
     /// controls is the most the bar holds with the date still legible.
@@ -321,6 +328,10 @@ final class SmokeUITests: XCTestCase {
             ).firstMatch
             for _ in 0..<6 where !signOut.isHittable { app.swipeUp() }
             signOut.tap()
+            // Sign-out runs in a Task; the next test's launch kills the app,
+            // so wait for it to land rather than trusting the tap.
+            XCTAssertTrue(app.textFields["signin.email"].waitForExistence(timeout: 10),
+                          "sign-out never returned to sign-in")
         }
         for tab in ["Schedule", "Coach", "Analytics", "You"] {
             XCTAssertTrue(app.tabBars.buttons[tab].exists, "missing tab: \(tab)")
