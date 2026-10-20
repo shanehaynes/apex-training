@@ -234,6 +234,11 @@ rule people remember.
 - App Privacy answers: email (account), fitness data the user enters (linked to identity), no
   tracking. HealthKit from 1.1 is write-only (W16 M1), so Health stays "not collected" until W16
   M2 reads workouts.
+- Usage strings in `ios/Apex/Info.plist` for everything the app may ask for: from W17,
+  `NSSpeechRecognitionUsageDescription` and `NSMicrophoneUsageDescription` (voice set logging,
+  D-059). Required even though recognition is on-device only — without them the first
+  authorization request crashes the app — and Audio Data stays "not collected" because nothing
+  said leaves the phone.
 - In-app account deletion (guideline 5.1.1(v)) → `DELETE /api/profile` (W11).
 - BYO Anthropic key: the app is fully usable without it; the coach is presented as optional;
   no pricing shown. Review notes explain it and provide a demo account with a key already saved.

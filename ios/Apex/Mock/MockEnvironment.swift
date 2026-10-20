@@ -1,6 +1,7 @@
 #if DEBUG
 import ApexCore
 import ApexHealth
+import ApexSpeech
 import Foundation
 
 /// The in-process backend behind `-apexMockClient`: every `/api/*` route the
@@ -38,6 +39,14 @@ import Foundation
 ///                                   `denied`: on but refused; `unavailable`);
 ///                                   without it the fake is undecided and off.
 ///                                   Fresh each launch either way.
+///   -apexMockSpeech "<utt>;<utt>"   voice set logging (W17) hears those
+///                                   utterances in order, one per mic tap, as
+///                                   growing partials then the final; the
+///                                   literal `denied` refuses both sheets and
+///                                   `unavailable` has no recognizer (no mic).
+///                                   Under -apexUITest without it the fake is
+///                                   undecided and hears nothing. Fresh each
+///                                   launch either way.
 ///
 /// W7: the sheet's and the builder's writes (`/api/events`, `/api/event-instances`,
 /// `/api/workout-draft`, templates, definitions) are remembered and replayed
@@ -90,6 +99,22 @@ struct MockEnvironment {
             store = FakeHealthStore()
         }
         return HealthServices(store: store, preferences: preferences)
+    }
+
+    /// `-apexMockSpeech <script>`: see the flag list above. Utterances are
+    /// separated by `;`; each `listen` plays the next one.
+    static func speech() -> FakeSpeechRecognizer {
+        switch argument("-apexMockSpeech") {
+        case "denied":
+            return FakeSpeechRecognizer(authorization: .denied, grantOnRequest: false)
+        case "unavailable":
+            return FakeSpeechRecognizer(authorization: .unavailable, availability: .unavailable(reason: "-apexMockSpeech unavailable"))
+        case let script?:
+            let utterances = script.split(separator: ";").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
+            return FakeSpeechRecognizer(script: utterances)
+        case nil:
+            return FakeSpeechRecognizer()
+        }
     }
 
     static func argument(after value: String) -> String? {
