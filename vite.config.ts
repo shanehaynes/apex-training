@@ -20,6 +20,14 @@ export default defineConfig(({ command }) => {
       // otherwise be scanned (and their e2e specs crash vitest).
       exclude: [...configDefaults.exclude, 'e2e/**', '.claude/**'],
     },
+    // The dependency scanner's default crawls every *.html under the root,
+    // and one module script whose bare import does not resolve fails the
+    // whole scan ("Failed to run dependency scan. Skipping dependency
+    // pre-bundling"), after which an e2e page can reload mid-spec. A
+    // worktree that has built the iOS app holds SwiftPM checkouts under
+    // ios/build/dd, and GRDB's bundled SQLite ships ext/wasm/*.c-pp.html
+    // with exactly that import. The app has one entry; scan only that.
+    optimizeDeps: { entries: ['index.html'] },
     // The port is per-checkout (dev/port.mjs): 5173 in the primary checkout,
     // derived from the directory name in a worktree, so two sessions' servers
     // never share one. strictPort because Playwright and scripts/drive.mjs
