@@ -63,15 +63,14 @@ public actor WriteQueue {
     private var inFlight: [Int64: SessionKey] = [:]
     private var flushing: Set<SessionKey> = []
     private var rerun: Set<SessionKey> = []
-    /// Flushes that arrived mid-flush, resumed when its last pass is over.
-    private var flushWaiters: [SessionKey: [CheckedContinuation<Void, Never>]] = [:]
+    private var idleWaiters: [SessionKey: [CheckedContinuation<Void, Never>]] = [:]
     private var cancelledMidFlight: Set<SessionKey> = []
     private var notBefore: [SessionKey: Date] = [:]
     /// Bumped by every `resume()`. An outbox send that fails on the network
     /// while a resume landed mid-flight retries at once: the backoff it would
     /// set was decided before the network came back, and `resume()` already
     /// cleared the gate it would re-close.
-    private(set) var resumes = 0
+    private var resumes = 0
     /// The retry waiting out each session's backoff: the one a cancel, a purge
     /// or a newer retry calls off. A retry leaves it when it fires.
     private var waitingRetry: [SessionKey: UUID] = [:]
@@ -150,27 +149,33 @@ public actor WriteQueue {
 
     /// One flush per session at a time; a call that arrives mid-flush queues one
     /// more pass so a save enqueued during a send is not left waiting for the
-    /// next trigger, and returns only once that pass is over. Returning
-    /// earlier would let an awaited flush come back with what it was called
-    /// for still unsent behind someone else's send.
+    /// next trigger.
     public func flush(_ session: SessionKey) async {
         guard !isPaused else { return }
         if flushing.contains(session) {
             rerun.insert(session)
-            await withCheckedContinuation { flushWaiters[session, default: []].append($0) }
             return
         }
         flushing.insert(session)
-        repeat {
-            rerun.remove(session)
-            // A gave-up op is retried where it stands, never moved behind what
-            // was queued after it (the lane is FIFO across waiting ops).
-            if session == .outbox { await repend(gaveUpIn: session) }
-            await drain(session)
-        } while rerun.contains(session) && !isPaused
-        rerun.remove(session)
+        // A gave-up op is retried where it stands, never moved behind what
+        // was queued after it (the lane is FIFO across waiting ops).
+        if session == .outbox { await repend(gaveUpIn: session) }
+        await drain(session)
         flushing.remove(session)
-        for waiter in flushWaiters.removeValue(forKey: session) ?? [] { waiter.resume() }
+        if rerun.remove(session) != nil { await flush(session) }
+        if !flushing.contains(session) {
+            for waiter in idleWaiters.removeValue(forKey: session) ?? [] { waiter.resume() }
+        }
+    }
+
+    /// For tests: wait until no flush of the session is running. A flush that
+    /// arrives mid-flush returns at once (the running one picks up its op), so
+    /// an awaited `flush` alone does not mean the op was sent. Deliberately
+    /// not what `flush` does: a finish must reach the store without waiting on
+    /// somebody else's send.
+    public func untilIdle(_ session: SessionKey) async {
+        guard flushing.contains(session) else { return }
+        await withCheckedContinuation { idleWaiters[session, default: []].append($0) }
     }
 
     private func drain(_ session: SessionKey) async {

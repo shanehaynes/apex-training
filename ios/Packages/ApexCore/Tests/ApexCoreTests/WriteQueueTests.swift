@@ -569,10 +569,10 @@ final class WriteQueueTests: XCTestCase {
         XCTAssertEqual(v45, ["save", "save"])
     }
 
-    func testAFlushArrivingMidFlushReturnsOnlyOnceItsOpIsSent() async throws {
-        // The tracker's finish: an earlier flush is still sending a save when
-        // the finish is queued and flushed. That flush must not come back
-        // with the finish still unsent behind the save.
+    func testUntilIdleWaitsOutTheFlushThatPicksUpALateOp() async throws {
+        // The tracker's finish: a save is in the air when the finish is queued
+        // and flushed. That flush returns at once; `untilIdle` is what waits
+        // for the running one to send what was queued behind its save.
         let transport = ScriptedTransport()
         let queue = makeQueue(transport)
         let gate = Gate()
@@ -581,15 +581,21 @@ final class WriteQueueTests: XCTestCase {
         let first = Task { [session] in await queue.flush(session) }
         while await transport.count == 0 { await Task.yield() }
         try await queue.enqueue(save([setRow(2)]), for: session)
-        let second = Task { [session] in
-            await queue.flush(session)
+        await queue.flush(session)
+        let returned = Gate()
+        let idle = Task { [session] in
+            await queue.untilIdle(session)
+            await returned.open()
             return await transport.requests.map(\.action)
         }
         for _ in 0..<50 { await Task.yield() }
+        let early = await returned.isOpen
+        XCTAssertFalse(early, "returned while the first save was still in the air")
         await gate.open()
-        let sentWhenSecondReturned = await second.value
+        let sent = await idle.value
         await first.value
-        XCTAssertEqual(sentWhenSecondReturned, ["save", "save"])
+        XCTAssertEqual(sent, ["save", "save"])
+        await queue.untilIdle(session)  // idle already: returns at once
     }
 
     // MARK: - The outbox lane (an exercise created offline outside a workout)
@@ -718,12 +724,9 @@ final class WriteQueueTests: XCTestCase {
 
         let first = Task { await queue.flush(.outbox) }
         while await transport.requests.isEmpty { await Task.yield() }
-        // Finds the flush running: it asks for a re-run and waits for it.
-        let resumed = Task { await queue.resume() }
-        while await queue.resumes == 0 { await Task.yield() }
+        await queue.resume()          // finds the flush running: it only asks for a re-run
         await gate.open()             // the in-flight send now fails on the network
         await first.value
-        await resumed.value
 
         let sent = await transport.requests.count
         XCTAssertEqual(sent, 2, "retried at once, not after a backoff the held clock never ends")
