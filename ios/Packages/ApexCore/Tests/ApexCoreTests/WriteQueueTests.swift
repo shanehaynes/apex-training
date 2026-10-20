@@ -569,6 +569,83 @@ final class WriteQueueTests: XCTestCase {
         XCTAssertEqual(v45, ["save", "save"])
     }
 
+    func testUntilIdleWaitsOutTheFlushThatPicksUpALateOp() async throws {
+        // The tracker's finish: a save is in the air when the finish is queued
+        // and flushed. That flush returns at once; `untilIdle` is what waits
+        // for the running one to send what was queued behind its save.
+        let transport = ScriptedTransport()
+        let queue = makeQueue(transport)
+        let gate = Gate()
+        await transport.hold(with: gate)
+        try await queue.enqueue(save([setRow(1)]), for: session)
+        let first = Task { [session] in await queue.flush(session) }
+        while await transport.count == 0 { await Task.yield() }
+        try await queue.enqueue(save([setRow(2)]), for: session)
+        await queue.flush(session)
+        let returned = Gate()
+        let idle = Task { [session] in
+            await queue.untilIdle(session)
+            await returned.open()
+            return await transport.requests.map(\.action)
+        }
+        for _ in 0..<50 { await Task.yield() }
+        let early = await returned.isOpen
+        XCTAssertFalse(early, "returned while the first save was still in the air")
+        await gate.open()
+        let sent = await idle.value
+        await first.value
+        XCTAssertEqual(sent, ["save", "save"])
+        await queue.untilIdle(session)  // idle already: returns at once
+    }
+
+    /// Holds the `held`-th `nextPending` read after it has read the store, so
+    /// it answers what the store held before the gate.
+    private actor StaleReadStore: WriteQueueStore {
+        let inner = MemoryWriteQueueStore()
+        let gate: Gate
+        let held: Int
+        private(set) var reads = 0
+        init(holdingRead held: Int, on gate: Gate) { self.held = held; self.gate = gate }
+        func nextPending(for session: SessionKey) async throws -> TrackerOp? {
+            reads += 1
+            let answer = try await inner.nextPending(for: session)
+            if reads == held { await gate.wait() }
+            return answer
+        }
+        func append(_ op: TrackerOp) async throws -> Int64 { try await inner.append(op) }
+        func update(_ op: TrackerOp) async throws { try await inner.update(op) }
+        func delete(id: Int64) async throws { try await inner.delete(id: id) }
+        func tail(for session: SessionKey) async throws -> TrackerOp? { try await inner.tail(for: session) }
+        func ops(for session: SessionKey) async throws -> [TrackerOp] { try await inner.ops(for: session) }
+        func sessionsWithPending() async throws -> [SessionKey] { try await inner.sessionsWithPending() }
+        func purge(session: SessionKey) async throws { try await inner.purge(session: session) }
+        func purgeAll() async throws { try await inner.purgeAll() }
+    }
+
+    func testUntilIdleWaitsForTheRerunPassAnOpQueuedAfterTheLastReadNeeds() async throws {
+        // The narrow case: the running flush has sent everything and read an
+        // empty queue when the finish is queued. Only its re-run sends it, so
+        // `untilIdle` must not return before that pass.
+        let transport = ScriptedTransport()
+        let gate = Gate()
+        let store = StaleReadStore(holdingRead: 2, on: gate)
+        let queue = WriteQueue(store: store, client: makeClient(transport), clock: TestClock(now: Date(timeIntervalSince1970: 1_788_868_800)))
+        try await queue.enqueue(save([setRow(1)]), for: session)
+        let first = Task { [session] in await queue.flush(session) }
+        while await store.reads < 2 { await Task.yield() }   // sent op 1, read empty, held
+        try await queue.enqueue(save([setRow(2)]), for: session)
+        await queue.flush(session)                            // mid-flush: asks for a re-run
+        let idle = Task { [session] in
+            await queue.untilIdle(session)
+            return await transport.requests.map(\.action)
+        }
+        for _ in 0..<50 { await Task.yield() }
+        await gate.open()
+        let sent = await idle.value
+        await first.value
+        XCTAssertEqual(sent, ["save", "save"])
+    }
+
     // MARK: - The outbox lane (an exercise created offline outside a workout)
 
     private let pancake = DefinitionCreatePayload(id: "pancake-fold", canonicalName: "Pancake Fold", category: "stretch", isUnilateral: false)

@@ -587,7 +587,13 @@ public struct TrackerEditor: Sendable, Equatable {
                   groups[g].exercises[e].cardio != nil else { continue }
             cardioLogs.append(Self.cardioToRow(session: session, tracked: groups[g].exercises[e]))
         }
-        let payload = SavePayload(setLogs: setLogs, cardioLogs: cardioLogs, removedSets: removedSets)
+        // A key written again after its removal was recorded (an undone spoken
+        // set re-applied or typed over; an extra removed and re-added under
+        // the same number) is an upsert, not a delete: the server runs both
+        // lists in one unordered batch, and the queue's own merge already
+        // reads "a later upsert revives a removed key" (`SavePayload.merging`).
+        let upserted = Set(setLogs.map(\.key))
+        let payload = SavePayload(setLogs: setLogs, cardioLogs: cardioLogs, removedSets: removedSets.filter { !upserted.contains($0) })
         dirtySets = []
         dirtyCardio = []
         removedSets = []
@@ -696,6 +702,7 @@ public struct TrackerEditor: Sendable, Equatable {
         var empty = tracked.sets.filter { !$0.hasAnyActual }.map(\.setNumber)
         var keys: [SetKey] = []
         var previous: [TrackedSet] = []
+        var created: [SetKey] = []
         var kind: VoiceApplied.Kind?
         while keys.count < count {
             let number: Int
@@ -703,6 +710,7 @@ public struct TrackerEditor: Sendable, Equatable {
                 number = empty.removeFirst()
             } else if let added = addExtraSet(section: section, exerciseId: exerciseId) {
                 number = added
+                created.append(SetKey(section: section, exerciseId: exerciseId, setNumber: added))
             } else {
                 break
             }
@@ -719,14 +727,15 @@ public struct TrackerEditor: Sendable, Equatable {
             if let rpe = text.rpe { setRpe(rpe, at: key) }
         }
         guard let kind, !keys.isEmpty else { return nil }
-        return VoiceApplied(keys: keys, previous: previous, kind: kind)
+        return VoiceApplied(keys: keys, previous: previous, kind: kind, created: created)
     }
 
     /// Undo one `applySpoken`, deterministically. Every row goes back to what
     /// it was, ghost included; a row that had actuals or was logged is re-sent
     /// (dirty), an empty one is deleted server-side (removed) — never both.
-    /// An empty extra the apply used is dropped outright, as an empty extra
-    /// persists nothing. Right whether the voice save was flushed or not: the
+    /// An extra the apply itself added is dropped outright (it did not exist
+    /// before); one the athlete had added by hand comes back empty, as it
+    /// was. Right whether the voice save was flushed or not: the
     /// queue merges a later delete over an unsent upsert, and the server's
     /// delete of a row it never saw is a no-op; a planned key in `removedSets`
     /// replays as a reset, not a removal (`apply`). An exercise added for the
@@ -738,7 +747,7 @@ public struct TrackerEditor: Sendable, Equatable {
         }
         for (key, before) in zip(applied.keys, applied.previous) {
             guard let (g, e, s) = locate(key) else { continue }
-            if before.isExtra, !before.hasAnyActual, !before.isLogged {
+            if applied.created.contains(key) {
                 groups[g].exercises[e].sets.remove(at: s)
                 dirtySets.remove(key)
                 if !removedSets.contains(key) { removedSets.append(key) }
@@ -842,10 +851,14 @@ public struct VoiceApplied: Equatable, Sendable {
     public var keys: [SetKey]
     public var previous: [TrackedSet]
     public var kind: Kind
+    /// The extras the apply itself added (a subset of `keys`): undo removes
+    /// them rather than restoring an empty row that never existed.
+    public var created: [SetKey]
 
-    public init(keys: [SetKey], previous: [TrackedSet], kind: Kind) {
+    public init(keys: [SetKey], previous: [TrackedSet], kind: Kind, created: [SetKey] = []) {
         self.keys = keys
         self.previous = previous
         self.kind = kind
+        self.created = created
     }
 }

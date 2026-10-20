@@ -137,6 +137,10 @@ exports and renames what the run attached, prints the list, then exits with that
 The first generate + build in a fresh worktree takes several minutes: supabase-swift pulls
 `swift-syntax`, whose macro plugin compiles from source.
 
+The web gate (`npm run agent:check`) no longer cares whether `ios/build` exists in the worktree:
+vite's dependency scan is pinned to `index.html` (`vite.config.ts`), so the SwiftPM checkouts' own
+HTML under `build/dd/SourcePackages` is never crawled.
+
 Pointing a simulator build at the local Supabase stack: build configuration `Local` sets
 `APEX_API_BASE=http://127.0.0.1:$(APEX_LOCAL_PORT)` and `SUPABASE_URL=http://127.0.0.1:54321`
 with the committed local anon key from `.env.agent`. Override the port for your worktree in

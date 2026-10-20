@@ -106,6 +106,14 @@ final class TrackerModelTests: XCTestCase {
         func workoutCancelled(_ session: SessionKey) async { lock.withLock { _order.append("deleted") } }
     }
 
+    /// Flush, then wait out a flush already running for the session (a debounce
+    /// save, or the one `requestFinish` starts): the awaited flush returns at
+    /// once when one is, before the op it was called for has been sent.
+    private static func settle(_ queue: WriteQueue, _ session: SessionKey) async {
+        await queue.flush(session)
+        await queue.untilIdle(session)
+    }
+
     @MainActor
     private func make(
         _ transport: ScriptedTransport, cache: MemoryCacheStore = MemoryCacheStore(),
@@ -289,7 +297,7 @@ final class TrackerModelTests: XCTestCase {
         await model.requestFinish(force: true)
         XCTAssertEqual(spy.calls.last, .end(model.session, model.totalDurationSeconds))
         XCTAssertNotNil(model.totalDurationSeconds)
-        await queue.flush(model.session)
+        await Self.settle(queue, model.session)
 
         model.confirmCancel()
         _ = await model.cancelWorkout()
@@ -361,7 +369,7 @@ final class TrackerModelTests: XCTestCase {
         let (model, queue) = make(healthy(), health: spy)
         await model.open()
         await model.requestFinish(force: true)
-        await queue.flush(model.session)
+        await Self.settle(queue, model.session)
         model.confirmCancel()
         _ = await model.cancelWorkout()
         XCTAssertEqual(spy.calls.count, 2)
@@ -555,7 +563,7 @@ final class TrackerModelTests: XCTestCase {
         await model.requestFinish()
         XCTAssertEqual(model.gate, .needsConfirm(count: 1))
         await model.requestFinish(force: true)
-        await queue.flush(model.session)
+        await Self.settle(queue, model.session)
 
         XCTAssertTrue(model.isFinished)
         XCTAssertEqual(model.gate, .idle)
@@ -593,7 +601,7 @@ final class TrackerModelTests: XCTestCase {
         await model.requestFinish()
         XCTAssertEqual(model.gate, .needsScore)
         await model.requestFinish(force: true, score: .entered(.forTime(timeSeconds: 2492)))
-        await queue.flush(model.session)
+        await Self.settle(queue, model.session)
         let finish = try XCTUnwrap(transport.requests(action: "finish").first)
         XCTAssertTrue(finish.body!.contains(#""score":{"templateId":"wt-murph","timeSeconds":2492,"type":"for-time"}"#), finish.body!)
         XCTAssertEqual(model.summary?.score, .forTime(timeSeconds: 2492))
@@ -606,7 +614,7 @@ final class TrackerModelTests: XCTestCase {
         let (model, queue) = make(transport, event: Self.event(scoring: "amrap"))
         await model.open()
         await model.requestFinish(force: true, score: .skipped)
-        await queue.flush(model.session)
+        await Self.settle(queue, model.session)
         XCTAssertTrue(model.isFinished)
         let finish = try XCTUnwrap(transport.requests(action: "finish").first)
         XCTAssertFalse(finish.body!.contains("\"score\""))
@@ -648,13 +656,13 @@ final class TrackerModelTests: XCTestCase {
         let (model, queue) = make(transport, store: store, calendar: calendar)
         await model.open()
         await model.requestFinish(force: true)
-        await queue.flush(model.session)
+        await Self.settle(queue, model.session)
         model.confirmCancel()
         XCTAssertEqual(model.gate, .confirmCancel)
         let ok = await model.cancelWorkout()
         XCTAssertTrue(ok)
         XCTAssertEqual(calendar.flips.map(\.1), [true, false])
-        await queue.flush(model.session)
+        await Self.settle(queue, model.session)
         XCTAssertEqual(transport.requests(action: "cancel").count, 1)
         XCTAssertEqual(transport.requests.filter { $0.path == "/api/completions" }.count, 2)
         let w3 = await store.all.count

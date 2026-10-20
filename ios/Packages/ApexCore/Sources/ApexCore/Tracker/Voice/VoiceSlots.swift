@@ -31,12 +31,15 @@ public enum VoiceSlots {
     /// Bigrams that read as one keyword; their words alone are ordinary
     /// ("chin up", "pull ups", "body saw" stay phrases).
     static let bigrams: [(String, String)] = [("warm", "up"), ("body", "weight")]
+    /// The number homophones the recognizer gets wrong: never a number, never
+    /// a name — noise that costs the alternative a little, so a cleaner one wins.
+    static let noiseWords: Set<String> = ["to", "too", "won", "ate"]
 
     /// A word that is never part of an exercise phrase and ends the leading run.
     static func isKeyword(_ word: String) -> Bool {
         weightUnits[word] != nil || durationUnits.contains(word) || repWords.contains(word) || setWords.contains(word)
             || word == "rpe" || bodyweightWords.contains(word) || signWords.contains(word) || connectives.contains(word)
-            || word == "warmup" || repeatWords.contains(word) || VoiceNumbers.numberWords.contains(word)
+            || word == "warmup" || repeatWords.contains(word) || VoiceNumbers.numberWords.contains(word) || noiseWords.contains(word)
     }
 
     /// Per token: a keyword, or half of a keyword bigram.
@@ -51,24 +54,104 @@ public enum VoiceSlots {
         return mask
     }
 
-    /// The exercise phrase: the leading run of plain words up to the first
-    /// number, clock or keyword, fillers dropped; else the trailing run after
-    /// the last of those, a leading "on" dropped. The range is every token the
-    /// run covered, fillers included, so the slot rules skip them.
-    public static func extractPhrase(_ tokens: [VoiceToken]) -> (text: String, range: Range<Int>)? {
+    /// The exercise phrase and the tokens it took (fillers included, so the
+    /// slot rules skip them).
+    public struct Phrase: Equatable, Sendable {
+        public let text: String
+        public let tokens: [Int]
+    }
+
+    /// A known name is at most this many words.
+    static let maxNameWords = 6
+
+    /// A flag the slot rules will consume, skipped before the leading phrase:
+    /// `warm up` / `warmup` and the repeat words.
+    static func flagLength(_ tokens: [VoiceToken], at i: Int) -> Int {
+        guard i < tokens.count, tokens[i].isWord else { return 0 }
+        let w = tokens[i].text
+        let next = i + 1 < tokens.count && tokens[i + 1].isWord ? tokens[i + 1].text : ""
+        if w == "warm", next == "up" { return 2 }
+        if w == "warmup" { return 1 }
+        if repeatBigrams.contains(where: { $0.0 == w && $0.1 == next }) { return 2 }
+        if repeatWords.contains(w) { return 1 }
+        return 0
+    }
+
+    /// The exercise phrase. After any fillers and flags, the leading run of
+    /// plain words up to the first number, clock or keyword — or, when it is
+    /// longer, a name the session or library knows, keywords and all
+    /// ("bodyweight squat", "quarter squat", "log press"); else the same two
+    /// at the end of the utterance, a leading "on" dropped; else every plain
+    /// word the keywords hid ("warm up bench 5 at 135"), so a name that was
+    /// said is never silently the current exercise. Fillers drop out of the text.
+    public static func extractPhrase(_ tokens: [VoiceToken], knownKeys: Set<String> = []) -> Phrase? {
         let mask = keywordMask(tokens)
         func joins(_ i: Int) -> Bool { tokens[i].isWord && (!mask[i] || fillers.contains(tokens[i].text)) }
-        var end = 0
-        while end < tokens.count, joins(end) { end += 1 }
-        let leading = tokens[0..<end].map(\.text).filter { !fillers.contains($0) }
-        if !leading.isEmpty { return (leading.joined(separator: " "), 0..<end) }
+        func phrase(_ indices: [Int]) -> Phrase? {
+            var words = indices.filter { !fillers.contains(tokens[$0].text) }.map { tokens[$0].text }
+            // "on bench", "same again on bench": the "on" says nothing.
+            if words.first == "on", words.count > 1 { words.removeFirst() }
+            return words.isEmpty ? nil : Phrase(text: words.joined(separator: " "), tokens: indices)
+        }
+        // Flags and fillers: a known name must hold at least one token that is
+        // neither, so a plan line called "Warm-Up" never swallows the flag
+        // (the "warm up" in "warm up 5 at 135" is still a warm-up).
+        var flagOrFiller = tokens.map { $0.isWord && fillers.contains($0.text) }
+        var f = 0
+        while f < tokens.count {
+            let flag = flagLength(tokens, at: f)
+            if flag > 0 { for i in f..<f + flag { flagOrFiller[i] = true } }
+            f += max(flag, 1)
+        }
+        // Each token's key words, once, so a candidate run is keyed by a join.
+        let tokenWords = knownKeys.isEmpty ? [] : VoiceExercise.expand(tokens.map(\.text))
+        func knownName(_ candidates: [Range<Int>]) -> Phrase? {
+            guard !knownKeys.isEmpty else { return nil }
+            // A name may carry a number ("45 Degree Back Extension") but is never one alone.
+            for range in candidates where range.contains(where: { tokens[$0].isWord && !flagOrFiller[$0] }) {
+                if knownKeys.contains(VoiceExercise.key(tokenWords[range].flatMap { $0 })) {
+                    return Phrase(text: tokens[range].map(\.text).joined(separator: " "), tokens: Array(range))
+                }
+            }
+            return nil
+        }
+        /// A known name displaces a plain run only when it contains it ("log
+        /// press" over "press"); a name made of the skipped flags alone (a plan
+        /// line called "Warm-Up") never takes the name that was actually said.
+        func pick(_ plain: Phrase?, _ known: Phrase?) -> Phrase? {
+            guard let plain else { return known }
+            guard let known, known.tokens.count >= plain.tokens.count, Set(plain.tokens).isSubset(of: known.tokens) else { return plain }
+            return known
+        }
 
-        var start = tokens.count
-        while start > 0, joins(start - 1) { start -= 1 }
-        var trailing = tokens[start..<tokens.count].map(\.text).filter { !fillers.contains($0) }
-        if trailing.first == "on" { trailing.removeFirst() }
-        if !trailing.isEmpty { return (trailing.joined(separator: " "), start..<tokens.count) }
-        return nil
+        var start = 0
+        while start < tokens.count {
+            if tokens[start].isWord, fillers.contains(tokens[start].text) { start += 1; continue }
+            let flag = flagLength(tokens, at: start)
+            if flag > 0 { start += flag; continue }
+            break
+        }
+        var end = start
+        while end < tokens.count, joins(end) { end += 1 }
+        // A known name may begin inside the skipped fillers and flags ("log press").
+        let leadingKnown = (0...start).lazy.compactMap { s in
+            knownName(stride(from: min(maxNameWords, tokens.count - s), through: 1, by: -1).map { s..<s + $0 })
+        }.first
+        if let leading = pick(phrase(Array(start..<end)), leadingKnown) { return leading }
+
+        var tail = tokens.count
+        while tail > 0, joins(tail - 1) { tail -= 1 }
+        let trailingKnown = knownName(stride(from: min(maxNameWords, tokens.count), through: 1, by: -1).map { tokens.count - $0..<tokens.count })
+        if var trailing = pick(phrase(Array(tail..<tokens.count)), trailingKnown) {
+            // "… on bodyweight squat": the "on" before a known name is taken with it.
+            if let first = trailing.tokens.first, first > 0, tokens[first - 1].text == "on" {
+                trailing = Phrase(text: trailing.text, tokens: [first - 1] + trailing.tokens)
+            }
+            return trailing
+        }
+
+        let stray = tokens.indices.filter { tokens[$0].isWord && !mask[$0] && !fillers.contains(tokens[$0].text) }
+        return phrase(stray)
     }
 
     /// What `assignSlots` found.
@@ -105,11 +188,19 @@ public enum VoiceSlots {
         var repeatAt: [Int] = []
         let tokens: [VoiceToken]
         let hint: [SetField]
+        /// The phrase's tokens: not there, as far as the rules are concerned.
+        let phrase: Set<Int>
 
-        init(tokens: [VoiceToken], hint: [SetField]) {
+        init(tokens: [VoiceToken], hint: [SetField], phrase: Set<Int>) {
             self.tokens = tokens
             self.hint = hint
+            self.phrase = phrase
             consumed = Array(repeating: false, count: tokens.count)
+        }
+
+        /// The tokens between two positions, the phrase's left out.
+        func between(_ end: Int, _ start: Int) -> [Int] {
+            (end..<max(end, start)).filter { !phrase.contains($0) }
         }
 
         var clockIsDuration: Bool { hint.contains(.duration) }
@@ -117,6 +208,18 @@ public enum VoiceSlots {
         func word(_ i: Int) -> String? { i >= 0 && i < tokens.count && tokens[i].isWord ? tokens[i].text : nil }
 
         mutating func fire(_ rule: String) { result.rules.insert(rule) }
+
+        /// What a number with nothing said about it is (R12's reading, shared
+        /// by R3's "of" number and R8's complement of a set count): the hint
+        /// when it names one dimension, else the floor. A fraction is never
+        /// reps — a weight, unless the exercise logs only reps or only time.
+        func bareSlot(_ value: Double, isInteger: Bool) -> Slot {
+            if hint == [.duration] { return .duration }
+            if hint.contains(.reps), !hint.contains(.weight) { return .reps }
+            if hint.contains(.weight), !hint.contains(.reps) { return .weight }
+            if !isInteger { return .weight }
+            return value > Double(bareWeightFloor) ? .weight : .reps
+        }
 
         mutating func problem(_ p: SpokenProblem) {
             if !result.problems.contains(p) { result.problems.append(p) }
@@ -175,10 +278,10 @@ public enum VoiceSlots {
 
         // MARK: pass A — local patterns, left to right
 
-        mutating func scan(skipping phrase: Range<Int>?) {
+        mutating func scan() {
             var i = 0
             while i < tokens.count {
-                if let phrase, phrase.contains(i) { i += 1; continue }
+                if phrase.contains(i) { i += 1; continue }
                 let t = tokens[i]
                 guard t.isWord else {
                     i = scanNumber(at: i)
@@ -193,6 +296,10 @@ public enum VoiceSlots {
                     i += length
                 } else if bodyweightWords.contains(w) || (w == "body" && word(i + 1) == "weight") {
                     i = scanBodyweight(at: i, length: w == "body" ? 2 : 1)
+                } else if signWords.contains(w), VoiceNumbers.readNumber(tokens, at: i + 1, clockAsNumber: false) != nil {
+                    // "plus 25" with no bodyweight word before it: the only
+                    // thing a load is added to is the body.
+                    i = scanBodyweight(at: i, length: 0)
                 } else if repeatBigrams.contains(where: { $0.0 == w && $0.1 == word(i + 1) }) {
                     repeatAt.append(i)
                     consume(i..<i + 2)
@@ -211,12 +318,9 @@ public enum VoiceSlots {
                     assignReps(n.value, isInteger: n.isInteger)
                     fire("R2")
                     i += 1 + n.length
-                } else if setWords.contains(w), word(i + 1) == "of",
-                          let n = VoiceNumbers.readNumber(tokens, at: i + 2, clockAsNumber: !clockIsDuration) {
-                    addItem(i, i + 2 + n.length, n.value, isInteger: n.isInteger, slot: .reps)
-                    assignReps(n.value, isInteger: n.isInteger)
+                } else if setWords.contains(w), word(i + 1) == "of", let end = scanOfNumber(at: i + 2) {
                     fire("R3")
-                    i += 2 + n.length
+                    i = end
                 } else if VoiceNumbers.startsNumber(t) {
                     i = scanNumber(at: i)
                 } else {
@@ -225,7 +329,44 @@ public enum VoiceSlots {
             }
         }
 
-        /// R6: `bodyweight` / `body weight` / `bw` [`plus`|`minus` N [unit]].
+        /// R3's "sets of N": what N is said to be ("of 60 seconds", "of 100
+        /// pounds", "of 5 reps"), else what a bare number is on this exercise
+        /// (`bareSlot`: "of 5" is reps, "of 225" a weight, "of 60" on a plank
+        /// its time). Nil when nothing readable follows "of".
+        mutating func scanOfNumber(at i: Int) -> Int? {
+            if let d = VoiceNumbers.readDuration(tokens, at: i, clockAsDuration: clockIsDuration) {
+                addItem(i, i + d.length, Double(d.seconds), isInteger: true, slot: .duration)
+                assignDuration(d.seconds)
+                fire("R5")
+                return i + d.length
+            }
+            guard let n = VoiceNumbers.readNumber(tokens, at: i, clockAsNumber: !clockIsDuration) else { return nil }
+            let after = i + n.length
+            if let unitWord = word(after), let unit = weightUnits[unitWord] {
+                addItem(i, after + 1, n.value, isInteger: n.isInteger, slot: .weight)
+                assignWeight(SpokenWeight(value: n.value, unit: unit))
+                fire("R1")
+                return after + 1
+            }
+            if let next = word(after), repWords.contains(next) {
+                addItem(i, after + 1, n.value, isInteger: n.isInteger, slot: .reps)
+                assignReps(n.value, isInteger: n.isInteger)
+                fire("R2")
+                return after + 1
+            }
+            let slot = bareSlot(n.value, isInteger: n.isInteger)
+            addItem(i, after, n.value, isInteger: n.isInteger, slot: slot)
+            switch slot {
+            case .weight: assignWeight(SpokenWeight(value: n.value))
+            case .reps: assignReps(n.value, isInteger: n.isInteger)
+            case .duration: assignDuration(Int(min(n.value.rounded(), 1e9)))
+            default: break
+            }
+            return after
+        }
+
+        /// R6: `bodyweight` / `body weight` / `bw` [`plus`|`minus` N [unit]],
+        /// or a bare `plus`|`minus` N [unit] (`length` 0: no bodyweight word).
         mutating func scanBodyweight(at i: Int, length: Int) -> Int {
             var weight = SpokenWeight(bodyweight: true)
             var end = i + length
@@ -275,12 +416,8 @@ public enum VoiceSlots {
                 addItem(i, after + 1, n.value, isInteger: n.isInteger, slot: .sets)
                 assignSets(n.value, isInteger: n.isInteger)
                 fire("R3")
-                var end = after + 1
-                if word(end) == "of", let m = VoiceNumbers.readNumber(tokens, at: end + 1, clockAsNumber: !clockIsDuration) {
-                    addItem(end, end + 1 + m.length, m.value, isInteger: m.isInteger, slot: .reps)
-                    assignReps(m.value, isInteger: m.isInteger)
-                    end += 1 + m.length
-                }
+                let end = after + 1
+                if word(end) == "of", let ofEnd = scanOfNumber(at: end + 1) { return ofEnd }
                 return end
             }
             // "8 rpe", but never the number before "rpe 8": that one is the rating.
@@ -298,8 +435,17 @@ public enum VoiceSlots {
 
         /// The one connective between two items, when nothing else is.
         func connective(between a: Item, and b: Item) -> String? {
-            guard b.start == a.end + 1, let w = word(a.end), pairConnectives.contains(w) else { return nil }
+            let gap = between(a.end, b.start)
+            guard gap.count == 1, let w = word(gap[0]), pairConnectives.contains(w) else { return nil }
             return w
+        }
+
+        /// The token right before an item, the phrase's left out.
+        func wordBefore(_ item: Item) -> (index: Int, text: String)? {
+            var i = item.start - 1
+            while i >= 0, phrase.contains(i) { i -= 1 }
+            guard let w = word(i) else { return nil }
+            return (i, w)
         }
 
         /// R7: the number after `at` — a weight when none yet, else a rating
@@ -320,19 +466,23 @@ public enum VoiceSlots {
 
         /// R8: the other side of a pair takes the slot that completes the marked one.
         func complement(of slot: Slot, connective: String, other: Item) -> Slot? {
+            let times = connective != "for" && connective != "at"
             switch slot {
-            case .weight, .sets: return .reps
+            case .weight: return .reps
+            case .sets: return bareSlot(other.value, isInteger: other.isInteger)
             case .reps:
-                if connective == "for" || connective == "at" { return .weight }
+                if !times { return .weight }
                 return other.value <= 10 ? .sets : .weight
-            case .rpe, .duration, .problem: return nil
+            case .duration: return times && other.isInteger && other.value <= 10 ? .sets : nil
+            case .rpe, .problem: return nil
             }
         }
 
         mutating func pairs() {
             // R7 for an `at` with no number before it ("for at 225", "at 225").
-            for k in items.indices where items[k].slot == nil && items[k].start > 0 && word(items[k].start - 1) == "at" {
-                let adjacentLeft = k > 0 && items[k - 1].end == items[k].start - 1
+            for k in items.indices where items[k].slot == nil {
+                guard let before = wordBefore(items[k]), before.text == "at" else { continue }
+                let adjacentLeft = k > 0 && between(items[k - 1].end, before.index).isEmpty
                 if !adjacentLeft { applyR7(to: k) }
             }
             var changed = true
@@ -346,18 +496,27 @@ public enum VoiceSlots {
                     switch (a.slot, b.slot) {
                     case (nil, nil):
                         changed = true
+                        // The floor settles a pair said the other way round: of
+                        // "5 for 225" and "225 at 5", the big number is the weight.
+                        let floor = Double(bareWeightFloor)
                         switch c {
                         case "for":
                             fire("R9")
-                            assign(.weight, to: k)
-                            assign(.reps, to: k + 1)
+                            let swapped = a.value <= floor && b.value > floor
+                            assign(.weight, to: swapped ? k + 1 : k)
+                            assign(.reps, to: swapped ? k : k + 1)
                         case "at":
                             fire("R10")
-                            assign(.reps, to: k)
-                            assign(.weight, to: k + 1)
+                            let swapped = a.value > floor && b.value <= floor
+                            assign(.reps, to: swapped ? k + 1 : k)
+                            assign(.weight, to: swapped ? k : k + 1)
                         default:
                             fire("R11")
-                            if a.value <= 10, b.value <= 30 {
+                            if hint == [.duration], min(a.value, b.value) <= 10, a.value != b.value {
+                                // "plank 3 x 60": sets of a time, never a weight on a plank.
+                                assign(.sets, to: a.value < b.value ? k : k + 1)
+                                assign(.duration, to: a.value < b.value ? k + 1 : k)
+                            } else if a.value <= 10, b.value <= 30 {
                                 assign(.sets, to: k)
                                 assign(.reps, to: k + 1)
                             } else {
@@ -404,15 +563,7 @@ public enum VoiceSlots {
             case 1:
                 fire("R12")
                 let n = items[left[0]]
-                if hint == [.duration] {
-                    assign(.duration, to: left[0])
-                } else if hint.contains(.reps), !hint.contains(.weight) {
-                    assign(.reps, to: left[0])
-                } else if hint.contains(.weight), !hint.contains(.reps) {
-                    assign(.weight, to: left[0])
-                } else {
-                    assign(n.value > Double(bareWeightFloor) ? .weight : .reps, to: left[0])
-                }
+                assign(bareSlot(n.value, isInteger: n.isInteger), to: left[0])
             case 2:
                 fire("R13")
                 let a = left[0], b = left[1]
@@ -436,13 +587,13 @@ public enum VoiceSlots {
             }
         }
 
-        mutating func finish(phrase: Range<Int>?) -> Result {
+        mutating func finish() -> Result {
             let hasValues = result.values.hasAnyValue
             result.isRepeat = !repeatAt.isEmpty && items.isEmpty && !hasValues
             if result.isRepeat { fire("R16") }
             var ignored: [String] = []
             for i in tokens.indices {
-                if let phrase, phrase.contains(i) { continue }
+                if phrase.contains(i) { continue }
                 if repeatAt.contains(i) {
                     if !result.isRepeat { ignored.append(tokens[i].text) }
                     continue
@@ -460,11 +611,11 @@ public enum VoiceSlots {
     /// R1–R17 over the tokens outside the phrase. `hint` is the target
     /// exercise's logged fields: it reads a bare number and a `d:dd` clock,
     /// nothing else.
-    public static func assignSlots(_ tokens: [VoiceToken], phrase: Range<Int>?, hint: [SetField]) -> Result {
-        var builder = Builder(tokens: tokens, hint: hint)
-        builder.scan(skipping: phrase)
+    public static func assignSlots(_ tokens: [VoiceToken], phrase: [Int]?, hint: [SetField]) -> Result {
+        var builder = Builder(tokens: tokens, hint: hint, phrase: Set(phrase ?? []))
+        builder.scan()
         builder.pairs()
         builder.leftovers()
-        return builder.finish(phrase: phrase)
+        return builder.finish()
     }
 }

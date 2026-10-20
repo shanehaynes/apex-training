@@ -44,6 +44,14 @@ final class VoiceExerciseTests: XCTestCase {
         XCTAssertEqual(VoiceExercise.voiceKey(""), "")
     }
 
+    func testPerTokenExpansionAgreesWithTheWholeText() {
+        for text in ["weighted pull ups", "body weight squat", "chin ups", "chins", "rdls 8 at 185", "db curl", "lat pulldown close grip", "45 degree back extension"] {
+            let tokens = VoiceTokens.tokenize(text).map(\.text)
+            XCTAssertEqual(VoiceExercise.expand(tokens).flatMap { $0 }, VoiceExercise.voiceWords(text), text)
+            XCTAssertEqual(VoiceExercise.key(VoiceExercise.expand(tokens).flatMap { $0 }), VoiceExercise.voiceKey(text), text)
+        }
+    }
+
     func testExactSessionWinsOverEverything() {
         let library = [ExerciseDefinition(id: "def-hammer", canonicalName: "Hammer Curl", aliases: ["Hammer Curls"]),
                        ExerciseDefinition(id: "lib-curl", canonicalName: "Hammer Curl")]
@@ -157,5 +165,62 @@ final class VoiceExerciseTests: XCTestCase {
                        .resolved(scope: .session, id: "bench", name: "Bench Press", match: .contained), "fillers drop out of the phrase")
         XCTAssertEqual(VoiceParser.parse("chin ups 8", context: ctx).exercise, .unresolved(phrase: "chin ups"), "up alone is no keyword")
         XCTAssertEqual(VoiceParser.parse("warm up 5 at 135", context: ctx).exercise, .current)
+        XCTAssertEqual(VoiceParser.parse("again", context: ctx).exercise, .current)
+    }
+
+    /// A name a keyword hides is still the name: never silently the current exercise.
+    func testANameIsNeverLostToAKeyword() {
+        let library = [
+            ExerciseDefinition(id: "bw-squat", canonicalName: "Bodyweight Squat"),
+            ExerciseDefinition(id: "cg-bench", canonicalName: "Close Grip Bench Press"),
+            ExerciseDefinition(id: "one-arm-row", canonicalName: "One Arm Row"),
+            ExerciseDefinition(id: "half-kneel", canonicalName: "Half Kneeling Landmine Press"),
+        ]
+        let ctx = context(session: [("bench", "Bench Press"), ("squat", "Back Squat")], library: library, current: "bench")
+        func exercise(_ text: String) -> SpokenExercise { VoiceParser.parse(text, context: ctx).exercise }
+        XCTAssertEqual(exercise("warm up squat 135 for 5"), .resolved(scope: .session, id: "squat", name: "Back Squat", match: .contained))
+        XCTAssertEqual(exercise("again squat"), .resolved(scope: .session, id: "squat", name: "Back Squat", match: .contained))
+        XCTAssertEqual(exercise("bodyweight squat 20"), .resolved(scope: .library, id: "bw-squat", name: "Bodyweight Squat", match: .exact))
+        XCTAssertEqual(exercise("body weight squat 20"), .resolved(scope: .library, id: "bw-squat", name: "Bodyweight Squat", match: .exact),
+                       "the two-word spelling is the same name")
+        XCTAssertEqual(exercise("one arm row 8 at 50"), .resolved(scope: .library, id: "one-arm-row", name: "One Arm Row", match: .exact))
+        XCTAssertEqual(exercise("half kneeling landmine press 8 at 40"), .resolved(scope: .library, id: "half-kneel", name: "Half Kneeling Landmine Press", match: .exact))
+        XCTAssertEqual(exercise("5 at 225 bench"), .resolved(scope: .session, id: "bench", name: "Bench Press", match: .contained))
+        XCTAssertEqual(exercise("5 squat at 225"), .resolved(scope: .session, id: "squat", name: "Back Squat", match: .contained), "a word the rules skipped")
+        XCTAssertEqual(exercise("5 easy at 225"), .unresolved(phrase: "easy"), "an unknown word asks rather than applies")
+        // The longer plain run beats a shorter known name inside it, and asks.
+        XCTAssertEqual(exercise("bench press close grip 5 at 225"), .needsConfirmation(phrase: "bench press close grip", candidates: [
+            SpokenExercise.Candidate(scope: .library, id: "cg-bench", name: "Close Grip Bench Press", match: .contained, distance: 0),
+        ]))
+        XCTAssertEqual(exercise("close grip bench press 5 at 225"), .resolved(scope: .library, id: "cg-bench", name: "Close Grip Bench Press", match: .exact))
+        // A session exercise named for the flag never takes the name that was said.
+        let warm = context(session: [("warm", "Warm-Up"), ("bench", "Bench Press")], current: "bench")
+        let flagged = VoiceParser.parse("warm up bench 5 at 135", context: warm)
+        XCTAssertEqual(flagged.exercise, .resolved(scope: .session, id: "bench", name: "Bench Press", match: .contained))
+        guard case .log(_, let flaggedValues) = flagged.intent else { return XCTFail("logs") }
+        XCTAssertTrue(flaggedValues.isWarmup)
+        let bareFlag = VoiceParser.parse("warm up 5 at 135", context: warm)
+        XCTAssertEqual(bareFlag.exercise, .current)
+        guard case .log(_, let bareValues) = bareFlag.intent else { return XCTFail("logs") }
+        XCTAssertTrue(bareValues.isWarmup)
+        XCTAssertEqual(VoiceParser.parse("warm up", context: warm).exercise, .current, "a flag is a flag, even alone")
+        XCTAssertEqual(VoiceParser.parse("5 at 135 warm up", context: warm).exercise, .current)
+        XCTAssertEqual(VoiceParser.parse("the hundred 5 at 135", context: context(session: [("hundred", "The Hundred")])).exercise,
+                       .resolved(scope: .session, id: "hundred", name: "The Hundred", match: .exact), "a filler inside a real name is fine")
+        // A name that carries a digit is still a name, and the digit is not a value.
+        let digits = context(session: [("bench", "Bench Press")], library: [ExerciseDefinition(id: "ext", canonicalName: "45 Degree Back Extension")], current: "bench")
+        let ext = VoiceParser.parse("45 degree back extension 12 at 25", context: digits)
+        XCTAssertEqual(ext.exercise, .resolved(scope: .library, id: "ext", name: "45 Degree Back Extension", match: .exact))
+        guard case .log(_, let extValues) = ext.intent else { return XCTFail("logs") }
+        XCTAssertEqual(extValues.reps, 12)
+        XCTAssertEqual(extValues.weight?.value, 25)
+        XCTAssertEqual(ext.problems, [])
+        // Without the name in the library, the keyword is a keyword.
+        let bare = context(session: [("pullups", "Weighted Pull-Ups")], current: "pullups")
+        XCTAssertEqual(exercise("bodyweight for 8"), .current)
+        guard case .log(_, let values) = VoiceParser.parse("bodyweight pull ups for 8", context: bare).intent else { return XCTFail("logs") }
+        XCTAssertEqual(values.weight?.bodyweight, true)
+        XCTAssertEqual(VoiceParser.parse("bodyweight pull ups for 8", context: bare).exercise,
+                       .resolved(scope: .session, id: "pullups", name: "Weighted Pull-Ups", match: .contained))
     }
 }

@@ -907,6 +907,59 @@ final class TrackerEditorTests: XCTestCase {
         XCTAssertEqual(flushed.merging(SavePayload(removedSets: [bench1])), SavePayload(removedSets: [bench1]))
     }
 
+    /// Undo, then another set on the same row inside one autosave window: the
+    /// save must upsert the row, never also delete it (the server runs both
+    /// lists in one unordered batch).
+    func testAWriteAfterARevertIsAnUpsertNotADelete() throws {
+        var editor = handBuilt()
+        let first = try XCTUnwrap(editor.applySpoken(spoken(), section: "exercise", exerciseId: "ub-1", unit: .lb))
+        editor.revert(first)
+        XCTAssertEqual(editor.removedSets, [bench1])
+        let second = try XCTUnwrap(editor.applySpoken(spoken(235), section: "exercise", exerciseId: "ub-1", unit: .lb))
+        XCTAssertEqual(second.keys, [bench1], "the row freed by the undo is the first empty one again")
+        let payload = try XCTUnwrap(editor.takeSavePayload())
+        XCTAssertEqual(payload.setLogs.map(\.actualWeight), ["235"])
+        XCTAssertEqual(payload.removedSets, [])
+        XCTAssertTrue(Set(payload.setLogs.map(\.key)).isDisjoint(with: payload.removedSets))
+
+        // The same for a typed edit after the undo.
+        var typed = handBuilt()
+        let applied = try XCTUnwrap(typed.applySpoken(spoken(), section: "exercise", exerciseId: "ub-1", unit: .lb))
+        typed.revert(applied)
+        typed.setValue("230", .weight, at: bench1)
+        let typedPayload = try XCTUnwrap(typed.takeSavePayload())
+        XCTAssertEqual(typedPayload.setLogs.map(\.key), [bench1])
+        XCTAssertEqual(typedPayload.removedSets, [])
+
+        // And for an extra the undo dropped and the next set re-created under the same number.
+        var extras = handBuilt()
+        for n in 1...3 { extras.setValue("5", .reps, at: SetKey(section: "exercise", exerciseId: "ub-1", setNumber: n)) }
+        _ = extras.takeSavePayload()
+        let extra = try XCTUnwrap(extras.applySpoken(spoken(), section: "exercise", exerciseId: "ub-1", unit: .lb))
+        extras.revert(extra)
+        XCTAssertEqual(extras.removedSets, [bench4])
+        XCTAssertEqual(extras.applySpoken(spoken(), section: "exercise", exerciseId: "ub-1", unit: .lb)?.keys, [bench4])
+        let extraPayload = try XCTUnwrap(extras.takeSavePayload())
+        XCTAssertEqual(extraPayload.setLogs.map(\.key), [bench4])
+        XCTAssertEqual(extraPayload.removedSets, [])
+
+        // The pre-existing shape of the same hole: remove an extra, add one, type into it.
+        var manual = handBuilt()
+        let n = try XCTUnwrap(manual.addExtraSet(section: "exercise", exerciseId: "ub-1"))
+        manual.setValue("8", .reps, at: SetKey(section: "exercise", exerciseId: "ub-1", setNumber: n))
+        manual.removeExtraSet(at: SetKey(section: "exercise", exerciseId: "ub-1", setNumber: n))
+        XCTAssertEqual(manual.addExtraSet(section: "exercise", exerciseId: "ub-1"), n)
+        manual.setValue("9", .reps, at: SetKey(section: "exercise", exerciseId: "ub-1", setNumber: n))
+        let manualPayload = try XCTUnwrap(manual.takeSavePayload())
+        XCTAssertEqual(manualPayload.setLogs.map(\.actualReps), ["9"])
+        XCTAssertEqual(manualPayload.removedSets, [])
+        // A removal with no write after it still goes out.
+        var plain = handBuilt()
+        let gone = try XCTUnwrap(plain.applySpoken(spoken(), section: "exercise", exerciseId: "ub-1", unit: .lb))
+        plain.revert(gone)
+        XCTAssertEqual(plain.takeSavePayload(), SavePayload(removedSets: [bench1]))
+    }
+
     func testRevertOfARowWithPriorActualsReDirties() throws {
         var editor = try editor()
         let before = try XCTUnwrap(editor.set(at: set1))
@@ -933,6 +986,22 @@ final class TrackerEditorTests: XCTestCase {
         editor.revert(applied)
         XCTAssertEqual(editor.exercise(section: "exercise", id: "ub-1")?.sets.map(\.setNumber), [1, 2, 3], "an empty extra persists nothing")
         XCTAssertEqual(editor.takeSavePayload(), SavePayload(removedSets: [bench4, SetKey(section: "exercise", exerciseId: "ub-1", setNumber: 5)]))
+    }
+
+    func testRevertRestoresAnExtraTheAthleteAddedByHand() throws {
+        var editor = handBuilt()
+        for n in 1...3 { editor.setValue("5", .reps, at: SetKey(section: "exercise", exerciseId: "ub-1", setNumber: n)) }
+        _ = editor.takeSavePayload()
+        XCTAssertEqual(editor.addExtraSet(section: "exercise", exerciseId: "ub-1"), 4)
+        let before = try XCTUnwrap(editor.set(at: bench4))
+        let applied = try XCTUnwrap(editor.applySpoken(spoken(sets: 2), section: "exercise", exerciseId: "ub-1", unit: .lb))
+        XCTAssertEqual(applied.keys.map(\.setNumber), [4, 5])
+        XCTAssertEqual(applied.created.map(\.setNumber), [5], "only the second row was the apply's own")
+        editor.revert(applied)
+        XCTAssertEqual(editor.set(at: bench4), before, "the hand-added row is back, empty")
+        XCTAssertNil(editor.set(at: SetKey(section: "exercise", exerciseId: "ub-1", setNumber: 5)))
+        XCTAssertEqual(editor.takeSavePayload(), SavePayload(removedSets: [bench4, SetKey(section: "exercise", exerciseId: "ub-1", setNumber: 5)]),
+                       "both deletes go out: the voice save may have persisted either")
     }
 
     func testRevertOfAnAddedExerciseRemovesIt() throws {

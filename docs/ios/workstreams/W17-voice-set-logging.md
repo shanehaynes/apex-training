@@ -2,7 +2,7 @@
 
 **Machine:** both (M1 Linux-able · PR-H and M2 Mac · M3 Shane's device) · **Depends on:** W4
 (tracker + write queue), #466 (`Weight`) · **Unblocks:** —
-**Status:** M2 in review (PR #484, `feat/w17-voice-logging`, stacked on PR-H #480 and M1) — PR-H #480 held for `shipit`; M1 `feat/w17-voice-parser` in review; brief drafted 2026-10-20 (D-059)
+**Status:** M2 in review (PR #484, `feat/w17-voice-logging`) — PR-H #480 and M1 #483 merged 2026-10-20; brief drafted 2026-10-20 (D-059)
 **Owns:** `ios/Packages/ApexCore/Sources/ApexCore/Tracker/Voice/` (new),
 `ApexCore/Tracker/TrackerEditor.swift`, `ApexCore/Library/NearMatch.swift`, `ApexCore/Package.swift` (one
 `exclude` line), `ios/Packages/ApexCore/Tests/ApexCoreTests/`, `ios/Packages/ApexKit/Sources/ApexSpeech/` (new),
@@ -368,14 +368,14 @@ Notation: W225 = weight 225 no unit (storage `"225"`); W"105 kg" = unit spoken; 
 | 59 | easy run 20 minutes | D1200 | unresolved "easy run" | cardio definition excluded from the library tiers |
 
 Acceptance:
-- [ ] `swift test --package-path ios/Packages/ApexCore` green on Linux CI and a Mac; `npm run agent:check` green (ApexCore imports clean).
-- [ ] `VoiceFixtureTests`: every case passes, failure messages name the case id; `XCTAssertGreaterThanOrEqual(cases.count, N)` with N committed (the only-grows ratchet); every rule R1–R17, every exercise tier and every `SpokenProblem` appears in ≥ 1 case; every case has a `source`.
-- [ ] `VoiceStorageTests`: each case's `storage` map matches the formatter; `for|to|too|won|ate` never read as numbers; clock-as-number vs clock-as-duration by hint.
-- [ ] `VoiceTokensTests`, `VoiceNumbersTests`, `VoiceExerciseTests` (keys, tiers in isolation, archived excluded, parenthetical, ordering, no phrase → current), `VoiceScoreTests` (ok > empty > invalid; resolved > current > confirm > unresolved; ties keep index).
-- [ ] `TrackerEditorTests`: `clearShadow` leaves the key clean; `applySpoken` fills the first empty planned set and clears its ghost, else adds an extra, spans `sets: 3`, copies the last set on `repeat`, returns nil for cardio/climbing; `revert` of a planned row with prior actuals re-dirties, of an empty prior row records a removal and never both; `currentExercise` fallback order; **replay of a removed planned key keeps the row** (reset, not removed).
-- [ ] `NearMatchTests`: session names get the picker's budget.
-- [ ] Opt-in perf (`APEX_PERF=1`): 1,000 parses × 5 alternatives over `upper` < 1 s.
-- [ ] Reviewer report under `## Review`; Session log line below; STATUS recent line.
+- [ ] `swift test --package-path ios/Packages/ApexCore` green on Linux CI and a Mac; `npm run agent:check` green (ApexCore imports clean). — Mac and `agent:check` green in #483; the Linux half is the PR's `apexcore-linux` job.
+- [x] `VoiceFixtureTests`: every case passes, failure messages name the case id; `XCTAssertGreaterThanOrEqual(cases.count, N)` with N committed (the only-grows ratchet); every rule R1–R17, every exercise tier and every `SpokenProblem` appears in ≥ 1 case; every case has a `source`. — N = 100 (#483).
+- [x] `VoiceStorageTests`: each case's `storage` map matches the formatter; `for|to|too|won|ate` never read as numbers; clock-as-number vs clock-as-duration by hint.
+- [x] `VoiceTokensTests`, `VoiceNumbersTests`, `VoiceExerciseTests` (keys, tiers in isolation, archived excluded, parenthetical, ordering, no phrase → current), `VoiceScoreTests` (ok > empty > invalid; resolved > current > confirm > unresolved; ties keep index).
+- [x] `TrackerEditorTests`: `clearShadow` leaves the key clean; `applySpoken` fills the first empty planned set and clears its ghost, else adds an extra, spans `sets: 3`, copies the last set on `repeat`, returns nil for cardio/climbing; `revert` of a planned row with prior actuals re-dirties, of an empty prior row records a removal and never both; `currentExercise` fallback order; **replay of a removed planned key keeps the row** (reset, not removed).
+- [x] `NearMatchTests`: session names get the picker's budget.
+- [x] Opt-in perf (`APEX_PERF=1`): 1,000 parses × 5 alternatives over `upper` < 1 s. — 0.35 s, debug build.
+- [x] Reviewer report under `## Review`; Session log line below; STATUS recent line. — two rounds, #483.
 
 ### M2 — The tracker · Mac · `feat/w17-voice-logging` · unheld · after PR-H and M1
 **State and logic** (`TrackerModel.swift` holds the stored state below and relaxes `restCommitted`
@@ -575,6 +575,27 @@ journal.
   end-of-utterance windows; rejected: a `field-not-logged` state (the editor already grows a
   column for any value), a contested "225 45" case, a shared exact-match helper, HFP and the
   iOS 26 adapter in v1, pre-warming the engine. No code. PR-H and M1 proposed as parallel lanes.
+- 2026-10-20 · Mac · **M1** (`feat/w17-voice-parser`, #483, unheld). The parser, resolver,
+  storage formatter and `TrackerEditor` primitives in ApexCore, red-to-green against the fixture:
+  the 59 cases above plus 41 authored cases (60–100) pinning every decision the brief left open,
+  each named for its decision, with each case's `rules` trace asserted equal to what fired. Two
+  adversarial review rounds. Round 1: a name hidden by a keyword auto-applied to the current
+  exercise (`warm up bench 5 at 135`, `bodyweight squat 20`, `log press 5 at 135`); a reverted key
+  went out as upsert and delete in one save; 19-digit clocks and `twenty hundred` chains trapped;
+  a weight beside a set count became reps (`225 for 5 sets`). Round 2: the `sets of` number
+  dropped its unit or time (`3 sets of 60 seconds`, `[kg] 3 sets of 100 pounds`); a plan line
+  called "Warm-Up" swallowed the spoken name; a leading `on`, the homophones, names with a digit,
+  sets of a time under `x`, a hand-added extra on undo, and fractions beside a set count. All fixed
+  and pinned (PR body, Decisions 17–31). Left as the brief states it: the unit-blind floor
+  (`bench 40` on a kg profile is 40 reps) — the journal decides. `swift test` 641 green on a Mac,
+  `agent:check` green; Linux is the PR's CI job. For this brief's next edit: `to too won ate` are
+  noise and `oh` a filler in the keyword vocabulary; containment forgives a three-letter plural;
+  `extractPhrase` recognises session and library names keywords and all, skips leading flags, and
+  takes stray plain words as the phrase (never silently the current exercise); R3's `of` number and
+  R8's set-count complement read a bare number by the hint, then the floor; R9/R10 settle a
+  one-sided pair by the floor; a bare `plus N` is bodyweight plus N; `a minute and a quarter` is 75 s.
+  M2 can start once PR-H lands: `VoiceContext`, `VoiceParser.parse(alternatives:context:)`,
+  `editor.applySpoken(_:section:exerciseId:unit:)`, `editor.revert(_:)`, `editor.currentExercise(lastLogged:)`.
 
 - 2026-10-20 · Mac · **M2 built** on `feat/w17-voice-logging` → PR #484 (branched from main with PR-H #480 and M1
   `feat/w17-voice-parser` merged in; the merged base built and tested green before a line of M2 was

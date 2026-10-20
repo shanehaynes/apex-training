@@ -145,20 +145,34 @@ final class VoiceNumbersTests: XCTestCase {
         XCTAssertNil(duration("45 reps"))
     }
 
-    func testHugeNumbersNeverTrap() {
+    func testHugeInputsNeverTrap() {
+        // Past nine whole digits a digit string is a word, not a number.
         let huge = String(repeating: "9", count: 30)
-        assertNumber(huge, 1e30, length: 1)
-        assertNumber("\(huge) and a half", 1e30, length: 1, "no fraction on a number that big")
-        XCTAssertEqual(duration("\(huge) minutes")?.0, 1_000_000_000)
-        XCTAssertEqual(duration("\(huge) seconds")?.0, 1_000_000_000)
+        XCTAssertNil(number(huge))
+        assertNumber("999999999", 999_999_999, length: 1)
+        XCTAssertNil(number("1000000000"))
+        XCTAssertNil(number("1,000,000"), "two commas is no number")
+        XCTAssertEqual(duration("999999999 minutes")?.0, 1_000_000_000, "clamped, never trapped")
+        XCTAssertEqual(duration("999999999 seconds")?.0, 999_999_999)
+        // Clocks with an absurd first part are words; number-word chains stop at a million.
+        XCTAssertEqual(VoiceTokens.tokenize("1000000000000000000:30").map(\.kind), [.word])
+        XCTAssertEqual(VoiceTokens.tokenize("9223372036854775807:00:00").map(\.kind), [.word])
+        XCTAssertEqual(VoiceTokens.tokenize("9999:30").map(\.kind), [.clock(first: 9999, second: 30, third: nil)])
+        XCTAssertEqual(VoiceTokens.tokenize("99999:30").map(\.kind), [.word])
+        let chain = "nine hundred " + String(repeating: "twenty hundred ", count: 10)
+        XCTAssertNotNil(number(chain))
+        XCTAssertLessThan(number(chain)!.0, 1e12)
+        XCTAssertLessThan(number("nine thousand nine thousand nine thousand nine thousand")!.0, 1e12)
+        XCTAssertLessThan(number(String(repeating: "nine hundred ninety nine thousand ", count: 5))!.0, 1e12)
         let upper = VoiceContext(unit: .lb, session: [VoiceSessionExercise(id: "plank", section: "exercise", name: "Plank", fields: [.duration])],
                                  currentExerciseId: "plank", library: [])
-        for text in [huge, "\(huge) reps", "\(huge) sets of 5", "rpe \(huge)", "5 at \(huge)", "\(huge) x 5", "\(huge) for 5", "bw plus \(huge)"] {
+        for text in [huge, "\(huge) reps", "\(huge) sets of 5", "rpe \(huge)", "5 at \(huge)", "\(huge) x 5", "\(huge) for 5",
+                     "bw plus \(huge)", "plank \(huge):30", "plank 153722867280912930:30", "bench 9223372036854775807:00:00",
+                     "plank " + chain + "minutes", "999999999 minutes 59", "999999999 x 999999999 x 999999999"] {
             _ = VoiceParser.parse(text, context: upper)
         }
-        guard case .log(_, let values) = VoiceParser.parse(huge, context: upper).intent else { return XCTFail("a duration") }
-        XCTAssertEqual(values.durationSeconds, 1_000_000_000)
-        XCTAssertEqual(VoiceParser.parse("\(huge) reps", context: upper).problems, [.repsNotInteger])
+        XCTAssertEqual(VoiceParser.parse(huge, context: upper).exercise, .unresolved(phrase: huge), "a word nobody knows")
+        XCTAssertEqual(VoiceParser.parse("\(huge) reps", context: upper).status, .empty)
     }
 
     func testTrailingSecondsBelongToTheDurationOnlyWhenNothingElseClaimsThem() {

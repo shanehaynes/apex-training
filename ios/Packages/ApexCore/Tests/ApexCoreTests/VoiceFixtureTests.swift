@@ -7,7 +7,7 @@ import XCTest
 /// until it is green — never the other way round.
 final class VoiceFixtureTests: XCTestCase {
     /// The only-grows ratchet: raise it with every case added, never lower it.
-    static let committedCaseCount = 63
+    static let committedCaseCount = 100
 
     private static let allRules = (1...17).map { "R\($0)" }
     private static let allTiers = [
@@ -43,7 +43,9 @@ final class VoiceFixtureTests: XCTestCase {
         let fixture = try VoiceFixture.load()
         XCTAssertGreaterThanOrEqual(fixture.cases.count, Self.committedCaseCount)
         let ids = fixture.cases.map(\.id)
-        XCTAssertEqual(ids, ids.sorted(), "cases stay in id order")
+        let numbers = ids.compactMap(Int.init)
+        XCTAssertEqual(numbers.count, ids.count, "every id is a number")
+        XCTAssertEqual(numbers, numbers.sorted(), "cases stay in id order")
         XCTAssertEqual(Set(ids).count, ids.count, "ids are unique")
     }
 
