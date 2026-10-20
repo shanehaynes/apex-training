@@ -123,6 +123,14 @@ public struct VoiceJournal: Codable, Equatable, Sendable {
         self.entries = Array(entries.suffix(Self.capacity))
     }
 
+    private enum CodingKeys: String, CodingKey { case entries }
+
+    /// A file written by a build with a larger ring still reads back capped.
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.init(entries: try container.decode([VoiceJournalEntry].self, forKey: .entries))
+    }
+
     public mutating func append(_ entry: VoiceJournalEntry) {
         entries.append(entry)
         if entries.count > Self.capacity { entries.removeFirst(entries.count - Self.capacity) }

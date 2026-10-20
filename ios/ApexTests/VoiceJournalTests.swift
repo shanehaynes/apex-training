@@ -21,7 +21,14 @@ final class VoiceJournalTests: XCTestCase {
         XCTAssertEqual(journal.entries.count, VoiceJournal.capacity)
         XCTAssertEqual(journal.entries.first?.alternatives.first, "bench 50 for 5", "oldest dropped")
         XCTAssertEqual(journal.entries.last?.alternatives.first, "bench 249 for 5")
-        XCTAssertEqual(VoiceJournal(entries: (0..<300).map { entry($0) }).entries.count, 200, "a decoded journal is capped too")
+        XCTAssertEqual(VoiceJournal(entries: (0..<300).map { entry($0) }).entries.count, 200)
+        // A file from a build with a larger ring reads back capped.
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        let oversized = try! encoder.encode(["entries": (0..<300).map { entry($0) }])
+        let decoded = try! VoiceJournal.decode(oversized)
+        XCTAssertEqual(decoded.entries.count, 200, "a decoded journal is capped too")
+        XCTAssertEqual(decoded.entries.first?.alternatives.first, "bench 100 for 5", "the newest 200")
     }
 
     func testMarkLastUndoneAndClear() {

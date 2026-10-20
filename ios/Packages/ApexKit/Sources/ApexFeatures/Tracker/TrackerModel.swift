@@ -118,7 +118,7 @@ public final class TrackerModel {
 
     /// Whether the tracker offers the microphone: a device preference under
     /// You → Training, off by default while W17 earns its default.
-    public static let voicePreferenceKey = "apex.tracker.voice"
+    nonisolated public static let voicePreferenceKey = "apex.tracker.voice"
     /// What the voice strip and the mic show. Value-typed like `rest` and
     /// `gate`; written only by the voice extension.
     public internal(set) var voice: VoiceLogState = .idle
@@ -136,8 +136,10 @@ public final class TrackerModel {
     var voiceTimerTask: Task<Void, Never>?
     /// The exercise a phrase-less utterance means (`TrackerEditor.currentExercise`).
     var lastLoggedKey: SetKey?
-    /// Undo restores the rest exactly as it was before the apply.
+    /// Undo restores the rest exactly as it was before the apply — when the
+    /// rest is still the one the apply started (`voiceRestAfter`).
     var voiceRestBefore: RestTimer?
+    var voiceRestAfter: RestTimer?
     var voiceAppliedAt: Date?
 
     let deps: TrackerDependencies

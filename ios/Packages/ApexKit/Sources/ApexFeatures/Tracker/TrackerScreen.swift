@@ -69,7 +69,10 @@ public struct TrackerScreen: View {
         .apexAnimation(model.gate)
         .apexAnimation(model.summary == nil)
         .apexAnimation(model.rest.isRunning)
-        .apexAnimation(model.voice)
+        // Only the strip's coming and going animates — the content below it
+        // shifts once — never each partial or state change (W17; a 60-row
+        // eager list re-laying out under an animation is a visible gap).
+        .apexAnimation(model.voice == .idle)
         .toolbar { keyboardAccessory }
         .sheet(item: $swapTarget) { target in
             SwapPickerSheet(model: model, target: target) { swapTarget = nil }
@@ -123,8 +126,9 @@ public struct TrackerScreen: View {
             .presentationBackground(ApexColor.bgSurface)
         }
         .onChange(of: focus) { old, new in focusChanged(from: old, to: new) }
-        // Away from the screen the microphone goes off and nothing is applied (W17).
-        .onChange(of: scenePhase) { _, phase in if phase != .active { model.cancelVoice() } }
+        // In the background the microphone goes off and nothing is applied (W17);
+        // the model knows an inactive scene (the permission alerts) is not that.
+        .onChange(of: scenePhase) { _, phase in model.scenePhaseChanged(phase) }
         .onChange(of: model.voice) { _, state in announce(state) }
         .onReceive(NotificationCenter.default.publisher(for: UITextField.textDidBeginEditingNotification)) { note in
             didBeginEditing(note.object as? UITextField)

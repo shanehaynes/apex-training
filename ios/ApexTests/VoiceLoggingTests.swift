@@ -428,4 +428,110 @@ final class VoiceLoggingTests: XCTestCase {
             XCTAssertTrue(gated.model.voiceDisabled, "the mic is disabled under the gate")
         }
     }
+
+    // MARK: - Review follow-ups
+
+    func testSpeechDetectedWithoutATranscriptRestartsTheNoSpeechBudget() async {
+        await VoiceSupport.withVoiceEnabled {
+            let made = await VoiceSupport.make()
+            let model = made.model
+            model.tapMic()
+            await VoiceSupport.waitUntil { model.voice.isListening }
+            made.clock.advance(by: 3)
+            model.voiceTick()
+            made.fake.emit(.partial(""))
+            await VoiceSupport.waitUntil { model.voice == .listening(partial: "", heardSpeech: true) }
+            made.clock.advance(by: 1.6)
+            model.voiceTick()
+            XCTAssertTrue(model.voice.isListening, "detection is not a transcript: no silence window yet")
+            made.clock.advance(by: 3.3)
+            model.voiceTick()
+            XCTAssertTrue(model.voice.isListening, "4.9 s since detection")
+            made.clock.advance(by: 0.2)
+            model.voiceTick()
+            XCTAssertEqual(model.voice, .failed(.noSpeech, reason: TrackerModel.noSpeechReason), "5 s since detection, nothing recognised")
+        }
+    }
+
+    func testAMicrophoneThatNeverComesUpIsBoundedAndASecondTapIsNotUndoneByALateListening() async {
+        await VoiceSupport.withVoiceEnabled {
+            let slow = await VoiceSupport.make()
+            slow.fake.yieldsListening = false
+            slow.model.tapMic()
+            await VoiceSupport.waitUntil { slow.model.voice == .activating }
+            slow.clock.advance(by: 7.9)
+            slow.model.voiceTick()
+            XCTAssertEqual(slow.model.voice, .activating)
+            slow.clock.advance(by: 0.2)
+            slow.model.voiceTick()
+            XCTAssertEqual(slow.model.voice, .failed(.noInput, reason: TrackerModel.noMicrophoneReason))
+            XCTAssertEqual(slow.journal.load().entries.last?.endReason, .failed)
+
+            let tapped = await VoiceSupport.make()
+            tapped.fake.yieldsListening = false
+            // The recognizer takes its time answering the finish (a real one does).
+            tapped.fake.finishDeliversFinal = false
+            tapped.model.tapMic()
+            await VoiceSupport.waitUntil { tapped.model.voice == .activating }
+            tapped.model.tapMic()
+            XCTAssertEqual(tapped.model.voice, .finishing(partial: ""))
+            XCTAssertEqual(tapped.fake.finishCount, 1)
+            tapped.fake.emit(.listening)
+            try? await Task.sleep(for: .milliseconds(50))
+            XCTAssertEqual(tapped.model.voice, .finishing(partial: ""), "the user already ended it")
+            XCTAssertEqual(tapped.model.voiceListenCount, 0, "no listen haptic after the end either")
+        }
+    }
+
+    func testAFinishTheRecognizerAnswersWithNothingKeepsWhyItWasFinished() async {
+        await VoiceSupport.withVoiceEnabled {
+            let made = await VoiceSupport.make()
+            made.model.tapMic()
+            await VoiceSupport.waitUntil { made.model.voice.isListening }
+            made.model.tapMic()
+            XCTAssertTrue(made.model.voice.isFinishing)
+            await VoiceSupport.waitUntil { made.model.voice == .failed(.noSpeech, reason: TrackerModel.noSpeechReason) }
+            XCTAssertEqual(made.journal.load().entries.last?.endReason, .tap, "the tap, not the recognizer's answer")
+        }
+    }
+
+    func testTheFinalToRowHopIsSynchronousAndQuick() async {
+        await VoiceSupport.withVoiceEnabled {
+            let made = await VoiceSupport.make()
+            made.fake.finishDeliversFinal = false
+            made.model.tapMic()
+            await VoiceSupport.waitUntil { made.model.voice.isListening }
+            made.fake.emit(.partial("fixture press 225 for 5"))
+            await VoiceSupport.waitUntil { made.model.voice == .listening(partial: "fixture press 225 for 5", heardSpeech: true) }
+            made.clock.advance(by: 1.0)
+            made.model.voiceTick()
+            made.clock.advance(by: 1.5)
+            // The deadline tick parses the last partial and writes the row in
+            // one synchronous pass: wall-clock it (the test clock cannot).
+            let started = Date()
+            made.model.voiceTick()
+            let elapsed = Date().timeIntervalSince(started)
+            XCTAssertTrue(made.model.voice.isApplied)
+            XCTAssertLessThan(elapsed, 0.1, "parse + apply took \(elapsed) s")
+        }
+    }
+
+    func testUndoLeavesARestALaterTypedSetStarted() async {
+        await VoiceSupport.withVoiceEnabled {
+            let made = await VoiceSupport.make(script: ["fixture press 225 for 5"])
+            let model = made.model
+            model.tapMic()
+            await VoiceSupport.waitUntil { model.voice.isApplied }
+            XCTAssertTrue(model.rest.isRunning)
+            made.clock.advance(by: 20)
+            // A set typed on another row keeps the offer (the key is not the
+            // apply's) and starts its own rest.
+            model.setValue("5", .reps, at: press2)
+            XCTAssertTrue(model.voice.isApplied)
+            let later = model.rest
+            model.undoSpoken()
+            XCTAssertEqual(model.rest, later, "the later rest is not the apply's: it stays")
+            XCTAssertEqual(model.set(at: press1)?.actualWeight, "", "the spoken row still reverts")
+        }
+    }
 }

@@ -79,7 +79,7 @@ public struct VoiceStrip: View {
                     .accessibilityIdentifier("tracker.voice.applied")
                 stripButton("Undo", identifier: "tracker.voice.undo", action: onUndo)
             }
-        case .confirming(_, let candidates):
+        case .confirming(_, _, let candidates):
             VStack(alignment: .leading, spacing: Spacing.xs) {
                 HStack {
                     Text("Did you mean")

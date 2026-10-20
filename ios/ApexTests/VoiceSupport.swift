@@ -154,5 +154,5 @@ extension VoiceLogState {
     var isConfirming: Bool { if case .confirming = self { return true } else { return false } }
     var appliedLabel: String? { if case .applied(_, let label) = self { return label } else { return nil } }
     var applied: VoiceApplied? { if case .applied(let applied, _) = self { return applied } else { return nil } }
-    var candidates: [SpokenExercise.Candidate]? { if case .confirming(_, let candidates) = self { return candidates } else { return nil } }
+    var candidates: [SpokenExercise.Candidate]? { if case .confirming(_, _, let candidates) = self { return candidates } else { return nil } }
 }

@@ -64,6 +64,7 @@ public struct YouRootView: View {
     @AppStorage(TrackerModel.voicePreferenceKey) private var logsByVoice = false
     /// The voice journal the tracker writes: shared and cleared from here.
     private let voiceJournal: any VoiceJournalStoring
+    @State private var confirmingVoiceLogClear = false
 
     public init(model: YouModel, open: ((YouRoute) -> Void)? = nil, voiceJournal: any VoiceJournalStoring = FileVoiceJournalStore.standard) {
         self.model = model
@@ -191,7 +192,13 @@ public struct YouRootView: View {
             .accessibilityIdentifier("you.row.voice-log")
             SettingsDivider()
             SettingsButton("Clear voice log", tone: .destructive, showsChevron: false, identifier: "you.row.voice-clear") {
-                voiceJournal.clear()
+                confirmingVoiceLogClear = true
+            }
+            .confirmationDialog("Clear the voice log?", isPresented: $confirmingVoiceLogClear, titleVisibility: .visible) {
+                Button("Clear voice log", role: .destructive) { voiceJournal.clear() }
+                    .accessibilityIdentifier("you.row.voice-clear.confirm")
+            } message: {
+                Text("The last 200 transcripts and what became of them. Share it first if it is still useful.")
             }
         }
 

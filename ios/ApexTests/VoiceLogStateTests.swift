@@ -68,9 +68,11 @@ final class VoiceLogStateTests: XCTestCase {
             let made = await VoiceSupport.make(script: ["fixture prss 120 for 3"])
             made.model.tapMic()
             await VoiceSupport.waitUntil { made.model.voice.isConfirming }
-            guard case .confirming(let intent, let candidates) = made.model.voice else { return XCTFail("\(made.model.voice)") }
+            guard case .confirming(let intent, let phrase, let candidates) = made.model.voice else { return XCTFail("\(made.model.voice)") }
             XCTAssertEqual(candidates.map(\.id), ["fx-press"])
             XCTAssertEqual(candidates.first?.match, .near)
+            XCTAssertEqual(phrase, "fixture prss", "what Pick… searches for: what was said, not the chip just declined")
+            XCTAssertEqual(made.model.voicePhrase, "fixture prss")
             XCTAssertEqual(intent, .log(sets: 1, values: SpokenValues(weight: SpokenWeight(value: 120), reps: 3)))
             made.model.confirmSpoken(candidates[0])
             XCTAssertEqual(made.model.set(at: VoiceSupport.press1)?.actualWeight, "120")
@@ -153,5 +155,57 @@ final class VoiceLogStateTests: XCTestCase {
         XCTAssertEqual(label(SpokenValues(weight: SpokenWeight(value: 225), reps: 5, rpe: 8, isWarmup: true), sets: 3), "Logged Bench Press · 225 lb × 5 · RPE 8 · warm-up · 3 sets")
         XCTAssertEqual(TrackerModel.label(for: .repeat, exerciseName: "Bench Press", unit: .lb), "Logged Bench Press · same as last set")
         XCTAssertEqual(TrackerModel.label(for: .repeat, exerciseName: "", unit: .lb), "Logged set · same as last set")
+    }
+
+    func testAStaleChipSaysSoInsteadOfStayingUp() async {
+        await VoiceSupport.withVoiceEnabled {
+            let made = await VoiceSupport.make(script: ["romanian deadlift 8 at 185"], library: VoiceSupport.library)
+            made.model.tapMic()
+            await VoiceSupport.waitUntil { made.model.voice.isConfirming }
+            let gone = SpokenExercise.Candidate(scope: .library, id: "no-such-definition", name: "Gone", match: .exact, distance: 0)
+            made.model.confirmSpoken(gone)
+            XCTAssertEqual(made.model.voice, .failed(nil, reason: TrackerModel.staleCandidateReason))
+
+            let session = await VoiceSupport.make(script: ["fixture prss 120 for 3"])
+            session.model.tapMic()
+            await VoiceSupport.waitUntil { session.model.voice.isConfirming }
+            let removed = SpokenExercise.Candidate(scope: .session, id: "not-today", name: "Not Today", match: .near, distance: 1)
+            session.model.confirmSpoken(removed)
+            XCTAssertEqual(session.model.voice, .failed(nil, reason: TrackerModel.staleCandidateReason))
+        }
+    }
+
+    func testThePermissionAlertsDoNotCancelTheFirstTapButTheBackgroundDoes() async {
+        await VoiceSupport.withVoiceEnabled {
+            // The sheets make the scene inactive; the listen must survive that.
+            let first = await VoiceSupport.make(authorization: .notDetermined)
+            first.fake.authorizationDelay = .milliseconds(150)
+            first.model.tapMic()
+            await VoiceSupport.waitUntil { first.model.voice == .requesting }
+            first.model.scenePhaseChanged(.inactive)
+            XCTAssertEqual(first.model.voice, .requesting, "an inactive scene is the alert, not the background")
+            await VoiceSupport.waitUntil { first.model.voice.isListening }
+            XCTAssertEqual(first.fake.requestCount, 1)
+            first.model.scenePhaseChanged(.active)
+            XCTAssertTrue(first.model.voice.isListening)
+
+            // The background does cancel, even mid-request.
+            let away = await VoiceSupport.make(authorization: .notDetermined)
+            away.fake.authorizationDelay = .milliseconds(150)
+            away.model.tapMic()
+            await VoiceSupport.waitUntil { away.model.voice == .requesting }
+            away.model.scenePhaseChanged(.background)
+            XCTAssertEqual(away.model.voice, .idle)
+            try? await Task.sleep(for: .milliseconds(250))
+            XCTAssertEqual(away.model.voice, .idle, "the late grant starts nothing")
+            XCTAssertEqual(away.fake.biases.count, 0, "no listen began")
+
+            // An offer survives an inactive scene too.
+            let offer = await VoiceSupport.make(script: ["fixture press 225 for 5"])
+            offer.model.tapMic()
+            await VoiceSupport.waitUntil { offer.model.voice.isApplied }
+            offer.model.scenePhaseChanged(.inactive)
+            XCTAssertTrue(offer.model.voice.isApplied)
+        }
     }
 }

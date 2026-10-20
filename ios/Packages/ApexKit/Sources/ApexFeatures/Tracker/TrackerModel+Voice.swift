@@ -1,6 +1,7 @@
 import ApexCore
 import ApexSpeech
 import Foundation
+import SwiftUI
 import UIKit
 
 /// What the voice strip and the mic show (W17, D-059). Value-typed on
@@ -17,8 +18,9 @@ public enum VoiceLogState: Equatable, Sendable {
     case finishing(partial: String)
     /// The set is on the row; Undo is offered for a while.
     case applied(VoiceApplied, label: String)
-    /// "Did you mean": the intent is kept and applied on a chip tap.
-    case confirming(SpokenIntent, candidates: [SpokenExercise.Candidate])
+    /// "Did you mean": the intent is kept and applied on a chip tap; the
+    /// phrase is what Pick… searches for (empty when no name was said).
+    case confirming(SpokenIntent, phrase: String, candidates: [SpokenExercise.Candidate])
     /// No exercise by that name anywhere: Pick… or Try again.
     case unresolved(phrase: String, intent: SpokenIntent)
     /// A reason and Try again; the recognizer's failure when it named one.
@@ -36,6 +38,9 @@ struct VoiceSession {
     var tapAt: Date
     var listeningAt: Date?
     var lastPartialAt: Date?
+    /// Speech was detected (the empty partial) but nothing recognised yet:
+    /// the no-speech budget counts from here instead of from `.listening`.
+    var detectedAt: Date?
     var lastPartial = ""
     var window: Double = 1.5
     var heardSpeech = false
@@ -65,8 +70,7 @@ extension TrackerModel {
     /// What "Pick…" opens the picker with.
     public var voicePhrase: String {
         switch voice {
-        case .unresolved(let phrase, _): return phrase
-        case .confirming(_, let candidates): return candidates.first?.name ?? ""
+        case .unresolved(let phrase, _), .confirming(_, let phrase, _): return phrase
         default: return ""
         }
     }
@@ -93,6 +97,8 @@ extension TrackerModel {
     public static let assetsMissingReason = "On-device speech isn't installed for English yet"
     public static let notASetRowReason = "Voice logs sets only — not cardio or pitches"
     public static let nothingToRepeatReason = "Nothing logged yet to repeat"
+    public static let staleCandidateReason = "That exercise isn't in today's workout anymore — try again"
+    public static let noMicrophoneReason = "The microphone never started — try again"
 
     // MARK: - Taps
 
@@ -120,11 +126,14 @@ extension TrackerModel {
     public func undoSpoken() {
         guard case .applied(let applied, _) = voice else { return }
         editor.revert(applied)
-        if let before = voiceRestBefore {
+        // The rest goes back to what it was before the set — unless a set
+        // typed on another row since started its own, which stays.
+        if let before = voiceRestBefore, rest.endsAt == voiceRestAfter?.endsAt {
             rest = before
             restChanged()
         }
         voiceRestBefore = nil
+        voiceRestAfter = nil
         voiceAppliedAt = nil
         scheduleSave()
         services.journal.markLastUndone()
@@ -135,13 +144,19 @@ extension TrackerModel {
     /// A "Did you mean" chip: a session exercise takes the set; a library hit
     /// is added for today first (and Undo removes both).
     public func confirmSpoken(_ candidate: SpokenExercise.Candidate) {
-        guard case .confirming(let intent, _) = voice else { return }
+        guard case .confirming(let intent, _, _) = voice else { return }
         switch candidate.scope {
         case .session:
-            guard let target = sessionTarget(id: candidate.id) else { return }
+            guard let target = sessionTarget(id: candidate.id) else {
+                fail(.failed(nil, reason: Self.staleCandidateReason))
+                return
+            }
             apply(intent, section: target.section, exerciseId: target.id)
         case .library:
-            guard let definition = definitions.first(where: { $0.id == candidate.id }) else { return }
+            guard let definition = definitions.first(where: { $0.id == candidate.id }) else {
+                fail(.failed(nil, reason: Self.staleCandidateReason))
+                return
+            }
             logOnAddedExercise(definition, intent: intent)
         }
     }
@@ -150,10 +165,18 @@ extension TrackerModel {
     public func pickSpoken(_ definition: ExerciseDefinition) {
         let intent: SpokenIntent
         switch voice {
-        case .confirming(let pending, _), .unresolved(_, let pending): intent = pending
+        case .confirming(let pending, _, _), .unresolved(_, let pending): intent = pending
         default: return
         }
         logOnAddedExercise(definition, intent: intent)
+    }
+
+    /// The screen's scene phase. Only the background cancels: the permission
+    /// alerts, Control Center and a banner make the scene *inactive*, and a
+    /// listen (or an offer) must survive those — the first tap's two sheets
+    /// above all.
+    public func scenePhaseChanged(_ phase: ScenePhase) {
+        if phase == .background { cancelVoice() }
     }
 
     /// The strip's dismiss: back to nothing, nothing changes.
@@ -236,14 +259,22 @@ extension TrackerModel {
         switch event {
         case .listening:
             voiceSession?.listeningAt = now
+            // A second tap may already have ended it: the strip stays "finishing".
+            guard voice == .activating else { return }
             voice = .listening(partial: "", heardSpeech: false)
             voiceListenCount += 1
         case .partial(let text):
             guard var session = voiceSession else { return }
-            session.heardSpeech = true
-            session.lastPartialAt = now
-            if !text.isEmpty { session.lastPartial = text }
-            session.window = Self.window(for: session.lastPartial, context: voiceContext())
+            if text.isEmpty {
+                // Speech detected, nothing recognised yet: the no-speech budget
+                // restarts from here; the silence window waits for a transcript.
+                if session.lastPartial.isEmpty { session.detectedAt = now }
+            } else {
+                session.heardSpeech = true
+                session.lastPartialAt = now
+                session.lastPartial = text
+                session.window = Self.window(for: text, context: voiceContext())
+            }
             voiceSession = session
             switch voice {
             case .activating, .listening: voice = .listening(partial: session.lastPartial, heardSpeech: true)
@@ -264,9 +295,14 @@ extension TrackerModel {
         let now = services.clock.now
         switch voice {
         case .activating, .listening:
-            guard let session = voiceSession, let since = session.listeningAt else { return }
+            guard let session = voiceSession else { return }
+            guard let since = session.listeningAt else {
+                // The microphone never came up: the cap bounds that too.
+                if now.timeIntervalSince(session.tapAt) >= Self.capSeconds { endWithoutMicrophone() }
+                return
+            }
             if !session.heardSpeech {
-                if now.timeIntervalSince(since) >= Self.noSpeechSeconds { endWithoutSpeech() }
+                if now.timeIntervalSince(session.detectedAt ?? since) >= Self.noSpeechSeconds { endWithoutSpeech() }
             } else if let last = session.lastPartialAt, now.timeIntervalSince(last) >= session.window {
                 finishListening(.silence)
             } else if now.timeIntervalSince(since) >= Self.capSeconds {
@@ -313,6 +349,15 @@ extension TrackerModel {
         voiceSession = session
         voice = .finishing(partial: session.lastPartial)
         session.utterance.finish()
+    }
+
+    /// `listen` never reached `.listening` within the cap.
+    func endWithoutMicrophone() {
+        listenTask?.cancel()
+        record(action: .failed, alternatives: [], parse: nil, endReason: .failed)
+        voiceSession = nil
+        listenTask = nil
+        fail(.failed(.noInput, reason: Self.noMicrophoneReason))
     }
 
     /// Five seconds with nothing heard: the microphone goes off, nothing is parsed.
@@ -366,20 +411,21 @@ extension TrackerModel {
                 if candidates.isEmpty {
                     fail(.failed(nil, reason: Self.notASetReason))
                 } else {
-                    ask(intent, candidates)
+                    ask(intent, phrase: "", candidates)
                     action = .confirming
                 }
             }
         case .resolved(scope: .library, let id, let name, let match):
             // v1 asks before a library name becomes today's exercise (D-059).
-            ask(intent, [SpokenExercise.Candidate(scope: .library, id: id, name: name, match: match, distance: 0)])
+            ask(intent, phrase: name, [SpokenExercise.Candidate(scope: .library, id: id, name: name, match: match, distance: 0)])
             action = .confirming
-        case .needsConfirmation(_, let candidates):
-            ask(intent, candidates)
+        case .needsConfirmation(let phrase, let candidates):
+            ask(intent, phrase: phrase, candidates)
             action = .confirming
         case .unresolved(let phrase):
             voice = .unresolved(phrase: phrase, intent: intent)
             voiceConfirmCount += 1
+            stopVoiceTimer()
             action = .unresolved
         }
     }
@@ -400,7 +446,10 @@ extension TrackerModel {
             listenTask = nil
             return
         }
-        record(action: .failed, alternatives: [], parse: nil, endReason: failure == .interrupted ? .interrupted : .failed)
+        // A finish the recognizer answered with "nothing heard" keeps why it
+        // was finished (the tap, the window, the cap): M3 triages on it.
+        let reason = voiceSession?.endReason ?? (failure == .interrupted ? .interrupted : .failed)
+        record(action: .failed, alternatives: [], parse: nil, endReason: reason)
         voiceSession = nil
         listenTask = nil
         fail(state)
@@ -427,6 +476,7 @@ extension TrackerModel {
         if let addedExerciseId { applied.kind = .addedExercise(id: addedExerciseId) }
         voiceRestBefore = restBefore
         for key in applied.keys { restCommitted(key) }
+        voiceRestAfter = rest
         loggedSetCount += applied.keys.count
         lastLoggedKey = applied.keys.last
         scheduleSave()
@@ -445,16 +495,17 @@ extension TrackerModel {
         }
     }
 
-    func ask(_ intent: SpokenIntent, _ candidates: [SpokenExercise.Candidate]) {
-        voice = .confirming(intent, candidates: candidates)
+    /// An ask, a failure: nothing is timed in these states, so the tick stops.
+    func ask(_ intent: SpokenIntent, phrase: String, _ candidates: [SpokenExercise.Candidate]) {
+        voice = .confirming(intent, phrase: phrase, candidates: candidates)
         voiceConfirmCount += 1
-        startVoiceTimer()
+        stopVoiceTimer()
     }
 
     func fail(_ state: VoiceLogState) {
         voice = state
         voiceFailCount += 1
-        startVoiceTimer()
+        stopVoiceTimer()
     }
 
     /// A typed edit to a row the last utterance wrote ends its Undo offer.

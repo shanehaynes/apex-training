@@ -265,13 +265,14 @@ final class SmokeUITests: XCTestCase {
         let mic = app.buttons["tracker.voice"]
         XCTAssertTrue(mic.waitForExistence(timeout: 20), "the toggle is on, so the header has the mic")
         XCTAssertTrue(app.staticTexts["tracker.title"].exists)
+        let weight1 = app.textFields["tracker.input.fx-press.1.weight"]
+        XCTAssertTrue(weight1.waitForExistence(timeout: 10))
+        let shownBefore = weight1.value as? String
 
         mic.tap()
         let applied = app.staticTexts["tracker.voice.applied"]
         XCTAssertTrue(applied.waitForExistence(timeout: 10))
         XCTAssertEqual(applied.label, "Logged Fixture Press · 115 lb × 4")
-        let weight1 = app.textFields["tracker.input.fx-press.1.weight"]
-        XCTAssertTrue(weight1.waitForExistence(timeout: 5))
         XCTAssertEqual(weight1.value as? String, "115")
         XCTAssertEqual(app.textFields["tracker.input.fx-press.1.reps"].value as? String, "4")
         attach(app, name: "w17-01-voice-applied")
@@ -289,7 +290,7 @@ final class SmokeUITests: XCTestCase {
 
         app.buttons["tracker.voice.undo"].tap()
         XCTAssertTrue(applied.waitForNonExistence(timeout: 5))
-        XCTAssertNotEqual(weight1.value as? String, "115", "undone")
+        XCTAssertEqual(weight1.value as? String, shownBefore, "undone: the row shows what it showed before the tap (its ghost)")
 
         mic.tap()
         let chip = app.buttons["tracker.voice.chip.fx-press"]

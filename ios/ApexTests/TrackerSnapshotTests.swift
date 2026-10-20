@@ -268,7 +268,7 @@ final class TrackerSnapshotTests: XCTestCase {
         let states: [(String, VoiceLogState)] = [
             ("listening", .listening(partial: "fixture press 225 for", heardSpeech: true)),
             ("applied", .applied(applied, label: "Logged Fixture Press · 225 lb × 5")),
-            ("chips", .confirming(intent, candidates: [
+            ("chips", .confirming(intent, phrase: "fixture prss", candidates: [
                 SpokenExercise.Candidate(scope: .session, id: "fx-press", name: "Fixture Press", match: .near, distance: 1),
                 SpokenExercise.Candidate(scope: .library, id: "rdl", name: "Romanian Deadlift", match: .exact, distance: 0),
             ])),

@@ -29,16 +29,16 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
 | W17 | Voice set logging (on-device Speech, no LLM) | PR-H in review (#480, held for `shipit`); M1 in review (`feat/w17-voice-parser`); M2 in review (`feat/w17-voice-logging`, PR pending, stacked on both) | both | D-059; Swift parser on a JSON fixture, Undo, ships dark behind `apex.tracker.voice`; after the three merge: TestFlight with the toggle on, then M3 dogfood; brief [W17](workstreams/W17-voice-set-logging.md) |
 
 ## Next up
-0. **W17 PR-H and M1 — voice set logging, the two parallel first lanes (PR-H Mac + HELD, M1 any).**
-   Goal: the user taps a mic in the tracker, says "bench 225 for 5", and the set is logged on the
-   device with no LLM and no network (D-059). PR-H is the held plumbing — the `ApexSpeech` product
-   (protocol, `No…`, Fake, `SFSpeechRecognizer` adapter with on-device-only recognition),
-   `TrackerServices.speech`, `-apexMockSpeech`, the two usage strings, project.yml and the
-   ci-guards line, nothing user-visible — opened small so one `shipit` unblocks everything. M1 is
-   the ApexCore parser, resolver, storage formatter, the 59-case fixture and the `TrackerEditor`
-   primitives (`clearShadow`, `applySpoken`, `revert`, the replay reset), red-to-green under
-   `swift test`. Acceptance and Owns per milestone: [W17 brief](workstreams/W17-voice-set-logging.md).
-   Then M2 (the tracker UI, unheld) after both merge; the feature ships dark.
+0. **W17 — land the three lanes, then TestFlight with the toggle on, then M3.** All three are
+   open: PR-H #480 (HELD — Shane's `shipit`; the two usage strings are the only prose Apple sees),
+   M1 `feat/w17-voice-parser` (the parser, resolver, formatter, fixture and editor primitives,
+   unheld), M2 `feat/w17-voice-logging` (the tracker UI, unheld, stacked on both: it merges last,
+   after `git merge origin/main`). Then a TestFlight build with You → Training → *Log sets by voice*
+   on, and Shane's device run: #480's SDK pins (none verified yet — the 15 Pro was not connected)
+   and the M3 scorecard's `*` rows (the first mic tap's two sheets, the orange indicator, a call
+   mid-listen, airplane mode). The first gym session is collection-only; each session after it is
+   one `fix/w17-voice-cases-<date>` ApexCore PR from the shared voice log, until the exit in the
+   [W17 brief](workstreams/W17-voice-set-logging.md) flips the default on.
 0. **W16 M2i — iOS reads Health workouts (Mac), after the privacy bump.** Goal: a Watch,
    Garmin-via-Health or Whoop-via-Health workout reaches the server as provider `apple` (M2b,
    #472) from the phone, durable through kills and offline, and a match the athlete has not

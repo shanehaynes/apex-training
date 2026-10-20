@@ -27,6 +27,8 @@ public nonisolated final class FakeSpeechRecognizer: SpeechRecognizing, @uncheck
     private var _script: [String]
     private let grantOnRequest: Bool
     private var _finishDeliversFinal = true
+    private var _authorizationDelay: Duration = .zero
+    private var _yieldsListening = true
     private var _requests = 0
     private var _biases: [[String]] = []
     private var _finishes = 0
@@ -60,6 +62,18 @@ public nonisolated final class FakeSpeechRecognizer: SpeechRecognizing, @uncheck
         get { lock.withLock { _finishDeliversFinal } }
         set { lock.withLock { _finishDeliversFinal = newValue } }
     }
+    /// How long `requestAuthorization()` takes to answer — the sheets are up
+    /// that long, and a test can act while they are.
+    public var authorizationDelay: Duration {
+        get { lock.withLock { _authorizationDelay } }
+        set { lock.withLock { _authorizationDelay = newValue } }
+    }
+    /// Off, `listen` yields nothing until the test emits `.listening` itself —
+    /// the microphone taking its time to come up.
+    public var yieldsListening: Bool {
+        get { lock.withLock { _yieldsListening } }
+        set { lock.withLock { _yieldsListening = newValue } }
+    }
 
     public func setAuthorization(_ value: SpeechAuthorization) { lock.withLock { _authorization = value } }
     public func setAvailability(_ value: SpeechAvailability) { lock.withLock { _availability = value } }
@@ -69,7 +83,9 @@ public nonisolated final class FakeSpeechRecognizer: SpeechRecognizing, @uncheck
     public func authorization() -> SpeechAuthorization { lock.withLock { _authorization } }
 
     public func requestAuthorization() async -> SpeechAuthorization {
-        lock.withLock {
+        let delay = lock.withLock { _authorizationDelay }
+        if delay > .zero { try? await Task.sleep(for: delay) }
+        return lock.withLock {
             _requests += 1
             if _authorization == .notDetermined { _authorization = grantOnRequest ? .authorized : .denied }
             return _authorization
@@ -94,7 +110,7 @@ public nonisolated final class FakeSpeechRecognizer: SpeechRecognizing, @uncheck
                 if current === utterance { current = nil }
             }
         }
-        utterance.yield(.listening)
+        if lock.withLock({ _yieldsListening }) { utterance.yield(.listening) }
         if let scripted {
             utterance.yield(.partial(""))
             var heard: [Substring] = []
