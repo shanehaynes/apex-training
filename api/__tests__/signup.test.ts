@@ -19,6 +19,8 @@ interface State {
   linkError?: { code: string; message: string } | null;
   generateCalls: Record<string, unknown>[];
   bumps: Record<string, unknown>[];
+  stamps: [string, Record<string, unknown>][];
+  stampError?: { message: string } | null;
   /** Users GoTrue's admin search returns for the address. */
   users?: { id: string; email: string; email_confirmed_at: string | null }[];
 }
@@ -44,10 +46,16 @@ function makeAdmin(state: State) {
         generateLink: async (params: Record<string, unknown>) => {
           state.generateCalls.push(params);
           if (state.linkError) return { data: null, error: state.linkError };
+          // GoTrue hands back the existing row for a pending address.
+          const id = state.users?.find(u => !u.email_confirmed_at)?.id ?? 'user-1';
           return {
-            data: { user: { id: 'user-1' }, properties: { action_link: 'https://x.supabase.co/auth/v1/verify?token=t' } },
+            data: { user: { id }, properties: { action_link: 'https://x.supabase.co/auth/v1/verify?token=t' } },
             error: null,
           };
+        },
+        updateUserById: async (id: string, attrs: Record<string, unknown>) => {
+          state.stamps.push([id, attrs]);
+          return { data: null, error: state.stampError ?? null };
         },
       },
     },
@@ -82,7 +90,7 @@ beforeEach(() => {
   process.env.TURNSTILE_SECRET_KEY = 'secret';
   process.env.VITE_SUPABASE_URL = 'https://x.supabase.co';
   process.env.SUPABASE_SERVICE_ROLE_KEY = 'service';
-  state = { generateCalls: [], bumps: [] };
+  state = { generateCalls: [], bumps: [], stamps: [] };
   lookups = [];
   mockedAdmin.mockReturnValue(makeAdmin(state));
   mockedSend.mockClear();
@@ -163,10 +171,29 @@ describe('/api/signup', () => {
     expect(state.generateCalls).toHaveLength(0);
   });
 
-  it('records when the age was attested on the invite', async () => {
+  it('records when the age was attested, in app_metadata, before the mail', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-19T12:00:00Z'));
     await handler(makeReq(GOOD), makeRes());
-    const data = (state.generateCalls[0].options as { data: { age_confirmed_at: string } }).data;
-    expect(Number.isNaN(Date.parse(data.age_confirmed_at))).toBe(false);
+    vi.useRealTimers();
+    expect(state.stamps).toEqual([['user-1', { app_metadata: { age_confirmed_at: '2026-10-19T12:00:00.000Z' } }]]);
+    // Not generate_link's user-writable `data`; the redirect survives alone.
+    expect(state.generateCalls[0].options).toEqual({ redirectTo: 'https://apex.test' });
+    expect(mockedSend).toHaveBeenCalledOnce();
+  });
+
+  it('stamps a pending address too — generate_link would not', async () => {
+    state.users = [{ id: 'pending-1', email: 'new@example.com', email_confirmed_at: null }];
+    await handler(makeReq(GOOD), makeRes());
+    expect(state.stamps[0][0]).toBe('pending-1');
+  });
+
+  it('sends no link when the attestation cannot be recorded', async () => {
+    state.stampError = { message: 'db down' };
+    const res = makeRes();
+    await handler(makeReq(GOOD), res);
+    expect(res.statusCode).toBe(500);
+    expect(mockedSend).not.toHaveBeenCalled();
   });
 
   it('validates the email before the human check', async () => {

@@ -113,9 +113,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const { data, error } = await supabase.auth.admin.generateLink({
     type: 'invite',
     email,
-    // The attestation travels with the account (user metadata), so it is on
-    // record without a table: when, not just that.
-    options: { redirectTo: publicOrigin(req), data: { age_confirmed_at: new Date().toISOString() } },
+    options: { redirectTo: publicOrigin(req) },
   });
   if (error) {
     if (error.code === 'email_exists') {
@@ -127,6 +125,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return;
   }
   if (!existing && !(await underAddressLimit(supabase, data.user.id, res))) return;
+
+  // The 18+ attestation, on record with the account: when, not just that.
+  // app_metadata, not generate_link's `data`: GoTrue applies `data` only when
+  // it creates the user (a pending address would keep none), and
+  // user_metadata is the user's own to rewrite. Merged by GoTrue, so the
+  // provider fields beside it survive. Before the mail: no record, no link.
+  const { error: stampErr } = await supabase.auth.admin.updateUserById(data.user.id, {
+    app_metadata: { age_confirmed_at: new Date().toISOString() },
+  });
+  if (stampErr) {
+    console.error('[signup] age stamp failed:', stampErr.message);
+    res.status(500).json({ error: 'Sign-up failed — try again later.' });
+    return;
+  }
 
   try {
     await sendAccountEmail(confirmationEmail(email, data.properties.action_link));

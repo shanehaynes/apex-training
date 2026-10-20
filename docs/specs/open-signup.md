@@ -27,7 +27,7 @@ how close the daily caps are without reading logs.
 In:
 - An 18+ attestation box next to the terms box. Its own act, never pre-ticked.
   The server refuses a sign-up without it, and the attestation and its time
-  are stored in the invite's user metadata.
+  are stored in the account's `app_metadata` (service-role-only).
 - Supervisor report: today's sign-up mails against the cap of 50, and an
   ACTION line once the cap is reached.
 - iOS: a Create account mode on the sign-in screen (email, terms box, 18+
@@ -43,9 +43,9 @@ Out:
 
 ### M1 — Age check (web + server)
 - [x] `/api/signup` answers 400 unless `ageConfirmed === true`. Nothing is called (siteverify, lookup, generate_link) before that check.
-- [x] A passing request stores `age_confirmed_at` (ISO time) in `generateLink`'s `options.data`.
+- [x] Every passing request (new or pending address) stores `age_confirmed_at` (ISO time) in the user's `app_metadata` before the mail goes out. If it can't be stored, no link is sent.
 - [x] The web Create account tab, in open mode (site key set), shows an unticked 18+ box. Submit stays disabled until both boxes are ticked and a token exists.
-- [x] Unit tests for all three; `npm run agent:check` green.
+- [x] Unit tests for the server, plus `e2e/mock/open-signup.spec.ts` for the form (using a dev-only site-key override and a fake widget); `npm run agent:check` green.
 
 ### M2 — Cap monitoring
 - [ ] `scripts/supervisor-report.sh` prints `signup mails today: N/50`, read with the production service key the report already uses. At N ≥ 50 it prints an `ACTION` line. If the key is missing it prints a skip line instead of failing.
@@ -67,10 +67,11 @@ Every box checked, every PR merged, `scripts/git-tidy.sh --yes` run, Next brief 
 ## Decisions
 - 2026-10-19 · Age check is an attestation box, not a date of birth. The terms' 18+ clause is a representation, and asking for a DOB would be new personal data the privacy policy doesn't list.
 - 2026-10-19 · `legal/terms-v1.md` §2 still says "Accounts are currently created by invitation", and its LEGAL REVIEW note says there is no age gate. Both are now stale, and changing legal text is Shane's call. Flagged in the M1 PR, not edited.
+- 2026-10-19 · The stamp lives in `app_metadata`, not `user_metadata` (review of M1). `generate_link`'s `data` is applied only when the user is created, so a pending address would keep no record. `user_metadata` is the user's own to rewrite with `updateUser`.
 - 2026-10-19 · iOS gets its token from Turnstile in a web view (Shane's choice over App Attest), so the server path stays the same.
 
 ## Session log
-- 2026-10-19 · spec written. M1 built on feat/signup-age-check. Verified on the local stack with Turnstile test keys: submit stays disabled until both boxes are ticked, `age_confirmed_at` lands in user metadata, and a request without `ageConfirmed` gets 400. Not verified: there is no client unit test (vitest has no DOM environment); the browser check stands in for it.
+- 2026-10-19 · spec written. M1 built on feat/signup-age-check. Verified on the local stack with Turnstile test keys: submit stays disabled until both boxes are ticked, `age_confirmed_at` lands in user metadata, and a request without `ageConfirmed` gets 400. Review fixes: the stamp moved to app_metadata via updateUserById, proven on the local stack for a pending invitee and a new address (provider field kept). Both boxes reset whenever the form opens. A mock e2e spec covers the form.
 
 ## Next brief
 (filled at the end of each milestone)
