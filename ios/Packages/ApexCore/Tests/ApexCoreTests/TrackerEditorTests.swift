@@ -988,6 +988,22 @@ final class TrackerEditorTests: XCTestCase {
         XCTAssertEqual(editor.takeSavePayload(), SavePayload(removedSets: [bench4, SetKey(section: "exercise", exerciseId: "ub-1", setNumber: 5)]))
     }
 
+    func testRevertRestoresAnExtraTheAthleteAddedByHand() throws {
+        var editor = handBuilt()
+        for n in 1...3 { editor.setValue("5", .reps, at: SetKey(section: "exercise", exerciseId: "ub-1", setNumber: n)) }
+        _ = editor.takeSavePayload()
+        XCTAssertEqual(editor.addExtraSet(section: "exercise", exerciseId: "ub-1"), 4)
+        let before = try XCTUnwrap(editor.set(at: bench4))
+        let applied = try XCTUnwrap(editor.applySpoken(spoken(sets: 2), section: "exercise", exerciseId: "ub-1", unit: .lb))
+        XCTAssertEqual(applied.keys.map(\.setNumber), [4, 5])
+        XCTAssertEqual(applied.created.map(\.setNumber), [5], "only the second row was the apply's own")
+        editor.revert(applied)
+        XCTAssertEqual(editor.set(at: bench4), before, "the hand-added row is back, empty")
+        XCTAssertNil(editor.set(at: SetKey(section: "exercise", exerciseId: "ub-1", setNumber: 5)))
+        XCTAssertEqual(editor.takeSavePayload(), SavePayload(removedSets: [bench4, SetKey(section: "exercise", exerciseId: "ub-1", setNumber: 5)]),
+                       "both deletes go out: the voice save may have persisted either")
+    }
+
     func testRevertOfAnAddedExerciseRemovesIt() throws {
         var editor = withPushups()
         var applied = try XCTUnwrap(editor.applySpoken(spoken(nil, reps: 20), section: "exercise", exerciseId: "added-1000", unit: .lb))

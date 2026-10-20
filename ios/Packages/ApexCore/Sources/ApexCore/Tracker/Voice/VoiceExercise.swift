@@ -28,22 +28,33 @@ public enum VoiceExercise {
             if ch.isLetter || ch.isNumber { current.append(ch) } else if !current.isEmpty { raw.append(current); current = "" }
         }
         if !current.isEmpty { raw.append(current) }
-        var words: [String] = []
+        return expand(raw).flatMap { $0 }
+    }
+
+    /// The key words each raw word contributes, in place — so a run of tokens
+    /// can be keyed without re-scanning the text for every candidate run.
+    static func expand(_ raw: [String]) -> [[String]] {
+        var out: [[String]] = Array(repeating: [], count: raw.count)
         var skip = false
         for (i, word) in raw.enumerated() {
             if skip { skip = false; continue }
             let next = i + 1 < raw.count ? raw[i + 1] : ""
             // "body weight" is one word of a name ("Bodyweight Squat"), however it was split.
             if word == "body", next == "weight" {
-                words.append("bodyweight")
+                out[i] = ["bodyweight"]
                 skip = true
                 continue
             }
             // "chin ups" is already spelled out; only a lone "chin(s)" expands.
             let expanded = (word == "chin" || word == "chins") && (next == "up" || next == "ups") ? word : wordShorthand[word] ?? word
-            for part in expanded.split(separator: " ") { words.append(singularise(String(part))) }
+            out[i] = expanded.split(separator: " ").map { singularise(String($0)) }
         }
-        return words
+        return out
+    }
+
+    /// `voiceKey` of a run of already-expanded words.
+    static func key(_ words: [String]) -> String {
+        singularise(words.joined(separator: " "))
     }
 
     /// The words joined, singularised once more: "weighted pull ups" → "weighted pull up".
@@ -67,7 +78,10 @@ public enum VoiceExercise {
     /// Word membership that forgives the plural the three-letter rule keeps:
     /// "up" is in "pull ups" (the fixture's case 60).
     static func sameWord(_ a: String, _ b: String) -> Bool {
-        a == b || a + "s" == b || b + "s" == a
+        if a == b { return true }
+        if a.count == b.count + 1, a.last == "s" { return a.dropLast() == b }
+        if b.count == a.count + 1, b.last == "s" { return b.dropLast() == a }
+        return false
     }
 
     struct Candidate {
@@ -98,7 +112,15 @@ public enum VoiceExercise {
         func contains(_ phraseWords: [String]) -> Bool {
             phraseWords.allSatisfy { p in words.contains { sameWord(p, $0) } }
         }
-        func distance(to key: String) -> Int { keys.map { NearMatch.distance(key, $0) }.min() ?? Int.max }
+        /// The closest key within `budget`, or past it; keys whose length alone
+        /// puts them past the budget are not measured.
+        func distance(to key: String, within budget: Int) -> Int {
+            var best = Int.max
+            for candidate in keys where abs(candidate.count - key.count) <= budget {
+                best = min(best, NearMatch.distance(key, candidate))
+            }
+            return best
+        }
         func spoken(_ match: SpokenExercise.Match, distance: Int = 0) -> SpokenExercise.Candidate {
             SpokenExercise.Candidate(scope: scope, id: id, name: name, match: match, distance: distance)
         }
@@ -139,6 +161,29 @@ public enum VoiceExercise {
             library = libraryCandidates(context)
             knownKeys = Set((session + library).flatMap(\.keys))
         }
+
+        /// The catalog for a context, kept from the last call: the tracker
+        /// parses every partial of an utterance against the same context, and
+        /// keying a whole library each time is the cost that would show.
+        static func cached(for context: VoiceContext) -> Catalog {
+            cache.catalog(for: context)
+        }
+
+        private static let cache = CatalogCache()
+
+        private final class CatalogCache: @unchecked Sendable {
+            private let lock = NSLock()
+            private var entry: (context: VoiceContext, catalog: Catalog)?
+
+            func catalog(for context: VoiceContext) -> Catalog {
+                lock.lock()
+                defer { lock.unlock() }
+                if let entry, entry.context == context { return entry.catalog }
+                let catalog = Catalog(context: context)
+                entry = (context, catalog)
+                return catalog
+            }
+        }
     }
 
     /// The tiers, for a phrase that has already been separated from the values.
@@ -163,7 +208,7 @@ public enum VoiceExercise {
         if containedSession.count > 1 { return .needsConfirmation(phrase: phrase, candidates: containedSession.map { $0.spoken(.contained) }) }
 
         let budget = NearMatch.budget(key.count)
-        let nearSession = session.map { ($0, $0.distance(to: key)) }.filter { $0.1 <= budget }
+        let nearSession = session.map { ($0, $0.distance(to: key, within: budget)) }.filter { $0.1 <= budget }
         if !nearSession.isEmpty {
             let ordered = nearSession.enumerated().sorted { ($0.element.1, $0.offset) < ($1.element.1, $1.offset) }
             return .needsConfirmation(phrase: phrase, candidates: ordered.map { $0.element.0.spoken(.near, distance: $0.element.1) })
@@ -178,7 +223,7 @@ public enum VoiceExercise {
         for candidate in library where candidate.contains(words) {
             candidates.append(candidate.spoken(.contained))
         }
-        let nearLibrary = library.map { ($0, $0.distance(to: key)) }.filter { $0.1 <= budget }
+        let nearLibrary = library.map { ($0, $0.distance(to: key, within: budget)) }.filter { $0.1 <= budget }
             .enumerated().sorted { ($0.element.1, $0.offset) < ($1.element.1, $1.offset) }
         for (candidate, distance) in nearLibrary.map(\.element) where !candidates.contains(where: { $0.id == candidate.id }) {
             candidates.append(candidate.spoken(.near, distance: distance))

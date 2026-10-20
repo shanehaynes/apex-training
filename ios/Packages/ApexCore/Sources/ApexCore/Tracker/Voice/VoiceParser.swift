@@ -6,7 +6,7 @@ import Foundation
 /// best score wins and ties keep the engine's order.
 public enum VoiceParser {
     public static func parse(_ transcript: String, context: VoiceContext) -> SpokenParse {
-        parse(transcript, context: context, catalog: VoiceExercise.Catalog(context: context))
+        parse(transcript, context: context, catalog: VoiceExercise.Catalog.cached(for: context))
     }
 
     static func parse(_ transcript: String, context: VoiceContext, catalog: VoiceExercise.Catalog) -> SpokenParse {
@@ -50,7 +50,7 @@ public enum VoiceParser {
     /// The recognizer's alternatives, best score first; an equal score keeps
     /// the earlier (the engine's own ranking). No alternatives parse as "".
     public static func parse(alternatives: [String], context: VoiceContext) -> SpokenParse {
-        let catalog = VoiceExercise.Catalog(context: context)
+        let catalog = VoiceExercise.Catalog.cached(for: context)
         var best: SpokenParse?
         for (index, alternative) in alternatives.enumerated() {
             var parse = parse(alternative, context: context, catalog: catalog)

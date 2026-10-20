@@ -44,7 +44,8 @@
         { "id": "easy-run", "canonicalName": "Easy Run", "category": "cardio" },
         { "id": "bodyweight-squat", "canonicalName": "Bodyweight Squat" },
         { "id": "log-press", "canonicalName": "Log Press" },
-        { "id": "quarter-squat", "canonicalName": "Quarter Squat" }
+        { "id": "quarter-squat", "canonicalName": "Quarter Squat" },
+        { "id": "back-ext-45", "canonicalName": "45 Degree Back Extension" }
       ]
     },
     "kg": { "base": "upper", "unit": "kg", "currentExerciseId": "bench" },
@@ -632,6 +633,125 @@
       "expect": { "status": "ok", "chosen": 0, "intent": { "kind": "log", "sets": 1, "values": {"weight": {"bodyweight": true, "sign": 1, "value": 25}, "reps": 5} },
                   "exercise": { "kind": "resolved", "scope": "session", "id": "pullups", "name": "Weighted Pull-Ups", "match": "exact" }, "ignored": [], "problems": [] },
       "storage": {"weight": "BW+25", "reps": "5"}
+    },
+    {
+      "id": "84", "name": "sets of a time", "source": "authored", "rules": ["R3", "R5", "R17"], "context": "upper",
+      "input": ["3 sets of 60 seconds"],
+      "expect": { "status": "ok", "chosen": 0, "intent": { "kind": "log", "sets": 3, "values": {"durationSeconds": 60} },
+                  "exercise": { "kind": "current" }, "ignored": [], "problems": [] },
+      "storage": {"duration": "1:00"}
+    },
+    {
+      "id": "85", "name": "sets of a time on a timed exercise", "source": "authored", "rules": ["R3", "R5", "R17"], "context": "upper",
+      "input": ["plank 3 sets of 90 seconds"],
+      "expect": { "status": "ok", "chosen": 0, "intent": { "kind": "log", "sets": 3, "values": {"durationSeconds": 90} },
+                  "exercise": { "kind": "resolved", "scope": "session", "id": "plank", "name": "Plank", "match": "exact" }, "ignored": [], "problems": [] },
+      "storage": {"duration": "1:30"}
+    },
+    {
+      "id": "86", "name": "sets of a weight with its unit, kg profile", "source": "authored", "rules": ["R3", "R1", "R17"], "context": "kg",
+      "input": ["3 sets of 100 pounds"],
+      "expect": { "status": "ok", "chosen": 0, "intent": { "kind": "log", "sets": 3, "values": {"weight": {"value": 100, "unit": "lb"}} },
+                  "exercise": { "kind": "current" }, "ignored": [], "problems": [] },
+      "storage": {"weight": "100 lb"}
+    },
+    {
+      "id": "87", "name": "sets of a fractional weight with its unit", "source": "authored", "rules": ["R3", "R1", "R17"], "context": "upper",
+      "input": ["3 sets of 62.5 kilos"],
+      "expect": { "status": "ok", "chosen": 0, "intent": { "kind": "log", "sets": 3, "values": {"weight": {"value": 62.5, "unit": "kg"}} },
+                  "exercise": { "kind": "current" }, "ignored": [], "problems": [] },
+      "storage": {"weight": "62.5 kg"}
+    },
+    {
+      "id": "88", "name": "sets of reps, said as reps, at a weight", "source": "authored", "rules": ["R3", "R2", "R7", "R17"], "context": "upper",
+      "input": ["3 sets of 5 reps at 225"],
+      "expect": { "status": "ok", "chosen": 0, "intent": { "kind": "log", "sets": 3, "values": {"weight": {"value": 225}, "reps": 5} },
+                  "exercise": { "kind": "current" }, "ignored": [], "problems": [] },
+      "storage": {"weight": "225", "reps": "5"}
+    },
+    {
+      "id": "89", "name": "sets of a bare number on a timed exercise", "source": "authored", "rules": ["R3", "R17"], "context": "upper",
+      "input": ["plank 3 sets of 60"],
+      "expect": { "status": "ok", "chosen": 0, "intent": { "kind": "log", "sets": 3, "values": {"durationSeconds": 60} },
+                  "exercise": { "kind": "resolved", "scope": "session", "id": "plank", "name": "Plank", "match": "exact" }, "ignored": [], "problems": [] },
+      "storage": {"duration": "1:00"}
+    },
+    {
+      "id": "90", "name": "sets of a bare number on a reps-only exercise", "source": "authored", "rules": ["R3", "R17"], "context": "upper",
+      "input": ["push ups 3 sets of 60"],
+      "expect": { "status": "ok", "chosen": 0, "intent": { "kind": "log", "sets": 3, "values": {"reps": 60} },
+                  "exercise": { "kind": "resolved", "scope": "session", "id": "pushups", "name": "Push-Ups", "match": "exact" }, "ignored": [], "problems": [] },
+      "storage": {"reps": "60"}
+    },
+    {
+      "id": "91", "name": "sets for a bare number on a timed exercise", "source": "authored", "rules": ["R3", "R8", "R17"], "context": "upper",
+      "input": ["plank 3 sets for 60"],
+      "expect": { "status": "ok", "chosen": 0, "intent": { "kind": "log", "sets": 3, "values": {"durationSeconds": 60} },
+                  "exercise": { "kind": "resolved", "scope": "session", "id": "plank", "name": "Plank", "match": "exact" }, "ignored": [], "problems": [] },
+      "storage": {"duration": "1:00"}
+    },
+    {
+      "id": "92", "name": "a count times a time is sets", "source": "authored", "rules": ["R5", "R8", "R17"], "context": "upper",
+      "input": ["plank 3 x 60 seconds"],
+      "expect": { "status": "ok", "chosen": 0, "intent": { "kind": "log", "sets": 3, "values": {"durationSeconds": 60} },
+                  "exercise": { "kind": "resolved", "scope": "session", "id": "plank", "name": "Plank", "match": "exact" }, "ignored": [], "problems": [] },
+      "storage": {"duration": "1:00"}
+    },
+    {
+      "id": "93", "name": "a clock times a count is sets", "source": "authored", "rules": ["R5", "R8", "R17"], "context": "upper",
+      "input": ["plank 1:30 x 3"],
+      "expect": { "status": "ok", "chosen": 0, "intent": { "kind": "log", "sets": 3, "values": {"durationSeconds": 90} },
+                  "exercise": { "kind": "resolved", "scope": "session", "id": "plank", "name": "Plank", "match": "exact" }, "ignored": [], "problems": [] },
+      "storage": {"duration": "1:30"}
+    },
+    {
+      "id": "94", "name": "a bare pair under x on a timed exercise", "source": "authored", "rules": ["R11", "R17"], "context": "upper",
+      "input": ["plank 3 x 60"],
+      "expect": { "status": "ok", "chosen": 0, "intent": { "kind": "log", "sets": 3, "values": {"durationSeconds": 60} },
+                  "exercise": { "kind": "resolved", "scope": "session", "id": "plank", "name": "Plank", "match": "exact" }, "ignored": [], "problems": [] },
+      "storage": {"duration": "1:00"}
+    },
+    {
+      "id": "95", "name": "a repeat with on and a name", "source": "authored", "rules": ["R16"], "context": "upper",
+      "input": ["same again on bench"],
+      "expect": { "status": "ok", "chosen": 0, "intent": { "kind": "repeat" },
+                  "exercise": { "kind": "resolved", "scope": "session", "id": "bench", "name": "Bench Press", "match": "contained" }, "ignored": [], "problems": [] },
+      "storage": {}
+    },
+    {
+      "id": "96", "name": "a leading on says nothing", "source": "authored", "rules": ["R10"], "context": "upper",
+      "input": ["on bench 5 at 225"],
+      "expect": { "status": "ok", "chosen": 0, "intent": { "kind": "log", "sets": 1, "values": {"weight": {"value": 225}, "reps": 5} },
+                  "exercise": { "kind": "resolved", "scope": "session", "id": "bench", "name": "Bench Press", "match": "contained" }, "ignored": [], "problems": [] },
+      "storage": {"weight": "225", "reps": "5"}
+    },
+    {
+      "id": "97", "name": "a number homophone is noise, not a name", "source": "authored", "rules": ["R13"], "context": "upper",
+      "input": ["5 to 225"],
+      "expect": { "status": "ok", "chosen": 0, "intent": { "kind": "log", "sets": 1, "values": {"weight": {"value": 225}, "reps": 5} },
+                  "exercise": { "kind": "current" }, "ignored": ["to"], "problems": [] },
+      "storage": {"weight": "225", "reps": "5"}
+    },
+    {
+      "id": "98", "name": "a fraction beside a set count is a weight", "source": "authored", "rules": ["R3", "R8", "R17"], "context": "kg",
+      "input": ["42.5 for 3 sets"],
+      "expect": { "status": "ok", "chosen": 0, "intent": { "kind": "log", "sets": 3, "values": {"weight": {"value": 42.5}} },
+                  "exercise": { "kind": "current" }, "ignored": [], "problems": [] },
+      "storage": {"weight": "42.5"}
+    },
+    {
+      "id": "99", "name": "sets of a fraction is sets of a weight", "source": "authored", "rules": ["R3", "R17"], "context": "kg",
+      "input": ["3 sets of 42.5"],
+      "expect": { "status": "ok", "chosen": 0, "intent": { "kind": "log", "sets": 3, "values": {"weight": {"value": 42.5}} },
+                  "exercise": { "kind": "current" }, "ignored": [], "problems": [] },
+      "storage": {"weight": "42.5"}
+    },
+    {
+      "id": "100", "name": "a name that starts with a number", "source": "authored", "rules": ["R12"], "context": "upper",
+      "input": ["45 degree back extension 25"],
+      "expect": { "status": "ok", "chosen": 0, "intent": { "kind": "log", "sets": 1, "values": {"reps": 25} },
+                  "exercise": { "kind": "resolved", "scope": "library", "id": "back-ext-45", "name": "45 Degree Back Extension", "match": "exact" }, "ignored": [], "problems": [] },
+      "storage": {"reps": "25"}
     }
   ]
 }

@@ -80,18 +80,19 @@ final class VoiceStorageTests: XCTestCase {
             XCTAssertEqual(values.weight?.value, 225, word)
             XCTAssertNil(values.reps, "\(word) never became reps")
         }
-        // Between two numbers a homophone is a word, not a value: 5 and 225 stay a bare pair,
-        // and the word is a name nobody knows rather than a number.
+        // Between two numbers a homophone is noise, not a value and not a name:
+        // 5 and 225 stay a bare pair on the current exercise, and the word is reported.
         for word in ["to", "too", "won", "ate"] {
             let parse = VoiceParser.parse("5 \(word) 225", context: upper)
-            XCTAssertEqual(parse.exercise, .unresolved(phrase: word))
-            XCTAssertEqual(parse.ignored, [])
+            XCTAssertEqual(parse.exercise, .current, word)
+            XCTAssertEqual(parse.ignored, [word])
             guard case .log(_, let values) = parse.intent else { return XCTFail("5 \(word) 225 should log") }
             XCTAssertEqual(values.weight?.value, 225, word)
             XCTAssertEqual(values.reps, 5, word)
         }
         XCTAssertEqual(VoiceParser.parse("for 5 at 225", context: upper).ignored, [], "a connective is grammar, not noise")
-        XCTAssertEqual(VoiceParser.parse("to 225", context: upper).exercise, .unresolved(phrase: "to"), "a leading plain word is the phrase")
+        XCTAssertEqual(VoiceParser.parse("to 225", context: upper).exercise, .current, "never a name, even in front")
+        XCTAssertEqual(VoiceParser.parse("bench five too twenty five", context: upper).ignored, ["too"])
     }
 
     /// A `d:dd` clock is a number dictation wrote with a colon — unless the
