@@ -26,8 +26,19 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
 | W14 | UX review implementation | done (#283–#292, #296, #297) | Mac | ux-review.md §7; decisions D-037…D-044; **TestFlight build 8 (0.9.0/424) uploaded 2026-09-22 by the first `testflight.yml` run**; snapshots re-recorded on the iPhone 17 (#300); Shane's device run on build 8 is next |
 | W15 | Connector access level (look-only / full tokens) | done (#379) | Mac | after #371/#376 gave `/api/mcp` write access; brief [W15](workstreams/W15-connector-access.md) |
 | W16 | Apple Health (write, read workouts, daily metrics, body weight, meals) | M1 (#430) + MT (#438) shipped in TestFlight 1.1.0 (561); M0 landed (phase59, #469); M2b landed (#472); M3b in review; privacy bump, then M2i next | both | D-056 supersedes D-018; M1 (write, no migration) merges after 1.0 is approved and ships as 1.1; MT (in-app terms re-acceptance) gates the privacy bump; brief [W16](workstreams/W16-apple-health.md) |
+| W17 | Voice set logging (on-device Speech, no LLM) | ready — brief drafted 2026-10-20 | both | D-059; Swift parser on a JSON fixture, Undo, ships dark behind `apex.tracker.voice`; PR-H (held plumbing) ∥ M1 (parser) → M2 (tracker UI) → M3 dogfood; brief [W17](workstreams/W17-voice-set-logging.md) |
 
 ## Next up
+0. **W17 PR-H and M1 — voice set logging, the two parallel first lanes (PR-H Mac + HELD, M1 any).**
+   Goal: the user taps a mic in the tracker, says "bench 225 for 5", and the set is logged on the
+   device with no LLM and no network (D-059). PR-H is the held plumbing — the `ApexSpeech` product
+   (protocol, `No…`, Fake, `SFSpeechRecognizer` adapter with on-device-only recognition),
+   `TrackerServices.speech`, `-apexMockSpeech`, the two usage strings, project.yml and the
+   ci-guards line, nothing user-visible — opened small so one `shipit` unblocks everything. M1 is
+   the ApexCore parser, resolver, storage formatter, the 59-case fixture and the `TrackerEditor`
+   primitives (`clearShadow`, `applySpoken`, `revert`, the replay reset), red-to-green under
+   `swift test`. Acceptance and Owns per milestone: [W17 brief](workstreams/W17-voice-set-logging.md).
+   Then M2 (the tracker UI, unheld) after both merge; the feature ships dark.
 0. **W16 M2i — iOS reads Health workouts (Mac), after the privacy bump.** Goal: a Watch,
    Garmin-via-Health or Whoop-via-Health workout reaches the server as provider `apple` (M2b,
    #472) from the phone, durable through kills and offline, and a match the athlete has not
@@ -139,6 +150,12 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
    (`printf` the two ids back after a tidy) — both git-ignored, so never from the primary checkout.
 
 ## Recent sessions
+- 2026-10-20 · W17 brief · Mac. Voice set logging planned and decided (D-059): on-device Speech
+  only, a deterministic Swift parser on a JSON fixture in ApexCore, log-with-Undo for session
+  exercises, confirm-first for near, unknown and library names, ships dark behind
+  `apex.tracker.voice`, a transcript-only journal with numeric targets and a device scorecard.
+  Three explorers, three design passes and three independent reviews reconciled in the brief;
+  PR-H and M1 proposed as parallel lanes. No code.
 - 2026-10-20 · ApexWidgets sim crash (no WS) · Mac. The 2026-10-19 `ApexWidgets` SIGTRAP in an
   xcresult is a simulator reinstall artifact (the new bundle's binaries were hardlinks of the copy
   just moved to containermanagerd's `Dead/`, and the extension resolved its path there), not an

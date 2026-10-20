@@ -16,7 +16,7 @@ detail lives in the linked files. If you are a Claude session picking up iOS wor
 | [testing-and-ci.md](testing-and-ci.md) | What Linux vs Mac sessions can verify, CI jobs, TestFlight, App Store gate |
 | [app-store.md](app-store.md) | App Store submission: the App Privacy answers, review notes, the demo account, screenshots |
 | [../ops-runbook.md](../ops-runbook.md) | Ops runbook: every escrowed secret and where it lives, ASC key regeneration, Apple Account recovery, DR restore pointers (#252) |
-| [workstreams/](workstreams/) | One self-contained brief per workstream (W0–W16) |
+| [workstreams/](workstreams/) | One self-contained brief per workstream (W0–W17) |
 
 ## Vision
 
@@ -61,6 +61,7 @@ timer in the Dynamic Island, and a coach you can read. Same backend, same data, 
 | Invite hand-off | Web button + redirectTo | D-020 |
 | Offline outside the tracker | Builder save + exercise create queue; shown as waiting, never built locally | D-052 |
 | Apple Health | In scope: write, read workouts, daily metrics, body weight, meals; server, per-category opt-in | D-056 |
+| Voice set logging | On-device Speech, no LLM; Swift parser on one JSON fixture; log-with-Undo; ships dark | D-059 |
 
 ## Architecture in one paragraph
 
@@ -87,9 +88,10 @@ W8 analytics compute ───────────────────�
                                                           W11 profile/integrations/account (after W1)
                                                           W13 release + polish (last) ─▶ App Store
 W16 M0 migration ─▶ M2b ─▶ M3b ─────────────────────────▶ W16 Apple Health (M1 write first, as 1.1)
+W17 voice: PR-H held plumbing ∥ M1 parser ─▶ M2 tracker ─▶ M3 dogfood ─▶ default-on (ships dark; after W4)
 ```
 
-Gates: W0→W2, W3→W4, W5a/b→W6, W8→W9, W4→W12. Parallel: W0 ∥ W1; W3 ∥ W2; W5a/W5b/W8 ∥ W4;
+Gates: W0→W2, W3→W4, W5a/b→W6, W8→W9, W4→W12, W4→W17. Parallel: W0 ∥ W1; W3 ∥ W2; W5a/W5b/W8 ∥ W4;
 W10 ∥ W7/W9; W12 ∥ W7–W11. Migrations: only W11 (`provider_connections.client`, possibly FK
 cascades for account deletion). Current state: [STATUS.md](STATUS.md).
 
@@ -154,3 +156,5 @@ re-created key means re-setting all three. Details: [testing-and-ci.md](testing-
   its three secrets).
 - 2026-10-14 — W16 Apple Health added (D-056 supersedes D-018); HealthKit write leaves the
   backlog, the Watch companion stays in it.
+- 2026-10-20 — W17 Voice set logging added (D-059): on-device Speech, a Swift-origin parser on a
+  JSON fixture, log-with-Undo, ships dark behind a toggle.
