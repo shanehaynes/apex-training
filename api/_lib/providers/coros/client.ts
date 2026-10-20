@@ -1,6 +1,8 @@
 import { McpHttpClient, McpToolError, type McpToolInfo } from '../mcpHttp.js';
 import { COROS_MCP_ENDPOINT } from './oauth.js';
 import { fetchAndExtract, firstUrlIn, type FitStreams } from './fit.js';
+import { downsample } from '../streams.js';
+import type { SyncProvider } from '../connection.js';
 
 // COROS activity access over the official remote MCP. Tool names and
 // schemas were captured live on 2026-08-10 (fixtures/coros/tools-list.json):
@@ -21,7 +23,8 @@ import { fetchAndExtract, firstUrlIn, type FitStreams } from './fit.js';
 // ProviderActivity.
 
 export interface ProviderActivity {
-  provider: 'coros';
+  /** Who measured it: COROS from its API, Apple Health posted by the phone. */
+  provider: SyncProvider;
   activityId: string;
   sport: string | number;
   /** ISO UTC instant of the activity start. */
@@ -449,16 +452,6 @@ function isBulkyValue(v: unknown): boolean {
   return Array.isArray(v) && v.length > 50;
 }
 
-const MAX_STREAM_POINTS = 2000;
-
-/** Thin a series to ≤ max points, always keeping first and last. */
-export function downsample<T>(points: T[], max = MAX_STREAM_POINTS): T[] {
-  if (points.length <= max) return points;
-  const step = (points.length - 1) / (max - 1);
-  const out: T[] = [];
-  for (let i = 0; i < max; i++) out.push(points[Math.round(i * step)]);
-  return out;
-}
 
 function extractStreams(item: Record<string, unknown>): ProviderActivity['streams'] | null {
   const streams: NonNullable<ProviderActivity['streams']> = {};

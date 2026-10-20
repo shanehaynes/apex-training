@@ -21,7 +21,7 @@ interface StreamSummary {
   trainingLoad?: number | null;
 }
 
-const PROVIDER_LABELS: Record<string, string> = { coros: 'COROS' };
+const PROVIDER_LABELS: Record<string, string> = { coros: 'COROS', apple: 'Apple Health' };
 
 export default function SyncMetrics({ eventId, eventDate }: { eventId: string; eventDate: string }) {
   const [row, setRow] = useState<{ provider: string; summary: StreamSummary; streams: Streams | null } | null>(null);

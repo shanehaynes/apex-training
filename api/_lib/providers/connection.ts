@@ -14,7 +14,7 @@ import type { TablesUpdate } from '../../../src/lib/db/types.js';
 
 type Admin = NonNullable<ReturnType<typeof getSupabaseAdmin>>;
 
-export type SyncProvider = 'coros';
+export type SyncProvider = 'coros' | 'apple';
 
 export interface ConnectionRow {
   user_id: string;
@@ -37,6 +37,37 @@ export interface ConnectionRow {
    *  app, null for the web. The callback arrives without a JWT, so this is the
    *  only way it can tell which redirect target dismisses the user's flow. */
   client: ProviderClient;
+  /** Apple Health's opt-ins, one per category (phase59, D-056); {} for COROS. */
+  categories: AppleCategories;
+}
+
+/** The Health categories an athlete switches on one at a time (D-056). */
+export const APPLE_CATEGORY_KEYS = ['workoutsWrite', 'workoutsRead', 'dailyMetrics', 'bodyMass', 'mealsWrite'] as const;
+export type AppleCategory = typeof APPLE_CATEGORY_KEYS[number];
+export type AppleCategories = Partial<Record<AppleCategory, boolean>>;
+
+/** A body's `categories`: an object of known keys with boolean values, or
+ *  null. Unknown keys are refused, not dropped — a typo would otherwise read
+ *  as consent withheld. The stored jsonb is only ever written from this. */
+export function parseCategories(raw: unknown): AppleCategories | null {
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return null;
+  const out: AppleCategories = {};
+  for (const [key, value] of Object.entries(raw)) {
+    if (!(APPLE_CATEGORY_KEYS as readonly string[]).includes(key) || typeof value !== 'boolean') return null;
+    out[key as AppleCategory] = value;
+  }
+  return out;
+}
+
+/** The stored value, read defensively: only known keys, only booleans. */
+function storedCategories(raw: unknown): AppleCategories {
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return {};
+  const out: AppleCategories = {};
+  for (const key of APPLE_CATEGORY_KEYS) {
+    const value = (raw as Record<string, unknown>)[key];
+    if (typeof value === 'boolean') out[key] = value;
+  }
+  return out;
 }
 
 /** null is the web app — the original behaviour and every pre-phase41 row. */
@@ -61,12 +92,13 @@ export async function getConnection(
 ): Promise<ConnectionRow | null> {
   const { data, error } = await supabase
     .from('provider_connections')
-    .select('user_id, provider, access_token, refresh_token, token_expires_at, status, pending_oauth, last_synced_at, connected_at, timezone, auto_sync, pending_fill_count, client')
+    .select('user_id, provider, access_token, refresh_token, token_expires_at, status, pending_oauth, last_synced_at, connected_at, timezone, auto_sync, pending_fill_count, client, categories')
     .eq('user_id', userId)
     .eq('provider', provider)
     .maybeSingle();
   if (error) throw new Error(`provider_connections lookup failed: ${error.message}`);
-  return (data as ConnectionRow | null) ?? null;
+  if (!data) return null;
+  return { ...(data as unknown as ConnectionRow), categories: storedCategories((data as { categories?: unknown }).categories) };
 }
 
 /** The only projection the browser ever sees. */
@@ -85,6 +117,86 @@ export function connectionStatus(row: ConnectionRow | null): {
     autoSync: row.auto_sync ?? true,
     pendingFillCount: row.pending_fill_count ?? 0,
   };
+}
+
+/** Apple Health's status projection: no tokens, no auto-sync — the phone
+ *  syncs — and the categories the athlete switched on. */
+export function appleStatus(row: ConnectionRow | null): {
+  status: 'disconnected' | 'connected';
+  connectedAt: string | null;
+  lastSyncedAt: string | null;
+  categories: AppleCategories;
+} {
+  if (!row || row.status !== 'connected') return { status: 'disconnected', connectedAt: null, lastSyncedAt: null, categories: {} };
+  return { status: 'connected', connectedAt: row.connected_at ?? null, lastSyncedAt: row.last_synced_at ?? null, categories: row.categories ?? {} };
+}
+
+/** Connect a provider that needs no OAuth (Apple Health: the phone reads
+ *  Health and posts what it read). Upserts a connected row; categories merge
+ *  over what was stored, so a reconnect keeps earlier opt-ins it does not
+ *  name. `connected_at` is kept on a reconnect. Never listed by the nightly
+ *  cron: auto_sync is false and there is no token to fetch with. */
+export async function connectLocal(
+  supabase: Admin, userId: string, provider: SyncProvider, opts: {
+    client: ProviderClient; timezone: string; categories: AppleCategories;
+  },
+): Promise<ConnectionRow> {
+  const existing = await getConnection(supabase, userId, provider);
+  const now = new Date().toISOString();
+  const categories = { ...(existing?.categories ?? {}), ...opts.categories };
+  const { error } = await supabase
+    .from('provider_connections')
+    .upsert({
+      user_id: userId,
+      provider,
+      status: 'connected',
+      connected_at: existing?.status === 'connected' && existing.connected_at ? existing.connected_at : now,
+      access_token: null,
+      refresh_token: null,
+      token_expires_at: null,
+      pending_oauth: null,
+      auto_sync: false,
+      client: opts.client,
+      timezone: opts.timezone,
+      categories,
+      updated_at: now,
+    }, { onConflict: 'user_id,provider' });
+  if (error) throw new Error(`connectLocal upsert failed: ${error.message}`);
+  const row = await getConnection(supabase, userId, provider);
+  if (!row) throw new Error('connectLocal: row missing after upsert');
+  return row;
+}
+
+/** Merge a partial set of opt-ins over the stored ones. Null when there is
+ *  no connected row to change. */
+export async function setCategories(
+  supabase: Admin, userId: string, provider: SyncProvider, partial: AppleCategories,
+): Promise<AppleCategories | null> {
+  const row = await getConnection(supabase, userId, provider);
+  if (!row || row.status !== 'connected') return null;
+  const categories = { ...row.categories, ...partial };
+  const { error } = await supabase
+    .from('provider_connections')
+    .update({ categories, updated_at: new Date().toISOString() })
+    .eq('user_id', userId)
+    .eq('provider', provider);
+  if (error) throw new Error(`setCategories failed: ${error.message}`);
+  return categories;
+}
+
+/** Delete a provider's daily metrics (Disconnect's opt-in purge). Returns
+ *  how many rows went. */
+export async function purgeDailyMetrics(
+  supabase: Admin, userId: string, provider: SyncProvider,
+): Promise<number> {
+  const { data, error } = await supabase
+    .from('daily_metrics')
+    .delete()
+    .eq('user_id', userId)
+    .eq('provider', provider)
+    .select('date');
+  if (error) throw new Error(`daily metrics purge failed: ${error.message}`);
+  return (data ?? []).length;
 }
 
 /** Remember the browser's IANA zone for the nightly cron. Best-effort. */

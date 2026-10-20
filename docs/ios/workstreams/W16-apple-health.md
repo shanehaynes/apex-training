@@ -2,7 +2,7 @@
 
 **Machine:** both (M0, M2b, M3b Linux · M1, MT, M2i, M3i, M4 Mac) · **Depends on:** W4, W11, W12;
 1.0 App Review approval before M1 merges · **Unblocks:** Apple Watch companion (later)
-**Status:** in progress — M1 (#430) and MT (#438) shipped in 1.1.0 (561); M0 (`phase59_apple_health.sql`) in review, HELD for its production paste; M2b next. Brief drafted 2026-10-14 (D-056 supersedes D-018)
+**Status:** in progress — M1 (#430) and MT (#438) shipped in 1.1.0 (561); M0 landed (phase59, #469, in production); M2b in review; then the privacy bump and M2i, and M3b. Brief drafted 2026-10-14 (D-056 supersedes D-018)
 
 ## Goal
 Apex is a citizen of the Apple Health ecosystem: a workout finished in the tracker shows up in
@@ -231,16 +231,19 @@ Scope:
 - Docs: `backend-changes.md` W16 section.
 
 Acceptance:
-- [ ] `provider-sync.test.ts`: apple connect / set-categories / status / disconnect / client
-      gate / category gate; `connect-start` and `set-auto-sync` refused for apple.
-- [ ] New `apple-activity.test.ts`: parser bounds; the mapper table including the
-      "Traditional Strength" trap.
-- [ ] `integration/provider-sync.integration.test.ts`: apple fill, create, skip, replay; a
+- [x] `provider-sync.test.ts`: apple connect / set-categories / status / disconnect / client
+      gate / category gate; `connect-start` and `set-auto-sync` refused for apple. (In
+      `provider-sync-apple.test.ts`, with a fake that keeps one row per provider.)
+- [x] New `apple-activity.test.ts`: parser bounds; the mapper table including the
+      "Traditional Strength" trap. The table is the iOS 26.5 SDK's raw values, printed on a Mac.
+- [x] `integration/provider-sync.integration.test.ts`: apple fill, create, skip, replay; a
       Watch workout overlapping a finished tracker session is `duplicate`; overlapping an open
-      one is `in-progress` with no ledger row; an activity 5 days old matches its plan.
-- [ ] `edit-times` still allowed on a session with only a skipped ledger row.
-- [ ] `provider-cron.test.ts`: apple rows absent from the nightly list.
-- [ ] Fixtures: `ios/Fixtures/provider-status.json` (apple block), `provider-preview-apple.json`.
+      one is `in-progress` with no ledger row; an activity 5 days old matches its plan. (In
+      `provider-sync-apple.integration.test.ts`; no stub needed, the body is the provider.)
+- [x] `edit-times` still allowed on a session with only a skipped ledger row.
+- [x] `provider-cron.test.ts`: apple rows absent from the nightly list. (Proved against the
+      stack in `provider-sync-apple.integration.test.ts`: `listAutoSyncConnections` returns none.)
+- [x] Fixtures: `ios/Fixtures/provider-status.json` (apple block), `provider-preview-apple.json`.
 
 **Privacy bump (approved by Shane 2026-10-14; after M2b merges, after MT is adopted, before M2i ships).**
 `legal/privacy-v2.md` + `PRIVACY_VERSION` in `src/lib/legal/versions.ts` — one bump, with text
