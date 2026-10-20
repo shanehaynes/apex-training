@@ -114,6 +114,9 @@ targets:
       - package: ApexKit
         product: ApexHealth
       - sdk: HealthKit.framework
+      # Voice set logging (W17): the on-device Speech adapter and its fake.
+      - package: ApexKit
+        product: ApexSpeech
       # The Live Activity extension (W12). An app-extension dependency is
       # embedded into the app bundle by XcodeGen.
       - target: ApexWidgets
@@ -197,6 +200,9 @@ targets:
         link: false
       - package: ApexKit
         product: ApexHealth
+        link: false
+      - package: ApexKit
+        product: ApexSpeech
         link: false
 
   ApexUITests:
