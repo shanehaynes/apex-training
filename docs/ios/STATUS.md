@@ -35,7 +35,7 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
    (protocol, `No…`, Fake, `SFSpeechRecognizer` adapter with on-device-only recognition),
    `TrackerServices.speech`, `-apexMockSpeech`, the two usage strings, project.yml and the
    ci-guards line, nothing user-visible — opened small so one `shipit` unblocks everything. M1 is
-   the ApexCore parser, resolver, storage formatter, the 58-case fixture and the `TrackerEditor`
+   the ApexCore parser, resolver, storage formatter, the 59-case fixture and the `TrackerEditor`
    primitives (`clearShadow`, `applySpoken`, `revert`, the replay reset), red-to-green under
    `swift test`. Acceptance and Owns per milestone: [W17 brief](workstreams/W17-voice-set-logging.md).
    Then M2 (the tracker UI, unheld) after both merge; the feature ships dark.

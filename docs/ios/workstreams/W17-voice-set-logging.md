@@ -256,9 +256,12 @@ over session names + their definition's canonical name and aliases; one → `res
 several → confirm) · **2 contained-session** (every phrase word ∈ candidate words; one →
 `resolved(contained)`, auto-applied — the target is already in today's session and its
 `definitionId` is fixed; several → confirm) · **3 near-session** (`NearMatch.distance` within the
-picker's budget → confirm, by distance then session order) · **4 exact-library** (unarchived; one →
-`resolved(scope: library)`, which the UI treats as **confirm in v1**; several → confirm) · **5 contained-library,
-near-library** (→ confirm, ≤ 3) · **6 unresolved**. No phrase → `.current`.
+picker's budget → confirm, by distance then session order) · **4 exact-library** (over
+unarchived, **set-tracked** definitions only — category neither `cardio` nor `climbing`, because
+`applySpoken` refuses those and a confirm → add → apply flow would otherwise add an empty
+unsupported exercise; one → `resolved(scope: library)`, which the UI treats as **confirm in v1**;
+several → confirm) · **5 contained-library,
+near-library** (same filter; → confirm, ≤ 3) · **6 unresolved**. No phrase → `.current`.
 
 **Scoring.** `parse(alternatives:)` keeps the best score, ties keep engine order. ok +100 / empty
 0 / invalid −100; per value +10, warm-up +2, sets>1 +2; repeat +20; resolved +30, current +20,
@@ -298,7 +301,8 @@ with `expect.intent.values` typed (`SpokenValues`). Context `upper` (lb, current
 session bench=Bench Press, squat=Back Squat, pullups=Weighted Pull-Ups, plank=Plank [duration] (every other session exercise logs [weight, reps]),
 hammer=Hammer Curl (alias Hammer Curls), dbcurl=Dumbbell Curl; library adds Front Squat, Romanian
 Deadlift (alias Stiff-Leg Deadlift), Overhead Press, Ring Dips, Lat Pulldown, Lat Pulldown (Close
-Grip), Incline Press (archived). `kg` = same with unit kg; `nocurrent` = currentExerciseId null.
+Grip), Incline Press (archived), Easy Run (cardio). `kg` = same with unit kg; `nocurrent` =
+currentExerciseId null.
 Notation: W225 = weight 225 no unit (storage `"225"`); W"105 kg" = unit spoken; D = seconds.
 
 | id | input | values | exercise | note |
@@ -361,6 +365,7 @@ Notation: W225 = weight 225 no unit (storage `"225"`); W"105 kg" = unit spoken; 
 | 56 | 5 at 225 at 12 | — | current | invalid tooManyNumbers (R7) |
 | 57 | 5 at 225 rpe 12 | R5 W225 | current | ok, rpe dropped, problems [rpeOutOfRange] |
 | 58 | five and a half reps | — | current | invalid repsNotInteger |
+| 59 | easy run 20 minutes | D1200 | unresolved "easy run" | cardio definition excluded from the library tiers |
 
 Acceptance:
 - [ ] `swift test --package-path ios/Packages/ApexCore` green on Linux CI and a Mac; `npm run agent:check` green (ApexCore imports clean).
@@ -405,7 +410,12 @@ holding the methods only — Swift extensions cannot add stored properties):
   `needsConfirmation` → `.confirming` (values kept, applied on tap); `unresolved` → `.unresolved`
   (Pick… opens `ExercisePickerSheet(initialQuery:)`); `empty`/`invalid` →
   `.failed("Didn't catch a set — try 'bench 225 for 5'")`.
-- `undoSpoken()` → `editor.revert`, `skipRest()` if it started one, one `scheduleSave()`. The
+- `undoSpoken()` → `editor.revert`, then `rest = restBefore` — the `RestTimer` value captured just
+  before the apply (a value type, so the snapshot restores the active timer *and* the
+  committed-row bookkeeping: a rest the apply started stops, a rest that was running before
+  resumes, and `startedRows` no longer holds the reverted rows, so logging the same row again
+  starts its rest; `skipRest()` alone would leave the row in `startedRows`) → `restChanged()`,
+  one `scheduleSave()`. The `.applied` state carries `restBefore` beside `VoiceApplied`. The
   Undo offer ends on the next logged set (voice or any typed edit to an applied key), the next
   mic tap, or **15 s**; it never auto-dismisses while VoiceOver is running.
 - Journal: `VoiceJournal` (ApexCore struct + a file-backed store in ApexPersistence, ring of ≤ 200
@@ -433,7 +443,7 @@ holding the methods only — Swift extensions cannot add stored properties):
   `you-training-voice`.
 
 Acceptance:
-- [ ] `TrackerModelTests` (over `make(…)` with `speech:` injected): first empty planned set filled and ghost cleared (`focusSet` then returns false); extra when none empty; `sets: 3` planned then extra; `repeat`; library hit → `.confirming`, tap adds + logs, Undo removes both; nil/`.failed` for cardio, pitch, finished; `loggedSetCount` +1 per utterance; save body carries `"actual_weight":"225"` bare and `"100 kg"` when spoken; rest starts on reps; undo skips a rest it started; undo before the flush sends nothing for the key, after the flush sends a delete; Undo ends on a typed edit to the key, the next apply, the next mic tap, 15 s.
+- [ ] `TrackerModelTests` (over `make(…)` with `speech:` injected): first empty planned set filled and ghost cleared (`focusSet` then returns false); extra when none empty; `sets: 3` planned then extra; `repeat`; library hit → `.confirming`, tap adds + logs, Undo removes both; nil/`.failed` for cardio, pitch, finished; `loggedSetCount` +1 per utterance; save body carries `"actual_weight":"225"` bare and `"100 kg"` when spoken; rest starts on reps; undo restores the rest state captured before the apply (a rest it started stops, a rest that was already running resumes, and re-logging the reverted row starts its rest again); undo before the flush sends nothing for the key, after the flush sends a delete; Undo ends on a typed edit to the key, the next apply, the next mic tap, 15 s.
 - [ ] End-of-utterance tests over `TestClock` and the step-wise Fake: 5 s no-speech; 1.0 / 1.5 / 2.0 s windows; 8 s cap; second tap; final deadline falls back to the last partial; background/gate/interruption cancel with nothing applied; `finalToApplied` ≤ 100 ms.
 - [ ] `VoiceLogStateTests`: denied; unavailable → no mic; dictation-disabled and assets-missing → Settings line; partials → transcript; exact → `.applied`; near → `.confirming` keeping values; unresolved; empty/invalid → `.failed`; `.current` with no current → `.confirming` ≤ 4; `biases[0]` names-first, ≤ 100, no common words.
 - [ ] `VoiceJournalTests`: ring ≤ 200, fields present, no audio bytes, JSON export round-trips.
@@ -579,7 +589,7 @@ Forbidden: `ios/Packages/ApexCore/**` (M1's), `TrackerModel.swift`/`TrackerScree
 `src/`, `vercel.json`, `PrivacyInfo.xcprivacy`, the entitlements, `legal/`. Mac session; opens
 the PR without the label — Shane grants `shipit`.
 **M1 — the parser** can run in parallel in its own worktree. Goal: the types, tokenizer,
-numbers, slot rules, resolution tiers, scoring, `VoiceStorage`, the fixture with all 58 cases and
+numbers, slot rules, resolution tiers, scoring, `VoiceStorage`, the fixture with all 59 cases and
 the editor primitives (`clearShadow`, `applySpoken`, `revert`, `currentExercise`, the replay
 reset), red-to-green. Acceptance: the eight M1 boxes. Owns: `ios/Packages/ApexCore/Sources/ApexCore/Tracker/Voice/`
 (new), `ApexCore/Tracker/TrackerEditor.swift` (additive), `ApexCore/Library/NearMatch.swift`,
