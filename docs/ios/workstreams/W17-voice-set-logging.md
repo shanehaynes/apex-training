@@ -2,7 +2,7 @@
 
 **Machine:** both (M1 Linux-able · PR-H and M2 Mac · M3 Shane's device) · **Depends on:** W4
 (tracker + write queue), #466 (`Weight`) · **Unblocks:** —
-**Status:** M2 in review (PR pending, `feat/w17-voice-logging`, stacked on PR-H #480 and M1) — PR-H #480 held for `shipit`; M1 `feat/w17-voice-parser` in review; brief drafted 2026-10-20 (D-059)
+**Status:** M2 in review (PR #484, `feat/w17-voice-logging`, stacked on PR-H #480 and M1) — PR-H #480 held for `shipit`; M1 `feat/w17-voice-parser` in review; brief drafted 2026-10-20 (D-059)
 **Owns:** `ios/Packages/ApexCore/Sources/ApexCore/Tracker/Voice/` (new),
 `ApexCore/Tracker/TrackerEditor.swift`, `ApexCore/Library/NearMatch.swift`, `ApexCore/Package.swift` (one
 `exclude` line), `ios/Packages/ApexCore/Tests/ApexCoreTests/`, `ios/Packages/ApexKit/Sources/ApexSpeech/` (new),
@@ -576,7 +576,7 @@ journal.
   column for any value), a contested "225 45" case, a shared exact-match helper, HFP and the
   iOS 26 adapter in v1, pre-warming the engine. No code. PR-H and M1 proposed as parallel lanes.
 
-- 2026-10-20 · Mac · **M2 built** on `feat/w17-voice-logging` (branched from main with PR-H #480 and M1
+- 2026-10-20 · Mac · **M2 built** on `feat/w17-voice-logging` → PR #484 (branched from main with PR-H #480 and M1
   `feat/w17-voice-parser` merged in; the merged base built and tested green before a line of M2 was
   written). `VoiceLogState` + `TrackerModel+Voice.swift` (tap, both sheets, the listen, the
   end-of-utterance policy as a 100 ms real-time tick that reads the injected clock — `voiceTick()` is

@@ -26,13 +26,13 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
 | W14 | UX review implementation | done (#283–#292, #296, #297) | Mac | ux-review.md §7; decisions D-037…D-044; **TestFlight build 8 (0.9.0/424) uploaded 2026-09-22 by the first `testflight.yml` run**; snapshots re-recorded on the iPhone 17 (#300); Shane's device run on build 8 is next |
 | W15 | Connector access level (look-only / full tokens) | done (#379) | Mac | after #371/#376 gave `/api/mcp` write access; brief [W15](workstreams/W15-connector-access.md) |
 | W16 | Apple Health (write, read workouts, daily metrics, body weight, meals) | M1 (#430) + MT (#438) shipped in TestFlight 1.1.0 (561); M0 landed (phase59, #469); M2b landed (#472); M3b in review; privacy bump, then M2i next | both | D-056 supersedes D-018; M1 (write, no migration) merges after 1.0 is approved and ships as 1.1; MT (in-app terms re-acceptance) gates the privacy bump; brief [W16](workstreams/W16-apple-health.md) |
-| W17 | Voice set logging (on-device Speech, no LLM) | PR-H in review (#480, held for `shipit`); M1 in review (`feat/w17-voice-parser`); M2 in review (`feat/w17-voice-logging`, PR pending, stacked on both) | both | D-059; Swift parser on a JSON fixture, Undo, ships dark behind `apex.tracker.voice`; after the three merge: TestFlight with the toggle on, then M3 dogfood; brief [W17](workstreams/W17-voice-set-logging.md) |
+| W17 | Voice set logging (on-device Speech, no LLM) | PR-H in review (#480, held for `shipit`); M1 in review (`feat/w17-voice-parser`); M2 in review (#484, stacked on both) | both | D-059; Swift parser on a JSON fixture, Undo, ships dark behind `apex.tracker.voice`; after the three merge: TestFlight with the toggle on, then M3 dogfood; brief [W17](workstreams/W17-voice-set-logging.md) |
 
 ## Next up
 0. **W17 — land the three lanes, then TestFlight with the toggle on, then M3.** All three are
    open: PR-H #480 (HELD — Shane's `shipit`; the two usage strings are the only prose Apple sees),
    M1 `feat/w17-voice-parser` (the parser, resolver, formatter, fixture and editor primitives,
-   unheld), M2 `feat/w17-voice-logging` (the tracker UI, unheld, stacked on both: it merges last,
+   unheld), M2 #484 (the tracker UI, unheld, stacked on both: it merges last,
    after `git merge origin/main`). Then a TestFlight build with You → Training → *Log sets by voice*
    on, and Shane's device run: #480's SDK pins (none verified yet — the 15 Pro was not connected)
    and the M3 scorecard's `*` rows (the first mic tap's two sheets, the orange indicator, a call
