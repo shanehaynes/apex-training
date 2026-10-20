@@ -7,7 +7,8 @@
 #
 # Covers: is main green, is the shared local stack current, do production's
 # auth redirects still reach the public app, does production's database have
-# every table, column and function main's code expects, is the primary checkout
+# every table, column and function main's code expects, how close open
+# sign-up is to its daily mail cap, is the primary checkout
 # still on main and clean, what git-tidy would clean, which worktrees look
 # abandoned, and where every open PR sits in the merge loop
 # (scripts/merge-babysit.sh runs that loop).
@@ -176,6 +177,24 @@ else
     0|2) ;;
     1) echo "ACTION production's database is behind main — apply what is named above (missing objects, unapplied or edited migrations) in the Supabase SQL Editor, in phase order; requests that touch a missing object 500 until then" ;;
     *) echo "ACTION scripts/prod-schema-check.mjs failed (exit $schema_code) — production schema drift goes unchecked until it is fixed" ;;
+  esac
+fi
+
+echo
+echo "── open sign-up"
+# Today's /api/signup mails against the daily cap (docs/specs/open-signup.md
+# M2). At the cap, sign-up refuses everyone until UTC midnight — a bot wave
+# or a real rush; either way a human should look. Same credentials and the
+# same 2-is-status rule as the schema check above.
+if [ ! -f scripts/signup-cap-check.mjs ]; then
+  echo "   signup-cap-check.mjs not in this checkout — skipped"
+else
+  cap_out=$(node scripts/signup-cap-check.mjs 2>&1); cap_code=$?
+  printf '%s\n' "$cap_out" | sed 's/^/   /'
+  case $cap_code in
+    0|2) ;;
+    1) echo "ACTION open sign-up hit its daily mail cap — sign-ups are refused until UTC midnight; check Vercel logs for [signup] and SIGNUP-DAILY-CAP (bot wave or real demand?) before raising MAILS_PER_DAY in api/_lib/handlers/signup.ts" ;;
+    *) echo "ACTION scripts/signup-cap-check.mjs failed (exit $cap_code) — the sign-up cap goes unwatched until it is fixed" ;;
   esac
 fi
 
