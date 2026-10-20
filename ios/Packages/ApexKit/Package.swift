@@ -29,6 +29,7 @@ let package = Package(
         .library(name: "ApexFeatures", targets: ["ApexFeatures"]),
         .library(name: "ApexActivity", targets: ["ApexActivity"]),
         .library(name: "ApexHealth", targets: ["ApexHealth"]),
+        .library(name: "ApexSpeech", targets: ["ApexSpeech"]),
     ],
     dependencies: [
         .package(path: "../ApexCore"),
@@ -67,7 +68,7 @@ let package = Package(
             name: "ApexFeatures",
             dependencies: [
                 .product(name: "ApexCore", package: "ApexCore"),
-                "ApexUI", "ApexAuth", "ApexPersistence", "ApexActivity", "ApexHealth",
+                "ApexUI", "ApexAuth", "ApexPersistence", "ApexActivity", "ApexHealth", "ApexSpeech",
             ],
             swiftSettings: [.swiftLanguageMode(.v6), .defaultIsolation(MainActor.self)]
         ),
@@ -89,6 +90,16 @@ let package = Package(
         // and M2's observers run there. The widget never links it.
         .target(
             name: "ApexHealth",
+            dependencies: [.product(name: "ApexCore", package: "ApexCore")],
+            swiftSettings: [.swiftLanguageMode(.v6)]
+        ),
+        // Voice set logging (W17, D-059): Apple's on-device Speech recognizer
+        // behind `SpeechRecognizing`, its fake, and the `No…` default the
+        // tracker services start with. ApexCore only, and not
+        // MainActor-isolated: audio buffers and recognition results arrive
+        // off the main thread. The widget never links it.
+        .target(
+            name: "ApexSpeech",
             dependencies: [.product(name: "ApexCore", package: "ApexCore")],
             swiftSettings: [.swiftLanguageMode(.v6)]
         ),

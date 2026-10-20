@@ -86,6 +86,13 @@
 	<string>Apex saves the workouts you finish in the tracker to Apple Health, with their real start and end times, so they show up in Health and Fitness.</string>
 	<key>NSHealthShareUsageDescription</key>
 	<string>If you turn it on under You › Apple Health, Apex reads the workouts recorded by your watch and other apps so they fill in the matching sessions on your training calendar.</string>
+	<!-- W17: voice set logging (D-059). Recognition runs on the device only
+	     (requiresOnDeviceRecognition); nothing said leaves the phone. Both
+	     sheets show on the first mic tap in the tracker, never at launch. -->
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Apex turns what you say — “bench 225 for 5” — into a logged set using your iPhone’s on-device speech recognition. Apex only asks for on-device recognition and never uploads audio.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Apex listens after you tap the mic button in the tracker, so a set can be logged without touching the keyboard.</string>
 	<!-- The web hand-off button (D-020); consumed in W2. -->
 	<key>CFBundleURLTypes</key>
 	<array>

@@ -21,6 +21,7 @@ uploaded build. Answer **"Yes, we collect data from this app"**, then:
 | User Content → Other User Content | Yes | Yes | No | App Functionality (coach chat, goal and context text) |
 | Identifiers → User ID | Yes | Yes | No | App Functionality (the account id every row is keyed by) |
 | Health & Fitness → Health | **No** | | | From 1.1 the app *writes* finished workouts to HealthKit (W16 M1, D-056) but reads nothing from it, so nothing is collected. Flips to Yes when W16 M2 reads workouts |
+| User Content → Audio Data | **No** | | | W17 logs sets by voice with on-device speech recognition (D-059); audio is processed on the device only, never recorded, stored or sent; the logged set is the fitness data already declared |
 | Location | **No** | | | A watch activity's route is stored as the provider sent it; the app never asks for location |
 | Diagnostics, Usage Data, Purchases, Financial Info, Browsing, Search | **No** | | | None collected; no analytics SDK, no crash reporter |
 
