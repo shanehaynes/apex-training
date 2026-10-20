@@ -80,10 +80,12 @@ final class VoiceStorageTests: XCTestCase {
             XCTAssertEqual(values.weight?.value, 225, word)
             XCTAssertNil(values.reps, "\(word) never became reps")
         }
-        // Between two numbers a homophone is noise, not a value: 5 and 225 stay a bare pair.
+        // Between two numbers a homophone is a word, not a value: 5 and 225 stay a bare pair,
+        // and the word is a name nobody knows rather than a number.
         for word in ["to", "too", "won", "ate"] {
             let parse = VoiceParser.parse("5 \(word) 225", context: upper)
-            XCTAssertEqual(parse.ignored, [word])
+            XCTAssertEqual(parse.exercise, .unresolved(phrase: word))
+            XCTAssertEqual(parse.ignored, [])
             guard case .log(_, let values) = parse.intent else { return XCTFail("5 \(word) 225 should log") }
             XCTAssertEqual(values.weight?.value, 225, word)
             XCTAssertEqual(values.reps, 5, word)

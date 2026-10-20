@@ -587,7 +587,13 @@ public struct TrackerEditor: Sendable, Equatable {
                   groups[g].exercises[e].cardio != nil else { continue }
             cardioLogs.append(Self.cardioToRow(session: session, tracked: groups[g].exercises[e]))
         }
-        let payload = SavePayload(setLogs: setLogs, cardioLogs: cardioLogs, removedSets: removedSets)
+        // A key written again after its removal was recorded (an undone spoken
+        // set re-applied or typed over; an extra removed and re-added under
+        // the same number) is an upsert, not a delete: the server runs both
+        // lists in one unordered batch, and the queue's own merge already
+        // reads "a later upsert revives a removed key" (`SavePayload.merging`).
+        let upserted = Set(setLogs.map(\.key))
+        let payload = SavePayload(setLogs: setLogs, cardioLogs: cardioLogs, removedSets: removedSets.filter { !upserted.contains($0) })
         dirtySets = []
         dirtyCardio = []
         removedSets = []

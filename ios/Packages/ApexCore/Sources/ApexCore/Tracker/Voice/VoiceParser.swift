@@ -6,9 +6,13 @@ import Foundation
 /// best score wins and ties keep the engine's order.
 public enum VoiceParser {
     public static func parse(_ transcript: String, context: VoiceContext) -> SpokenParse {
+        parse(transcript, context: context, catalog: VoiceExercise.Catalog(context: context))
+    }
+
+    static func parse(_ transcript: String, context: VoiceContext, catalog: VoiceExercise.Catalog) -> SpokenParse {
         let tokens = VoiceTokens.tokenize(transcript)
-        let phrase = VoiceSlots.extractPhrase(tokens)
-        let exercise = phrase.map { VoiceExercise.resolveExercisePhrase($0.text, context: context) } ?? .current
+        let phrase = VoiceSlots.extractPhrase(tokens, knownKeys: catalog.knownKeys)
+        let exercise = phrase.map { VoiceExercise.resolve($0.text, in: catalog) } ?? .current
         let hint: [SetField]
         switch exercise {
         case .current:
@@ -18,7 +22,7 @@ public enum VoiceParser {
         default:
             hint = []
         }
-        let slots = VoiceSlots.assignSlots(tokens, phrase: phrase?.range, hint: hint)
+        let slots = VoiceSlots.assignSlots(tokens, phrase: phrase?.tokens, hint: hint)
 
         let status: SpokenParse.Status
         let intent: SpokenIntent?
@@ -46,9 +50,10 @@ public enum VoiceParser {
     /// The recognizer's alternatives, best score first; an equal score keeps
     /// the earlier (the engine's own ranking). No alternatives parse as "".
     public static func parse(alternatives: [String], context: VoiceContext) -> SpokenParse {
+        let catalog = VoiceExercise.Catalog(context: context)
         var best: SpokenParse?
         for (index, alternative) in alternatives.enumerated() {
-            var parse = parse(alternative, context: context)
+            var parse = parse(alternative, context: context, catalog: catalog)
             parse.chosen = index
             if best.map({ parse.score > $0.score }) ?? true { best = parse }
         }

@@ -120,14 +120,22 @@ public enum VoiceTokens {
         return [VoiceToken(text: text, kind: .word)]
     }
 
+    /// No lifter says a number of more than this many whole digits; past it a
+    /// digit string is a word, so no later arithmetic can overflow.
+    static let maxWholeDigits = 9
+    /// The first part of a clock, likewise.
+    static let maxClockDigits = 4
+
     /// `Weight`'s comma rule, then a plain decimal.
     static func number(_ text: String) -> Double? {
         let parts = text.split(separator: ",", omittingEmptySubsequences: false)
         if parts.count == 2, parts[1].count == 3, parts[1].allSatisfy(isDigit) {
+            guard parts[0].count + 3 <= maxWholeDigits else { return nil }
             return Double(parts.joined())
         }
         let decimal = text.replacingOccurrences(of: ",", with: ".")
-        guard decimal.filter({ $0 == "." }).count <= 1, decimal.first != ".", decimal.last != "." else { return nil }
+        guard decimal.filter({ $0 == "." }).count <= 1, decimal.first != ".", decimal.last != ".",
+              decimal.prefix(while: isDigit).count <= maxWholeDigits else { return nil }
         return Double(decimal)
     }
 
@@ -136,6 +144,7 @@ public enum VoiceTokens {
         let parts = text.split(separator: ":", omittingEmptySubsequences: false)
         guard parts.count == 2 || parts.count == 3,
               parts.allSatisfy({ !$0.isEmpty && $0.allSatisfy(isDigit) }),
+              parts[0].count <= maxClockDigits,
               parts.dropFirst().allSatisfy({ $0.count <= 2 }),
               let first = Int(parts[0]), let second = Int(parts[1]) else { return nil }
         let third = parts.count == 3 ? Int(parts[2]) : nil

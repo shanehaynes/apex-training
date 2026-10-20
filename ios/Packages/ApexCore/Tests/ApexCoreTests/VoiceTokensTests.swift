@@ -33,6 +33,9 @@ final class VoiceTokensTests: XCTestCase {
         XCTAssertEqual(kinds("45 s"), [.number(45), .word])
         XCTAssertEqual(texts("1st"), ["1", "st"])
         XCTAssertEqual(kinds("5lb5"), [.word], "digits after the letters make it no number")
+        XCTAssertEqual(kinds("1234567890"), [.word], "ten whole digits is a word")
+        XCTAssertEqual(kinds("123456789.5"), [.number(123456789.5)])
+        XCTAssertEqual(kinds("1234567890lbs"), [.word])
     }
 
     func testApostrophesVanishAndHyphensSeparate() {

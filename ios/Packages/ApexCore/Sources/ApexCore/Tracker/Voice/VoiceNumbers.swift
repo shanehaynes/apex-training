@@ -128,6 +128,8 @@ public enum VoiceNumbers {
                 default: return finish(total, group, i - index, last)
                 }
             } else if w == "hundred" {
+                // Chains past a million are noise, and bounded so nothing overflows.
+                guard group < 10_000 else { break }
                 switch last {
                 case .hundred, .thousand: return finish(total, group, i - index, last)
                 case .none: group = 100
@@ -136,6 +138,7 @@ public enum VoiceNumbers {
                 last = .hundred
             } else if w == "thousand" {
                 if last == .thousand { break }
+                guard group < 1_000_000, total < 1_000_000_000 else { break }
                 total += (group == 0 ? 1 : group) * 1000
                 group = 0
                 last = .thousand
@@ -195,13 +198,19 @@ public enum VoiceNumbers {
             return (30, 3)
         }
         if articles.contains(first), let unit = word(tokens, index + 1), minuteWords.contains(unit) {
-            if word(tokens, index + 2) == "and", let a = word(tokens, index + 3), articles.contains(a), word(tokens, index + 4) == "half" {
-                return (90, 5)
-            }
+            if let fraction = fractionOfAMinute(tokens, at: index + 2) { return (60 + fraction.seconds, 2 + fraction.length) }
             let (extra, length) = trailingSeconds(tokens, at: index + 2)
             return (60 + extra, 2 + length)
         }
         return readCountedDuration(tokens, at: index)
+    }
+
+    /// "and a half" (30 s) or "and a quarter" (15 s) after a minutes unit.
+    private static func fractionOfAMinute(_ tokens: [VoiceToken], at index: Int) -> (seconds: Int, length: Int)? {
+        guard word(tokens, index) == "and", let a = word(tokens, index + 1), articles.contains(a), let part = word(tokens, index + 2) else { return nil }
+        if part == "half" { return (30, 3) }
+        if part == "quarter" { return (15, 3) }
+        return nil
     }
 
     /// `N minutes [M [seconds]]` or `N seconds`, N digits or words, maybe fractional.
@@ -211,8 +220,12 @@ public enum VoiceNumbers {
         // A pasted twenty-digit number is still "a duration" here; it is
         // clamped so the Int conversion cannot trap, and scored down later.
         if minuteWords.contains(unit) {
+            let minutes = Int(min((n.value * 60).rounded(), 1e9))
+            if let fraction = fractionOfAMinute(tokens, at: index + n.length + 1) {
+                return (minutes + fraction.seconds, n.length + 1 + fraction.length)
+            }
             let (extra, length) = trailingSeconds(tokens, at: index + n.length + 1)
-            return (Int(min((n.value * 60).rounded(), 1e9)) + extra, n.length + 1 + length)
+            return (minutes + extra, n.length + 1 + length)
         }
         if secondWords.contains(unit) {
             return (Int(min(n.value.rounded(), 1e9)), n.length + 1)

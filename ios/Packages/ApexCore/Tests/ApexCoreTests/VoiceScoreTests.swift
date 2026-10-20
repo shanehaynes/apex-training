@@ -31,9 +31,12 @@ final class VoiceScoreTests: XCTestCase {
         XCTAssertEqual(score("warm up 5 at 225"), score("5 at 225") + 2)
         XCTAssertEqual(score("3 x 5 at 225"), score("5 at 225") + 2)
         XCTAssertEqual(score("again"), 100 + 20 + 20, "ok, repeat, current")
-        let noisy = VoiceParser.parse("5 zzz at 225", context: upper)
-        XCTAssertEqual(noisy.ignored, ["zzz"])
+        let noisy = VoiceParser.parse("5 at 225 half", context: upper)
+        XCTAssertEqual(noisy.ignored, ["half"], "a keyword no rule consumed")
         XCTAssertEqual(noisy.score, score("5 at 225") - 5)
+        let named = VoiceParser.parse("5 zzz at 225", context: upper)
+        XCTAssertEqual(named.exercise, .unresolved(phrase: "zzz"), "a plain word is a name, never noise")
+        XCTAssertEqual(named.ignored, [])
         XCTAssertEqual(score("10 20"), score("10 at 20") - 3, "a soft problem costs three")
     }
 

@@ -29,9 +29,17 @@ public enum VoiceExercise {
         }
         if !current.isEmpty { raw.append(current) }
         var words: [String] = []
+        var skip = false
         for (i, word) in raw.enumerated() {
-            // "chin ups" is already spelled out; only a lone "chin(s)" expands.
+            if skip { skip = false; continue }
             let next = i + 1 < raw.count ? raw[i + 1] : ""
+            // "body weight" is one word of a name ("Bodyweight Squat"), however it was split.
+            if word == "body", next == "weight" {
+                words.append("bodyweight")
+                skip = true
+                continue
+            }
+            // "chin ups" is already spelled out; only a lone "chin(s)" expands.
             let expanded = (word == "chin" || word == "chins") && (next == "up" || next == "ups") ? word : wordShorthand[word] ?? word
             for part in expanded.split(separator: " ") { words.append(singularise(String(part))) }
         }
@@ -117,12 +125,32 @@ public enum VoiceExercise {
         }
     }
 
+    /// Everything one utterance resolves against, built once per utterance:
+    /// the candidates per tier and every key a known name answers to, which
+    /// `VoiceSlots.extractPhrase` uses to recognise a name whose words are
+    /// also keywords ("bodyweight squat", "quarter squat", "log press").
+    struct Catalog {
+        let session: [Candidate]
+        let library: [Candidate]
+        let knownKeys: Set<String>
+
+        init(context: VoiceContext) {
+            session = sessionCandidates(context)
+            library = libraryCandidates(context)
+            knownKeys = Set((session + library).flatMap(\.keys))
+        }
+    }
+
     /// The tiers, for a phrase that has already been separated from the values.
     public static func resolveExercisePhrase(_ phrase: String, context: VoiceContext) -> SpokenExercise {
+        resolve(phrase, in: Catalog(context: context))
+    }
+
+    static func resolve(_ phrase: String, in catalog: Catalog) -> SpokenExercise {
         let words = voiceWords(phrase)
         let key = voiceKey(phrase)
         guard !words.isEmpty else { return .current }
-        let session = sessionCandidates(context)
+        let session = catalog.session
 
         let exactSession = session.filter { $0.isExact(key) }
         if exactSession.count == 1 { return .resolved(scope: .session, id: exactSession[0].id, name: exactSession[0].name, match: .exact) }
@@ -141,7 +169,7 @@ public enum VoiceExercise {
             return .needsConfirmation(phrase: phrase, candidates: ordered.map { $0.element.0.spoken(.near, distance: $0.element.1) })
         }
 
-        let library = libraryCandidates(context)
+        let library = catalog.library
         let exactLibrary = library.filter { $0.isExact(key) }
         if exactLibrary.count == 1 { return .resolved(scope: .library, id: exactLibrary[0].id, name: exactLibrary[0].name, match: .exact) }
         if exactLibrary.count > 1 { return .needsConfirmation(phrase: phrase, candidates: exactLibrary.map { $0.spoken(.exact) }) }
