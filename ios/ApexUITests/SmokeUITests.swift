@@ -124,6 +124,21 @@ final class SmokeUITests: XCTestCase {
         XCTAssertTrue(submit.isEnabled)
         attach(app, name: "01b-create-account")
 
+        // Age alone is not enough either.
+        flip(app.switches["signup.terms"])
+        XCTAssertFalse(submit.isEnabled, "the 18+ toggle alone must not be enough")
+        flip(app.switches["signup.terms"])
+        XCTAssertTrue(submit.isEnabled)
+
+        // Consent is per visit to the form: Sign in and back resets both.
+        mode.buttons["Sign in"].tap()
+        mode.buttons["Create account"].tap()
+        XCTAssertEqual(app.switches["signup.terms"].value as? String, "0")
+        XCTAssertEqual(app.switches["signup.age"].value as? String, "0")
+        XCTAssertFalse(submit.isEnabled)
+        flip(app.switches["signup.terms"])
+        flip(app.switches["signup.age"])
+
         submit.tap()
         XCTAssertTrue(app.otherElements["signup.check"].waitForExistence(timeout: 10)
             || app.navigationBars["Quick check"].waitForExistence(timeout: 5), "the human check did not open")
