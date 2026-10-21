@@ -25,6 +25,9 @@ let package = Package(
         .testTarget(
             name: "ApexCoreTests",
             dependencies: ["ApexCore"],
+            // Hand-authored JSON the tests read by path (TestFixtures.local);
+            // not a resource, so SwiftPM must not try to build it.
+            exclude: ["Fixtures"],
             swiftSettings: [.swiftLanguageMode(.v6)]
         ),
     ]

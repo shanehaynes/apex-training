@@ -26,7 +26,7 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
 | W14 | UX review implementation | done (#283–#292, #296, #297) | Mac | ux-review.md §7; decisions D-037…D-044; **TestFlight build 8 (0.9.0/424) uploaded 2026-09-22 by the first `testflight.yml` run**; snapshots re-recorded on the iPhone 17 (#300); Shane's device run on build 8 is next |
 | W15 | Connector access level (look-only / full tokens) | done (#379) | Mac | after #371/#376 gave `/api/mcp` write access; brief [W15](workstreams/W15-connector-access.md) |
 | W16 | Apple Health (write, read workouts, daily metrics, body weight, meals) | M1 (#430) + MT (#438) shipped in TestFlight 1.1.0 (561); M0 landed (phase59, #469); M2b landed (#472); M3b in review; privacy bump, then M2i next | both | D-056 supersedes D-018; M1 (write, no migration) merges after 1.0 is approved and ships as 1.1; MT (in-app terms re-acceptance) gates the privacy bump; brief [W16](workstreams/W16-apple-health.md) |
-| W17 | Voice set logging (on-device Speech, no LLM) | ready — brief drafted 2026-10-20 | both | D-059; Swift parser on a JSON fixture, Undo, ships dark behind `apex.tracker.voice`; PR-H (held plumbing) ∥ M1 (parser) → M2 (tracker UI) → M3 dogfood; brief [W17](workstreams/W17-voice-set-logging.md) |
+| W17 | Voice set logging (on-device Speech, no LLM) | in progress — M1 #483 open, PR-H in flight (2026-10-20) | both | D-059; Swift parser on a JSON fixture, Undo, ships dark behind `apex.tracker.voice`; PR-H (held plumbing) ∥ M1 (parser) → M2 (tracker UI) → M3 dogfood; brief [W17](workstreams/W17-voice-set-logging.md) |
 
 ## Next up
 0. **W17 PR-H and M1 — voice set logging, the two parallel first lanes (PR-H Mac + HELD, M1 any).**
@@ -38,6 +38,7 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
    the ApexCore parser, resolver, storage formatter, the 59-case fixture and the `TrackerEditor`
    primitives (`clearShadow`, `applySpoken`, `revert`, the replay reset), red-to-green under
    `swift test`. Acceptance and Owns per milestone: [W17 brief](workstreams/W17-voice-set-logging.md).
+   M1 is open as #483 (2026-10-20, 100 fixture cases, two review rounds); PR-H remains.
    Then M2 (the tracker UI, unheld) after both merge; the feature ships dark.
 0. **W16 M2i — iOS reads Health workouts (Mac), after the privacy bump.** Goal: a Watch,
    Garmin-via-Health or Whoop-via-Health workout reaches the server as provider `apple` (M2b,
@@ -155,6 +156,13 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
   (`project.yml`, HELD). SmokeUITests now passes signed (20/20) as well as unsigned. It dismisses
   the "Save Password?" sheet that the signed app's `webcredentials` brings, only when its bundle
   is signed, and the live test signs out in its teardown. How-to in ios/CLAUDE.md.
+- 2026-10-20 · W17 M1 · Mac (Linux-shaped). The voice parser, resolver, storage formatter and the
+  `TrackerEditor` primitives (`clearShadow`, `applySpoken`, `revert`, `currentExercise`, the replay
+  reset) landed in ApexCore as #483 (unheld): 100 fixture cases (the brief's 59 plus 41 authored,
+  ratchet 100), two reviewer rounds folded in — a keyword-hidden name no longer auto-applies to the
+  current exercise, an undone key never goes out as upsert and delete in one save — `swift test`
+  641 and `agent:check` green on the Mac; Linux is the PR's job. PR-H (held) runs in parallel; M2
+  after both merge.
 - 2026-10-20 · W17 brief · Mac. Voice set logging planned and decided (D-059): on-device Speech
   only, a deterministic Swift parser on a JSON fixture in ApexCore, log-with-Undo for session
   exercises, confirm-first for near, unknown and library names, ships dark behind

@@ -419,9 +419,25 @@ public struct TrackerEditor: Sendable, Equatable {
     public mutating func apply(_ payload: SavePayload) {
         for key in payload.removedSets {
             if let (g, e, s) = locate(key) {
-                groups[g].exercises[e].sets.remove(at: s)
-                if groups[g].exercises[e].added, !groups[g].exercises[e].isCardio, groups[g].exercises[e].sets.isEmpty {
-                    dropExercise(group: g, exercise: e)
+                if groups[g].exercises[e].sets[s].isExtra {
+                    groups[g].exercises[e].sets.remove(at: s)
+                    if groups[g].exercises[e].added, !groups[g].exercises[e].isCardio, groups[g].exercises[e].sets.isEmpty {
+                        dropExercise(group: g, exercise: e)
+                    }
+                } else {
+                    // A planned row is never removed: an undone spoken set
+                    // (`revert`, W17) records the row's deletion, and on a
+                    // relaunch that row comes back planned-empty — its plan,
+                    // resolved load and ghost intact — not gone.
+                    var set = groups[g].exercises[e].sets[s]
+                    set.actualWeight = ""
+                    set.actualReps = ""
+                    set.actualDuration = ""
+                    set.isLogged = false
+                    set.isAutofilled = false
+                    set.rpe = nil
+                    set.isWarmup = nil
+                    groups[g].exercises[e].sets[s] = set
                 }
             } else if Self.isAddedExerciseId(key.exerciseId), let (g, e) = locate(section: key.section, exerciseId: key.exerciseId),
                       groups[g].exercises[e].isCardio {
@@ -571,7 +587,13 @@ public struct TrackerEditor: Sendable, Equatable {
                   groups[g].exercises[e].cardio != nil else { continue }
             cardioLogs.append(Self.cardioToRow(session: session, tracked: groups[g].exercises[e]))
         }
-        let payload = SavePayload(setLogs: setLogs, cardioLogs: cardioLogs, removedSets: removedSets)
+        // A key written again after its removal was recorded (an undone spoken
+        // set re-applied or typed over; an extra removed and re-added under
+        // the same number) is an upsert, not a delete: the server runs both
+        // lists in one unordered batch, and the queue's own merge already
+        // reads "a later upsert revives a removed key" (`SavePayload.merging`).
+        let upserted = Set(setLogs.map(\.key))
+        let payload = SavePayload(setLogs: setLogs, cardioLogs: cardioLogs, removedSets: removedSets.filter { !upserted.contains($0) })
         dirtySets = []
         dirtyCardio = []
         removedSets = []
@@ -635,6 +657,135 @@ public struct TrackerEditor: Sendable, Equatable {
         return order
     }
 
+    // MARK: - Voice (W17, D-059)
+
+    /// Drop a row's ghost without committing it and without marking the row
+    /// dirty — `commitShadow(at:fields:)` does both, which is not what a
+    /// spoken set wants: its own values replace the suggestion, and nothing
+    /// that was not said is logged. False when there was no ghost.
+    @discardableResult
+    public mutating func clearShadow(at key: SetKey) -> Bool {
+        guard let (g, e, s) = locate(key), groups[g].exercises[e].sets[s].shadow != nil else { return false }
+        groups[g].exercises[e].sets[s].shadow = nil
+        return true
+    }
+
+    /// A spoken set through the typed path. The first row with no actuals
+    /// (a ghost-only row counts) takes the values, else a new extra does;
+    /// `sets > 1` spans the next empty rows, then extras; `repeat` copies the
+    /// last row that has actuals. Every field is written with `setValue` and
+    /// `VoiceStorage`'s text, so the save row is what typing would have sent,
+    /// and only fields that were said are written — a column the plan did not
+    /// name simply appears (`inputFields`). Nil, and nothing changed, for a
+    /// cardio row, a climbing pitch, an unknown exercise, or a repeat with
+    /// nothing to repeat.
+    public mutating func applySpoken(_ intent: SpokenIntent, section: String, exerciseId: String, unit: Weight.Unit?) -> VoiceApplied? {
+        guard let (g, e) = locate(section: section, exerciseId: exerciseId) else { return nil }
+        let tracked = groups[g].exercises[e]
+        guard !tracked.isCardio, tracked.cardio == nil, tracked.exercise.category != "climbing" else { return nil }
+
+        let count: Int
+        let text: VoiceStorage.Text
+        let warmup: Bool
+        switch intent {
+        case .log(let sets, let values):
+            count = max(1, sets)
+            text = VoiceStorage.text(for: values, unit: unit)
+            warmup = values.isWarmup
+        case .repeat:
+            guard let last = tracked.sets.last(where: \.hasAnyActual) else { return nil }
+            count = 1
+            text = VoiceStorage.Text(weight: last.actualWeight, reps: last.actualReps, duration: last.actualDuration)
+            warmup = false
+        }
+
+        var empty = tracked.sets.filter { !$0.hasAnyActual }.map(\.setNumber)
+        var keys: [SetKey] = []
+        var previous: [TrackedSet] = []
+        var created: [SetKey] = []
+        var kind: VoiceApplied.Kind?
+        while keys.count < count {
+            let number: Int
+            if !empty.isEmpty {
+                number = empty.removeFirst()
+            } else if let added = addExtraSet(section: section, exerciseId: exerciseId) {
+                number = added
+                created.append(SetKey(section: section, exerciseId: exerciseId, setNumber: added))
+            } else {
+                break
+            }
+            let key = SetKey(section: section, exerciseId: exerciseId, setNumber: number)
+            guard let before = set(at: key) else { break }
+            keys.append(key)
+            previous.append(before)
+            if kind == nil { kind = before.isExtra ? .extra : .planned }
+            clearShadow(at: key)
+            for field in SetField.allCases {
+                if let value = text[field] { setValue(value, field, at: key) }
+            }
+            if warmup { setWarmup(true, at: key) }
+            if let rpe = text.rpe { setRpe(rpe, at: key) }
+        }
+        guard let kind, !keys.isEmpty else { return nil }
+        return VoiceApplied(keys: keys, previous: previous, kind: kind, created: created)
+    }
+
+    /// Undo one `applySpoken`, deterministically. Every row goes back to what
+    /// it was, ghost included; a row that had actuals or was logged is re-sent
+    /// (dirty), an empty one is deleted server-side (removed) — never both.
+    /// An extra the apply itself added is dropped outright (it did not exist
+    /// before); one the athlete had added by hand comes back empty, as it
+    /// was. Right whether the voice save was flushed or not: the
+    /// queue merges a later delete over an unsent upsert, and the server's
+    /// delete of a row it never saw is a no-op; a planned key in `removedSets`
+    /// replays as a reset, not a removal (`apply`). An exercise added for the
+    /// set (`addedExercise`) goes through `removeAddedExercise`.
+    public mutating func revert(_ applied: VoiceApplied) {
+        if case .addedExercise(let id) = applied.kind, let key = applied.keys.first {
+            removeAddedExercise(section: key.section, exerciseId: id)
+            return
+        }
+        for (key, before) in zip(applied.keys, applied.previous) {
+            guard let (g, e, s) = locate(key) else { continue }
+            if applied.created.contains(key) {
+                groups[g].exercises[e].sets.remove(at: s)
+                dirtySets.remove(key)
+                if !removedSets.contains(key) { removedSets.append(key) }
+                if groups[g].exercises[e].added, !groups[g].exercises[e].isCardio, groups[g].exercises[e].sets.isEmpty {
+                    dropExercise(group: g, exercise: e)
+                }
+                continue
+            }
+            groups[g].exercises[e].sets[s] = before
+            if before.hasAnyActual || before.isLogged {
+                dirtySets.insert(key)
+                removedSets.removeAll { $0 == key }
+            } else {
+                dirtySets.remove(key)
+                if !removedSets.contains(key) { removedSets.append(key) }
+            }
+        }
+    }
+
+    /// The exercise a phrase-less utterance means: the one the last logged key
+    /// belongs to, else the first set-tracked exercise with a row that has no
+    /// actuals and is not logged. A cardio row or a climbing pitch never
+    /// qualifies — a spoken set cannot go there.
+    public func currentExercise(lastLogged: SetKey?) -> (section: String, id: String)? {
+        func takesSets(_ tracked: TrackedExercise) -> Bool {
+            !tracked.isCardio && tracked.cardio == nil && tracked.exercise.category != "climbing"
+        }
+        if let lastLogged, let tracked = exercise(section: lastLogged.section, id: lastLogged.exerciseId), takesSets(tracked) {
+            return (tracked.section, tracked.exercise.id)
+        }
+        for group in groups {
+            for tracked in group.exercises where takesSets(tracked) && tracked.sets.contains(where: { !$0.hasAnyActual && !$0.isLogged }) {
+                return (tracked.section, tracked.exercise.id)
+            }
+        }
+        return nil
+    }
+
     // MARK: - Helpers
 
     private static func orderKeys(_ a: SetKey, _ b: SetKey) -> Bool {
@@ -681,5 +832,33 @@ public struct TrackerEditor: Sendable, Equatable {
     /// 42.5 → "42.5", 45 → "45" — the way the web's text field shows a saved number.
     static func decimalText(_ value: Double) -> String {
         value == value.rounded() && abs(value) < 1e15 ? String(Int(value)) : String(value)
+    }
+}
+
+/// What one `TrackerEditor.applySpoken` wrote — enough for `revert` to take
+/// it back and for the strip to name it. `keys` and `previous` pair up.
+public struct VoiceApplied: Equatable, Sendable {
+    public enum Kind: Equatable, Sendable {
+        /// The first row written was a planned one.
+        case planned
+        /// The first row written was an extra, existing or added for the set.
+        case extra
+        /// The exercise itself was added for this set (a confirmed library
+        /// hit, M2): undo removes the whole exercise.
+        case addedExercise(id: String)
+    }
+
+    public var keys: [SetKey]
+    public var previous: [TrackedSet]
+    public var kind: Kind
+    /// The extras the apply itself added (a subset of `keys`): undo removes
+    /// them rather than restoring an empty row that never existed.
+    public var created: [SetKey]
+
+    public init(keys: [SetKey], previous: [TrackedSet], kind: Kind, created: [SetKey] = []) {
+        self.keys = keys
+        self.previous = previous
+        self.kind = kind
+        self.created = created
     }
 }

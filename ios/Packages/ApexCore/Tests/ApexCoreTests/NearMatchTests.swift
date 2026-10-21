@@ -46,4 +46,31 @@ final class NearMatchTests: XCTestCase {
     func testRespectsTheLimit() {
         XCTAssertEqual(NearMatch.definitions(for: "Pnacake", in: library, limit: 1).map(\.id), ["pancake-fold"])
     }
+
+    /// W17: the voice resolver's near tier gives a session name the same typo
+    /// budget the picker gives a library name, on the spoken key's length.
+    func testSessionNamesGetThePickersBudget() {
+        let context = VoiceContext(
+            unit: .lb,
+            session: [VoiceSessionExercise(id: "squat", section: "exercise", name: "Back Squat", fields: [.weight, .reps])],
+            currentExerciseId: nil, library: []
+        )
+        func near(_ phrase: String) -> Int? {
+            if case .needsConfirmation(_, let candidates) = VoiceExercise.resolveExercisePhrase(phrase, context: context),
+               candidates.first?.match == .near { return candidates.first?.distance }
+            return nil
+        }
+        let key = VoiceExercise.voiceKey("Back Squat")
+        for (phrase, budget) in [("sqt", 0), ("sqat", 1), ("back squad", 2), ("back squatting", 3)] {
+            XCTAssertEqual(NearMatch.budget(VoiceExercise.voiceKey(phrase).count), budget, phrase)
+        }
+        XCTAssertEqual(NearMatch.distance("back squad", key), 1)
+        XCTAssertEqual(near("back squad"), 1, "one edit inside a budget of two")
+        XCTAssertEqual(NearMatch.distance("bak squad", key), 2)
+        XCTAssertEqual(near("bak squad"), 2, "two edits, still inside")
+        XCTAssertEqual(NearMatch.distance("bak sqad", key), 3)
+        XCTAssertNil(near("bak sqad"), "three edits on an eight-letter key is past its budget of two")
+        XCTAssertEqual(NearMatch.distance("sqt", "squat"), 2)
+        XCTAssertNil(near("sqt"), "three letters have no budget at all")
+    }
 }
