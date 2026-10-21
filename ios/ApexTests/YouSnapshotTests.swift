@@ -10,11 +10,27 @@ import XCTest
 ///
 ///   TEST_RUNNER_APEX_SNAPSHOTS=1 xcodebuild ... -only-testing:ApexTests/YouSnapshotTests test
 final class YouSnapshotTests: XCTestCase {
+    /// The voice toggle (W17) is a device preference the UI smoke writes on
+    /// every launch of the same bundle, so the roots pin it off and the voice
+    /// rows pin it on; whatever was there comes back after.
+    private var previousVoiceToggle: Any?
+
     override func setUpWithError() throws {
+        previousVoiceToggle = UserDefaults.standard.object(forKey: TrackerModel.voicePreferenceKey)
+        UserDefaults.standard.set(false, forKey: TrackerModel.voicePreferenceKey)
         try XCTSkipUnless(
             ProcessInfo.processInfo.environment["APEX_SNAPSHOTS"] == "1",
             "set APEX_SNAPSHOTS=1 to run snapshot tests"
         )
+    }
+
+    override func tearDown() {
+        if let previousVoiceToggle {
+            UserDefaults.standard.set(previousVoiceToggle, forKey: TrackerModel.voicePreferenceKey)
+        } else {
+            UserDefaults.standard.removeObject(forKey: TrackerModel.voicePreferenceKey)
+        }
+        super.tearDown()
     }
 
     @MainActor
@@ -48,6 +64,23 @@ final class YouSnapshotTests: XCTestCase {
 
     /// The AI Coach screens: goal & context, the model picker, and the key
     /// section's two states (the sheet W6 built, from here).
+    /// W17: the Training section with "Log sets by voice" and the voice-log
+    /// rows, tall enough to show them under the sections above.
+    @MainActor
+    func testTrainingVoiceRows() async {
+        UserDefaults.standard.set(true, forKey: TrackerModel.voicePreferenceKey)
+        let model = await loaded()
+        snapshot(
+            NavigationStack { YouRootView(model: model, voiceJournal: MemoryVoiceJournalStore()) },
+            named: "you-training-voice", size: CGSize(width: 393, height: 1300)
+        )
+        snapshot(
+            NavigationStack { YouRootView(model: model, voiceJournal: MemoryVoiceJournalStore()) }
+                .environment(\.sizeCategory, .accessibilityExtraExtraExtraLarge),
+            named: "you-training-voice-axxxl", size: CGSize(width: 393, height: 2600)
+        )
+    }
+
     @MainActor
     func testCoachSection() async {
         let model = await loaded()

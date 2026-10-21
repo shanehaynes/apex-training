@@ -245,7 +245,8 @@ final class AppModel {
         let health = Self.healthServices(owner: owner)
         let speech = Self.speechRecognizer()
         trackerServices = TrackerServices(
-            client: client, cache: cache, queue: queue, clock: clock, activity: publisher, health: health.publisher, speech: speech
+            client: client, cache: cache, queue: queue, clock: clock, activity: publisher, health: health.publisher, speech: speech,
+            journal: FileVoiceJournalStore.standard
         )
         queueDriver?.stop()
         queueDriver = WriteQueueDriver(queue: queue)

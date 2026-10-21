@@ -2,7 +2,7 @@
 
 **Machine:** both (M1 Linux-able · PR-H and M2 Mac · M3 Shane's device) · **Depends on:** W4
 (tracker + write queue), #466 (`Weight`) · **Unblocks:** —
-**Status:** in progress — M1 open as #483 (2026-10-20), PR-H in flight; brief drafted 2026-10-20 (D-059)
+**Status:** M2 in review (PR #484, `feat/w17-voice-logging`) — PR-H #480 and M1 #483 merged 2026-10-20; brief drafted 2026-10-20 (D-059)
 **Owns:** `ios/Packages/ApexCore/Sources/ApexCore/Tracker/Voice/` (new),
 `ApexCore/Tracker/TrackerEditor.swift`, `ApexCore/Library/NearMatch.swift`, `ApexCore/Package.swift` (one
 `exclude` line), `ios/Packages/ApexCore/Tests/ApexCoreTests/`, `ios/Packages/ApexKit/Sources/ApexSpeech/` (new),
@@ -443,14 +443,14 @@ holding the methods only — Swift extensions cannot add stored properties):
   `you-training-voice`.
 
 Acceptance:
-- [ ] `TrackerModelTests` (over `make(…)` with `speech:` injected): first empty planned set filled and ghost cleared (`focusSet` then returns false); extra when none empty; `sets: 3` planned then extra; `repeat`; library hit → `.confirming`, tap adds + logs, Undo removes both; nil/`.failed` for cardio, pitch, finished; `loggedSetCount` +1 per utterance; save body carries `"actual_weight":"225"` bare and `"100 kg"` when spoken; rest starts on reps; undo restores the rest state captured before the apply (a rest it started stops, a rest that was already running resumes, and re-logging the reverted row starts its rest again); undo before the flush sends nothing for the key, after the flush sends a delete; Undo ends on a typed edit to the key, the next apply, the next mic tap, 15 s.
-- [ ] End-of-utterance tests over `TestClock` and the step-wise Fake: 5 s no-speech; 1.0 / 1.5 / 2.0 s windows; 8 s cap; second tap; final deadline falls back to the last partial; background/gate/interruption cancel with nothing applied; `finalToApplied` ≤ 100 ms.
-- [ ] `VoiceLogStateTests`: denied; unavailable → no mic; dictation-disabled and assets-missing → Settings line; partials → transcript; exact → `.applied`; near → `.confirming` keeping values; unresolved; empty/invalid → `.failed`; `.current` with no current → `.confirming` ≤ 4; `biases[0]` names-first, ≤ 100, no common words.
-- [ ] `VoiceJournalTests`: ring ≤ 200, fields present, no audio bytes, JSON export round-trips.
-- [ ] Mic shown only when toggle ∧ available ∧ `!isFinished`; `ApexIcon.mic` passes the every-case design test; `VoiceStrip` identifiers as listed; snapshots recorded on a Mac.
-- [ ] `ApexUITests.testVoiceLoggingOnFixtures` (the `testTrackerOnFixtures` shape): `["-apexUITest","-apexMockClient","-apexMockSpeech","Fixture Press 115 for 4;fixture pres 120 for 3"]` with the toggle on (`MockEnvironment.speech()` writes `apex.tracker.voice` true on every launch and false for the `off` literal, so legs never leak into each other) → Start → `tracker.voice` → `tracker.voice.applied` → set-1 weight reads 115 → `tracker.voice.undo` → empty → mic → chip → 120; `-apexMockSpeech denied` leg shows the Settings line; toggle-off leg has no `tracker.voice`; green under `-test-iterations 2`; `performAccessibilityAudit()` with the strip applied (skip only if the 26.5 runtime pin refuses it, and say so).
-- [ ] Scroll: `-apexFrameLog` six flings with the strip visible → late frames ≤ 1 (the D-054 baseline).
-- [ ] Docs: this brief's Status and Session log, STATUS row + recent line, `app-store.md` §3 recording script gains the two sheets, the memory note.
+- [x] `VoiceLoggingTests` (over `VoiceSupport.make(…)` with `speech:` injected — a new file, since `TrackerModelTests.swift` is claimed by another lane): first empty planned set filled and ghost cleared (`focusSet` then returns false); extra when none empty; `sets: 3` planned then extra; `repeat`; library hit → `.confirming`, tap adds + logs, Undo removes both; nil/`.failed` for cardio, pitch, finished; `loggedSetCount` +1 per utterance; save body carries `"actual_weight":"225"` bare and `"100 kg"` when spoken; rest starts on reps; undo restores the rest state captured before the apply (a rest it started stops, a rest that was already running resumes, and re-logging the reverted row starts its rest again); undo before the flush sends nothing for the key, after the flush sends a delete; Undo ends on a typed edit to the key, the next apply, the next mic tap, 15 s.
+- [x] End-of-utterance tests over `TestClock` and the step-wise Fake: 5 s no-speech; 1.0 / 1.5 / 2.0 s windows; 8 s cap; second tap; final deadline falls back to the last partial; background/gate/interruption cancel with nothing applied; `finalToApplied` ≤ 100 ms.
+- [x] `VoiceLogStateTests`: denied; unavailable → no mic; dictation-disabled and assets-missing → Settings line; partials → transcript; exact → `.applied`; near → `.confirming` keeping values; unresolved; empty/invalid → `.failed`; `.current` with no current → `.confirming` ≤ 4; `biases[0]` names-first, ≤ 100, no common words.
+- [x] `VoiceJournalTests`: ring ≤ 200, fields present, no audio bytes, JSON export round-trips.
+- [x] Mic shown only when toggle ∧ available ∧ `!isFinished`; `ApexIcon.mic` passes the every-case design test; `VoiceStrip` identifiers as listed; snapshots recorded on a Mac.
+- [x] `ApexUITests.testVoiceLoggingOnFixtures` (the `testTrackerOnFixtures` shape): `["-apexUITest","-apexMockClient","-apexMockSpeech","Fixture Press 115 for 4;fixture prss 120 for 3"]` ("prss", not "pres": M1's plural rule reads "pres" as "press" and auto-applies it as a contained match, so the near-miss leg needs a spelling the resolver can only near-match). Green under `-retry-tests-on-failure -test-iterations 2` on the first try (2026-10-20, iPhone 17 / iOS 26.5). The audit is `performAccessibilityAudit` with a handler that fails on any issue whose element is a `tracker.voice*` identifier and prints the rest: two pre-existing "Potentially inaccessible text" issues elsewhere on the tracker were printed, none on the voice elements with the toggle on (`MockEnvironment.speech()` writes `apex.tracker.voice` true on every launch and false for the `off` literal, so legs never leak into each other) → Start → `tracker.voice` → `tracker.voice.applied` → set-1 weight reads 115 → `tracker.voice.undo` → empty → mic → chip → 120; `-apexMockSpeech denied` leg shows the Settings line; toggle-off leg has no `tracker.voice`; green under `-test-iterations 2`; `performAccessibilityAudit()` with the strip applied (skip only if the 26.5 runtime pin refuses it, and say so).
+- [x] Scroll: `-apexFrameLog` six flings with the strip visible → late frames ≤ 1 (the D-054 baseline). Measured 2026-10-20 on the iPhone 17 / iOS 26.5 simulator with `-apexMockDense` and the failed strip up: six flings → **1 late frame** (gap 33 ms, 1 missed). The strip's first appearance after the mic tap cost one 209 ms gap (12 frames) while the eager 60-row content shifted under it with the animation, so the animation now covers only the strip's insertion and removal; the device's number is a scorecard row.
+- [x] Docs: this brief's Status and Session log, STATUS row + recent line, `app-store.md` §3 recording script gains the two sheets, the memory note.
 
 ### M3 — Dogfood to default-on · Shane's device + ApexCore PRs
 Goal lines. The first device session is **collection-only** (no parser edits): the journal fills
@@ -596,6 +596,28 @@ journal.
   one-sided pair by the floor; a bare `plus N` is bodyweight plus N; `a minute and a quarter` is 75 s.
   M2 can start once PR-H lands: `VoiceContext`, `VoiceParser.parse(alternatives:context:)`,
   `editor.applySpoken(_:section:exerciseId:unit:)`, `editor.revert(_:)`, `editor.currentExercise(lastLogged:)`.
+
+- 2026-10-20 · Mac · **M2 built** on `feat/w17-voice-logging` → PR #484 (branched from main with PR-H #480 and M1
+  `feat/w17-voice-parser` merged in; the merged base built and tested green before a line of M2 was
+  written). `VoiceLogState` + `TrackerModel+Voice.swift` (tap, both sheets, the listen, the
+  end-of-utterance policy as a 100 ms real-time tick that reads the injected clock — `voiceTick()` is
+  what the tests drive — apply through `applySpoken`, Undo restoring the whole `RestTimer`, chips,
+  Pick…, cancel on background and the finish gate, the journal entry per utterance), `VoiceStrip` +
+  `VoiceMicButton`, the mic in `TrackerHeader`, the You → Training toggle with "Share voice log"
+  (a `ShareLink` over a lazily written JSON file) and "Clear voice log", `VoiceJournal` (ApexCore) +
+  `FileVoiceJournalStore` (ApexPersistence, `Application Support/voice-journal.json`),
+  `SpeechRecognizing.audioRoute()`, `-apexMockSpeech` now writes the toggle. 21 + 10 + 5 new unit
+  tests, 11 strip/mic snapshots + `you-training-voice` (and `-axxxl`), three smoke legs. Snapshot lesson: the
+  references were recorded on a simulator whose Dynamic Type is **medium** (`xcrun simctl ui <udid>
+  content_size medium`); a fresh simulator renders larger text and fails every suite — set it, and
+  the untouched references match byte for byte. The six You root references are re-recorded (the
+  Training section gained three rows); `summary-volume` (last recorded by #466) differs by
+  sub-pixel bytes with an identical render and is left alone. Deviations from the brief:
+  `confirming`/`unresolved` carry the `SpokenIntent` (so a confirmed `repeat` works), `failed`
+  carries the `SpeechFailure` and the reason, `denied(reason:)` covers Dictation-off and
+  assets-missing too, a dismiss on the ask/failed strips, the model tests live in
+  `VoiceLoggingTests.swift`. Device run still Shane's: the pins in #480's body plus this
+  milestone's scorecard rows.
 
 ## Next brief
 **PR-H — the held plumbing.** Goal: the `ApexSpeech` product (protocol, `No…`, Fake, SF adapter

@@ -90,6 +90,13 @@ public nonisolated final class SFSpeechRecognizerAdapter: NSObject, SpeechRecogn
         return SpeechUtterance(events: events) { [weak utterance] in utterance?.finish() }
     }
 
+    public func audioRoute() -> String {
+        let route = AVAudioSession.sharedInstance().currentRoute
+        let inputs = route.inputs.map(\.portName).joined(separator: ", ")
+        let outputs = route.outputs.map(\.portName).joined(separator: ", ")
+        return "\(inputs) → \(outputs)"
+    }
+
     // MARK: - SFSpeechRecognizerDelegate
 
     /// The service went away mid-listen: end it, never resume on its own.

@@ -163,7 +163,11 @@ Control Center → Screen Recording on a TestFlight install of the submitted bui
 
 1. Cold launch → sign-in screen; let the invite-only line and "Request an invite" show.
 2. Sign in as the demo account. Schedule day and month, open a workout, **Start Workout**, lock
-   the phone to show the Live Activity, unlock, log a set, **Finish**.
+   the phone to show the Live Activity, unlock, log a set, **Finish**. On a build that carries
+   W17 with You → Training → *Log sets by voice* on, log the set by voice: the first mic tap
+   shows the Speech sheet and then the Microphone sheet (the `Info.plist` wording — recognition
+   is on-device, nothing is uploaded); allow both, say "bench 225 for 5", and let the strip's
+   Undo show.
 3. Meals, Blocks, Library, Analytics — a few seconds each.
 4. Coach: "What did I do this week?", then a request that produces a confirmation card. Then
    You → AI coach → Anthropic key: the user's own credential, no price.

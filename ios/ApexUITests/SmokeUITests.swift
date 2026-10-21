@@ -267,6 +267,90 @@ final class SmokeUITests: XCTestCase {
         XCTAssertFalse(app.staticTexts["event.card.Fixture Push Day.running"].exists)
     }
 
+    /// W17: a spoken set lands on the first empty row, Undo takes it back,
+    /// and a near miss asks first. The fake recognizer plays the two
+    /// utterances one mic tap each; the toggle is on because the flag is set.
+    func testVoiceLoggingOnFixtures() throws {
+        let app = XCUIApplication()
+        app.launchArguments += ["-apexUITest", "-apexMockClient", "-apexMockSpeech", "Fixture Press 115 for 4;fixture prss 120 for 3"]
+        app.launch()
+        signIn(app)
+
+        openEvent(app, card: "Fixture Push Day")
+        let start = app.buttons["schedule.event.start"]
+        XCTAssertTrue(start.waitForExistence(timeout: 10))
+        start.tap()
+        let mic = app.buttons["tracker.voice"]
+        XCTAssertTrue(mic.waitForExistence(timeout: 20), "the toggle is on, so the header has the mic")
+        XCTAssertTrue(app.staticTexts["tracker.title"].exists)
+        let weight1 = app.textFields["tracker.input.fx-press.1.weight"]
+        XCTAssertTrue(weight1.waitForExistence(timeout: 10))
+        let shownBefore = weight1.value as? String
+
+        mic.tap()
+        let applied = app.staticTexts["tracker.voice.applied"]
+        XCTAssertTrue(applied.waitForExistence(timeout: 10))
+        XCTAssertEqual(applied.label, "Logged Fixture Press · 115 lb × 4")
+        XCTAssertEqual(weight1.value as? String, "115")
+        XCTAssertEqual(app.textFields["tracker.input.fx-press.1.reps"].value as? String, "4")
+        attach(app, name: "w17-01-voice-applied")
+
+        // The audit with the strip up. Only the voice elements are this
+        // workstream's to answer for; anything else is reported, not failed.
+        try app.performAccessibilityAudit { issue in
+            let identifier = issue.element?.identifier ?? ""
+            guard identifier.hasPrefix("tracker.voice") else {
+                print("accessibility audit (not voice): \(issue.compactDescription)")
+                return true
+            }
+            return false
+        }
+
+        app.buttons["tracker.voice.undo"].tap()
+        XCTAssertTrue(applied.waitForNonExistence(timeout: 5))
+        XCTAssertEqual(weight1.value as? String, shownBefore, "undone: the row shows what it showed before the tap (its ghost)")
+
+        mic.tap()
+        let chip = app.buttons["tracker.voice.chip.fx-press"]
+        XCTAssertTrue(chip.waitForExistence(timeout: 10), "a near miss asks first")
+        attach(app, name: "w17-02-voice-chips")
+        chip.tap()
+        XCTAssertTrue(applied.waitForExistence(timeout: 10))
+        XCTAssertEqual(applied.label, "Logged Fixture Press · 120 lb × 3")
+        XCTAssertEqual(weight1.value as? String, "120")
+    }
+
+    /// W17: a refused sheet is a Settings line, not a dead mic.
+    func testVoiceDeniedShowsTheSettingsLineOnFixtures() {
+        let app = XCUIApplication()
+        app.launchArguments += ["-apexUITest", "-apexMockClient", "-apexMockSpeech", "denied"]
+        app.launch()
+        signIn(app)
+        openEvent(app, card: "Fixture Push Day")
+        let start = app.buttons["schedule.event.start"]
+        XCTAssertTrue(start.waitForExistence(timeout: 10))
+        start.tap()
+        let mic = app.buttons["tracker.voice"]
+        XCTAssertTrue(mic.waitForExistence(timeout: 20))
+        mic.tap()
+        XCTAssertTrue(app.buttons["tracker.voice.settings"].waitForExistence(timeout: 10))
+        attach(app, name: "w17-03-voice-denied")
+    }
+
+    /// W17: with the toggle off there is no microphone at all.
+    func testVoiceToggleOffHidesTheMicOnFixtures() {
+        let app = XCUIApplication()
+        app.launchArguments += ["-apexUITest", "-apexMockClient", "-apexMockSpeech", "off"]
+        app.launch()
+        signIn(app)
+        openEvent(app, card: "Fixture Push Day")
+        let start = app.buttons["schedule.event.start"]
+        XCTAssertTrue(start.waitForExistence(timeout: 10))
+        start.tap()
+        XCTAssertTrue(app.staticTexts["tracker.title"].waitForExistence(timeout: 20))
+        XCTAssertFalse(app.buttons["tracker.voice"].exists)
+    }
+
     /// ux-review §3.4: back out of a running workout and the day card says so
     /// — a live timer instead of the scheduled time — and takes you straight
     /// back into the tracker. Under the mock a non-peek `bootstrap` starts the

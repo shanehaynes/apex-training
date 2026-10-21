@@ -26,20 +26,17 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
 | W14 | UX review implementation | done (#283–#292, #296, #297) | Mac | ux-review.md §7; decisions D-037…D-044; **TestFlight build 8 (0.9.0/424) uploaded 2026-09-22 by the first `testflight.yml` run**; snapshots re-recorded on the iPhone 17 (#300); Shane's device run on build 8 is next |
 | W15 | Connector access level (look-only / full tokens) | done (#379) | Mac | after #371/#376 gave `/api/mcp` write access; brief [W15](workstreams/W15-connector-access.md) |
 | W16 | Apple Health (write, read workouts, daily metrics, body weight, meals) | M1 (#430) + MT (#438) shipped in TestFlight 1.1.0 (561); M0 landed (phase59, #469); M2b landed (#472); M3b in review; privacy bump, then M2i next | both | D-056 supersedes D-018; M1 (write, no migration) merges after 1.0 is approved and ships as 1.1; MT (in-app terms re-acceptance) gates the privacy bump; brief [W16](workstreams/W16-apple-health.md) |
-| W17 | Voice set logging (on-device Speech, no LLM) | in progress — M1 #483 open, PR-H in flight (2026-10-20) | both | D-059; Swift parser on a JSON fixture, Undo, ships dark behind `apex.tracker.voice`; PR-H (held plumbing) ∥ M1 (parser) → M2 (tracker UI) → M3 dogfood; brief [W17](workstreams/W17-voice-set-logging.md) |
+| W17 | Voice set logging (on-device Speech, no LLM) | PR-H #480 and M1 #483 merged 2026-10-20; M2 in review (#484) | both | D-059; Swift parser on a JSON fixture, Undo, ships dark behind `apex.tracker.voice`; after #484: TestFlight with the toggle on, then M3 dogfood; brief [W17](workstreams/W17-voice-set-logging.md) |
 
 ## Next up
-0. **W17 PR-H and M1 — voice set logging, the two parallel first lanes (PR-H Mac + HELD, M1 any).**
-   Goal: the user taps a mic in the tracker, says "bench 225 for 5", and the set is logged on the
-   device with no LLM and no network (D-059). PR-H is the held plumbing — the `ApexSpeech` product
-   (protocol, `No…`, Fake, `SFSpeechRecognizer` adapter with on-device-only recognition),
-   `TrackerServices.speech`, `-apexMockSpeech`, the two usage strings, project.yml and the
-   ci-guards line, nothing user-visible — opened small so one `shipit` unblocks everything. M1 is
-   the ApexCore parser, resolver, storage formatter, the 59-case fixture and the `TrackerEditor`
-   primitives (`clearShadow`, `applySpoken`, `revert`, the replay reset), red-to-green under
-   `swift test`. Acceptance and Owns per milestone: [W17 brief](workstreams/W17-voice-set-logging.md).
-   M1 is open as #483 (2026-10-20, 100 fixture cases, two review rounds); PR-H remains.
-   Then M2 (the tracker UI, unheld) after both merge; the feature ships dark.
+0. **W17 — land the three lanes, then TestFlight with the toggle on, then M3.** PR-H #480 and M1 #483
+   merged 2026-10-20 (M1 with 100 fixture cases after two review rounds); M2 #484 (the tracker UI,
+   unheld) is the last lane, now based on main. Then a TestFlight build with You → Training → *Log sets by voice*
+   on, and Shane's device run: #480's SDK pins (none verified yet — the 15 Pro was not connected)
+   and the M3 scorecard's `*` rows (the first mic tap's two sheets, the orange indicator, a call
+   mid-listen, airplane mode). The first gym session is collection-only; each session after it is
+   one `fix/w17-voice-cases-<date>` ApexCore PR from the shared voice log, until the exit in the
+   [W17 brief](workstreams/W17-voice-set-logging.md) flips the default on.
 0. **W16 M2i — iOS reads Health workouts (Mac), after the privacy bump.** Goal: a Watch,
    Garmin-via-Health or Whoop-via-Health workout reaches the server as provider `apple` (M2b,
    #472) from the phone, durable through kills and offline, and a match the athlete has not
@@ -151,6 +148,12 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
    (`printf` the two ids back after a tidy) — both git-ignored, so never from the primary checkout.
 
 ## Recent sessions
+- 2026-10-20 · W17 M2 · Mac. The tracker logs what it hears: `VoiceLogState` on `TrackerModel`,
+  the end-of-utterance policy over the injected clock, `applySpoken` through the typed path, Undo
+  restoring the rest timer whole, chips and Pick…, the strip and the mic, the You → Training
+  toggle with share/clear of the transcript-only journal; 29 unit tests, 13 snapshots, three smoke
+  legs. Stacked on PR-H #480 (held) and M1. Snapshot references need `content_size medium` on the
+  simulator. Device scorecard is Shane's.
 - 2026-10-20 · signed UI tests (no WS) · Mac. A signed `build-for-testing` failed on `main`
   because ApexTests and ApexUITests had no Info.plist; both now set `GENERATE_INFOPLIST_FILE`
   (`project.yml`, HELD). SmokeUITests now passes signed (20/20) as well as unsigned. It dismisses
