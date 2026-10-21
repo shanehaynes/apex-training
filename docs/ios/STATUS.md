@@ -154,6 +154,11 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
   toggle with share/clear of the transcript-only journal; 29 unit tests, 13 snapshots, three smoke
   legs. Stacked on PR-H #480 (held) and M1. Snapshot references need `content_size medium` on the
   simulator. Device scorecard is Shane's.
+- 2026-10-20 · signed UI tests (no WS) · Mac. A signed `build-for-testing` failed on `main`
+  because ApexTests and ApexUITests had no Info.plist; both now set `GENERATE_INFOPLIST_FILE`
+  (`project.yml`, HELD). SmokeUITests now passes signed (20/20) as well as unsigned. It dismisses
+  the "Save Password?" sheet that the signed app's `webcredentials` brings, only when its bundle
+  is signed, and the live test signs out in its teardown. How-to in ios/CLAUDE.md.
 - 2026-10-20 · W17 M1 · Mac (Linux-shaped). The voice parser, resolver, storage formatter and the
   `TrackerEditor` primitives (`clearShadow`, `applySpoken`, `revert`, `currentExercise`, the replay
   reset) landed in ApexCore as #483 (unheld): 100 fixture cases (the brief's 59 plus 41 authored,
