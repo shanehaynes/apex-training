@@ -148,7 +148,7 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
    (`printf` the two ids back after a tidy) — both git-ignored, so never from the primary checkout.
 
 ## Recent sessions
-- 2026-10-22 · W17 M3 TestFlight · Mac. Build 604 (1.1.0) uploaded from main at 75096526 with
+- 2026-10-22 · W17 M3 TestFlight · Mac. Build 1.1.0 (604) uploaded from main at 75096526 with
   PR-H #480, M1 #483 and M2 #484: W17 on TestFlight, toggle off by default — Shane turns on
   You → Training › Log sets by voice. `testflight.sh --check` (production schema in sync with
   main, every migration stamped) and `--dry-run` (archive, export, assert-ipa; both usage strings

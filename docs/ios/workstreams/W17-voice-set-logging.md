@@ -622,12 +622,12 @@ journal.
   uploaded to App Store Connect from main at 75096526 (PR-H #480, M1 #483, M2 #484; nothing under
   `ios/` changed). `testflight.sh --check` first: production's schema matches main, every
   migration stamped, credentials readable; then `--dry-run`: archive, export and assert-ipa green,
-  the archive's Info.plist carrying `NSSpeechRecognitionUsageDescription`,
-  `NSMicrophoneUsageDescription`, 1.1.0 and 604 (the widget extension too); then the upload on
-  Shane's go. The toggle ships off: Shane turns on You → Training › Log sets by voice, runs #480's
-  SDK pins and the scorecard above (first session collection-only), then You → Training › Share
-  voice log for the first `fix/w17-voice-cases-<date>` PR. Not verified here: App Store Connect
-  processing (5–15 min), the device run.
+  the archive's Info.plist carrying both usage strings (`NSSpeechRecognitionUsageDescription`,
+  `NSMicrophoneUsageDescription`) and 1.1.0/604, the widget extension at 1.1.0/604 too; then the
+  upload on Shane's go. The toggle ships off: Shane turns on You → Training › Log sets by voice,
+  runs #480's SDK pins and the scorecard above (first session collection-only), then You →
+  Training › Share voice log for the first `fix/w17-voice-cases-<date>` PR. Not verified here:
+  App Store Connect processing (5–15 min), the device run.
 
 ## Next brief
 **PR-H — the held plumbing.** Goal: the `ApexSpeech` product (protocol, `No…`, Fake, SF adapter
