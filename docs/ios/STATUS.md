@@ -148,6 +148,12 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
    (`printf` the two ids back after a tidy) — both git-ignored, so never from the primary checkout.
 
 ## Recent sessions
+- 2026-10-22 · W17 M3 TestFlight · Mac. Build 604 (1.1.0) uploaded from main at 75096526 with
+  PR-H #480, M1 #483 and M2 #484: W17 on TestFlight, toggle off by default — Shane turns on
+  You → Training › Log sets by voice. `testflight.sh --check` (production schema in sync with
+  main, every migration stamped) and `--dry-run` (archive, export, assert-ipa; both usage strings
+  and 1.1.0/604 in the archive) green before the upload. Device run and the M3 scorecard are
+  Shane's. Docs only.
 - 2026-10-20 · W17 M2 · Mac. The tracker logs what it hears: `VoiceLogState` on `TrackerModel`,
   the end-of-utterance policy over the injected clock, `applySpoken` through the typed path, Undo
   restoring the rest timer whole, chips and Pick…, the strip and the mic, the You → Training

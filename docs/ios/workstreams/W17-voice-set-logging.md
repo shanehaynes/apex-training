@@ -618,6 +618,16 @@ journal.
   assets-missing too, a dismiss on the ask/failed strips, the model tests live in
   `VoiceLoggingTests.swift`. Device run still Shane's: the pins in #480's body plus this
   milestone's scorecard rows.
+- 2026-10-22 · Mac · **M3 TestFlight** (`chore/w17-testflight`, docs only). Build 1.1.0 (604)
+  uploaded to App Store Connect from main at 75096526 (PR-H #480, M1 #483, M2 #484; nothing under
+  `ios/` changed). `testflight.sh --check` first: production's schema matches main, every
+  migration stamped, credentials readable; then `--dry-run`: archive, export and assert-ipa green,
+  the archive's Info.plist carrying `NSSpeechRecognitionUsageDescription`,
+  `NSMicrophoneUsageDescription`, 1.1.0 and 604 (the widget extension too); then the upload on
+  Shane's go. The toggle ships off: Shane turns on You → Training › Log sets by voice, runs #480's
+  SDK pins and the scorecard above (first session collection-only), then You → Training › Share
+  voice log for the first `fix/w17-voice-cases-<date>` PR. Not verified here: App Store Connect
+  processing (5–15 min), the device run.
 
 ## Next brief
 **PR-H — the held plumbing.** Goal: the `ApexSpeech` product (protocol, `No…`, Fake, SF adapter
