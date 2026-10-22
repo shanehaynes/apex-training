@@ -161,7 +161,7 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
   found holding on `main` unpinned — `225 x 5 reps` and `5 reps for 225` (R8's complement of marked
   reps), `225 lbs at 8` → RPE 8 (R7 before R8), `more` / `another` alone → repeat (R16) — plus one
   resolver test (`fixture pres` is a near match, not a containment); the ratchet 100 → 105; no
-  parser change. ApexCore tests and docs only.
+  parser change. ApexCore tests and docs only (#488).
 - 2026-10-22 · W17 docs sync · Mac. With #480, #483 and #484 on `main`, the brief says what the
   lanes built: M1's grammar decisions (7, 10, 17, 23–31, plus 4 and 18–22) as a table under the
   slot rules, with the rule cells, the vocabulary, `extractPhrase`, tier 2 and the editor primitives

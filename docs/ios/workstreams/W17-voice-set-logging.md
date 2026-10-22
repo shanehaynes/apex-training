@@ -858,8 +858,8 @@ M2 (#484):
   STATUS. One reviewer round on the sync (ten minors: pins cited that do not pin, wording broader
   than the code, two #484 contradictions unsurfaced, a stale flag literal) folded in. Nothing in
   the three PR bodies contradicts D-059. No code.
-- 2026-10-22 · Mac · **M3 pins** (`fix/w17-voice-cases-unpinned`, unheld; ApexCore tests and docs
-  only). Five authored cases, 101–105, pin what the docs sync found holding on `main` with no case
+- 2026-10-22 · Mac · **M3 pins** (`fix/w17-voice-cases-unpinned`, #488, unheld; ApexCore tests and
+  docs only). Five authored cases, 101–105, pin what the docs sync found holding on `main` with no case
   to guard it: `225 x 5 reps` → W225 R5 and `5 reps for 225` → R5 W225 (R2 then R8 — decision 4's
   > 10 half and `for`, both at 225, so the 10/11 boundary and a small `for` complement still wait
   for a case), `225 lbs at 8` → W"225 lb" rpe8 (R1 then R7; R8 never fires) and `more` / `another`
