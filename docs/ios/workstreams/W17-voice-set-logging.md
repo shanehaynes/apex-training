@@ -296,7 +296,7 @@ beyond the brief", each pinned by a fixture case or a test; the rule-table cells
 
 | # | Decision | Pinned by |
 |---|---|---|
-| 4 | R8's complement under `x`/`by`/`times` when the marked side is reps: the other side is sets if ≤ 10, else weight (`3 x 5 reps` → 3 sets; `225 x 5 reps` → 225 lb). Under `for`/`at` it is always the weight. | case 75 pins the ≤ 10 half; `225 x 5 reps` → weight holds on `main` but no fixture case pins it (case 76 is a marked weight, case 08 fires R7, not R8) |
+| 4 | R8's complement under `x`/`by`/`times` when the marked side is reps: the other side is sets if ≤ 10, else weight (`3 x 5 reps` → 3 sets; `225 x 5 reps` → 225 lb). Under `for`/`at` it is always the weight. | cases 75 (`5 reps x 3` → 3 sets: the ≤ 10 half) and 101 (`225 x 5 reps` → 225 lb: the > 10 half); case 102 (`5 reps for 225`) pins `for` → weight; `at` with marked reps (`225 at 5 reps`) still has no case |
 | 7 | Fillers and silence: `oh` is a number only inside shorthand (`two oh five`), elsewhere a filler; lone `a`/`an` are silent; connectives (`at for x by times and of`) and fillers are never reported as `ignored`. | cases 37, 42, 63 |
 | 8 | A repeat word beside numbers is an ignored word, not a repeat; a repeat needs no number at all. | case 62 |
 | 9 | `3 sets` alone is `empty` — a set count without a value is nothing to log. | case 61 |
@@ -315,7 +315,7 @@ beyond the brief", each pinned by a fixture case or a test; the rule-table cells
 | 28 | The four number homophones are noise: `to too won ate` are never a number and never a name; they are reported as ignored (−5), which is how alternative ranking settles them. | case 97 |
 | 29 | A known name may carry a digit: `45 degree back extension 25` names the library's "45 Degree Back Extension" and logs 25 reps. | case 100 |
 | 30 | Undo restores an extra the athlete added by hand: `VoiceApplied.created` lists the extras the apply itself added; only those are dropped on `revert`, a hand-added empty extra comes back as it was, and both removals still go out. | `TrackerEditorTests.testRevertRestoresAnExtraTheAthleteAddedByHand` |
-| 31 | Recorded, not changed: `more`/`another` alone count as repeat words; `225 lbs at 8` is an RPE by R7 before R8, as the rules are ordered; the floor stays unit-blind (`bench 40` on a kg profile is 40 reps) — the journal decides. | no fixture case: `225 lbs at 8` → rpe 8 and `more`/`another` alone → repeat hold on `main` (cases 16, 53 and 57 fire R4 and R10, not R7); cases for them are M3's to add; the floor: #483 "Not verified" |
+| 31 | Recorded, not changed: `more`/`another` alone count as repeat words; `225 lbs at 8` is an RPE by R7 before R8, as the rules are ordered; the floor stays unit-blind (`bench 40` on a kg profile is 40 reps) — the journal decides. | cases 103 (`225 lbs at 8` → rpe 8: R1, then R7), 104 and 105 (`more`, `another` alone → repeat: R16); the floor still has no case — #483 "Not verified", the journal decides |
 
 #483's other decisions (1–3, 5–6, 11–16) restate this section or pin an implementation detail —
 the ratchet, `NearMatch.budget` internal, R7 vs R10 at `at`, `N rpe`, the clock shapes, the empty
@@ -504,10 +504,17 @@ Notation: W225 = weight 225 no unit (storage `"225"`); W"105 kg" = unit spoken; 
 | 98 | 42.5 for 3 sets (kg) | sets3 W42.5 | current | a fraction beside a set count is a weight (dec. 24) |
 | 99 | 3 sets of 42.5 (kg) | sets3 W42.5 | current | (dec. 24) |
 | 100 | 45 degree back extension 25 | R25 | library exact (45 Degree Back Extension) | a name with a digit (dec. 29) |
+| 101 | 225 x 5 reps | W225 R5 | current | R2 R8: marked reps × a number > 10 → weight — dec. 4's other half (case 75 pins ≤ 10) |
+| 102 | 5 reps for 225 | R5 W225 | current | R2 R8: under `for` the complement of marked reps is the weight (dec. 4) |
+| 103 | 225 lbs at 8 | W"225 lb" rpe8 | current | R1, then R7 before R8: `at` + a number ≤ 10 with the weight filled is the RPE (dec. 31) |
+| 104 | more | repeat | current | R16: `more` alone (dec. 31) |
+| 105 | another | repeat | current | R16: `another` alone (dec. 31) |
 
 Cases 01–59 are the planning pass's; **60–100 are M1's authored additions** (`source: "authored"`,
-each named for its decision). The ratchet is `committedCaseCount = 100` (`VoiceFixtureTests`); it
-only rises, and M3's `journal:<date>` cases count from 101.
+each named for its decision); **101–105 are M3's first**, authored too, each named for the rule it
+pins where decisions 4 and 31 held on `main` with no case to guard them. The ratchet is
+`committedCaseCount = 105` (`VoiceFixtureTests`); it only rises, and M3's `journal:<date>` cases
+count from 106.
 
 Acceptance:
 - [x] `swift test --package-path ios/Packages/ApexCore` green on Linux CI and a Mac; `npm run agent:check` green (ApexCore imports clean). — Mac and `agent:check` green in #483; `apexcore-linux` green on #483's CI and again on #484's, which merged `main` with M1 (#480's run predates M1).
@@ -851,6 +858,15 @@ M2 (#484):
   STATUS. One reviewer round on the sync (ten minors: pins cited that do not pin, wording broader
   than the code, two #484 contradictions unsurfaced, a stale flag literal) folded in. Nothing in
   the three PR bodies contradicts D-059. No code.
+- 2026-10-22 · Mac · **M3 pins** (`fix/w17-voice-cases-unpinned`, unheld; ApexCore tests and docs
+  only). Five authored cases, 101–105, pin what the docs sync found holding on `main` with no case
+  to guard it: `225 x 5 reps` → W225 R5 and `5 reps for 225` → R5 W225 (R2 then R8 — decision 4's
+  > 10 half and its `for` clause), `225 lbs at 8` → W"225 lb" rpe8 (R1 then R7; R8 never fires) and
+  `more` / `another` alone → repeat (R16; decision 31). Every case passed on `main`'s rules as
+  written — no parser change. The ratchet 100 → 105, red on the count first, then green. One
+  resolver test (`VoiceExerciseTests`): `fixture pres` against a session "Fixture Press" is a
+  tier-3 near match (distance 2), not a containment, because `pres` singularises to `pre`.
+  `swift test` 644 green on a Mac (one skipped, as before); `agent:check` green.
 
 ## Next brief
 **M3 — dogfood to default-on (Shane's device first, then ApexCore PRs).** Goal: the voice journal
