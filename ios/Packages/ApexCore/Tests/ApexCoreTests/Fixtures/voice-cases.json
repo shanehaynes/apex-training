@@ -752,6 +752,41 @@
       "expect": { "status": "ok", "chosen": 0, "intent": { "kind": "log", "sets": 1, "values": {"reps": 25} },
                   "exercise": { "kind": "resolved", "scope": "library", "id": "back-ext-45", "name": "45 Degree Back Extension", "match": "exact" }, "ignored": [], "problems": [] },
       "storage": {"reps": "25"}
+    },
+    {
+      "id": "101", "name": "R8 under x: marked reps times a big number is the weight", "source": "authored", "rules": ["R2", "R8"], "context": "upper",
+      "input": ["225 x 5 reps"],
+      "expect": { "status": "ok", "chosen": 0, "intent": { "kind": "log", "sets": 1, "values": {"weight": {"value": 225}, "reps": 5} },
+                  "exercise": { "kind": "current" }, "ignored": [], "problems": [] },
+      "storage": {"weight": "225", "reps": "5"}
+    },
+    {
+      "id": "102", "name": "R8 under for: marked reps for a number is the weight", "source": "authored", "rules": ["R2", "R8"], "context": "upper",
+      "input": ["5 reps for 225"],
+      "expect": { "status": "ok", "chosen": 0, "intent": { "kind": "log", "sets": 1, "values": {"weight": {"value": 225}, "reps": 5} },
+                  "exercise": { "kind": "current" }, "ignored": [], "problems": [] },
+      "storage": {"weight": "225", "reps": "5"}
+    },
+    {
+      "id": "103", "name": "R7 before R8: a marked weight at a small number is the rpe", "source": "authored", "rules": ["R1", "R7"], "context": "upper",
+      "input": ["225 lbs at 8"],
+      "expect": { "status": "ok", "chosen": 0, "intent": { "kind": "log", "sets": 1, "values": {"weight": {"value": 225, "unit": "lb"}, "rpe": 8} },
+                  "exercise": { "kind": "current" }, "ignored": [], "problems": [] },
+      "storage": {"weight": "225 lb", "rpe": "8"}
+    },
+    {
+      "id": "104", "name": "R16: more alone is a repeat", "source": "authored", "rules": ["R16"], "context": "upper",
+      "input": ["more"],
+      "expect": { "status": "ok", "chosen": 0, "intent": { "kind": "repeat" },
+                  "exercise": { "kind": "current" }, "ignored": [], "problems": [] },
+      "storage": {}
+    },
+    {
+      "id": "105", "name": "R16: another alone is a repeat", "source": "authored", "rules": ["R16"], "context": "upper",
+      "input": ["another"],
+      "expect": { "status": "ok", "chosen": 0, "intent": { "kind": "repeat" },
+                  "exercise": { "kind": "current" }, "ignored": [], "problems": [] },
+      "storage": {}
     }
   ]
 }
