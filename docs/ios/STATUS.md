@@ -157,6 +157,12 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
    (`printf` the two ids back after a tidy) — both git-ignored, so never from the primary checkout.
 
 ## Recent sessions
+- 2026-10-22 · W17 M3 TestFlight · Mac. Build 1.1.0 (604) uploaded from main at 75096526 with
+  PR-H #480, M1 #483 and M2 #484: W17 on TestFlight, toggle off by default — Shane turns on
+  You → Training › Log sets by voice. `testflight.sh --check` (production schema in sync with
+  main, every migration stamped) and `--dry-run` (archive, export, assert-ipa; both usage strings
+  and 1.1.0/604 in the archive) green before the upload. Device run and the M3 scorecard are
+  Shane's. Docs only.
 - 2026-10-22 · W17 docs sync · Mac. With #480, #483 and #484 on `main`, the brief says what the
   lanes built: M1's grammar decisions (7, 10, 17, 23–31, plus 4 and 18–22) as a table under the
   slot rules, with the rule cells, the vocabulary, `extractPhrase`, tier 2 and the editor primitives

@@ -851,6 +851,16 @@ M2 (#484):
   STATUS. One reviewer round on the sync (ten minors: pins cited that do not pin, wording broader
   than the code, two #484 contradictions unsurfaced, a stale flag literal) folded in. Nothing in
   the three PR bodies contradicts D-059. No code.
+- 2026-10-22 · Mac · **M3 TestFlight** (`chore/w17-testflight`, docs only). Build 1.1.0 (604)
+  uploaded to App Store Connect from main at 75096526 (PR-H #480, M1 #483, M2 #484; nothing under
+  `ios/` changed). `testflight.sh --check` first: production's schema matches main, every
+  migration stamped, credentials readable; then `--dry-run`: archive, export and assert-ipa green,
+  the archive's Info.plist carrying both usage strings (`NSSpeechRecognitionUsageDescription`,
+  `NSMicrophoneUsageDescription`) and 1.1.0/604, the widget extension at 1.1.0/604 too; then the
+  upload on Shane's go. The toggle ships off: Shane turns on You → Training › Log sets by voice,
+  runs #480's SDK pins and the scorecard above (first session collection-only), then You →
+  Training › Share voice log for the first `fix/w17-voice-cases-<date>` PR. Not verified here:
+  App Store Connect processing (5–15 min), the device run.
 
 ## Next brief
 **M3 — dogfood to default-on (Shane's device first, then ApexCore PRs).** Goal: the voice journal
