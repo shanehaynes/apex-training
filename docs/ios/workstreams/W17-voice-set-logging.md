@@ -296,7 +296,7 @@ beyond the brief", each pinned by a fixture case or a test; the rule-table cells
 
 | # | Decision | Pinned by |
 |---|---|---|
-| 4 | R8's complement under `x`/`by`/`times` when the marked side is reps: the other side is sets if ≤ 10, else weight (`3 x 5 reps` → 3 sets; `225 x 5 reps` → 225 lb). Under `for`/`at` it is always the weight. | cases 75 (`5 reps x 3` → 3 sets: the ≤ 10 half) and 101 (`225 x 5 reps` → 225 lb: the > 10 half); case 102 (`5 reps for 225`) pins `for` → weight; `at` with marked reps (`225 at 5 reps`) still has no case |
+| 4 | R8's complement under `x`/`by`/`times` when the marked side is reps: the other side is sets if ≤ 10, else weight (`3 x 5 reps` → 3 sets; `225 x 5 reps` → 225 lb). Under `for`/`at` it is always the weight. | cases 75 (`5 reps x 3` → 3 sets: the ≤ 10 half) and 101 (`225 x 5 reps` → 225 lb: the > 10 half); case 102 (`5 reps for 225`) shows `for` → weight at 225, where `x` gives weight too, so `for` with a small complement (`5 reps for 3` → W3 by the rule as written), the 10/11 boundary under `x` and `at` with marked reps (`225 at 5 reps`) still have no case |
 | 7 | Fillers and silence: `oh` is a number only inside shorthand (`two oh five`), elsewhere a filler; lone `a`/`an` are silent; connectives (`at for x by times and of`) and fillers are never reported as `ignored`. | cases 37, 42, 63 |
 | 8 | A repeat word beside numbers is an ignored word, not a repeat; a repeat needs no number at all. | case 62 |
 | 9 | `3 sets` alone is `empty` — a set count without a value is nothing to log. | case 61 |
@@ -505,7 +505,7 @@ Notation: W225 = weight 225 no unit (storage `"225"`); W"105 kg" = unit spoken; 
 | 99 | 3 sets of 42.5 (kg) | sets3 W42.5 | current | (dec. 24) |
 | 100 | 45 degree back extension 25 | R25 | library exact (45 Degree Back Extension) | a name with a digit (dec. 29) |
 | 101 | 225 x 5 reps | W225 R5 | current | R2 R8: marked reps × a number > 10 → weight — dec. 4's other half (case 75 pins ≤ 10) |
-| 102 | 5 reps for 225 | R5 W225 | current | R2 R8: under `for` the complement of marked reps is the weight (dec. 4) |
+| 102 | 5 reps for 225 | R5 W225 | current | R2 R8: under `for` the complement of marked reps is the weight (dec. 4; at 225 `x` agrees, so the small-complement half is unpinned) |
 | 103 | 225 lbs at 8 | W"225 lb" rpe8 | current | R1, then R7 before R8: `at` + a number ≤ 10 with the weight filled is the RPE (dec. 31) |
 | 104 | more | repeat | current | R16: `more` alone (dec. 31) |
 | 105 | another | repeat | current | R16: `another` alone (dec. 31) |
@@ -861,12 +861,17 @@ M2 (#484):
 - 2026-10-22 · Mac · **M3 pins** (`fix/w17-voice-cases-unpinned`, unheld; ApexCore tests and docs
   only). Five authored cases, 101–105, pin what the docs sync found holding on `main` with no case
   to guard it: `225 x 5 reps` → W225 R5 and `5 reps for 225` → R5 W225 (R2 then R8 — decision 4's
-  > 10 half and its `for` clause), `225 lbs at 8` → W"225 lb" rpe8 (R1 then R7; R8 never fires) and
-  `more` / `another` alone → repeat (R16; decision 31). Every case passed on `main`'s rules as
-  written — no parser change. The ratchet 100 → 105, red on the count first, then green. One
-  resolver test (`VoiceExerciseTests`): `fixture pres` against a session "Fixture Press" is a
-  tier-3 near match (distance 2), not a containment, because `pres` singularises to `pre`.
-  `swift test` 644 green on a Mac (one skipped, as before); `agent:check` green.
+  > 10 half and `for`, both at 225, so the 10/11 boundary and a small `for` complement still wait
+  for a case), `225 lbs at 8` → W"225 lb" rpe8 (R1 then R7; R8 never fires) and `more` / `another`
+  alone → repeat (R16; decision 31). Every case passed on `main`'s rules as written — no parser
+  change. The ratchet 100 → 105, red on the count first, then green. One resolver test
+  (`VoiceExerciseTests`): `fixture pres` against a session "Fixture Press" is a tier-3 near match
+  (distance 2), not a containment, because `pres` singularises to `pre`. One reviewer round: two
+  minors, both recorded rather than fixed — 102 does not separate `for` from `x` at 225 (the cell
+  above now says so), and 103 pins as a permanent authored case a reading decision 31 leaves to
+  the journal (Shane's policy call, in the PR body). `swift test` 644 green on a Mac (one skipped,
+  as before); `agent:check` green on a quiet machine (three earlier runs each lost one unrelated
+  test to CPU starvation).
 
 ## Next brief
 **M3 — dogfood to default-on (Shane's device first, then ApexCore PRs).** Goal: the voice journal
