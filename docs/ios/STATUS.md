@@ -26,18 +26,20 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
 | W14 | UX review implementation | done (#283–#292, #296, #297) | Mac | ux-review.md §7; decisions D-037…D-044; **TestFlight build 8 (0.9.0/424) uploaded 2026-09-22 by the first `testflight.yml` run**; snapshots re-recorded on the iPhone 17 (#300); Shane's device run on build 8 is next |
 | W15 | Connector access level (look-only / full tokens) | done (#379) | Mac | after #371/#376 gave `/api/mcp` write access; brief [W15](workstreams/W15-connector-access.md) |
 | W16 | Apple Health (write, read workouts, daily metrics, body weight, meals) | M1 (#430) + MT (#438) shipped in TestFlight 1.1.0 (561); M0 landed (phase59, #469); M2b landed (#472); M3b in review; privacy bump, then M2i next | both | D-056 supersedes D-018; M1 (write, no migration) merges after 1.0 is approved and ships as 1.1; MT (in-app terms re-acceptance) gates the privacy bump; brief [W16](workstreams/W16-apple-health.md) |
-| W17 | Voice set logging (on-device Speech, no LLM) | PR-H #480, M1 #483, M2 #484 merged; M3 dogfood next | both | D-059; Swift parser on a JSON fixture (100 cases, ratchet), Undo, ships dark behind `apex.tracker.voice`; next: a TestFlight build with the toggle on, Shane's device scorecard (#480's device pins are all NOT VERIFIED), then one `fix/w17-voice-cases-<date>` ApexCore PR per gym session; brief [W17](workstreams/W17-voice-set-logging.md) |
+| W17 | Voice set logging (on-device Speech, no LLM) | PR-H #480, M1 #483, M2 #484 merged; TestFlight 1.1.0 (604), toggle off by default; M3 dogfood next | both | D-059; Swift parser on a JSON fixture (100 cases, ratchet), Undo, ships dark behind `apex.tracker.voice`; 604 uploaded 2026-10-22 from main at 75096526 (#486); next: Shane's device run on 604 (toggle on, the scorecard, #480's pins — all NOT VERIFIED), then one `fix/w17-voice-cases-<date>` ApexCore PR per gym session; brief [W17](workstreams/W17-voice-set-logging.md) |
 
 ## Next up
-0. **W17 M3 — dogfood to default-on (Shane's device, then ApexCore PRs).** All three lanes are on
-   `main` (PR-H #480 and M1 #483 on 2026-10-20, M2 #484 on 2026-10-21). First, Shane: a TestFlight
-   build from `main` (`gh workflow run testflight.yml --ref main`; `MARKETING_VERSION` untouched),
-   You → Training → *Log sets by voice* on, then the device-run scorecard in the
-   [W17 brief](workstreams/W17-voice-set-logging.md) — its `*` rows answer #480's device-side SDK
-   pins (none verified yet; the 15 Pro was never connected): the first tap's two sheets, the orange
-   indicator, a call mid-listen, airplane mode, denied / Dictation off, lock mid-listen; rows 2–3
-   the ducking and the A2DP route. The first gym session is collection-only (no parser edit; share
-   the voice log from You → Training). Then one `fix/w17-voice-cases-<date>` ApexCore PR per gym
+0. **W17 M3 — the device run on TestFlight 1.1.0 (604), then ApexCore PRs.** All three lanes are on
+   `main` (PR-H #480 and M1 #483 on 2026-10-20, M2 #484 on 2026-10-21) and build 604, uploaded
+   2026-10-22 from `main` at 75096526 (#486), carries them with the toggle off. First, Shane:
+   install 604, turn on You › Training › *Log sets by voice*, run the device scorecard in the
+   [W17 brief](workstreams/W17-voice-set-logging.md) — its rows answer #480's Speech pins (none
+   verified yet; the 15 Pro was never connected): 14 and 7 the two sheets and denial / Dictation
+   off, 2 and 12 ducking and the orange indicator, 3 the A2DP route, 5 and 13 a call and lock
+   mid-listen, 1, 9 and 19 with the journal the bias and dictation's number shapes, 15 and L2
+   `isFinal` latency; row 6 is airplane mode. The first gym session is collection-only (no parser
+   edit): You › Training › *Share voice log* to the Mac for the first journal → fixture PR. Then
+   one `fix/w17-voice-cases-<date>` ApexCore PR per gym
    session: record A2–A7, L1–L2 and E1 in the brief's Session log, one `journal:<date>` fixture case
    per failed, undone or disputed utterance, rules changed red-to-green, the reviewer, an unheld
    PR; the ratchet (100) only rises. Exit: two consecutive sessions of ≥ 20 utterances with zero
@@ -161,7 +163,8 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
   adjusted; fixture cases 60–100 and the ratchet 100; PR-H's outcomes (`sdk:` lines not needed) and
   its session-log line, moved in from #480's body; acceptance boxes ticked where CI and the PR
   bodies prove them, the device-side pins left open; "Not verified" is the union of the three PRs;
-  the Next brief is M3. This row and Next up point at M3. Docs only.
+  the Next brief is M3. This row and Next up point at M3 on TestFlight 1.1.0 (604), uploaded the same
+  day from main (#486). Docs only.
 - 2026-10-20 · W17 M2 · Mac. The tracker logs what it hears: `VoiceLogState` on `TrackerModel`,
   the end-of-utterance policy over the injected clock, `applySpoken` through the typed path, Undo
   restoring the rest timer whole, chips and Pick…, the strip and the mic, the You → Training

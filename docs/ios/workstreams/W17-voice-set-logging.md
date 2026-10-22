@@ -2,7 +2,7 @@
 
 **Machine:** both (M1 Linux-able · PR-H and M2 Mac · M3 Shane's device) · **Depends on:** W4
 (tracker + write queue), #466 (`Weight`) · **Unblocks:** —
-**Status:** in progress — PR-H #480, M1 #483 (both merged 2026-10-20) and M2 #484 (merged 2026-10-21) are on `main`; M3 dogfood next (TestFlight with the toggle on, then Shane's scorecard); brief drafted 2026-10-20 (D-059), synced to the three lanes 2026-10-22
+**Status:** in progress — PR-H #480, M1 #483 (both merged 2026-10-20) and M2 #484 (merged 2026-10-21) are on `main`; TestFlight 1.1.0 (604) uploaded 2026-10-22 from `main` at 75096526 (#486), toggle off by default; M3 dogfood next (Shane turns the toggle on, then the scorecard); brief drafted 2026-10-20 (D-059), synced to the three lanes 2026-10-22
 **Owns:** `ios/Packages/ApexCore/Sources/ApexCore/Tracker/Voice/` (new),
 `ApexCore/Tracker/TrackerEditor.swift`, `ApexCore/Library/NearMatch.swift`, `ApexCore/Package.swift` (one
 `exclude` line), `ios/Packages/ApexCore/Tests/ApexCoreTests/`, `ios/Packages/ApexKit/Sources/ApexSpeech/` (new),
@@ -124,7 +124,8 @@ Scope (unheld files in the same PR):
   device → the adapter.
 - `MockEnvironment.swift`: flag doc after the `-apexMockHealth` entry; `static func speech()`
   after `health`: `-apexMockSpeech "<utt>;<utt>"` scripts utterances in order; the literals
-  `denied` and `unavailable` set those states. (`fix/ios-mock-raw-interpolation` edits this file
+  `denied` and `unavailable` set those states; since #484 the literal `off` — or no flag — writes the
+  toggle off and any script writes it on. (`fix/ios-mock-raw-interpolation` edits this file
   — adjacent hunks, merge by hand.)
 - `ios/ApexTests/SpeechAdapterTests.swift` over the Fake.
 - HELD: `ios/Apex/Info.plist` after line 88 —
@@ -168,9 +169,10 @@ mid-listen → `.serviceFailed`, an utterance replaced by a later `listen` → `
 The observers are selector-based (one `removeObserver(self)` in teardown); the live utterance tears
 itself down in `deinit`; each audio resource has one release flag, so an abort racing `start()`
 releases exactly what was acquired after it. `failure(for:)` and `locale(preferring:)` are
-`public static` so `ApexTests` can pin them. `-apexMockSpeech <anything else>` is a script and only
-the literals `denied` and `unavailable` are states; writing `apex.tracker.voice` on launch was left
-to M2 (done in #484). Simulator fact: `availability()` on the iOS 26.5 simulator is
+`public static` so `ApexTests` can pin them. `-apexMockSpeech <anything else>` is a script and the
+literals `denied` and `unavailable` are states; writing `apex.tracker.voice` on launch was left to
+M2, which added it in #484 with a third literal — `off` (or no flag) writes the toggle off, any
+script writes it on. Simulator fact: `availability()` on the iOS 26.5 simulator is
 `.available(locale: "en-US")` — `supportsOnDeviceRecognition` is **true** there — so the
 Fake-on-simulator rule in `AppModel`, not availability, keeps the simulator off the real engine.
 Gate: CI's `xcodebuild … test` on a fresh iPhone 17 / iOS 26.5 simulator, ApexTests 397 (12/12
@@ -182,7 +184,7 @@ Acceptance:
 - [x] `ios` job green; `ios/scripts/check-deinits.sh` clean; every snapshot byte-identical; no mic exists. — #480: CI `ios` green; 397 unit + 22 UI on the lane's simulator; counts 2 and 3; no snapshot file changed; nothing calls `listen` outside the tests.
 - [x] `SpeechAdapterTests` over the Fake: `.listening` then partials then `.final`; cancelling the consumer ends the stream; `finish()` yields the final; `requestCount == 1` after one `requestAuthorization()`; `biases[0]` equals the names passed to `listen(bias:)`. — 12/12 in #480 (the scripted drive plays the detection `.partial("")` first; `finish()` with nothing heard is `.failed(.noSpeech)`).
 - [x] SDK pins answered in the PR body (device and simulator), NOT VERIFIED where no device was attached — the table is in #480's body. Answered: the `sdk:` lines are **not needed** (autolinked; `otool -L`); `requiresOnDeviceRecognition`, `contextualStrings` and `addsPunctuation` exist in the iOS 26.5 SDK and the adapter sets them; `AVAudioApplication.requestRecordPermission` is `API_AVAILABLE(ios(17.0))` and compiles against the 17.0 target with no guard; the two strings are in `Info.plist` verbatim.
-- [ ] The device-side pins — **NOT VERIFIED — needs the phone** (the iPhone 15 Pro was not connected): `supportsOnDeviceRecognition` on the 15 Pro (true on the 26.5 simulator); the bias honoured under on-device recognition; `addsPunctuation` honoured on-device; `requestRecordPermission` at runtime on an iOS 17 device (runtimes on the Mac: 18.6, 26.5); A2DP keeps AirPods music while listening; `.notifyOthersOnDeactivation` un-ducks; the permission sheets' wording and order on screen (nothing shows until the first mic tap). Also open and device-side: `isFinal` latency after `endAudio()`; the `.search` task hint (not set — the request keeps `.unspecified`); dictation's number formatting; AirPods-processed input under `.duckOthers` + `.allowBluetoothA2DP`. The M3 scorecard's rows 2, 3, 5, 7, 12, 13 and 14 are where they get answered.
+- [ ] The device-side pins — **NOT VERIFIED — needs the phone** (the iPhone 15 Pro was not connected): `supportsOnDeviceRecognition` on the 15 Pro (true on the 26.5 simulator); the bias honoured under on-device recognition; `addsPunctuation` honoured on-device; `requestRecordPermission` at runtime on an iOS 17 device (runtimes on the Mac: 18.6, 26.5); A2DP keeps AirPods music while listening; `.notifyOthersOnDeactivation` un-ducks; the permission sheets' wording and order on screen (nothing shows until the first mic tap). Also open and device-side: `isFinal` latency after `endAudio()`; the `.search` task hint (not set — the request keeps `.unspecified`); dictation's number formatting; AirPods-processed input under `.duckOthers` + `.allowBluetoothA2DP`. The M3 scorecard answers them: rows 14 and 7 (the sheets, denial, Dictation off), 2 and 12 (ducking, un-ducking, the indicator), 3 (A2DP), 5 and 13 (a call, lock), 1, 9 and 19 with the journal (the bias, punctuation, dictation's number shapes), 15 and L2 (`isFinal` latency).
 - [x] The usage strings, project.yml, ci-guards and docs rows as above; `MARKETING_VERSION` untouched. — reviewer-verified in #480: the plist block byte-identical at the prescribed spot, the two `project.yml` product entries (plus one comment line) with `link: false` for ApexTests, the one-line `ci-guards.sh` extension, both docs rows (`**No**` bold like its neighbours); `MARKETING_VERSION` absent from the diff.
 
 ### M1 — Parser, resolver, storage formatter, editor primitives · ApexCore · Linux · `feat/w17-voice-parser`
@@ -244,7 +246,8 @@ times and`; `warmup` and the bigram `warm up` (consumed together — `up` alone 
 (`oh` is a number only inside shorthand, `two oh five`; dec. 7); the noise words `to too won ate`
 (never a number, never a name; reported as `ignored`; dec. 28); the articles `a an` (silent on
 their own; dec. 7); and every number word. Connectives and fillers are never reported as `ignored`
-(dec. 7); a leading `on` says nothing in any phrase (dec. 27). "dec. N" throughout this section is
+(dec. 7); a leading `on` before other words says nothing (dec. 27; `on` alone stays a phrase and
+asks). "dec. N" throughout this section is
 item N of the **Grammar decisions recorded by M1** table below.
 
 **Number words.** (1) English 0–9999: `a|an` before `hundred|thousand|half|minute` = 1, silent anywhere else (dec. 7); tens may
@@ -268,16 +271,16 @@ half|quarter` (dec. 21, case 82); fractional minutes.
 |---|---|---|---|
 | R1 | number + weight unit | weight, unit kept | `225 pounds`, `225 lbs` |
 | R2 | number + `rep(s)`, or `rep(s)` + number | reps | `5 reps` |
-| R3 | number + `set(s)`; `set(s) of` + number | sets; the `of` number is what it is said to be — a unit → weight (R1), `rep(s)` → reps (R2), a duration → time (R5) — else a bare number's reading here (R12: the hint when it names one dimension, else the floor; a fraction is a weight) (dec. 23, 24); a set count with no value is `empty` (dec. 9) | `3 sets of 5`; `3 sets of 60 seconds` → sets 3, D60; `3 sets of 225` → sets 3, W225; `plank 3 sets of 60` → D60 |
+| R3 | number + `set(s)`; `set(s) of` + number | sets; the `of` number is what it is said to be — a unit → weight (R1), `rep(s)` → reps (R2), a duration → time (R5) — else a bare number's reading here (R12: the hint when it names one dimension, else the floor; a fraction is a weight unless the exercise logs only reps or only time) (dec. 23, 24); a set count with no value is `empty` (dec. 9) | `3 sets of 5`; `3 sets of 60 seconds` → sets 3, D60; `3 sets of 225` → sets 3, W225; `plank 3 sets of 60` → D60 |
 | R4 | `rpe` adjacent to a number (digits or words) | rpe | `rpe 8`, `rpe eight` |
 | R5 | number + duration unit, clock-as-duration, `a minute…` | duration | `45 seconds`, `plank 1:30` |
 | R6 | `bodyweight`/`body weight`/`bw` [`plus`/`minus` N [unit]]; a bare `plus`/`minus` N [unit] with no bodyweight word is the same form (dec. 21) | BW forms | `weighted pull ups plus 25 for 5` → BW+25 R5 |
 | R7 | `at` + number: weight empty → weight; else ≤10 → rpe; else `tooManyNumbers` | `5 at 225 at 8` | |
-| R8 | pair joined by `for`/`at`/`x`/`by`/`times`, one side already marked | the other side takes the complementary slot: of marked reps → weight under `for`/`at`, and under `x`/`by`/`times` sets if ≤ 10 else weight (dec. 4); of a marked set count → a bare number's reading (hint, then the floor; a fraction is a weight; dec. 19, 24); of a marked duration under `x` → sets (dec. 25) | `5 reps for 225` → W225; `3 x 5 reps` → sets 3; `225 for 5 sets` → sets 5, W225; `plank 3 x 60 seconds` → sets 3, D60 |
+| R8 | pair joined by `for`/`at`/`x`/`by`/`times`, one side already marked | the other side takes the complementary slot: of marked reps → weight under `for`/`at`, and under `x`/`by`/`times` sets if ≤ 10 else weight (dec. 4); of a marked set count → a bare number's reading (hint, then the floor; a fraction is a weight unless the hint is reps-only or time-only; dec. 19, 24); of a marked duration under `x`/`by`/`times` → sets when it is an integer ≤ 10, else nothing completes the pair and it is invalid (`duplicateDuration`) (dec. 25) | `5 reps for 225` → W225; `3 x 5 reps` → sets 3; `225 for 5 sets` → sets 5, W225; `plank 3 x 60 seconds` → sets 3, D60 |
 | R9 | unmarked `A for B` | A weight, B reps — unless exactly one side is above the floor, which is then the weight (dec. 20) | `225 for 5`, `2:25 for 5`; `5 for 225` → W225 R5 |
 | R10 | unmarked `A at B` | A reps, B weight — unless exactly one side is above the floor (dec. 20) | `5 at 225`, `five at 225`; `225 at 5` → W225 R5 |
-| R11 | unmarked `A x B` (`by`, `times`) | A≤10 and B≤30 → sets×reps; else reps=min, weight=max; a third item takes the next of [sets, reps, weight]; on a `[duration]` hint a bare `A x B` is sets of a time (dec. 25) | `5x5`; `225x5`; `12 by 20`; `plank 3 x 60` → sets 3, D60 |
-| R12 | lone bare number | hint `[duration]` → duration; hint has reps but not weight → reps; hint has weight but not reps → weight; otherwise (both, or an empty hint) N > 50 → weight, else reps | `plank 60`; `bench 225`; `bench 5`; `front squat 225` → W225 |
+| R11 | unmarked `A x B` (`by`, `times`) | A≤10 and B≤30 → sets×reps; else reps=min, weight=max; a third item takes the next of [sets, reps, weight]; on a `[duration]` hint a bare `A x B` with one side ≤ 10 and A ≠ B is that many sets of a time (dec. 25) | `5x5`; `225x5`; `12 by 20`; `plank 3 x 60` → sets 3, D60 |
+| R12 | lone bare number | hint `[duration]` → duration; hint has reps but not weight → reps; hint has weight but not reps → weight; otherwise (both, or an empty hint) a fraction → weight, N > 50 → weight, else reps | `plank 60`; `bench 225`; `bench 5`; `front squat 225` → W225 |
 | R13 | bare pair A B (no connective, or `and`/comma) | exactly one > 50 → weight; both ≤ 50 → A reps, B weight + `barePair`; both > 50 → `ambiguousNumbers` | `5 225`; `10 20`; `225 185` |
 | R14 | a third unmarked number, or a slot filled twice | `tooManyNumbers` / `duplicate…` → invalid | |
 | R15 | `warm up`/`warmup` anywhere | isWarmup | |
@@ -293,11 +296,11 @@ beyond the brief", each pinned by a fixture case or a test; the rule-table cells
 
 | # | Decision | Pinned by |
 |---|---|---|
-| 4 | R8's complement under `x`/`by`/`times` when the marked side is reps: the other side is sets if ≤ 10, else weight (`3 x 5 reps` → 3 sets; `225 x 5 reps` → 225 lb). Under `for`/`at` it is always the weight. | cases 08, 75, 76 |
+| 4 | R8's complement under `x`/`by`/`times` when the marked side is reps: the other side is sets if ≤ 10, else weight (`3 x 5 reps` → 3 sets; `225 x 5 reps` → 225 lb). Under `for`/`at` it is always the weight. | case 75 pins the ≤ 10 half; `225 x 5 reps` → weight holds on `main` but no fixture case pins it (case 76 is a marked weight, case 08 fires R7, not R8) |
 | 7 | Fillers and silence: `oh` is a number only inside shorthand (`two oh five`), elsewhere a filler; lone `a`/`an` are silent; connectives (`at for x by times and of`) and fillers are never reported as `ignored`. | cases 37, 42, 63 |
 | 8 | A repeat word beside numbers is an ignored word, not a repeat; a repeat needs no number at all. | case 62 |
 | 9 | `3 sets` alone is `empty` — a set count without a value is nothing to log. | case 61 |
-| 10 | Containment forgives a three-letter plural on the joined key: `pull up` is contained in `Weighted Pull-Ups` (the per-word singularise keeps `ups` by the length rule; `sameWord` forgives it). | case 60 |
+| 10 | Containment forgives the plural the per-word singularise keeps: word membership (`sameWord`) accepts one trailing `s` either way, whatever the length (`ups` ∋ `up`, so `pull up` is contained in `Weighted Pull-Ups`; `presss` ∋ `press` too); the joined key is used only by the exact and near tiers. #483 describes this as a three-letter rule on the joined key; the code is per word. | case 60 |
 | 17 | A name a keyword hides is never silently the current exercise (the A4 = 0 rule): `extractPhrase` skips leading flags (`warm up`, repeat words), recognises a session or library name whose words are keywords — the longer of the plain run and a known name wins, a tie goes to the known name — and, when neither the leading nor the trailing run yields a phrase, takes every plain word the rules skipped as the phrase, so "5 easy at 225" asks instead of applying. `body weight` is one name word. | cases 64–69, `VoiceExerciseTests.testANameIsNeverLostToAKeyword` |
 | 18 | A write after an undo on the same key is an upsert, never also a delete: `takeSavePayload` drops a removal for any key it upserts (the queue's merge already reads a later upsert as reviving a removed key; the server runs both lists in one unordered batch). Also closes the pre-existing remove-extra → add-extra → type hole. | `TrackerEditorTests.testAWriteAfterARevertIsAnUpsertNotADelete` |
 | 19 | A weight beside a set count stays a weight: R8's complement of a marked sets item is reps only when the other number is at or under the floor, else the weight; R3's `of` number above the floor is a weight (`3 sets of 225`). | cases 77–79 |
@@ -305,14 +308,14 @@ beyond the brief", each pinned by a fixture case or a test; the rule-table cells
 | 21 | A bare `plus`/`minus` N [unit] is a bodyweight form (`weighted pull ups plus 25 for 5` → BW+25); `a minute and a quarter` is 75 s and `N minutes and a half` works too. | cases 82, 83 |
 | 22 | Branch coverage: R13's one-big branch, R12's reps-only and weight-only hints, the R11 three-item chain, `reps N`, and R8's `x` complements each have a row. | cases 70–76 |
 | 23 | The `of` number is what it is said to be, else what a bare number is here: `sets of 60 seconds` is a time (R5), `sets of 100 pounds` keeps its unit (R1), `sets of 5 reps` is reps (R2); a bare `of` number takes R12's reading — the hint when it names one dimension (`plank 3 sets of 60` → 60 s, `push ups 3 sets of 60` → 60 reps), else the floor. | cases 84–90 |
-| 24 | A set count's other side reads the same way: R8's complement of a marked sets item is that bare reading, so `plank 3 sets for 60` is a time, and a fraction beside a set count is always a weight (`42.5 for 3 sets`, `3 sets of 42.5`). | cases 91, 98, 99 |
-| 25 | Sets of a time under `x`: a marked duration times a small number is sets (`plank 3 x 60 seconds`, `plank 1:30 x 3`), and on a timed exercise a bare `3 x 60` is three sets of 60 s, not a 60 weight × 3 reps. | cases 92–94 |
+| 24 | A set count's other side reads the same way: R8's complement of a marked sets item is that bare reading, so `plank 3 sets for 60` is a time, and a fraction beside a set count is a weight (`42.5 for 3 sets`, `3 sets of 42.5`) — unless the exercise logs only reps or only time, where the hint wins and a fractional rep count is `repsNotInteger` (`push ups 3 sets of 42.5`); #483's wording says "always". | cases 91, 98, 99 |
+| 25 | Sets of a time under `x`: a marked duration times a small number is sets (`plank 3 x 60 seconds`, `plank 1:30 x 3`), and on a timed exercise a bare `3 x 60` is three sets of 60 s, not a 60 weight × 3 reps (the count must be an integer ≤ 10 and the two numbers differ; `plank 60 x 90` falls back to R11's weight/reps reading). | cases 92–94 |
 | 26 | A known name made only of flags or fillers never displaces the name that was said: with a plan line called "Warm-Up", `warm up bench 5 at 135` is a warm-up set on the bench and `warm up 5 at 135` a warm-up on the current exercise; a known name must contain a token that is neither a flag nor a filler, and it displaces a plain run only when it contains that run. | `testANameIsNeverLostToAKeyword` |
-| 27 | A leading `on` says nothing in any phrase: `same again on bench`, `on bench 5 at 225`. | cases 95, 96 |
+| 27 | A leading `on` before other words says nothing: `same again on bench`, `on bench 5 at 225` (`on` alone, as in `on 5 at 225`, is still a phrase and asks). | cases 95, 96 |
 | 28 | The four number homophones are noise: `to too won ate` are never a number and never a name; they are reported as ignored (−5), which is how alternative ranking settles them. | case 97 |
 | 29 | A known name may carry a digit: `45 degree back extension 25` names the library's "45 Degree Back Extension" and logs 25 reps. | case 100 |
 | 30 | Undo restores an extra the athlete added by hand: `VoiceApplied.created` lists the extras the apply itself added; only those are dropped on `revert`, a hand-added empty extra comes back as it was, and both removals still go out. | `TrackerEditorTests.testRevertRestoresAnExtraTheAthleteAddedByHand` |
-| 31 | Recorded, not changed: `more`/`another` alone count as repeat words; `225 lbs at 8` is an RPE by R7 before R8, as the rules are ordered; the floor stays unit-blind (`bench 40` on a kg profile is 40 reps) — the journal decides. | cases 16, 53, 57 (R7 before R8); the floor: #483 "Not verified" |
+| 31 | Recorded, not changed: `more`/`another` alone count as repeat words; `225 lbs at 8` is an RPE by R7 before R8, as the rules are ordered; the floor stays unit-blind (`bench 40` on a kg profile is 40 reps) — the journal decides. | no fixture case: `225 lbs at 8` → rpe 8 and `more`/`another` alone → repeat hold on `main` (cases 16, 53 and 57 fire R4 and R10, not R7); cases for them are M3's to add; the floor: #483 "Not verified" |
 
 #483's other decisions (1–3, 5–6, 11–16) restate this section or pin an implementation detail —
 the ratchet, `NearMatch.budget` internal, R7 vs R10 at `at`, `N rpe`, the clock shapes, the empty
@@ -327,8 +330,9 @@ words are keywords or number words is recognised as such (`bodyweight squat`, `q
 name wins, a tie goes to the known name, and a known name must hold a token that is neither a flag
 nor a filler (a plan line called "Warm-Up" never swallows the flag) and displaces a plain run only
 when it contains it; else the trailing run after the last slot, a leading `on`/`of`/`for`/`the`
-stripped (a leading `on` says nothing in any phrase, and the `on` before a trailing known name is
-taken with it); else every plain word the rules skipped is the phrase, so "5 easy at 225" asks
+stripped (a leading `on` before other words says nothing — `on` alone stays a phrase and asks — and
+the `on` before a trailing known name is taken with it); else every plain word the rules skipped is
+the phrase, so "5 easy at 225" asks
 instead of silently landing on the current exercise. Unconsumed words → `ignored`, never fatal.
 A phrase with no values → `empty`.
 
@@ -338,8 +342,8 @@ singularise per word (`ies→y`; drop a final `s` when length > 3 and not `ss`).
 joined, singularised once more. Each candidate gets two keys: the full name, and the name with a
 parenthetical removed. Tiers, stop at the first that yields: **1 exact-session** (key equality
 over session names + their definition's canonical name and aliases; one → `resolved(exact)`,
-several → confirm) · **2 contained-session** (every phrase word ∈ candidate words, a three-letter
-plural forgiven on the joined key — `pull up` ⊂ Weighted Pull-Ups, dec. 10; one →
+several → confirm) · **2 contained-session** (every phrase word ∈ candidate words, word membership
+forgiving one trailing `s` either way — `pull up` ⊂ Weighted Pull-Ups, dec. 10; one →
 `resolved(contained)`, auto-applied — the target is already in today's session and its
 `definitionId` is fixed; several → confirm) · **3 near-session** (`NearMatch.distance` within the
 picker's budget → confirm, by distance then session order) · **4 exact-library** (over
@@ -459,7 +463,7 @@ Notation: W225 = weight 225 no unit (storage `"225"`); W"105 kg" = unit spoken; 
 | 57 | 5 at 225 rpe 12 | R5 W225 | current | ok, rpe dropped, problems [rpeOutOfRange] |
 | 58 | five and a half reps | — | current | invalid repsNotInteger |
 | 59 | easy run 20 minutes | D1200 | unresolved "easy run" | cardio definition excluded from the library tiers |
-| 60 | pull up 8 | R8 | session pullups contained | plural forgiven on the joined key (dec. 10) |
+| 60 | pull up 8 | R8 | session pullups contained | `up` ∈ `ups`: one trailing `s` forgiven per word (dec. 10) |
 | 61 | 3 sets | — | current | empty: a set count alone (dec. 9) |
 | 62 | again 5 at 225 | R5 W225 | current | ok, `again` ignored — not a repeat (dec. 8) |
 | 63 | oh bench 225 for 5 | W225 R5 | session bench contained | `oh` a filler outside shorthand (dec. 7) |
@@ -506,7 +510,7 @@ each named for its decision). The ratchet is `committedCaseCount = 100` (`VoiceF
 only rises, and M3's `journal:<date>` cases count from 101.
 
 Acceptance:
-- [x] `swift test --package-path ios/Packages/ApexCore` green on Linux CI and a Mac; `npm run agent:check` green (ApexCore imports clean). — Mac and `agent:check` green in #483; `apexcore-linux` green on #483's CI and on #480's and #484's after it.
+- [x] `swift test --package-path ios/Packages/ApexCore` green on Linux CI and a Mac; `npm run agent:check` green (ApexCore imports clean). — Mac and `agent:check` green in #483; `apexcore-linux` green on #483's CI and again on #484's, which merged `main` with M1 (#480's run predates M1).
 - [x] `VoiceFixtureTests`: every case passes, failure messages name the case id; `XCTAssertGreaterThanOrEqual(cases.count, N)` with N committed (the only-grows ratchet); every rule R1–R17, every exercise tier and every `SpokenProblem` appears in ≥ 1 case; every case has a `source`. — N = 100 (#483).
 - [x] `VoiceStorageTests`: each case's `storage` map matches the formatter; `for|to|too|won|ate` never read as numbers; clock-as-number vs clock-as-duration by hint.
 - [x] `VoiceTokensTests`, `VoiceNumbersTests`, `VoiceExerciseTests` (keys, tiers in isolation, archived excluded, parenthetical, ordering, no phrase → current), `VoiceScoreTests` (ok > empty > invalid; resolved > current > confirm > unresolved; ties keep index).
@@ -526,8 +530,13 @@ silence window waits for a transcript; `.activating` is capped by the 8 s rule (
 the ask/failed/denied strips have a dismiss and stop the 100 ms tick; `.confirming` carries the
 spoken phrase so Pick… searches it, and a stale chip says so; Undo restores the rest only while the
 running rest is still the apply's; `cancelVoice()` also drops an offer or an ask; "Clear voice log"
-asks first; the near-miss smoke utterance is `fixture prss`, not `fixture pres` (M1's plural rule
-reads `pres` as `press` and auto-applies it).
+asks first; `loggedSetCount += keys.count` (one `3 sets of 5 at 225` utterance counts three), as the
+State text says and against the acceptance box's "+1 per utterance"; an undo before the flush
+sends no row but one removal for the key, which the server treats as a no-op (`VoiceLoggingTests`
+asserts exactly that), against the box's "sends nothing for the key"; the near-miss smoke
+utterance is `fixture prss`, not `fixture pres` — #484 says M1's plural rule would auto-apply
+`pres` as a containment, but on `main` it would not: `voiceWords` singularises `pres` to `pre`, so
+both spellings are near matches and chip, and the leg works with either.
 
 **State and logic** (`TrackerModel.swift` holds the stored state below and relaxes `restCommitted`
 and `scheduleSave` from `private` to internal; `TrackerModel+Voice.swift` is a same-module extension
@@ -594,12 +603,12 @@ holding the methods only — Swift extensions cannot add stored properties):
   `you-training-voice`.
 
 Acceptance:
-- [x] `VoiceLoggingTests` (over `VoiceSupport.make(…)` with `speech:` injected — a new file, since `TrackerModelTests.swift` is claimed by another lane): first empty planned set filled and ghost cleared (`focusSet` then returns false); extra when none empty; `sets: 3` planned then extra; `repeat`; library hit → `.confirming`, tap adds + logs, Undo removes both; nil/`.failed` for cardio, pitch, finished; `loggedSetCount` +1 per utterance; save body carries `"actual_weight":"225"` bare and `"100 kg"` when spoken; rest starts on reps; undo restores the rest state captured before the apply (a rest it started stops, a rest that was already running resumes, and re-logging the reverted row starts its rest again); undo before the flush sends nothing for the key, after the flush sends a delete; Undo ends on a typed edit to the key, the next apply, the next mic tap, 15 s.
+- [x] `VoiceLoggingTests` (over `VoiceSupport.make(…)` with `speech:` injected — a new file, since `TrackerModelTests.swift` is claimed by another lane): first empty planned set filled and ghost cleared (`focusSet` then returns false); extra when none empty; `sets: 3` planned then extra; `repeat`; library hit → `.confirming`, tap adds + logs, Undo removes both; nil/`.failed` for cardio, pitch, finished; `loggedSetCount` +1 per utterance; save body carries `"actual_weight":"225"` bare and `"100 kg"` when spoken; rest starts on reps; undo restores the rest state captured before the apply (a rest it started stops, a rest that was already running resumes, and re-logging the reverted row starts its rest again); undo before the flush sends nothing for the key, after the flush sends a delete; Undo ends on a typed edit to the key, the next apply, the next mic tap, 15 s. [Sync note, from #484's Decisions and tests: `loggedSetCount += keys.count`, not +1 per utterance; an undo before the flush sends no row but one removal for the key, which the server treats as a no-op.]
 - [x] End-of-utterance tests over `TestClock` and the step-wise Fake: 5 s no-speech; 1.0 / 1.5 / 2.0 s windows; 8 s cap; second tap; final deadline falls back to the last partial; background/gate/interruption cancel with nothing applied; `finalToApplied` ≤ 100 ms.
 - [x] `VoiceLogStateTests`: denied; unavailable → no mic; dictation-disabled and assets-missing → Settings line; partials → transcript; exact → `.applied`; near → `.confirming` keeping values; unresolved; empty/invalid → `.failed`; `.current` with no current → `.confirming` ≤ 4; `biases[0]` names-first, ≤ 100, no common words.
 - [x] `VoiceJournalTests`: ring ≤ 200, fields present, no audio bytes, JSON export round-trips.
 - [x] Mic shown only when toggle ∧ available ∧ `!isFinished`; `ApexIcon.mic` passes the every-case design test; `VoiceStrip` identifiers as listed; snapshots recorded on a Mac.
-- [x] `ApexUITests.testVoiceLoggingOnFixtures` (the `testTrackerOnFixtures` shape): `["-apexUITest","-apexMockClient","-apexMockSpeech","Fixture Press 115 for 4;fixture prss 120 for 3"]` ("prss", not "pres": M1's plural rule reads "pres" as "press" and auto-applies it as a contained match, so the near-miss leg needs a spelling the resolver can only near-match). Green under `-retry-tests-on-failure -test-iterations 2` on the first try (2026-10-20, iPhone 17 / iOS 26.5). The audit is `performAccessibilityAudit` with a handler that fails on any issue whose element is a `tracker.voice*` identifier and prints the rest: two pre-existing "Potentially inaccessible text" issues elsewhere on the tracker were printed, none on the voice elements with the toggle on (`MockEnvironment.speech()` writes `apex.tracker.voice` true on every launch and false for the `off` literal, so legs never leak into each other) → Start → `tracker.voice` → `tracker.voice.applied` → set-1 weight reads 115 → `tracker.voice.undo` → empty → mic → chip → 120; `-apexMockSpeech denied` leg shows the Settings line; toggle-off leg has no `tracker.voice`; green under `-test-iterations 2`; `performAccessibilityAudit()` with the strip applied (skip only if the 26.5 runtime pin refuses it, and say so).
+- [x] `ApexUITests.testVoiceLoggingOnFixtures` (the `testTrackerOnFixtures` shape): `["-apexUITest","-apexMockClient","-apexMockSpeech","Fixture Press 115 for 4;fixture prss 120 for 3"]` ("prss", not "pres": M1's plural rule reads "pres" as "press" and auto-applies it as a contained match, so the near-miss leg needs a spelling the resolver can only near-match). [Sync note: on `main` `pres` is a near match too — `voiceWords` singularises it to `pre`, so containment never fires; both spellings chip.] Green under `-retry-tests-on-failure -test-iterations 2` on the first try (2026-10-20, iPhone 17 / iOS 26.5). The audit is `performAccessibilityAudit` with a handler that fails on any issue whose element is a `tracker.voice*` identifier and prints the rest: two pre-existing "Potentially inaccessible text" issues elsewhere on the tracker were printed, none on the voice elements with the toggle on (`MockEnvironment.speech()` writes `apex.tracker.voice` true on every launch and false for the `off` literal, so legs never leak into each other) → Start → `tracker.voice` → `tracker.voice.applied` → set-1 weight reads 115 → `tracker.voice.undo` → empty → mic → chip → 120; `-apexMockSpeech denied` leg shows the Settings line; toggle-off leg has no `tracker.voice`; green under `-test-iterations 2`; `performAccessibilityAudit()` with the strip applied (skip only if the 26.5 runtime pin refuses it, and say so).
 - [x] Scroll: `-apexFrameLog` six flings with the strip visible → late frames ≤ 1 (the D-054 baseline). Measured 2026-10-20 on the iPhone 17 / iOS 26.5 simulator with `-apexMockDense` and the failed strip up: six flings → **1 late frame** (gap 33 ms, 1 missed). The strip's first appearance after the mic tap cost one 209 ms gap (12 frames) while the eager 60-row content shifted under it with the animation, so the animation now covers only the strip's insertion and removal; the device's number is a scorecard row.
 - [x] Docs: this brief's Status and Session log, STATUS row + recent line, `app-store.md` §3 recording script gains the two sheets, the memory note.
 
@@ -720,7 +729,7 @@ default-on → store (behind 1.0's approval).
 The union of the three PR bodies' lists, as they wrote them. Settled since the planning pass:
 whether the `sdk:` lines are needed (not needed — `otool -L`, #480); `performAccessibilityAudit` on
 the 26.5 runtime (runs; #484's smoke uses it); the Linux build and test of ApexCore
-(`apexcore-linux` green on all three PRs).
+(`apexcore-linux` green on #483 and on #484, which carried M1).
 
 PR-H (#480):
 - Every device-side SDK pin — the iPhone 15 Pro was not connected: `supportsOnDeviceRecognition` on
@@ -777,7 +786,8 @@ M2 (#484):
   lines needed — the app links Speech and AVFAudio through the package), the `ci-guards.sh` ban,
   the `app-store.md` and `testing-and-ci.md` rows, `SpeechAdapterTests`. Gate green on a fresh
   iPhone 17 / iOS 26.5 simulator; no snapshot file changed; `check-deinits` clean; `agent:check`
-  green. One reviewer round (three minors, two spec gaps) folded in as 6a92400e: an abort racing
+  green. One reviewer round folded in as 6a92400e (three minors, one spec gap and three not-checked
+  items — wrapped errors, `deinit`, concurrent `stopAudio()`): an abort racing
   `start()` now releases what it acquired, the Fake matches the adapter's event sequence
   (`.partial("")` first; nothing heard → `.failed(.noSpeech)`), two tautological assertions made
   real, `authorization()` folds both sheets. The iPhone 15 Pro was not connected, so every device
@@ -828,25 +838,31 @@ M2 (#484):
   milestone's scorecard rows.
 - 2026-10-22 · Mac · **Docs sync** (`chore/w17-brief-sync`, docs only). With PR-H #480, M1 #483 and
   M2 #484 on `main`, the brief says what the lanes built: the grammar text absorbs M1's decisions 7,
-  10, 17 and 23–31 (and 4, 18–22, which M1's own log line asked for) as the table under the slot
-  rules, with the rule-table cells for R3, R6, R8–R11 and R16, the keyword vocabulary, the number
+  10, 17 and 23–31 (and 4, 18–22, the sync's own additions: 19–21 are what the M1 log line above
+  lists for this edit, 4, 18 and 22 complete the R8 cell, the editor text and the case notes) as the
+  table under the slot rules, with the rule-table cells for R3, R6, R8–R11 and R16, the keyword
+  vocabulary, the number
   words, `extractPhrase`, tier 2 and the editor primitives adjusted to match; the fixture table
   carries cases 60–100 and the ratchet 100; PR-H's outcomes and the Fake's final surface are
   recorded with the `sdk:` answer; the acceptance boxes #480 and #483's CI prove are ticked and the
   device-side pins stay open; M2's deviations and Shane's device checks are listed under M2; "Not
   verified" is the union of the three PR bodies; PR-H's session-log line moved here from its PR
-  body; the Next brief is M3. Nothing in the three PR bodies contradicts D-059. No code.
+  body; the Next brief is M3; TestFlight 1.1.0 (604) (#486) is in the status line, the Next brief and
+  STATUS. One reviewer round on the sync (ten minors: pins cited that do not pin, wording broader
+  than the code, two #484 contradictions unsurfaced, a stale flag literal) folded in. Nothing in
+  the three PR bodies contradicts D-059. No code.
 
 ## Next brief
 **M3 — dogfood to default-on (Shane's device first, then ApexCore PRs).** Goal: the voice journal
 fills on a real phone and every utterance it gets wrong becomes a fixture case, until the exit
-criterion above flips the default on. Order: (1) **Shane** — a TestFlight build from `main`
-(`gh workflow run testflight.yml --ref main`; `MARKETING_VERSION` untouched) carrying #480, #483
-and #484, installed on the iPhone 15 Pro, You → Training → *Log sets by voice* on, then the
-device-run scorecard above in its order; rows 14, 12, 5, 6, 7 and 13 answer #480's device-side pins
-(the two sheets' wording and order, the orange indicator, a call mid-listen, airplane mode,
-denied / Dictation off, lock mid-listen) and rows 2 and 3 the ducking, the un-ducking and the A2DP
-route. The first gym session is **collection-only**: no parser edit; the journal goes to the Mac
+criterion above flips the default on. Order: (1) **Shane** — TestFlight 1.1.0 (604), uploaded
+2026-10-22 from `main` at 75096526 (#486; it carries #480, #483 and #484 with the toggle off), on
+the iPhone 15 Pro; You → Training → *Log sets by voice* on; then the device-run scorecard above in
+its order — the rows the PR-H section's open box names answer #480's device-side pins (14 and 7
+the sheets and denial, 2 and 12 ducking and the indicator, 3 A2DP, 5 and 13 a call and lock, 1, 9
+and 19 with the journal the bias and dictation's number shapes, 15 and L2 `isFinal` latency); row 6
+(airplane mode) is the offline promise. The first gym session is **collection-only**: no parser
+edit; the journal goes to the Mac
 from You → Training → *Share voice log*. (2) **One session per gym day**, from the shared JSON with
 one line per disputed entry: `scripts/git-new.sh fix/w17-voice-cases-<date> "W17 M3: voice fixture
 cases from <date>" --no-install`; record A2–A7, L1–L2 and E1 for the session in this Session log
