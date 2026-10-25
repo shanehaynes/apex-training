@@ -160,7 +160,7 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
 - 2026-10-25 · W17 M3 pins, R8 edges · Mac. The four cases #488's review asked for — `5 reps for 3`
   → W3 (so `for` is pinned apart from `x`), `10 x 5 reps` → 10 sets and `11 x 5 reps` → W11 (the
   boundary), `225 at 5 reps` → W225 (`at`) — all holding on `main` as written, no rule changed;
-  decision 4 pinned whole; the ratchet 105 → 109. ApexCore tests and docs only.
+  decision 4 pinned for `x` and `for` (`at` only above the boundary); the ratchet 105 → 109. ApexCore tests and docs only.
 - 2026-10-22 · W17 M3 pins · Mac. Five authored fixture cases (101–105) pin the rules the docs sync
   found holding on `main` unpinned — `225 x 5 reps` and `5 reps for 225` (R8's complement of marked
   reps), `225 lbs at 8` → RPE 8 (R7 before R8), `more` / `another` alone → repeat (R16) — plus one
