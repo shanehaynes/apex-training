@@ -296,7 +296,7 @@ beyond the brief", each pinned by a fixture case or a test; the rule-table cells
 
 | # | Decision | Pinned by |
 |---|---|---|
-| 4 | R8's complement under `x`/`by`/`times` when the marked side is reps: the other side is sets if ≤ 10, else weight (`3 x 5 reps` → 3 sets; `225 x 5 reps` → 225 lb). Under `for`/`at` it is always the weight. | cases 75 (`5 reps x 3` → 3 sets: the ≤ 10 half) and 101 (`225 x 5 reps` → 225 lb: the > 10 half); case 102 (`5 reps for 225`) shows `for` → weight at 225, where `x` gives weight too, so `for` with a small complement (`5 reps for 3` → W3 by the rule as written), the 10/11 boundary under `x` and `at` with marked reps (`225 at 5 reps`) still have no case |
+| 4 | R8's complement under `x`/`by`/`times` when the marked side is reps: the other side is sets if ≤ 10, else weight (`3 x 5 reps` → 3 sets; `225 x 5 reps` → 225 lb). Under `for`/`at` it is always the weight. | cases 75 (`5 reps x 3` → 3 sets) and 101 (`225 x 5 reps` → 225 lb) for the two halves, 107 and 108 (`10 x 5 reps` → 10 sets, `11 x 5 reps` → W11) for the boundary itself; `for`: cases 102 (`5 reps for 225`) and 106 (`5 reps for 3` → W3, which `x` would have made sets); `at`: case 109 (`225 at 5 reps` → W225) |
 | 7 | Fillers and silence: `oh` is a number only inside shorthand (`two oh five`), elsewhere a filler; lone `a`/`an` are silent; connectives (`at for x by times and of`) and fillers are never reported as `ignored`. | cases 37, 42, 63 |
 | 8 | A repeat word beside numbers is an ignored word, not a repeat; a repeat needs no number at all. | case 62 |
 | 9 | `3 sets` alone is `empty` — a set count without a value is nothing to log. | case 61 |
@@ -505,16 +505,20 @@ Notation: W225 = weight 225 no unit (storage `"225"`); W"105 kg" = unit spoken; 
 | 99 | 3 sets of 42.5 (kg) | sets3 W42.5 | current | (dec. 24) |
 | 100 | 45 degree back extension 25 | R25 | library exact (45 Degree Back Extension) | a name with a digit (dec. 29) |
 | 101 | 225 x 5 reps | W225 R5 | current | R2 R8: marked reps × a number > 10 → weight — dec. 4's other half (case 75 pins ≤ 10) |
-| 102 | 5 reps for 225 | R5 W225 | current | R2 R8: under `for` the complement of marked reps is the weight (dec. 4; at 225 `x` agrees, so the small-complement half is unpinned) |
+| 102 | 5 reps for 225 | R5 W225 | current | R2 R8: under `for` the complement of marked reps is the weight (dec. 4; at 225 `x` agrees — case 106 pins the small complement) |
 | 103 | 225 lbs at 8 | W"225 lb" rpe8 | current | R1, then R7 before R8: `at` + a number ≤ 10 with the weight filled is the RPE (dec. 31) |
 | 104 | more | repeat | current | R16: `more` alone (dec. 31) |
 | 105 | another | repeat | current | R16: `another` alone (dec. 31) |
+| 106 | 5 reps for 3 | R5 W3 | current | R2 R8: under `for` even a small complement is the weight — `for` never falls through to the `x` rule (dec. 4) |
+| 107 | 10 x 5 reps | sets10 R5 | current | R2 R8 R17: marked reps × 10 → sets, the boundary's near side (dec. 4) |
+| 108 | 11 x 5 reps | W11 R5 | current | R2 R8: marked reps × 11 → weight, the boundary's far side (dec. 4) |
+| 109 | 225 at 5 reps | W225 R5 | current | R2 R8: under `at` the complement of marked reps is the weight (dec. 4) |
 
 Cases 01–59 are the planning pass's; **60–100 are M1's authored additions** (`source: "authored"`,
-each named for its decision); **101–105 are M3's first**, authored too, each named for the rule it
-pins where decisions 4 and 31 held on `main` with no case to guard them. The ratchet is
-`committedCaseCount = 105` (`VoiceFixtureTests`); it only rises, and M3's `journal:<date>` cases
-count from 106.
+each named for its decision); **101–109 are M3's authored pins**, each named for the rule it pins
+where decisions 4 and 31 held on `main` with no case to guard them (101–105 in #488, 106–109 the
+R8 edges its review named). The ratchet is `committedCaseCount = 109` (`VoiceFixtureTests`); it
+only rises, and M3's `journal:<date>` cases count from 110.
 
 Acceptance:
 - [x] `swift test --package-path ios/Packages/ApexCore` green on Linux CI and a Mac; `npm run agent:check` green (ApexCore imports clean). — Mac and `agent:check` green in #483; `apexcore-linux` green on #483's CI and again on #484's, which merged `main` with M1 (#480's run predates M1).
@@ -882,6 +886,14 @@ M2 (#484):
   the journal (Shane's policy call, in the PR body). `swift test` 644 green on a Mac (one skipped,
   as before); `agent:check` green on a quiet machine (three earlier runs each lost one unrelated
   test to CPU starvation).
+- 2026-10-25 · Mac · **M3 pins, R8 edges** (`fix/w17-voice-cases-r8-edges`, unheld; ApexCore tests and
+  docs only). The four cases #488's review asked for, each held on `main` as the rules
+  are written and none changed: `5 reps for 3` → R5 W3 (`for` never falls through to the `x` rule),
+  `10 x 5 reps` → sets10 R5 and `11 x 5 reps` → W11 R5 (the ≤ 10 boundary itself), `225 at 5 reps`
+  → W225 R5 (`at` with marked reps). Decision 4 is now pinned whole. The ratchet 105 → 109, red on
+  the count first, then green. `swift test` 644 green on a Mac; `agent:check` green under
+  `caffeinate` — the earlier "flakes" were this Mac sleeping mid-run (idle sleep after one minute;
+  `pmset -g log` shows it), not the specs.
 
 ## Next brief
 **M3 — dogfood to default-on (Shane's device first, then ApexCore PRs).** Goal: the voice journal
