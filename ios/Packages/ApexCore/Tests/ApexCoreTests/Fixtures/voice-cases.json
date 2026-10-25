@@ -815,6 +815,27 @@
       "expect": { "status": "ok", "chosen": 0, "intent": { "kind": "log", "sets": 1, "values": {"weight": {"value": 225}, "reps": 5} },
                   "exercise": { "kind": "current" }, "ignored": [], "problems": [] },
       "storage": {"weight": "225", "reps": "5"}
+    },
+    {
+      "id": "110", "name": "R8 under at: a small complement of marked reps is still the weight", "source": "authored", "rules": ["R2", "R8"], "context": "upper",
+      "input": ["3 at 5 reps"],
+      "expect": { "status": "ok", "chosen": 0, "intent": { "kind": "log", "sets": 1, "values": {"weight": {"value": 3}, "reps": 5} },
+                  "exercise": { "kind": "current" }, "ignored": [], "problems": [] },
+      "storage": {"weight": "3", "reps": "5"}
+    },
+    {
+      "id": "111", "name": "R8 under by: marked reps by a small number are sets", "source": "authored", "rules": ["R2", "R8", "R17"], "context": "upper",
+      "input": ["5 reps by 3"],
+      "expect": { "status": "ok", "chosen": 0, "intent": { "kind": "log", "sets": 3, "values": {"reps": 5} },
+                  "exercise": { "kind": "current" }, "ignored": [], "problems": [] },
+      "storage": {"reps": "5"}
+    },
+    {
+      "id": "112", "name": "R8 under times: marked reps times a small number are sets", "source": "authored", "rules": ["R2", "R8", "R17"], "context": "upper",
+      "input": ["5 reps times 3"],
+      "expect": { "status": "ok", "chosen": 0, "intent": { "kind": "log", "sets": 3, "values": {"reps": 5} },
+                  "exercise": { "kind": "current" }, "ignored": [], "problems": [] },
+      "storage": {"reps": "5"}
     }
   ]
 }
