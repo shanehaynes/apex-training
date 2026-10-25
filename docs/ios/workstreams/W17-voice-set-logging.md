@@ -886,8 +886,8 @@ M2 (#484):
   the journal (Shane's policy call, in the PR body). `swift test` 644 green on a Mac (one skipped,
   as before); `agent:check` green on a quiet machine (three earlier runs each lost one unrelated
   test to CPU starvation).
-- 2026-10-25 · Mac · **M3 pins, R8 edges** (`fix/w17-voice-cases-r8-edges`, unheld; ApexCore tests and
-  docs only). The four cases #488's review asked for, each held on `main` as the rules
+- 2026-10-25 · Mac · **M3 pins, R8 edges** (`fix/w17-voice-cases-r8-edges`, #489, unheld; ApexCore tests
+  and docs only). The four cases #488's review asked for, each held on `main` as the rules
   are written and none changed: `5 reps for 3` → R5 W3 (`for` never falls through to the `x` rule),
   `10 x 5 reps` → sets10 R5 and `11 x 5 reps` → W11 R5 (the ≤ 10 boundary itself), `225 at 5 reps`
   → W225 R5 (`at` with marked reps, above the boundary). Decision 4 is pinned for `x` and `for`;
