@@ -95,6 +95,14 @@ final class VoiceExerciseTests: XCTestCase {
         XCTAssertEqual(resolve("deadlift", ctx), .unresolved(phrase: "deadlift"))
     }
 
+    func testAPluralLikeMisspellingIsANearMatchNotAContainment() {
+        let ctx = context(session: [("fx-press", "Fixture Press")])
+        XCTAssertEqual(VoiceExercise.voiceWords("fixture pres"), ["fixture", "pre"], "pres singularises like a plural")
+        XCTAssertEqual(resolve("fixture pres", ctx), .needsConfirmation(phrase: "fixture pres", candidates: [
+            SpokenExercise.Candidate(scope: .session, id: "fx-press", name: "Fixture Press", match: .near, distance: 2),
+        ]), "pre is not in press by sameWord, so tier 2 passes and tier 3 asks")
+    }
+
     func testLibraryTiers() {
         let library = [
             ExerciseDefinition(id: "rdl", canonicalName: "Romanian Deadlift", aliases: ["Stiff-Leg Deadlift"]),
