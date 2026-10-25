@@ -296,7 +296,7 @@ beyond the brief", each pinned by a fixture case or a test; the rule-table cells
 
 | # | Decision | Pinned by |
 |---|---|---|
-| 4 | R8's complement under `x`/`by`/`times` when the marked side is reps: the other side is sets if ≤ 10, else weight (`3 x 5 reps` → 3 sets; `225 x 5 reps` → 225 lb). Under `for`/`at` it is always the weight. | cases 75 (`5 reps x 3` → 3 sets) and 101 (`225 x 5 reps` → 225 lb) for the two halves, 107 and 108 (`10 x 5 reps` → 10 sets, `11 x 5 reps` → W11) for the boundary itself; `for`: cases 102 (`5 reps for 225`) and 106 (`5 reps for 3` → W3, which `x` would have made sets); `at`: cases 109 (`225 at 5 reps` → W225) and 110 (`3 at 5 reps` → W3, which `x` would have made sets); `by` and `times`: cases 111 and 112 (`5 reps by 3`, `5 reps times 3` → 3 sets) — every clause of the decision has a case that goes red if it is violated |
+| 4 | R8's complement under `x`/`by`/`times` when the marked side is reps: the other side is sets if ≤ 10, else weight (`3 x 5 reps` → 3 sets; `225 x 5 reps` → 225 lb). Under `for`/`at` it is always the weight. | cases 75 (`5 reps x 3` → 3 sets) and 101 (`225 x 5 reps` → 225 lb) for the two halves, 107 and 108 (`10 x 5 reps` → 10 sets, `11 x 5 reps` → W11) for the boundary itself; `for`: cases 102 (`5 reps for 225`) and 106 (`5 reps for 3` → W3, which `x` would have made sets); `at`: cases 109 (`225 at 5 reps` → W225) and 110 (`3 at 5 reps` → W3, which `x` would have made sets); `by` and `times`: cases 111 and 112 (`5 reps by 3`, `5 reps times 3` → 3 sets); their > 10 half shares `x`'s branch by construction (`complement`) and has no case of its own (`5 reps by 225`) |
 | 7 | Fillers and silence: `oh` is a number only inside shorthand (`two oh five`), elsewhere a filler; lone `a`/`an` are silent; connectives (`at for x by times and of`) and fillers are never reported as `ignored`. | cases 37, 42, 63 |
 | 8 | A repeat word beside numbers is an ignored word, not a repeat; a repeat needs no number at all. | case 62 |
 | 9 | `3 sets` alone is `empty` — a set count without a value is nothing to log. | case 61 |
@@ -519,8 +519,8 @@ Notation: W225 = weight 225 no unit (storage `"225"`); W"105 kg" = unit spoken; 
 
 Cases 01–59 are the planning pass's; **60–100 are M1's authored additions** (`source: "authored"`,
 each named for its decision); **101–112 are M3's authored pins**, each named for the rule it pins
-where decisions 4 and 31 held on `main` with no case to guard them (101–105 in #488, 106–112 the
-R8 edges its review named). The ratchet is `committedCaseCount = 112` (`VoiceFixtureTests`); it
+where decisions 4 and 31 held on `main` with no case to guard them (101–105 in #488; 106–109 the
+R8 edges its review named, 110–112 the ones #489's own review added). The ratchet is `committedCaseCount = 112` (`VoiceFixtureTests`); it
 only rises, and M3's `journal:<date>` cases count from 113.
 
 Acceptance:
@@ -896,7 +896,7 @@ M2 (#484):
   itself), `225 at 5 reps` → W225 R5. One reviewer round found 109 pins `at` only above the boundary,
   where `x` agrees, and that `by`/`times` had no case at all; Shane said add them: `3 at 5 reps` → W3 R5
   (`at` apart from `x`), `5 reps by 3` and `5 reps times 3` → sets3 R5 (R17 with them). Decision 4 is
-  now pinned clause by clause. The ratchet 105 → 109 → 112, red on the count first each time, then
+  now pinned for every connective and both sides of the boundary. The ratchet 105 → 109 → 112, red on the count first each time, then
   green. `swift test` 644 green on a Mac; `agent:check` green under `caffeinate` — #488's "flakes" were
   this Mac sleeping mid-run (idle sleep after one minute; `pmset -g log` shows it), not the specs.
 

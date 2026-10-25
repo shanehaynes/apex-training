@@ -157,8 +157,8 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
    (`printf` the two ids back after a tidy) — both git-ignored, so never from the primary checkout.
 
 ## Recent sessions
-- 2026-10-25 · W17 M3 pins, R8 edges · Mac. Seven authored cases (106–112) pin decision 4 clause by
-  clause: the four #488's review asked for — `5 reps for 3` → W3 (`for` apart from `x`), `10 x 5 reps`
+- 2026-10-25 · W17 M3 pins, R8 edges · Mac. Seven authored cases (106–112) pin decision 4 for every
+  connective and both sides of the boundary: the four #488's review asked for — `5 reps for 3` → W3 (`for` apart from `x`), `10 x 5 reps`
   → 10 sets and `11 x 5 reps` → W11 (the boundary), `225 at 5 reps` → W225 — then, after one reviewer
   round, `3 at 5 reps` → W3 (`at` apart from `x`), `5 reps by 3` and `5 reps times 3` → 3 sets. All
   holding on `main` as written, no rule changed; the ratchet 105 → 112. ApexCore tests and docs only
