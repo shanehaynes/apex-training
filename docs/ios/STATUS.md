@@ -26,7 +26,7 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
 | W14 | UX review implementation | done (#283–#292, #296, #297) | Mac | ux-review.md §7; decisions D-037…D-044; **TestFlight build 8 (0.9.0/424) uploaded 2026-09-22 by the first `testflight.yml` run**; snapshots re-recorded on the iPhone 17 (#300); Shane's device run on build 8 is next |
 | W15 | Connector access level (look-only / full tokens) | done (#379) | Mac | after #371/#376 gave `/api/mcp` write access; brief [W15](workstreams/W15-connector-access.md) |
 | W16 | Apple Health (write, read workouts, daily metrics, body weight, meals) | M1 (#430) + MT (#438) shipped in TestFlight 1.1.0 (561); M0 landed (phase59, #469); M2b landed (#472); M3b in review; privacy bump, then M2i next | both | D-056 supersedes D-018; M1 (write, no migration) merges after 1.0 is approved and ships as 1.1; MT (in-app terms re-acceptance) gates the privacy bump; brief [W16](workstreams/W16-apple-health.md) |
-| W17 | Voice set logging (on-device Speech, no LLM) | PR-H #480, M1 #483, M2 #484 merged; TestFlight 1.1.0 (604), toggle off by default; M3 dogfood next | both | D-059; Swift parser on a JSON fixture (105 cases, ratchet), Undo, ships dark behind `apex.tracker.voice`; 604 uploaded 2026-10-22 from main at 75096526 (#486); next: Shane's device run on 604 (toggle on, the scorecard, #480's pins — all NOT VERIFIED), then one `fix/w17-voice-cases-<date>` ApexCore PR per gym session; brief [W17](workstreams/W17-voice-set-logging.md) |
+| W17 | Voice set logging (on-device Speech, no LLM) | PR-H #480, M1 #483, M2 #484 merged; TestFlight 1.1.0 (604), toggle off by default; M3 dogfood next | both | D-059; Swift parser on a JSON fixture (112 cases, ratchet), Undo, ships dark behind `apex.tracker.voice`; 604 uploaded 2026-10-22 from main at 75096526 (#486); next: Shane's device run on 604 (toggle on, the scorecard, #480's pins — all NOT VERIFIED), then one `fix/w17-voice-cases-<date>` ApexCore PR per gym session; brief [W17](workstreams/W17-voice-set-logging.md) |
 
 ## Next up
 0. **W17 M3 — the device run on TestFlight 1.1.0 (604), then ApexCore PRs.** All three lanes are on
@@ -42,7 +42,7 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
    one `fix/w17-voice-cases-<date>` ApexCore PR per gym
    session: record A2–A7, L1–L2 and E1 in the brief's Session log, one `journal:<date>` fixture case
    per failed, undone or disputed utterance, rules changed red-to-green, the reviewer, an unheld
-   PR; the ratchet (105) only rises. Exit: two consecutive sessions of ≥ 20 utterances with zero
+   PR; the ratchet (112) only rises. Exit: two consecutive sessions of ≥ 20 utterances with zero
    new failure-sourced cases and A2 ≥ 90% → the one-line default-on PR and the library auto-apply
    decision on the evidence; budget six device sessions, then D-060. The brief's "Next brief" is
    the drafted M3 brief.
@@ -157,6 +157,12 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
    (`printf` the two ids back after a tidy) — both git-ignored, so never from the primary checkout.
 
 ## Recent sessions
+- 2026-10-25 · W17 M3 pins, R8 edges · Mac. Seven authored cases (106–112) pin decision 4 for every
+  connective and both sides of the boundary: the four #488's review asked for — `5 reps for 3` → W3 (`for` apart from `x`), `10 x 5 reps`
+  → 10 sets and `11 x 5 reps` → W11 (the boundary), `225 at 5 reps` → W225 — then, after one reviewer
+  round, `3 at 5 reps` → W3 (`at` apart from `x`), `5 reps by 3` and `5 reps times 3` → 3 sets. All
+  holding on `main` as written, no rule changed; the ratchet 105 → 112. ApexCore tests and docs only
+  (#489).
 - 2026-10-22 · W17 M3 pins · Mac. Five authored fixture cases (101–105) pin the rules the docs sync
   found holding on `main` unpinned — `225 x 5 reps` and `5 reps for 225` (R8's complement of marked
   reps), `225 lbs at 8` → RPE 8 (R7 before R8), `more` / `another` alone → repeat (R16) — plus one

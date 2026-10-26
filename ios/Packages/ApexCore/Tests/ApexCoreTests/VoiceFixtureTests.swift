@@ -7,7 +7,7 @@ import XCTest
 /// until it is green — never the other way round.
 final class VoiceFixtureTests: XCTestCase {
     /// The only-grows ratchet: raise it with every case added, never lower it.
-    static let committedCaseCount = 105
+    static let committedCaseCount = 112
 
     private static let allRules = (1...17).map { "R\($0)" }
     private static let allTiers = [
