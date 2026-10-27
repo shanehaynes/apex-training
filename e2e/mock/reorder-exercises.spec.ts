@@ -110,9 +110,13 @@ test('the keyboard moves a card, and Escape cancels the move without closing the
   expect(await mainNames(page)).toEqual(before);
   await expect(reps).toHaveValue('5');
 
-  // Pick up, move up three places, drop.
+  // Pick up, move up three places, drop. dnd-kit measures the list in the
+  // render that follows the pick-up; an arrow pressed before that render has
+  // nothing to move to and is dropped, so wait until the card shows as held.
   await lastGrip.focus();
   await page.keyboard.press('Space');
+  await expect(mainCards(page).last()).toHaveClass(/editor-card--dragging/);
+  await page.waitForTimeout(150);
   for (let i = 0; i < 3; i++) {
     await page.keyboard.press('ArrowUp');
     await page.waitForTimeout(150);
