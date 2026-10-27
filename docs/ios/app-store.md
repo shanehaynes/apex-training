@@ -1,9 +1,15 @@
 # App Store submission — the console answers, the review notes, the demo account
 
 W13's App Store readiness, in one place. The code side is done (`ios/Apex/PrivacyInfo.xcprivacy`,
-in-app account deletion since W11, the invite link on the sign-in screen); everything below is
+in-app account deletion since W11, the invite link on the sign-in screen — or, from open-signup
+M3, in-app Create account); everything below is
 filled in by hand in [App Store Connect](https://appstoreconnect.apple.com) by Shane, because
 the console has no API for most of it and the demo account needs a real key.
+
+> **Two builds, two sets of notes.** Everything below up to §7 describes build 1.0.0 (509),
+> the one in review, which is invite-only. Builds with in-app Create account
+> (docs/specs/open-signup.md M3) use the replacements in
+> [§7](#7-builds-with-create-account) instead. Never paste a §7 line into a reply about 509.
 
 > Who can mint an App Store Connect API key, where each secret is escrowed, and how to recover
 > the Apple Account without the release machine: [ops-runbook.md](../ops-runbook.md).
@@ -41,7 +47,8 @@ same page the About screen links to. Terms: `/terms`.
   apps there need a government permit and Anthropic's API is not offered there
 - **Copyright** © 2026 Shane Haynes
 - **Support URL** `https://github.com/shanehaynes/apex-training` (README + WELCOME.md)
-- **Invite contact** the sign-in screen's "Request an invite" link comes from
+- **Invite contact** (build 509 and earlier; §7 builds show Create account instead) the
+  sign-in screen's "Request an invite" link comes from
   `APEX_INVITE_CONTACT` in `ios/Config/Base.xcconfig` — the one line to change, and the only
   place the address lives. It is `support@apex-training.app`, a forwarding alias; it ships in
   the binary and is frozen there once archived (#214). No screenshot is affected; the address is
@@ -331,3 +338,33 @@ Sources, current as of 2026-09-19:
 [app availability](https://developer.apple.com/help/app-store-connect/manage-your-apps-availability/manage-availability-for-your-app-on-the-app-store/) ·
 [App Review and the expedite form](https://developer.apple.com/distribute/app-review/) ·
 [crash reports in Organizer](https://developer.apple.com/documentation/xcode/acquiring-crash-reports-and-diagnostic-logs).
+
+## 7. Builds with Create account
+
+From the first build carrying docs/specs/open-signup.md M3. These lines **replace** their
+counterparts above; everything else stands. Before submitting such a build, the Terms
+(`legal/terms-v1.md` §2, "Accounts are currently created by invitation") must stop saying
+sign-up is by invitation: the Create account screen links to them.
+
+- **Registration line** (review notes): "The sign-in screen has a Create account mode. The user
+  enters an email, accepts the Terms of Service and Privacy Policy, confirms they are 18 or
+  older, and passes a Cloudflare check. We then email a link: it opens a page on
+  apex-training.app where the user chooses a password, or hands off to the app with Open in the
+  Apex app. Please use the demo account for review; a new account needs an inbox."
+- **Recording step 1**: "Cold launch → sign-in screen; tap Create account to show the email,
+  terms and 18+ toggles, then back to Sign in."
+- **5.1.1 row**: Create account on the sign-in screen (email, terms, 18+, Cloudflare check →
+  emailed link → set password on the web or in the app); the demo account is in the review form.
+- The demo account section's first sentence becomes: "Create account sends an email the
+  reviewer cannot read, so App Review needs an account that already exists, with an Anthropic
+  key saved…"
+- §6's phased-release note: the day-one ceiling is no longer the invite list but anyone with
+  the listing.
+- **App Privacy (§1), to review before submitting:** Create account runs Cloudflare Turnstile
+  in an in-app web view, which reads IP address and device and browser signals to tell a person
+  from a bot. Decide whether that changes the App Privacy answers, and note that
+  `legal/privacy-v1.md` names Cloudflare only for email routing — the policy the Create account
+  toggle links at the moment of assent. Both are Shane's calls; nothing here is pre-decided.
+- **Order**: production must be running PR #477 (the server's 18+ check and stamp) before any
+  build with M3 goes to TestFlight. Main's handler before #477 ignores `ageConfirmed`, so an app
+  sign-up would go through with nothing recorded.

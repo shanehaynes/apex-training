@@ -28,7 +28,7 @@ final class SmokeUITests: XCTestCase {
     private func signIn(_ app: XCUIApplication) {
         type("agent@apex.local", into: app.textFields["signin.email"])
         type("apex-agent-password", into: app.secureTextFields["signin.password"])
-        app.buttons["Sign in"].tap()
+        app.buttons["signin.submit"].tap()
         dismissSavePassword(app)
     }
 
@@ -112,16 +112,118 @@ final class SmokeUITests: XCTestCase {
         let email = app.textFields["signin.email"]
         XCTAssertTrue(email.waitForExistence(timeout: 10))
         XCTAssertTrue(app.secureTextFields["signin.password"].exists)
-        XCTAssertTrue(app.buttons["Sign in"].exists)
-
-        // Invite-only has to be stated, not implied (App Store 5.1.1) — and
-        // stated with a way forward: the contact link, not a dead end (W13).
-        XCTAssertTrue(app.staticTexts.containing(
-            NSPredicate(format: "label CONTAINS[c] 'invite-only'")
-        ).firstMatch.exists)
-        XCTAssertTrue(app.links["signin.invite"].exists || app.buttons["signin.invite"].exists, "no invite contact link")
+        XCTAssertTrue(app.buttons["signin.submit"].exists)
 
         attach(app, name: "01-sign-in")
+    }
+
+    /// Open sign-up (docs/specs/open-signup.md M3), and App Store 5.1.1's way
+    /// to an account: email, the terms and 18+ toggles (neither enough alone),
+    /// then the human check opens as a sheet, which only Cancel closes.
+    ///
+    /// The check is the mock's preset token held back 8 s, so no web page (and
+    /// no local server) is involved, and Cancel has a late token to stop.
+    func testCreateAccountNeedsBothTogglesThenOpensTheCheck() {
+        let app = XCUIApplication()
+        app.launchArguments += ["-apexUITest", "-apexMockClient",
+                                "-apexMockSignupToken", "late-token", "-apexMockSignupTokenDelay", "8000"]
+        app.launch()
+        let mode = app.segmentedControls["signin.mode"]
+        XCTAssertTrue(mode.waitForExistence(timeout: 10), "no Create account mode")
+        mode.buttons["Create account"].tap()
+
+        XCTAssertFalse(app.secureTextFields["signin.password"].exists, "the invite is where the password is chosen")
+        let submit = app.buttons["signup.submit"]
+        XCTAssertTrue(submit.waitForExistence(timeout: 5))
+        XCTAssertFalse(submit.isEnabled)
+
+        // An address the server refuses (a dot, but none after the @) never
+        // opens the check, however many boxes are ticked.
+        let email = app.textFields["signin.email"]
+        email.tap()
+        email.typeText("someone.else@example")
+        let age = app.switches["signup.age"]
+        XCTAssertEqual(age.value as? String, "0", "the 18+ toggle must never start on")
+        flip(app.switches["signup.terms"])
+        flip(age)
+        XCTAssertFalse(submit.isEnabled, "an address the server refuses must not open the check")
+        email.tap()
+        email.typeText(".com")
+        XCTAssertTrue(submit.isEnabled)
+        attach(app, name: "01b-create-account")
+
+        // Terms alone is not enough.
+        flip(age)
+        XCTAssertFalse(submit.isEnabled, "terms alone must not be enough")
+        flip(age)
+        XCTAssertTrue(submit.isEnabled)
+
+        // Age alone is not enough either.
+        flip(app.switches["signup.terms"])
+        XCTAssertFalse(submit.isEnabled, "the 18+ toggle alone must not be enough")
+        flip(app.switches["signup.terms"])
+        XCTAssertTrue(submit.isEnabled)
+
+        // Consent is per visit to the form: Sign in and back resets both.
+        mode.buttons["Sign in"].tap()
+        mode.buttons["Create account"].tap()
+        XCTAssertEqual(app.switches["signup.terms"].value as? String, "0")
+        XCTAssertEqual(app.switches["signup.age"].value as? String, "0")
+        XCTAssertFalse(submit.isEnabled)
+        flip(app.switches["signup.terms"])
+        flip(app.switches["signup.age"])
+
+        submit.tap()
+        let check = app.navigationBars["Quick check"]
+        XCTAssertTrue(check.waitForExistence(timeout: 10), "the human check did not open")
+
+        // Cancel is the only way out: a swipe would leave no moment to stop a
+        // token that lands mid-animation, so the sheet refuses it.
+        check.swipeDown(velocity: .fast)
+        XCTAssertFalse(check.waitForNonExistence(timeout: 2), "a swipe must not dismiss the check")
+        check.buttons["Cancel"].tap()
+        XCTAssertTrue(check.waitForNonExistence(timeout: 5))
+        // The held-back token lands after Cancel; the mock would accept it, so
+        // a notice here means the latch let it through.
+        XCTAssertFalse(app.staticTexts["signup.notice"].waitForExistence(timeout: 10), "Cancel must send nothing")
+        XCTAssertFalse(app.staticTexts["signup.problem"].exists)
+    }
+
+    /// The form's way through to the server's answer, on the mock's
+    /// `-apexMockSignupToken` (the check sheet hands that token over instead of
+    /// loading the page). The mock refuses what the server refuses — no JSON
+    /// body, no boolean 18+ attestation, no token — so the notice is proof of
+    /// what the app sent; after it, consent starts over.
+    func testCreateAccountReachesTheServersAnswer() {
+        let app = XCUIApplication()
+        app.launchArguments += ["-apexUITest", "-apexMockClient", "-apexMockSignupToken", "mock-token"]
+        app.launch()
+        let mode = app.segmentedControls["signin.mode"]
+        XCTAssertTrue(mode.waitForExistence(timeout: 10))
+        mode.buttons["Create account"].tap()
+
+        let email = app.textFields["signin.email"]
+        email.tap()
+        email.typeText("someone@example.com")
+        flip(app.switches["signup.terms"])
+        flip(app.switches["signup.age"])
+        app.buttons["signup.submit"].tap()
+
+        let notice = app.staticTexts["signup.notice"]
+        XCTAssertTrue(notice.waitForExistence(timeout: 10),
+                      "no notice: \(app.staticTexts["signup.problem"].exists ? app.staticTexts["signup.problem"].label : "no answer")")
+        XCTAssertTrue(notice.label.contains("someone@example.com"))
+        XCTAssertEqual(app.switches["signup.terms"].value as? String, "0", "consent is per submission")
+        XCTAssertEqual(app.switches["signup.age"].value as? String, "0")
+        XCTAssertFalse(app.buttons["signup.submit"].isEnabled)
+        attach(app, name: "01c-create-account-sent")
+    }
+
+    /// A Toggle's own switch sits at its trailing edge; tapping the middle
+    /// lands on the label, which does not always flip it.
+    private func flip(_ toggle: XCUIElement) {
+        XCTAssertTrue(toggle.waitForExistence(timeout: 5))
+        toggle.coordinate(withNormalizedOffset: CGVector(dx: 0.95, dy: 0.5)).tap()
     }
 
     /// sign in → today → month → day sheet → event → complete, all on fixtures.

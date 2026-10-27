@@ -403,6 +403,15 @@ final class AppModel {
         }
     }
 
+    /// Open sign-up (docs/specs/open-signup.md M3): nil when the server took
+    /// the address and an invite is on its way, else the sentence to show.
+    func signUp(email: String, captchaToken: String, ageConfirmed: Bool) async -> String? {
+        await SignUp.submit(
+            email: email, captchaToken: captchaToken, ageConfirmed: ageConfirmed,
+            baseURL: AppConfig.apiBase, transport: transport
+        )
+    }
+
     func sendPasswordReset(email: String) async -> String? {
         guard !email.isEmpty else { return "Enter your email first." }
         guard let auth else { return nil }
