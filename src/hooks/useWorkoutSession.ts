@@ -12,6 +12,7 @@ import { sectionLabels } from '../lib/climbing';
 import type { TrackedSectionGroup, TrackedSet } from '../lib/tracking/plan';
 import { sessionScoreFromRow } from '../lib/tracking/records';
 import { clearResolvedLoads } from '../lib/tracking/percent';
+import { exerciseOrderOf, moveTrackedExercise, type ExerciseOrder } from '../lib/tracking/order';
 import type { PersonalRecord, SessionScore, WorkoutScoreRecord } from '../lib/tracking/records';
 import {
   cancelSession, editSessionTimes, finishSession, generateCoachSummary, loadSession, saveLogs, swapLoggedExercise,
@@ -79,6 +80,9 @@ const noteKey = (section: TrackedSection, exerciseId: string) => `note|${section
 const removedKey = (section: TrackedSection, exerciseId: string, setNumber: number) => `removed|${section}|${exerciseId}|${setNumber}`;
 // The note on the whole session (workout_sessions.note): one row, one key.
 const SESSION_NOTE_KEY = 'session-note';
+// This sitting's exercise order (workout_sessions.exercise_order): one key;
+// the send reads the whole order from the model.
+const ORDER_KEY = 'exercise-order';
 
 /** The per-set metadata a row control edits: RPE text, the warm-up flag, and a pitch's style and attempts. */
 export type SetMetaPatch = Partial<Pick<TrackedSet, 'rpe' | 'isWarmup' | 'ascentStyle' | 'attempts'>>;
@@ -189,6 +193,7 @@ export function useWorkoutSession(
     const exerciseNotes: ExerciseNoteEdit[] = [];
     const removedSets: RemovedSetKey[] = [];
     let sessionNoteEdit: string | undefined;
+    let exerciseOrderEdit: ExerciseOrder | undefined;
     const find = (section: string, exerciseId: string) =>
       groupsRef.current.find(g => g.section === section)?.exercises.find(t => t.exercise.id === exerciseId);
     for (const key of keys) {
@@ -213,14 +218,21 @@ export function useWorkoutSession(
         removedSets.push({ section, exerciseId, setNumber: Number(setNumberStr) });
       } else if (kind === SESSION_NOTE_KEY) {
         sessionNoteEdit = sessionNoteRef.current;
+      } else if (kind === ORDER_KEY) {
+        exerciseOrderEdit = exerciseOrderOf(groupsRef.current);
       }
     }
-    if (!setLogs.length && !cardioLogs.length && !removedSets.length && !exerciseNotes.length && sessionNoteEdit === undefined) return;
+    if (
+      !setLogs.length && !cardioLogs.length && !removedSets.length && !exerciseNotes.length &&
+      sessionNoteEdit === undefined && exerciseOrderEdit === undefined
+    ) return;
     const keepalive = keepaliveRef.current;
     keepaliveRef.current = false;
     const firstOfStreak = queue().state().consecutiveFailures === 0;
     try {
-      await saveLogs(eventId, eventDate, { setLogs, cardioLogs, removedSets, exerciseNotes, sessionNote: sessionNoteEdit }, { keepalive });
+      await saveLogs(eventId, eventDate, {
+        setLogs, cardioLogs, removedSets, exerciseNotes, sessionNote: sessionNoteEdit, exerciseOrder: exerciseOrderEdit,
+      }, { keepalive });
     } catch (err) {
       const toast = autosaveFailureToast(err, keys, firstOfStreak);
       if (toast) notify(toast);
@@ -409,6 +421,20 @@ export function useWorkoutSession(
   };
 
   // The note on the whole session (phase55): its own key, its own column.
+  /**
+   * Move an exercise within its section for this sitting only: the order
+   * saves on the session (phase60), never on the plan, so a series keeps its
+   * own order on every other day.
+   */
+  const onReorderExercise = (section: TrackedSection, from: number, to: number) => {
+    // A tap on the grip, or a drop where it started, moves nothing: write
+    // nothing, so the session keeps following the plan's order.
+    if (moveTrackedExercise(groupsRef.current, section, from, to) === groupsRef.current) return;
+    setGroups(prev => prev && moveTrackedExercise(prev, section, from, to));
+    queueRef.current?.markDirty(ORDER_KEY);
+    scheduleSave();
+  };
+
   const onSessionNoteChange = (note: string) => {
     sessionNoteRef.current = note;
     setSessionNote(note);
@@ -752,6 +778,7 @@ export function useWorkoutSession(
     onSetChange,
     onSetMetaChange,
     onSessionNoteChange,
+    onReorderExercise,
     editTimes,
     onCardioChange,
     onCommitSetShadow,

@@ -6,6 +6,7 @@ import type { WorkoutEvent } from '../../types/workout';
 import { buildTrackerModel } from './plan';
 import { DEFAULT_MAX_RETRY_MS } from './saveQueue';
 import type { TrackedSectionGroup } from './plan';
+import type { ExerciseOrder } from './order';
 import type { PersonalRecord, SessionScore, WorkoutScoreRecord } from './records';
 
 // Data access for the workout tracker — the one module that knows where
@@ -147,6 +148,8 @@ export async function saveLogs(
     exerciseNotes?: ExerciseNoteEdit[];
     /** The whole session's note (phase55); absent = untouched, '' clears. */
     sessionNote?: string;
+    /** This sitting's exercise order (phase60); absent = untouched. */
+    exerciseOrder?: ExerciseOrder;
   },
   opts: SaveLogsOptions = {},
 ): Promise<void> {

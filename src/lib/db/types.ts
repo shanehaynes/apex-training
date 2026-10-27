@@ -134,8 +134,9 @@ export type MealMutationLogRow = LogRow<'meal_mutations_log', {
 // coach_summary: AI-generated post-workout summary, saved once at Finish.
 // note (phase55) is optional on the client row for the same reason the set
 // metadata is: the client sends it only when the user wrote one, and rows
-// written before the migration have no such key.
-export type WorkoutSessionRow = Row<'workout_sessions', { user_id?: string; note?: string | null }>;
+// written before the migration have no such key. exercise_order (phase60)
+// likewise: null or absent means the plan's order (lib/tracking/order.ts).
+export type WorkoutSessionRow = Row<'workout_sessions', { user_id?: string; note?: string | null; exercise_order?: Json | null }>;
 
 export type TrackedSection = 'warmup' | 'exercise' | 'cooldown';
 

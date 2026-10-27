@@ -1,5 +1,9 @@
 import { useMemo, useState } from 'react';
-import { Reorder, useDragControls } from 'framer-motion';
+import type { CSSProperties } from 'react';
+import { DndContext, closestCenter } from '@dnd-kit/core';
+import type { DragEndEvent } from '@dnd-kit/core';
+import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { GripVertical, Link2, Plus, X } from 'lucide-react';
 import { useCalendar } from '../../context/calendar';
 import { useSchedule } from '../../context/schedule';
@@ -10,11 +14,15 @@ import { asksScope, saveRequest } from './exerciseScope';
 import type { SaveScope } from './exerciseScope';
 import { entryFromDefinition, uniqueEntryId, validateUnilateral } from '../../lib/schedule/definitions';
 import type { SectionKey, SectionLists } from '../../lib/schedule/definitions';
-import { linkWithAbove, normalizeSupersets, unlink } from '../../lib/schedule/supersets';
+import { linkWithAbove, moveEntry as moveWithin, normalizeSupersets, unlink } from '../../lib/schedule/supersets';
 import { notify } from '../../lib/notify';
 import { CLIMB_STYLES, ascentStylesFor, climbStyleLabel, sectionLabels } from '../../lib/climbing';
 import ExercisePicker from './ExercisePicker';
 import PlannedSetsEditor from './PlannedSetsEditor';
+import PositionPicker from '../reorder/PositionPicker';
+import {
+  reorderAnnouncements, useClaimEscapeWhileDragging, useReorderSensors, verticalOnly,
+} from '../reorder/sortable';
 import type { AscentStyle, ClimbStyle, Exercise, ExerciseCategory, ExerciseDefinition, WorkoutEvent, WorkoutType } from '../../types/workout';
 
 export type { SectionKey, SectionLists };
@@ -28,33 +36,49 @@ interface Props {
 }
 
 function EditorCard({
-  entry, error, canLink, onChange, onRemove, onToggleLink,
+  entry, index, count, error, canLink, onChange, onRemove, onToggleLink, onMoveTo,
 }: {
   entry: Exercise;
+  /** This card's place in its section, from 0. */
+  index: number;
+  /** How many cards the section holds. */
+  count: number;
   error?: string;
   /** False on a section's first entry — there is nothing above to pair with. */
   canLink: boolean;
   onChange: (patch: Partial<Exercise>) => void;
   onRemove: () => void;
   onToggleLink: () => void;
+  onMoveTo: (index: number) => void;
 }) {
-  const controls = useDragControls();
+  const {
+    attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging,
+  } = useSortable({ id: entry.id });
+  const style: CSSProperties = {
+    // Translate, not Transform: cards differ in height, and a scale would
+    // stretch the one being dragged to the height of the slot it is over.
+    transform: CSS.Translate.toString(transform),
+    transition,
+  };
   return (
-    <Reorder.Item
-      value={entry}
-      dragListener={false}
-      dragControls={controls}
-      className="editor-card"
+    <li
+      ref={setNodeRef}
+      style={style}
+      className={`editor-card${isDragging ? ' editor-card--dragging' : ''}`}
     >
       <div className="editor-card__header">
         <button
+          type="button"
+          ref={setActivatorNodeRef}
           className="editor-card__grip"
-          onPointerDown={e => { e.preventDefault(); controls.start(e); }}
-          aria-label="Drag to reorder"
+          {...attributes}
+          {...listeners}
+          aria-label={`Drag to reorder ${entry.name}`}
         >
           <GripVertical size={14} strokeWidth={1.5} />
         </button>
         <span className="editor-card__name">{entry.name}</span>
+        <PositionPicker index={index} count={count} name={entry.name} onMove={onMoveTo} />
         {entry.superset && <span className="superset-badge">{entry.superset}</span>}
         {(canLink || entry.superset) && (
           <button
@@ -147,7 +171,7 @@ function EditorCard({
         <PlannedSetsEditor entry={entry} onChange={plannedSets => onChange({ plannedSets })} />
       )}
       {error && <p className="editor-card__error">{error}</p>}
-    </Reorder.Item>
+    </li>
   );
 }
 
@@ -163,7 +187,8 @@ interface SectionsProps {
 
 /**
  * Controlled three-section (warm-up / main / cool-down) exercise editor: add
- * via the library picker, remove, drag to reorder, edit prescriptions inline.
+ * via the library picker, remove, reorder (drag the grip, or pick a position),
+ * edit prescriptions inline.
  * State lives in the caller — used against a saved event by the default
  * export below and against a draft by the add-event composer. Entry ids never
  * change — logged sets key on them (see uniqueEntryId).
@@ -192,6 +217,23 @@ export function ExerciseSectionsEditor({ lists, onChange, errors, pickerCategory
 
   const setSection = (key: SectionKey, entries: Exercise[]) =>
     onChange({ ...lists, [key]: entries });
+
+  // Groups are adjacency: a move (or a removal below) re-letters and clears
+  // any singleton the move left behind.
+  const moveEntry = (key: SectionKey, from: number, to: number) => {
+    const moved = moveWithin(lists[key], from, to);
+    if (moved !== lists[key]) setSection(key, moved);
+  };
+
+  const setDragging = useClaimEscapeWhileDragging();
+  const sensors = useReorderSensors();
+
+  const onDragEnd = (key: SectionKey) => ({ active, over }: DragEndEvent) => {
+    setDragging(false);
+    if (!over) return;
+    const ids = lists[key].map(e => e.id);
+    moveEntry(key, ids.indexOf(String(active.id)), ids.indexOf(String(over.id)));
+  };
 
   const addPitch = (key: SectionKey) => {
     // New pitches inherit the previous pitch's style — multi-pitch days
@@ -228,28 +270,36 @@ export function ExerciseSectionsEditor({ lists, onChange, errors, pickerCategory
             <span className="modal-section__label">{label}</span>
             <span className="modal-section__line" />
           </div>
-          <Reorder.Group
-            axis="y"
-            values={lists[key]}
-            // Groups are adjacency: a reorder (or removal below) re-letters
-            // and clears any singleton a move left behind.
-            onReorder={entries => setSection(key, normalizeSupersets(entries))}
-            className="exercise-editor__list"
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            modifiers={[verticalOnly]}
+            accessibility={{ announcements: reorderAnnouncements(lists[key]) }}
+            onDragStart={() => setDragging(true)}
+            onDragCancel={() => setDragging(false)}
+            onDragEnd={onDragEnd(key)}
           >
-            {lists[key].map((entry, idx) => (
-              <EditorCard
-                key={entry.id}
-                entry={entry}
-                error={errors.get(entry.id)}
-                canLink={idx > 0}
-                onChange={patch => updateEntry(key, entry.id, patch)}
-                onRemove={() => setSection(key, normalizeSupersets(lists[key].filter(e => e.id !== entry.id)))}
-                onToggleLink={() => setSection(key, entry.superset
-                  ? unlink(lists[key], entry.id)
-                  : linkWithAbove(lists[key], entry.id))}
-              />
-            ))}
-          </Reorder.Group>
+            <SortableContext items={lists[key].map(e => e.id)} strategy={verticalListSortingStrategy}>
+              <ul className="exercise-editor__list">
+                {lists[key].map((entry, idx) => (
+                  <EditorCard
+                    key={entry.id}
+                    entry={entry}
+                    index={idx}
+                    count={lists[key].length}
+                    error={errors.get(entry.id)}
+                    canLink={idx > 0}
+                    onChange={patch => updateEntry(key, entry.id, patch)}
+                    onRemove={() => setSection(key, normalizeSupersets(lists[key].filter(e => e.id !== entry.id)))}
+                    onToggleLink={() => setSection(key, entry.superset
+                      ? unlink(lists[key], entry.id)
+                      : linkWithAbove(lists[key], entry.id))}
+                    onMoveTo={to => moveEntry(key, idx, to)}
+                  />
+                ))}
+              </ul>
+            </SortableContext>
+          </DndContext>
           {pitchMode ? (
             <button className="exercise-editor__add" onClick={() => addPitch(key)}>
               <Plus size={14} strokeWidth={1.5} /> Add pitch
