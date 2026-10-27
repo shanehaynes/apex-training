@@ -393,16 +393,21 @@ jobs:
       - name: Skip when a pull request changes no coach or eval paths
         run: |
           base=$(git merge-base origin/main HEAD)
+          # "none": no lockfile. "unreadable": not JSON, or no v2+ packages
+          # map — the version cannot be known, so the gate runs (never skip blind).
           sdk_version() {
-            { git show "$1:package-lock.json" 2>/dev/null || true; } \
-              | jq -r '.packages["node_modules/@anthropic-ai/sdk"].version // "none"'
+            local lock
+            if ! lock=$(git show "$1:package-lock.json" 2>/dev/null); then echo none; return; fi
+            printf '%s' "$lock" | jq -r 'if (.packages | type) == "object"
+              then (.packages["node_modules/@anthropic-ai/sdk"].version // "none")
+              else "unreadable" end' 2>/dev/null || echo unreadable
           }
           sdk_base=$(sdk_version "$base")
           sdk_head=$(sdk_version HEAD)
-          if [ "$sdk_base" != "$sdk_head" ]; then
-            echo "@anthropic-ai/sdk ${sdk_base:-none} -> ${sdk_head:-none}: running the coach gate"
+          if [ "$sdk_base" != "$sdk_head" ] || [ "$sdk_base" = unreadable ] || [ "$sdk_head" = unreadable ]; then
+            echo "@anthropic-ai/sdk $sdk_base -> $sdk_head: running the coach gate"
           elif git diff --quiet "$base" HEAD -- \
-            src/lib/coach/ api/_lib/coach/ api/chat.ts \
+            src/lib/coach/ api/_lib/coach/ api/chat.ts evals/gate.ts \
             evals/cases/ evals/src/ evals/baseline/ evals/gate/ ; then
             echo "no coach or eval changes"
             echo "skip=1" >> "$GITHUB_ENV"

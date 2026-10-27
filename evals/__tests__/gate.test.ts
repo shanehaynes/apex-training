@@ -527,7 +527,8 @@ describe('anthropicSdkVersion', () => {
     expect(() => anthropicSdkVersion(root)).toThrow(/pins no @anthropic-ai\/sdk/);
   });
 
-  it('matches the repo lockfile', () => {
-    expect(anthropicSdkVersion()).toMatch(/^\d+\.\d+\.\d+/);
+  it('reads the repo lockfile\'s top-level entry', () => {
+    const lock = JSON.parse(readFileSync(join(HERE, '..', '..', 'package-lock.json'), 'utf8'));
+    expect(anthropicSdkVersion()).toBe(lock.packages['node_modules/@anthropic-ai/sdk'].version);
   });
 });
