@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { sha256 } from '../src/compare';
 import {
   DEFAULT_CONCURRENCY,
+  anthropicSdkVersion,
   parseConcurrency,
   promoteBaseline,
   runGate,
@@ -25,7 +26,7 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const FIXTURES = join(HERE, 'fixtures');
 
 const MODEL = 'claude-sonnet-5';
-const HASHES = { promptFileHash: 'PROMPT_HASH_A', evalSurfaceHash: 'SURFACE_HASH_A' };
+const HASHES = { promptFileHash: 'PROMPT_HASH_A', evalSurfaceHash: 'SURFACE_HASH_A', anthropicSdkVersion: '1.3.0' };
 const VERSION = '2026.09.22-1';
 const NOW = '2026-09-22T13:00:00.000Z';
 const STAMP = NOW.replace(/[:.]/g, '-');
@@ -285,6 +286,7 @@ describe('verifyAttestation', () => {
     ['the coach behavior surface moved', { promptFileHash: 'PROMPT_HASH_B' }, /behavior surface/],
     ['the eval surface moved', { evalSurfaceHash: 'SURFACE_HASH_B' }, /evals\/cases\/, evals\/src\/ or evals\/taxonomy\//],
     ['the prompt version moved', { promptVersion: '2026.10.01-1' }, /PROMPT_VERSION/],
+    ['the SDK version moved', { anthropicSdkVersion: '0.135.0' }, /@anthropic-ai\/sdk 0\.135\.0, package-lock\.json pins 1\.3\.0/],
     ['the backend is wrong', { backend: 'api' }, /backend "api"/],
   ])('exits 1 when %s', (_label, patch, matcher) => {
     installBaseline();
@@ -292,6 +294,16 @@ describe('verifyAttestation', () => {
     const outcome = verify();
     expect(outcome.code).toBe(1);
     expect(outcome.message).toMatch(matcher);
+  });
+
+  it('exits 1 on an attestation written before the SDK version was pinned', () => {
+    installBaseline();
+    const legacy: Partial<Attestation> = writeAttestation();
+    delete legacy.anthropicSdkVersion;
+    writeFileSync(attestationPath(), JSON.stringify(legacy, null, 2));
+    const outcome = verify();
+    expect(outcome.code).toBe(1);
+    expect(outcome.message).toMatch(/@anthropic-ai\/sdk \(unrecorded\)/);
   });
 
   it('exits 1 when the baseline file changed under the attestation', () => {
@@ -490,5 +502,32 @@ describe('runGate: advisory dimensions', () => {
       },
     });
     expect(verify().code).toBe(1);
+  });
+});
+
+describe('anthropicSdkVersion', () => {
+  const writeLock = (lock: unknown) => writeFileSync(join(root, 'package-lock.json'), JSON.stringify(lock));
+
+  it('reads the version the lockfile resolves, not the package.json range', () => {
+    writeFileSync(join(root, 'package.json'), JSON.stringify({ dependencies: { '@anthropic-ai/sdk': '^1.0.0' } }));
+    writeLock({ packages: { 'node_modules/@anthropic-ai/sdk': { version: '1.3.0' } } });
+    expect(anthropicSdkVersion(root)).toBe('1.3.0');
+  });
+
+  it('ignores a nested copy another package resolves', () => {
+    writeLock({ packages: {
+      'node_modules/other/node_modules/@anthropic-ai/sdk': { version: '0.9.0' },
+      'node_modules/@anthropic-ai/sdk': { version: '1.3.0' },
+    } });
+    expect(anthropicSdkVersion(root)).toBe('1.3.0');
+  });
+
+  it('throws rather than attest to nothing when the lockfile has no entry', () => {
+    writeLock({ packages: {} });
+    expect(() => anthropicSdkVersion(root)).toThrow(/pins no @anthropic-ai\/sdk/);
+  });
+
+  it('matches the repo lockfile', () => {
+    expect(anthropicSdkVersion()).toMatch(/^\d+\.\d+\.\d+/);
   });
 });

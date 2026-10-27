@@ -387,10 +387,21 @@ jobs:
       # required check do not compose — a required check that never starts
       # blocks the merge queue forever. So the job always starts and skips
       # itself in seconds when the PR touches nothing the coach gate covers.
+      # A change to the @anthropic-ai/sdk version the lockfile resolves is a
+      # coach change too (SDK defaults ride on every coach call), so it runs
+      # the gate even when no coach file moved. Other dependency bumps skip.
       - name: Skip when a pull request changes no coach or eval paths
         run: |
           base=$(git merge-base origin/main HEAD)
-          if git diff --quiet "$base" HEAD -- \
+          sdk_version() {
+            { git show "$1:package-lock.json" 2>/dev/null || true; } \
+              | jq -r '.packages["node_modules/@anthropic-ai/sdk"].version // "none"'
+          }
+          sdk_base=$(sdk_version "$base")
+          sdk_head=$(sdk_version HEAD)
+          if [ "$sdk_base" != "$sdk_head" ]; then
+            echo "@anthropic-ai/sdk ${sdk_base:-none} -> ${sdk_head:-none}: running the coach gate"
+          elif git diff --quiet "$base" HEAD -- \
             src/lib/coach/ api/_lib/coach/ api/chat.ts \
             evals/cases/ evals/src/ evals/baseline/ evals/gate/ ; then
             echo "no coach or eval changes"
