@@ -130,13 +130,17 @@ final class VoiceLoggingTests: XCTestCase {
 
     func testTheSaveCarriesABareWeightAndASpokenUnit() async {
         await VoiceSupport.withVoiceEnabled {
-            let made = await VoiceSupport.make(script: ["fixture press 225 for 5", "fixture press 100 kilos for 5"])
+            // Stalled, so each explicit flush is the only sender and has sent its
+            // save when it returns. On the test clock the debounce fires at once
+            // and can take the payload first, leaving the explicit flush nothing
+            // to send or wait on.
+            let made = await VoiceSupport.make(script: ["fixture press 225 for 5", "fixture press 100 kilos for 5"], stalled: true)
             let model = made.model
             model.tapMic()
             await VoiceSupport.waitUntil { model.voice.isApplied }
             await model.flushEdits()
             var saves = made.transport.bodies(action: "save")
-            XCTAssertEqual(saves.count, 1)
+            guard saves.count == 1 else { return XCTFail("one save per flush, got \(saves.count)") }
             XCTAssertTrue(saves[0].contains(#""actual_weight":"225""#), "bare, like a typed 225: \(saves[0])")
             XCTAssertTrue(saves[0].contains(#""actual_reps":"5""#))
 
@@ -144,7 +148,7 @@ final class VoiceLoggingTests: XCTestCase {
             await VoiceSupport.waitUntil { model.set(at: self.press2)?.actualWeight == "100 kg" }
             await model.flushEdits()
             saves = made.transport.bodies(action: "save")
-            XCTAssertEqual(saves.count, 2)
+            guard saves.count == 2 else { return XCTFail("one save per flush, got \(saves.count)") }
             XCTAssertTrue(saves[1].contains(#""actual_weight":"100 kg""#), "a spoken unit is kept: \(saves[1])")
         }
     }
@@ -204,20 +208,22 @@ final class VoiceLoggingTests: XCTestCase {
             early.model.undoSpoken()
             await early.model.flushEdits()
             let earlySaves = early.transport.bodies(action: "save")
-            XCTAssertEqual(earlySaves.count, 1)
+            guard earlySaves.count == 1 else { return XCTFail("one save, got \(earlySaves.count)") }
             XCTAssertFalse(earlySaves[0].contains(#""actual_weight":"225""#), "the undone row is not sent: \(earlySaves[0])")
             XCTAssertTrue(earlySaves[0].contains(#""setLogs":[]"#), "no row at all: \(earlySaves[0])")
             XCTAssertTrue(earlySaves[0].contains(#""removedSets":[{"#), "the planned row's undo records its removal; the server's delete of a row it never saw is a no-op")
 
             // After: the first save carried the row; the undo's save deletes it.
-            let late = await VoiceSupport.make(script: ["fixture press 225 for 5"])
+            // Stalled too, so each explicit flush sends its own save before it
+            // returns, and the two land in order.
+            let late = await VoiceSupport.make(script: ["fixture press 225 for 5"], stalled: true)
             late.model.tapMic()
             await VoiceSupport.waitUntil { late.model.voice.isApplied }
             await late.model.flushEdits()
             late.model.undoSpoken()
             await late.model.flushEdits()
             let lateSaves = late.transport.bodies(action: "save")
-            XCTAssertEqual(lateSaves.count, 2)
+            guard lateSaves.count == 2 else { return XCTFail("one save per flush, got \(lateSaves.count)") }
             XCTAssertTrue(lateSaves[0].contains(#""actual_weight":"225""#))
             XCTAssertTrue(lateSaves[1].contains(#""removedSets":[{"#), "the delete: \(lateSaves[1])")
             XCTAssertTrue(lateSaves[1].contains(#""setNumber":1"#), lateSaves[1])
