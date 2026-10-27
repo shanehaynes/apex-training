@@ -44,7 +44,12 @@ export const stepKeyboardCoordinates: KeyboardCoordinateGetter = (event, { conte
 export function useReorderSensors() {
   return useSensors(
     useSensor(PointerSensor),
-    useSensor(KeyboardSensor, { coordinateGetter: stepKeyboardCoordinates }),
+    // Instant, not smooth: when the next place is past the middle of the
+    // scroll container, the keyboard sensor scrolls the list under the held
+    // item instead of moving it, and the target only updates once the scroll
+    // lands. A smooth scroll is still running when a quick second press
+    // reads the target, so that press steps from the old place and is lost.
+    useSensor(KeyboardSensor, { coordinateGetter: stepKeyboardCoordinates, scrollBehavior: 'auto' }),
   );
 }
 
