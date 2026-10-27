@@ -78,6 +78,9 @@ public actor WriteQueue {
     /// being called off. What `awaitRetries` waits for.
     private var retryTasks: [UUID: Task<Void, Never>] = [:]
     private var subscribers: [UUID: AsyncStream<QueueEvent>.Continuation] = [:]
+    /// Lanes whose turn is taken, and who waits for it next (`takeTurn`).
+    private var turnTaken: Set<SessionKey> = []
+    private var turnWaiters: [SessionKey: [CheckedContinuation<Void, Never>]] = [:]
 
     public init(
         store: any WriteQueueStore, client: ApexClient,
@@ -98,6 +101,8 @@ public actor WriteQueue {
     /// tail. Does not flush — the caller decides when.
     @discardableResult
     public func enqueue(_ payload: TrackerOpPayload, for session: SessionKey) async throws -> TrackerOp {
+        await takeTurn(session)
+        defer { endTurn(session) }
         if case .save(let incoming) = payload,
            let tail = try await store.tail(for: session),
            tail.state == .pending, inFlight[tail.id] == nil,
@@ -121,6 +126,8 @@ public actor WriteQueue {
     /// for the session may land after: purge (pending and failed alike), forget
     /// any in-flight op's result, then queue the cancel itself.
     public func cancelSession(_ session: SessionKey) async throws {
+        await takeTurn(session)
+        defer { endTurn(session) }
         callOffRetry(for: session)
         notBefore[session] = nil
         if inFlight.values.contains(session) { cancelledMidFlight.insert(session) }
@@ -128,6 +135,34 @@ public actor WriteQueue {
         var op = TrackerOp(session: session, payload: .cancel, createdAt: clock.now)
         op.id = try await store.append(op)
         emit(.changed(session))
+    }
+
+    /// One read-then-write on a lane at a time: an enqueue, a cancel, and the
+    /// drain picking its next op and settling that op's row. Every store call
+    /// suspends and this actor is reentrant, so without a turn an op queued
+    /// while a save waited on its tail read took the lower id and was sent
+    /// first (a Finish ahead of the last set), a save landed after a cancel,
+    /// and a save merged into a row the drain was sending was lost with it.
+    /// The send itself holds no turn. Turns pass in the order they were asked
+    /// for, so the lane's ids follow the order `enqueue` was called in.
+    private func takeTurn(_ session: SessionKey) async {
+        guard turnTaken.contains(session) else {
+            turnTaken.insert(session)
+            return
+        }
+        await withCheckedContinuation { turnWaiters[session, default: []].append($0) }
+    }
+
+    /// Hands the turn straight to the next waiter, so nobody arriving in
+    /// between can take it out of order.
+    private func endTurn(_ session: SessionKey) {
+        guard var waiters = turnWaiters[session], !waiters.isEmpty else {
+            turnTaken.remove(session)
+            return
+        }
+        let next = waiters.removeFirst()
+        turnWaiters[session] = waiters.isEmpty ? nil : waiters
+        next.resume()
     }
 
     // MARK: - Flush
@@ -181,9 +216,8 @@ public actor WriteQueue {
     private func drain(_ session: SessionKey) async {
         while !isPaused {
             if let gate = notBefore[session], gate > clock.now { return }
-            guard let op = await next(in: session) else { return }
+            guard let op = await pick(in: session) else { return }
 
-            inFlight[op.id] = session
             let resumesBefore = resumes
             let outcome: Result<Data, APIError>
             do {
@@ -193,7 +227,14 @@ public actor WriteQueue {
             } catch {
                 outcome = .failure(.network("\(error)"))
             }
-            inFlight[op.id] = nil
+            // Settled under the lane's turn, and in flight until it is: a save
+            // reading this row as the tail must not merge into a row that is
+            // about to be deleted.
+            await takeTurn(session)
+            defer {
+                inFlight[op.id] = nil
+                endTurn(session)
+            }
 
             if cancelledMidFlight.remove(session) != nil {
                 // Purged while this was in the air: its row is gone and its result
@@ -281,6 +322,17 @@ public actor WriteQueue {
                 }
             }
         }
+    }
+
+    /// The next op, marked in flight before the turn passes on: a save that
+    /// then reads it as the tail queues behind it instead of merging into a
+    /// payload the drain has already read.
+    private func pick(in session: SessionKey) async -> TrackerOp? {
+        await takeTurn(session)
+        defer { endTurn(session) }
+        guard let op = await next(in: session) else { return nil }
+        inFlight[op.id] = session
+        return op
     }
 
     /// The op to send next. A tracker session drains past a failed op (the
