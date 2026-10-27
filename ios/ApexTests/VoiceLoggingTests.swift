@@ -240,11 +240,14 @@ final class VoiceLoggingTests: XCTestCase {
     func testASpokenSetAndItsUndoSaveOnTheirOwn() async {
         await VoiceSupport.withVoiceEnabled {
             // No explicit flush: the debounce alone sends each one. It fires at
-            // once on the test clock, so waiting on the count is enough.
+            // once on the test clock, so waiting on the count is enough. The
+            // first send is then waited out of the queue, so the undo's save
+            // cannot meet it mid-delete.
             let made = await VoiceSupport.make(script: ["fixture press 225 for 5"])
             made.model.tapMic()
             await VoiceSupport.waitUntil { made.model.voice.isApplied }
             await VoiceSupport.waitUntil { made.transport.bodies(action: "save").count == 1 }
+            await made.queue.untilIdle(made.model.session)
             made.model.undoSpoken()
             await VoiceSupport.waitUntil { made.transport.bodies(action: "save").count == 2 }
             let saves = made.transport.bodies(action: "save")
