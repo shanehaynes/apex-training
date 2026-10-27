@@ -67,6 +67,17 @@ struct RootView: View {
         }
     }
 
+    /// `-apexMockSignupToken <token>` (mock builds only): Create account skips
+    /// the web check and submits this token, so the smoke reaches the answer.
+    private var signUpPresetToken: String? {
+        #if DEBUG
+        if CommandLine.arguments.contains("-apexMockClient") {
+            return MockEnvironment.argument("-apexMockSignupToken")
+        }
+        #endif
+        return nil
+    }
+
     @ViewBuilder
     private var signedInContent: some View {
         switch model.state {
@@ -83,6 +94,7 @@ struct RootView: View {
                     checkURL: AppConfig.publicOrigin.appending(path: "signup-check"),
                     termsURL: AppConfig.publicOrigin.appending(path: "terms"),
                     privacyURL: AppConfig.publicOrigin.appending(path: "privacy"),
+                    presetToken: signUpPresetToken,
                     submit: { email, token, ageConfirmed in
                         await model.signUp(email: email, captchaToken: token, ageConfirmed: ageConfirmed)
                     }

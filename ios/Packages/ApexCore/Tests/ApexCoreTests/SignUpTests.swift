@@ -33,6 +33,8 @@ final class SignUpTests: XCTestCase {
         XCTAssertEqual(request.httpMethod, "POST")
         XCTAssertEqual(request.url?.absoluteString, "https://apex-training.app/api/signup")
         XCTAssertNil(request.value(forHTTPHeaderField: "Authorization"), "no account yet, so no token")
+        // Without it Vercel leaves req.body a string, and the handler refuses the address.
+        XCTAssertEqual(request.value(forHTTPHeaderField: "Content-Type"), "application/json")
         let body = try XCTUnwrap(request.httpBody)
         let sent = try XCTUnwrap(JSONSerialization.jsonObject(with: body) as? [String: Any])
         XCTAssertEqual(sent["email"] as? String, "someone@example.com")
@@ -52,6 +54,21 @@ final class SignUpTests: XCTestCase {
         let transport = Transport(HTTPResponse(status: 503, body: Data("<html>".utf8)))
         let problem = await SignUp.submit(email: "a@b.co", captchaToken: "t", ageConfirmed: true, baseURL: base, transport: transport)
         XCTAssertEqual(problem, SignUp.fallback)
+    }
+
+    /// The server's `EMAIL_RE` (/^[^\s@]+@[^\s@]+\.[^\s@]+$/) and 254-character
+    /// cap, case by case: the form must agree with it in both directions.
+    func testEmailRuleMatchesTheServers() {
+        for accepted in ["someone@example.com", "  someone@example.com\n", "a@b.c", "jane.doe+x@mail.co.uk", "a@b..c"] {
+            XCTAssertTrue(SignUp.isPlausibleEmail(accepted), accepted)
+        }
+        for refused in ["", "someone", "jane.doe@gmail", "jane doe@gmail.com", "a@@b.com", "a@b@c.com",
+                        "@example.com", "a@.com", "a@com.", "a@b .com", "a@b.c\td"] {
+            XCTAssertFalse(SignUp.isPlausibleEmail(refused), refused)
+        }
+        let long = String(repeating: "a", count: 243) + "@example.com"   // 255 characters
+        XCTAssertFalse(SignUp.isPlausibleEmail(long))
+        XCTAssertTrue(SignUp.isPlausibleEmail(String(long.dropFirst())))
     }
 
     func testOfflineSaysSo() async {

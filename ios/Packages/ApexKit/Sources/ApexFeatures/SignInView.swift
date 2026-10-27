@@ -1,3 +1,4 @@
+import ApexCore
 import ApexUI
 import SwiftUI
 
@@ -9,11 +10,21 @@ public struct SignUpOptions {
     public let privacyURL: URL
     /// (email, Turnstile token, 18+ attested) → nil on success, else the sentence to show.
     public let submit: (String, String, Bool) async -> String?
+    /// Mock builds only (`-apexMockSignupToken`): the check sheet hands this
+    /// over instead of loading the page, so the smoke reaches the server's answer.
+    public let presetToken: String?
 
-    public init(checkURL: URL, termsURL: URL, privacyURL: URL, submit: @escaping (String, String, Bool) async -> String?) {
+    public init(
+        checkURL: URL,
+        termsURL: URL,
+        privacyURL: URL,
+        presetToken: String? = nil,
+        submit: @escaping (String, String, Bool) async -> String?
+    ) {
         self.checkURL = checkURL
         self.termsURL = termsURL
         self.privacyURL = privacyURL
+        self.presetToken = presetToken
         self.submit = submit
     }
 }
@@ -101,7 +112,7 @@ public struct SignInView: View {
         .scrollDismissesKeyboard(.interactively)
         .sheet(isPresented: $showingCheck) {
             if let signUp {
-                TurnstileCheckView(url: signUp.checkURL) { token in
+                TurnstileCheckView(url: signUp.checkURL, presetToken: signUp.presetToken) { token in
                     create(with: token, signUp)
                 }
             }
@@ -138,8 +149,10 @@ public struct SignInView: View {
                         .multilineTextAlignment(.center)
                 }
 
+                // An identifier, not the label: the mode picker's segment is also "Sign in".
                 ApexButton("Sign in", isLoading: isWorking) { submit() }
                     .disabled(email.isEmpty || password.isEmpty)
+                    .accessibilityIdentifier("signin.submit")
 
                 Button("Forgot password?") {
                     Task {
@@ -237,19 +250,14 @@ public struct SignInView: View {
             notice = nil
             showingCheck = true
         }
-        .disabled(!looksLikeEmail || !accepted || !ageConfirmed || isWorking)
+        .disabled(!SignUp.isPlausibleEmail(email) || !accepted || !ageConfirmed || isWorking)
         .accessibilityIdentifier("signup.submit")
-    }
-
-    private var looksLikeEmail: Bool {
-        let trimmed = email.trimmingCharacters(in: .whitespaces)
-        return trimmed.contains("@") && trimmed.contains(".")
     }
 
     private func create(with token: String, _ signUp: SignUpOptions) {
         guard !isWorking else { return }
         isWorking = true
-        let address = email.trimmingCharacters(in: .whitespaces)
+        let address = email.trimmingCharacters(in: .whitespacesAndNewlines)
         Task {
             if let message = await signUp.submit(address, token, ageConfirmed) {
                 problem = message

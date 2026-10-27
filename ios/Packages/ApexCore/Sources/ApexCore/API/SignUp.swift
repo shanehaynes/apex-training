@@ -50,4 +50,17 @@ public enum SignUp {
     }
 
     static let fallback = "Sign-up failed — try again later."
+
+    /// The server's own test (`EMAIL_RE` and `MAX_EMAIL` in
+    /// api/_lib/handlers/signup.ts), so the form never sends someone through
+    /// the human check for an address the server will refuse.
+    public static func isPlausibleEmail(_ raw: String) -> Bool {
+        let email = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard email.count <= 254, !email.contains(where: \.isWhitespace) else { return false }
+        let parts = email.split(separator: "@", omittingEmptySubsequences: false)
+        guard parts.count == 2, !parts[0].isEmpty else { return false }
+        // `[^\s@]+\.[^\s@]+`: a dot with at least one character on each side.
+        let domain = Array(parts[1])
+        return domain.count >= 3 && domain.dropFirst().dropLast().contains(".")
+    }
 }

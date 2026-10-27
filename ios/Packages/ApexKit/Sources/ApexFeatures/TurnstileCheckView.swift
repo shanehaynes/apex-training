@@ -9,24 +9,33 @@ import WebKit
 /// talks to nothing but Cloudflare; the app sends the token to /api/signup.
 struct TurnstileCheckView: View {
     let url: URL
+    /// See `SignUpOptions.presetToken`: set only by mock builds.
+    var presetToken: String? = nil
     let onToken: (String) -> Void
     @Environment(\.dismiss) private var dismiss
     /// Cancel is final: a token Turnstile produces while the sheet animates
-    /// away must not submit a sign-up the user just backed out of.
+    /// away must not submit a sign-up the user just backed out of. Swiping the
+    /// sheet down is turned off for the same reason — it has no moment to
+    /// close the latch before the animation ends — so Cancel is the only way out.
     @State private var latch = Latch()
     @State private var failed = false
 
     var body: some View {
         NavigationStack {
-            ZStack {
-                TurnstileWebView(url: url, onFailure: { failed = true }) { token in
-                    guard latch.open else { return }
-                    latch.open = false
-                    onToken(token)
-                    dismiss()
+            VStack(spacing: 0) {
+                if let presetToken {
+                    Color.clear.task {
+                        // Let the sheet finish presenting before it dismisses itself.
+                        try? await Task.sleep(for: .milliseconds(300))
+                        deliver(presetToken)
+                    }
+                } else {
+                    TurnstileWebView(url: url, onFailure: { failed = true }, onToken: deliver)
                 }
+                // Below the page, not over it: Turnstile may retry on its own,
+                // and a token that arrives after a failure still goes through.
                 if failed {
-                    Text("Couldn't load the check. Check your connection and try again.")
+                    Text("Couldn't load the check. Check your connection, then Cancel and try again.")
                         .apexBody()
                         .multilineTextAlignment(.center)
                         .padding(Spacing.xl)
@@ -45,7 +54,15 @@ struct TurnstileCheckView: View {
                 }
             }
         }
+        .interactiveDismissDisabled()
         .accessibilityIdentifier("signup.check")
+    }
+
+    private func deliver(_ token: String) {
+        guard latch.open else { return }
+        latch.open = false
+        onToken(token)
+        dismiss()
     }
 }
 
@@ -107,10 +124,15 @@ private struct TurnstileWebView: UIViewRepresentable {
                   isCheckPage(host: from.host, scheme: from.protocol, port: from.port == 0 ? nil : from.port),
                   let body = message.body as? String,
                   let data = body.data(using: .utf8),
-                  let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                  let token = json["token"] as? String, !token.isEmpty
+                  let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
             else { return }
-            onToken(token)
+            if let token = json["token"] as? String, !token.isEmpty {
+                onToken(token)
+            } else if json["expired"] as? Bool == true {
+                // The widget's script failed to load, it errored, or a token
+                // lapsed: whichever, no token is coming while the sheet is up.
+                onFailure()
+            }
         }
 
         // The main frame stays on the check page; Cloudflare's widget runs in
@@ -123,6 +145,23 @@ private struct TurnstileWebView: UIViewRepresentable {
             guard action.targetFrame?.isMainFrame ?? true else { return decisionHandler(.allow) }
             let target = action.request.url
             decisionHandler(isCheckPage(host: target?.host, scheme: target?.scheme, port: target?.port) ? .allow : .cancel)
+        }
+
+        // A 4xx/5xx check page is a failure too, not a blank sheet.
+        func webView(
+            _ webView: WKWebView,
+            decidePolicyFor response: WKNavigationResponse,
+            decisionHandler: @escaping @MainActor (WKNavigationResponsePolicy) -> Void
+        ) {
+            if response.isForMainFrame, let http = response.response as? HTTPURLResponse, http.statusCode >= 400 {
+                onFailure()
+                return decisionHandler(.cancel)
+            }
+            decisionHandler(.allow)
+        }
+
+        func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
+            onFailure()
         }
 
         func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {

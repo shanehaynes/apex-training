@@ -38,12 +38,12 @@ final class LiveSignUpUITests: XCTestCase {
 
         // The sheet closes itself once the page posts a token, then the
         // server's answer lands on the form.
-        let answered = NSPredicate(format: "exists == true")
         let notice = app.staticTexts["signup.notice"]
         let problem = app.staticTexts["signup.problem"]
+        let failed = app.staticTexts["signup.check.failed"]
         let deadline = Date().addingTimeInterval(45)
-        while Date() < deadline, !notice.exists, !problem.exists { _ = answered; sleep(1) }
-        XCTAssertFalse(app.otherElements["signup.check.failed"].exists, "the check page did not load")
+        while Date() < deadline, !notice.exists, !problem.exists, !failed.exists { sleep(1) }
+        XCTAssertFalse(failed.exists, "the check page did not load, or the widget failed")
         XCTAssertTrue(notice.exists || problem.exists, "no answer: the token never reached the app")
         if problem.exists {
             // Past the token and the attestation, only the mail step can refuse locally.
