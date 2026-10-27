@@ -710,6 +710,30 @@ final class WriteQueueTests: XCTestCase {
         }
     }
 
+    func testOpsWaitingBehindASaveLandInTheOrderTheyWereQueued() async throws {
+        // Two callers wait for the lane at once: the turn passes first come,
+        // first served, not to whoever asked last.
+        let gate = Gate()
+        let store = HeldTailStore(on: gate)
+        let queue = WriteQueue(store: store, client: makeClient(ScriptedTransport()), clock: TestClock(now: Date(timeIntervalSince1970: 1_788_868_800)))
+        let edit = save([setRow(1)])
+        let finish = TrackerOpPayload.finish(FinishPayload(autofillRows: [], finishedAt: nil))
+        let swap = TrackerOpPayload.swapExercise(SwapPayload(section: "exercise", exerciseId: "fx-press", exerciseName: "Fixture Bench", definitionId: "fixture-bench"))
+        let saving = Task { [session] in try await queue.enqueue(edit, for: session) }
+        while await store.tails < 1 { await Task.yield() }
+        let finishing = Task { [session] in try await queue.enqueue(finish, for: session) }
+        for _ in 0..<50 { await Task.yield() }
+        let swapping = Task { [session] in try await queue.enqueue(swap, for: session) }
+        for _ in 0..<50 { await Task.yield() }
+        await gate.open()
+        _ = try await saving.value
+        _ = try await finishing.value
+        _ = try await swapping.value
+
+        let stored = await store.all().map(\.payload.action)
+        XCTAssertEqual(stored, [.save, .finish, .swapExercise])
+    }
+
     func testACancelQueuedWhileASaveReadsTheTailLeavesNothingBehindIt() async throws {
         // Nothing queued for a cancelled session may land after the cancel:
         // a save already inside `enqueue` is queued first and purged with it.
@@ -746,8 +770,9 @@ final class WriteQueueTests: XCTestCase {
         let saving = Task { [session] in try await queue.enqueue(edit, for: session) }
         while await store.tails < 2 { await Task.yield() }       // the second holds its tail read
         await sending.open()
+        // Main: the send lands and its row goes. Fixed: the settle waits for the save's turn.
         var spins = 0
-        while await !store.all().isEmpty, spins < 200 { spins += 1; await Task.yield() }   // landed, row deleted
+        while await !store.all().isEmpty, spins < 200 { spins += 1; await Task.yield() }
         await reading.open()
         _ = try await saving.value
         await flush.value

@@ -137,14 +137,16 @@ public actor WriteQueue {
         emit(.changed(session))
     }
 
-    /// One read-then-write on a lane at a time: an enqueue, a cancel, and the
-    /// drain picking its next op and settling that op's row. Every store call
-    /// suspends and this actor is reentrant, so without a turn an op queued
-    /// while a save waited on its tail read took the lower id and was sent
-    /// first (a Finish ahead of the last set), a save landed after a cancel,
-    /// and a save merged into a row the drain was sending was lost with it.
-    /// The send itself holds no turn. Turns pass in the order they were asked
-    /// for, so the lane's ids follow the order `enqueue` was called in.
+    /// One of these on a lane at a time: an enqueue, a cancel, the drain
+    /// picking its next op, and the drain settling that op's row. Every store
+    /// call suspends and this actor is reentrant, so without a turn an op
+    /// queued while a save waited on its tail read took the lower id and was
+    /// sent first (a Finish ahead of the last set), a save landed after a
+    /// cancel, and a save merged into a row the drain was sending was lost
+    /// with it. The send itself holds no turn. Turns pass in the order they
+    /// were asked for, so the lane's ids follow the order `enqueue` was
+    /// called in. `purgeAll` and the user-action writers (`retryFailed`,
+    /// `discardFailed`, `letGo`, `discard`, `repend`) do not take it.
     private func takeTurn(_ session: SessionKey) async {
         guard turnTaken.contains(session) else {
             turnTaken.insert(session)
