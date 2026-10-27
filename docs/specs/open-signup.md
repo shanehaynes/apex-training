@@ -7,10 +7,12 @@ watch the caps, and sign-up inside the iOS app.
 
 **Owns:** `api/_lib/handlers/signup.ts` and its test; `src/components/auth/`;
 `src/context/AuthContext.tsx` `signUp` and `src/context/auth.ts` types;
-`src/components/legal/AgeCheckbox.tsx` (new); `public/turnstile-bridge.html`
-(new); `scripts/supervisor-report.sh` sign-up section; iOS `SignInView.swift`,
-a new `ApexFeatures` sign-up sheet, the ApexCore sign-up endpoint, the
-`SmokeUITests` invite-only assertion; `docs/ios/app-store.md` §5;
+`src/components/legal/AgeCheckbox.tsx` (new); the `/signup-check` route in
+`src/App.tsx` (see Decisions, 2026-10-20); `scripts/supervisor-report.sh`
+sign-up section; iOS `SignInView.swift`, a new `ApexFeatures` sign-up sheet,
+the ApexCore sign-up endpoint, the app's wiring (`ios/Apex/ApexApp.swift`,
+`AppModel.swift`, the mock's `/api/signup` answer), the `SmokeUITests`
+invite-only assertion; `docs/ios/app-store.md` §7; `docs/ios/backend-changes.md`;
 `DEPLOY_MULTI_USER.md` §6.
 **Forbidden:** gate-protected paths, `legal/*.md` (wording is Shane's call:
 see Decisions), `vercel.json`, migrations.
@@ -70,9 +72,16 @@ Every box checked, every PR merged, `scripts/git-tidy.sh --yes` run, Next brief 
 - 2026-10-19 · The stamp lives in `app_metadata`, not `user_metadata` (review of M1). `generate_link`'s `data` is applied only when the user is created, so a pending address would keep no record. `user_metadata` is the user's own to rewrite with `updateUser`.
 - 2026-10-20 · The check page is an SPA route (`/signup-check`), not a static `public/turnstile-bridge.html`. It reuses `TurnstileWidget` and the build's site key, so there is no second copy of either. Vercel's rewrite already serves it.
 - 2026-10-19 · iOS gets its token from Turnstile in a web view (Shane's choice over App Attest), so the server path stays the same.
+- 2026-10-20 · The in-app sign-up wording is `app-store.md` §7, not an edit to §5: build 509 is in review and invite-only, and its notes must stay true for any reply about it.
+- 2026-10-27 · Every M3 build offers Create account; there is no client flag. Closing sign-up stays a server act (unset the site key), and the check sheet then says "Sign-up isn't open right now." The invite-only footer remains for a `SignInView` built without `SignUpOptions`, which is what the opt-in sign-in snapshot renders.
+- 2026-10-27 · The check sheet cannot be swiped away (review of M3): a swipe leaves no moment to close the latch before the animation ends, so a token landing mid-swipe would still submit. Cancel is the only exit.
+- 2026-10-27 · The web view keeps a non-persistent data store even though each sheet re-downloads the SPA (review of M3): nothing from the check page should outlive it. Revisit with a lazy route chunk if the first open is slow on cellular.
+- 2026-10-27 · `ios/Config/Base.xcconfig`'s comment on the invite contact and the sign-in snapshot is now partly stale. Left alone: `ios/Config/` is HELD, and a comment is not worth holding this PR.
 
 ## Session log
 - 2026-10-19 · spec written. M1 built on feat/signup-age-check. Verified on the local stack with Turnstile test keys: submit stays disabled until both boxes are ticked, `age_confirmed_at` lands in user metadata, and a request without `ageConfirmed` gets 400. Review fixes: the stamp moved to app_metadata via updateUserById, proven on the local stack for a pending invitee and a new address (provider field kept). Both boxes reset whenever the form opens. A mock e2e spec covers the form.
+- 2026-10-20 · M3 built on feat/ios-open-signup: `/signup-check`, the Create account mode, the Turnstile sheet, ApexCore `SignUp`, App Store §7. PR held until #477 merged (it did, 2026-10-20).
+- 2026-10-27 · M3 brought up to main (W17). A full unsigned UI run on its own simulator failed 22/24 smoke tests: the mode picker's "Sign in" segment made the shared sign-in helper's `buttons["Sign in"]` ambiguous. The submit now has `signin.submit`. Review fixes: the sheet shows a failure when the widget errors, the page answers 4xx/5xx, or the web process dies; no swipe dismissal; the email rule is the server's (`SignUp.isPlausibleEmail`, ApexCore, with tests); the check page reads `turnstileSiteKey()` and has mock e2e for the token, the load failure and a plain browser; `-apexMockSignupToken` lets the smoke reach the server's answer, and the mock refuses what the handler refuses.
 
 ## Next brief
 M3's last box: Shane's real sign-up from a TestFlight build. After M3 merges, cut a TestFlight build with `ios/scripts/testflight.sh` (confirm with Shane first; uploading publishes). On a phone:

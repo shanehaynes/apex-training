@@ -360,6 +360,11 @@ sign-up is by invitation: the Create account screen links to them.
   key saved…"
 - §6's phased-release note: the day-one ceiling is no longer the invite list but anyone with
   the listing.
+- **App Privacy (§1), to review before submitting:** Create account runs Cloudflare Turnstile
+  in an in-app web view, which reads IP address and device and browser signals to tell a person
+  from a bot. Decide whether that changes the App Privacy answers, and note that
+  `legal/privacy-v1.md` names Cloudflare only for email routing — the policy the Create account
+  toggle links at the moment of assent. Both are Shane's calls; nothing here is pre-decided.
 - **Order**: production must be running PR #477 (the server's 18+ check and stamp) before any
   build with M3 goes to TestFlight. Main's handler before #477 ignores `ageConfirmed`, so an app
   sign-up would go through with nothing recorded.
