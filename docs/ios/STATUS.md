@@ -26,19 +26,26 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
 | W14 | UX review implementation | done (#283–#292, #296, #297) | Mac | ux-review.md §7; decisions D-037…D-044; **TestFlight build 8 (0.9.0/424) uploaded 2026-09-22 by the first `testflight.yml` run**; snapshots re-recorded on the iPhone 17 (#300); Shane's device run on build 8 is next |
 | W15 | Connector access level (look-only / full tokens) | done (#379) | Mac | after #371/#376 gave `/api/mcp` write access; brief [W15](workstreams/W15-connector-access.md) |
 | W16 | Apple Health (write, read workouts, daily metrics, body weight, meals) | M1 (#430) + MT (#438) shipped in TestFlight 1.1.0 (561); M0 landed (phase59, #469); M2b landed (#472); M3b in review; privacy bump, then M2i next | both | D-056 supersedes D-018; M1 (write, no migration) merges after 1.0 is approved and ships as 1.1; MT (in-app terms re-acceptance) gates the privacy bump; brief [W16](workstreams/W16-apple-health.md) |
-| W17 | Voice set logging (on-device Speech, no LLM) | ready — brief drafted 2026-10-20 | both | D-059; Swift parser on a JSON fixture, Undo, ships dark behind `apex.tracker.voice`; PR-H (held plumbing) ∥ M1 (parser) → M2 (tracker UI) → M3 dogfood; brief [W17](workstreams/W17-voice-set-logging.md) |
+| W17 | Voice set logging (on-device Speech, no LLM) | PR-H #480, M1 #483, M2 #484 merged; TestFlight 1.1.0 (604), toggle off by default; M3 dogfood next | both | D-059; Swift parser on a JSON fixture (112 cases, ratchet), Undo, ships dark behind `apex.tracker.voice`; 604 uploaded 2026-10-22 from main at 75096526 (#486); next: Shane's device run on 604 (toggle on, the scorecard, #480's pins — all NOT VERIFIED), then one `fix/w17-voice-cases-<date>` ApexCore PR per gym session; brief [W17](workstreams/W17-voice-set-logging.md) |
 
 ## Next up
-0. **W17 PR-H and M1 — voice set logging, the two parallel first lanes (PR-H Mac + HELD, M1 any).**
-   Goal: the user taps a mic in the tracker, says "bench 225 for 5", and the set is logged on the
-   device with no LLM and no network (D-059). PR-H is the held plumbing — the `ApexSpeech` product
-   (protocol, `No…`, Fake, `SFSpeechRecognizer` adapter with on-device-only recognition),
-   `TrackerServices.speech`, `-apexMockSpeech`, the two usage strings, project.yml and the
-   ci-guards line, nothing user-visible — opened small so one `shipit` unblocks everything. M1 is
-   the ApexCore parser, resolver, storage formatter, the 59-case fixture and the `TrackerEditor`
-   primitives (`clearShadow`, `applySpoken`, `revert`, the replay reset), red-to-green under
-   `swift test`. Acceptance and Owns per milestone: [W17 brief](workstreams/W17-voice-set-logging.md).
-   Then M2 (the tracker UI, unheld) after both merge; the feature ships dark.
+0. **W17 M3 — the device run on TestFlight 1.1.0 (604), then ApexCore PRs.** All three lanes are on
+   `main` (PR-H #480 and M1 #483 on 2026-10-20, M2 #484 on 2026-10-21) and build 604, uploaded
+   2026-10-22 from `main` at 75096526 (#486), carries them with the toggle off. First, Shane:
+   install 604, turn on You › Training › *Log sets by voice*, run the device scorecard in the
+   [W17 brief](workstreams/W17-voice-set-logging.md) — its rows answer #480's Speech pins (none
+   verified yet; the 15 Pro was never connected): 14 and 7 the two sheets and denial / Dictation
+   off, 2 and 12 ducking and the orange indicator, 3 the A2DP route, 5 and 13 a call and lock
+   mid-listen, 1, 9 and 19 with the journal the bias and dictation's number shapes, 15 and L2
+   `isFinal` latency; row 6 is airplane mode. The first gym session is collection-only (no parser
+   edit): You › Training › *Share voice log* to the Mac for the first journal → fixture PR. Then
+   one `fix/w17-voice-cases-<date>` ApexCore PR per gym
+   session: record A2–A7, L1–L2 and E1 in the brief's Session log, one `journal:<date>` fixture case
+   per failed, undone or disputed utterance, rules changed red-to-green, the reviewer, an unheld
+   PR; the ratchet (112) only rises. Exit: two consecutive sessions of ≥ 20 utterances with zero
+   new failure-sourced cases and A2 ≥ 90% → the one-line default-on PR and the library auto-apply
+   decision on the evidence; budget six device sessions, then D-060. The brief's "Next brief" is
+   the drafted M3 brief.
 0. **W16 M2i — iOS reads Health workouts (Mac), after the privacy bump.** Goal: a Watch,
    Garmin-via-Health or Whoop-via-Health workout reaches the server as provider `apple` (M2b,
    #472) from the phone, durable through kills and offline, and a match the athlete has not
@@ -150,6 +157,49 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
    (`printf` the two ids back after a tidy) — both git-ignored, so never from the primary checkout.
 
 ## Recent sessions
+- 2026-10-25 · W17 M3 pins, R8 edges · Mac. Seven authored cases (106–112) pin decision 4 for every
+  connective and both sides of the boundary: the four #488's review asked for — `5 reps for 3` → W3 (`for` apart from `x`), `10 x 5 reps`
+  → 10 sets and `11 x 5 reps` → W11 (the boundary), `225 at 5 reps` → W225 — then, after one reviewer
+  round, `3 at 5 reps` → W3 (`at` apart from `x`), `5 reps by 3` and `5 reps times 3` → 3 sets. All
+  holding on `main` as written, no rule changed; the ratchet 105 → 112. ApexCore tests and docs only
+  (#489).
+- 2026-10-22 · W17 M3 pins · Mac. Five authored fixture cases (101–105) pin the rules the docs sync
+  found holding on `main` unpinned — `225 x 5 reps` and `5 reps for 225` (R8's complement of marked
+  reps), `225 lbs at 8` → RPE 8 (R7 before R8), `more` / `another` alone → repeat (R16) — plus one
+  resolver test (`fixture pres` is a near match, not a containment); the ratchet 100 → 105; no
+  parser change. ApexCore tests and docs only (#488).
+- 2026-10-22 · W17 M3 TestFlight · Mac. Build 1.1.0 (604) uploaded from main at 75096526 with
+  PR-H #480, M1 #483 and M2 #484: W17 on TestFlight, toggle off by default — Shane turns on
+  You → Training › Log sets by voice. `testflight.sh --check` (production schema in sync with
+  main, every migration stamped) and `--dry-run` (archive, export, assert-ipa; both usage strings
+  and 1.1.0/604 in the archive) green before the upload. Device run and the M3 scorecard are
+  Shane's. Docs only.
+- 2026-10-22 · W17 docs sync · Mac. With #480, #483 and #484 on `main`, the brief says what the
+  lanes built: M1's grammar decisions (7, 10, 17, 23–31, plus 4 and 18–22) as a table under the
+  slot rules, with the rule cells, the vocabulary, `extractPhrase`, tier 2 and the editor primitives
+  adjusted; fixture cases 60–100 and the ratchet 100; PR-H's outcomes (`sdk:` lines not needed) and
+  its session-log line, moved in from #480's body; acceptance boxes ticked where CI and the PR
+  bodies prove them, the device-side pins left open; "Not verified" is the union of the three PRs;
+  the Next brief is M3. This row and Next up point at M3 on TestFlight 1.1.0 (604), uploaded the same
+  day from main (#486). Docs only.
+- 2026-10-20 · W17 M2 · Mac. The tracker logs what it hears: `VoiceLogState` on `TrackerModel`,
+  the end-of-utterance policy over the injected clock, `applySpoken` through the typed path, Undo
+  restoring the rest timer whole, chips and Pick…, the strip and the mic, the You → Training
+  toggle with share/clear of the transcript-only journal; 29 unit tests, 13 snapshots, three smoke
+  legs. Stacked on PR-H #480 (held) and M1. Snapshot references need `content_size medium` on the
+  simulator. Device scorecard is Shane's.
+- 2026-10-20 · signed UI tests (no WS) · Mac. A signed `build-for-testing` failed on `main`
+  because ApexTests and ApexUITests had no Info.plist; both now set `GENERATE_INFOPLIST_FILE`
+  (`project.yml`, HELD). SmokeUITests now passes signed (20/20) as well as unsigned. It dismisses
+  the "Save Password?" sheet that the signed app's `webcredentials` brings, only when its bundle
+  is signed, and the live test signs out in its teardown. How-to in ios/CLAUDE.md.
+- 2026-10-20 · W17 M1 · Mac (Linux-shaped). The voice parser, resolver, storage formatter and the
+  `TrackerEditor` primitives (`clearShadow`, `applySpoken`, `revert`, `currentExercise`, the replay
+  reset) landed in ApexCore as #483 (unheld): 100 fixture cases (the brief's 59 plus 41 authored,
+  ratchet 100), two reviewer rounds folded in — a keyword-hidden name no longer auto-applies to the
+  current exercise, an undone key never goes out as upsert and delete in one save — `swift test`
+  641 and `agent:check` green on the Mac; Linux is the PR's job. PR-H (held) runs in parallel; M2
+  after both merge.
 - 2026-10-20 · W17 brief · Mac. Voice set logging planned and decided (D-059): on-device Speech
   only, a deterministic Swift parser on a JSON fixture in ApexCore, log-with-Undo for session
   exercises, confirm-first for near, unknown and library names, ships dark behind

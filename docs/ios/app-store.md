@@ -27,6 +27,7 @@ uploaded build. Answer **"Yes, we collect data from this app"**, then:
 | User Content → Other User Content | Yes | Yes | No | App Functionality (coach chat, goal and context text) |
 | Identifiers → User ID | Yes | Yes | No | App Functionality (the account id every row is keyed by) |
 | Health & Fitness → Health | **No** | | | From 1.1 the app *writes* finished workouts to HealthKit (W16 M1, D-056) but reads nothing from it, so nothing is collected. Flips to Yes when W16 M2 reads workouts |
+| User Content → Audio Data | **No** | | | W17 logs sets by voice with on-device speech recognition (D-059); audio is processed on the device only, never recorded, stored or sent; the logged set is the fitness data already declared |
 | Location | **No** | | | A watch activity's route is stored as the provider sent it; the app never asks for location |
 | Diagnostics, Usage Data, Purchases, Financial Info, Browsing, Search | **No** | | | None collected; no analytics SDK, no crash reporter |
 
@@ -169,7 +170,11 @@ Control Center → Screen Recording on a TestFlight install of the submitted bui
 
 1. Cold launch → sign-in screen; let the invite-only line and "Request an invite" show.
 2. Sign in as the demo account. Schedule day and month, open a workout, **Start Workout**, lock
-   the phone to show the Live Activity, unlock, log a set, **Finish**.
+   the phone to show the Live Activity, unlock, log a set, **Finish**. On a build that carries
+   W17 with You → Training → *Log sets by voice* on, log the set by voice: the first mic tap
+   shows the Speech sheet and then the Microphone sheet (the `Info.plist` wording — recognition
+   is on-device, nothing is uploaded); allow both, say "bench 225 for 5", and let the strip's
+   Undo show.
 3. Meals, Blocks, Library, Analytics — a few seconds each.
 4. Coach: "What did I do this week?", then a request that produces a confirmation card. Then
    You → AI coach → Anthropic key: the user's own credential, no price.

@@ -840,6 +840,8 @@ final class ScheduleModelTests: XCTestCase {
 
         transport.set("POST", "/api/exercise-definitions", status: 503, body: Data("down".utf8))
         await queue.resume()
+        // The create's own flush may still be sending: resume's returns at once then.
+        await queue.untilIdle(.outbox)
         await queue.awaitRetries()
         let held = await store.all
         XCTAssertEqual(held.map(\.payload.action), [.createDefinition])

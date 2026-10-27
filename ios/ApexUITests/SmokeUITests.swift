@@ -29,7 +29,25 @@ final class SmokeUITests: XCTestCase {
         type("agent@apex.local", into: app.textFields["signin.email"])
         type("apex-agent-password", into: app.secureTextFields["signin.password"])
         app.buttons["Sign in"].tap()
+        dismissSavePassword(app)
     }
+
+    /// A signed build carries the app's `webcredentials` entitlement, so iOS
+    /// offers to save the password once the sign-in fields go away, and that
+    /// sheet covers every tap after it. An unsigned build (CI) never gets the
+    /// offer, so it skips the wait.
+    private func dismissSavePassword(_ app: XCUIApplication) {
+        guard Self.isSigned,
+              app.textFields["signin.email"].waitForNonExistence(timeout: 10) else { return }
+        let notNow = app.buttons["Not Now"]
+        if notNow.waitForExistence(timeout: 5) { notNow.tap() }
+    }
+
+    /// The test bundle is signed exactly when the app under test is: one
+    /// `xcodebuild` invocation signs both or neither.
+    private static let isSigned = FileManager.default.fileExists(
+        atPath: Bundle(for: SmokeUITests.self).bundleURL.appendingPathComponent("_CodeSignature").path
+    )
 
     /// Today rides in the Day/Month toolbar menu (ux-review §3.2): four
     /// controls is the most the bar holds with the date still legible.
@@ -294,6 +312,90 @@ final class SmokeUITests: XCTestCase {
         XCTAssertFalse(app.staticTexts["event.card.Fixture Push Day.running"].exists)
     }
 
+    /// W17: a spoken set lands on the first empty row, Undo takes it back,
+    /// and a near miss asks first. The fake recognizer plays the two
+    /// utterances one mic tap each; the toggle is on because the flag is set.
+    func testVoiceLoggingOnFixtures() throws {
+        let app = XCUIApplication()
+        app.launchArguments += ["-apexUITest", "-apexMockClient", "-apexMockSpeech", "Fixture Press 115 for 4;fixture prss 120 for 3"]
+        app.launch()
+        signIn(app)
+
+        openEvent(app, card: "Fixture Push Day")
+        let start = app.buttons["schedule.event.start"]
+        XCTAssertTrue(start.waitForExistence(timeout: 10))
+        start.tap()
+        let mic = app.buttons["tracker.voice"]
+        XCTAssertTrue(mic.waitForExistence(timeout: 20), "the toggle is on, so the header has the mic")
+        XCTAssertTrue(app.staticTexts["tracker.title"].exists)
+        let weight1 = app.textFields["tracker.input.fx-press.1.weight"]
+        XCTAssertTrue(weight1.waitForExistence(timeout: 10))
+        let shownBefore = weight1.value as? String
+
+        mic.tap()
+        let applied = app.staticTexts["tracker.voice.applied"]
+        XCTAssertTrue(applied.waitForExistence(timeout: 10))
+        XCTAssertEqual(applied.label, "Logged Fixture Press · 115 lb × 4")
+        XCTAssertEqual(weight1.value as? String, "115")
+        XCTAssertEqual(app.textFields["tracker.input.fx-press.1.reps"].value as? String, "4")
+        attach(app, name: "w17-01-voice-applied")
+
+        // The audit with the strip up. Only the voice elements are this
+        // workstream's to answer for; anything else is reported, not failed.
+        try app.performAccessibilityAudit { issue in
+            let identifier = issue.element?.identifier ?? ""
+            guard identifier.hasPrefix("tracker.voice") else {
+                print("accessibility audit (not voice): \(issue.compactDescription)")
+                return true
+            }
+            return false
+        }
+
+        app.buttons["tracker.voice.undo"].tap()
+        XCTAssertTrue(applied.waitForNonExistence(timeout: 5))
+        XCTAssertEqual(weight1.value as? String, shownBefore, "undone: the row shows what it showed before the tap (its ghost)")
+
+        mic.tap()
+        let chip = app.buttons["tracker.voice.chip.fx-press"]
+        XCTAssertTrue(chip.waitForExistence(timeout: 10), "a near miss asks first")
+        attach(app, name: "w17-02-voice-chips")
+        chip.tap()
+        XCTAssertTrue(applied.waitForExistence(timeout: 10))
+        XCTAssertEqual(applied.label, "Logged Fixture Press · 120 lb × 3")
+        XCTAssertEqual(weight1.value as? String, "120")
+    }
+
+    /// W17: a refused sheet is a Settings line, not a dead mic.
+    func testVoiceDeniedShowsTheSettingsLineOnFixtures() {
+        let app = XCUIApplication()
+        app.launchArguments += ["-apexUITest", "-apexMockClient", "-apexMockSpeech", "denied"]
+        app.launch()
+        signIn(app)
+        openEvent(app, card: "Fixture Push Day")
+        let start = app.buttons["schedule.event.start"]
+        XCTAssertTrue(start.waitForExistence(timeout: 10))
+        start.tap()
+        let mic = app.buttons["tracker.voice"]
+        XCTAssertTrue(mic.waitForExistence(timeout: 20))
+        mic.tap()
+        XCTAssertTrue(app.buttons["tracker.voice.settings"].waitForExistence(timeout: 10))
+        attach(app, name: "w17-03-voice-denied")
+    }
+
+    /// W17: with the toggle off there is no microphone at all.
+    func testVoiceToggleOffHidesTheMicOnFixtures() {
+        let app = XCUIApplication()
+        app.launchArguments += ["-apexUITest", "-apexMockClient", "-apexMockSpeech", "off"]
+        app.launch()
+        signIn(app)
+        openEvent(app, card: "Fixture Push Day")
+        let start = app.buttons["schedule.event.start"]
+        XCTAssertTrue(start.waitForExistence(timeout: 10))
+        start.tap()
+        XCTAssertTrue(app.staticTexts["tracker.title"].waitForExistence(timeout: 20))
+        XCTAssertFalse(app.buttons["tracker.voice"].exists)
+    }
+
     /// ux-review §3.4: back out of a running workout and the day card says so
     /// — a live timer instead of the scheduled time — and takes you straight
     /// back into the tracker. Under the mock a non-peek `bootstrap` starts the
@@ -343,6 +445,22 @@ final class SmokeUITests: XCTestCase {
         let schedule = app.tabBars.buttons["Schedule"]
         guard schedule.waitForExistence(timeout: 20) else {
             throw XCTSkip("no local Supabase stack reachable from this simulator")
+        }
+        // A signed build keeps this session in the Keychain, and every later
+        // `launch(mock: false)` would open signed in instead of on sign-in.
+        addTeardownBlock { @MainActor in
+            app.tabBars.buttons["You"].tap()
+            // The settings list's button, or the bare one a failed profile
+            // load shows in its place.
+            let signOut = app.buttons.matching(
+                NSPredicate(format: "identifier == 'you.signout' OR label == 'Sign out'")
+            ).firstMatch
+            for _ in 0..<6 where !signOut.isHittable { app.swipeUp() }
+            signOut.tap()
+            // Sign-out runs in a Task; the next test's launch kills the app,
+            // so wait for it to land rather than trusting the tap.
+            XCTAssertTrue(app.textFields["signin.email"].waitForExistence(timeout: 10),
+                          "sign-out never returned to sign-in")
         }
         for tab in ["Schedule", "Coach", "Analytics", "You"] {
             XCTAssertTrue(app.tabBars.buttons[tab].exists, "missing tab: \(tab)")

@@ -1,6 +1,8 @@
 import ApexCore
+import ApexPersistence
 import ApexUI
 import SwiftUI
+import UniformTypeIdentifiers
 
 /// The You tab (D-012, W11): who you are, what the coach knows, what Apex is
 /// connected to, what has been happening — the web's one long profile page
@@ -57,10 +59,17 @@ public struct YouRootView: View {
     /// "Rate sets by effort" (the web's `RpeTrackingToggle`): a device
     /// preference, so it needs no profile column.
     @AppStorage(TrackerModel.rpePreferenceKey) private var tracksRpe = false
+    /// "Log sets by voice" (W17, D-059): the tracker's microphone, off until
+    /// it earns its default. A device preference like RPE.
+    @AppStorage(TrackerModel.voicePreferenceKey) private var logsByVoice = false
+    /// The voice journal the tracker writes: shared and cleared from here.
+    private let voiceJournal: any VoiceJournalStoring
+    @State private var confirmingVoiceLogClear = false
 
-    public init(model: YouModel, open: ((YouRoute) -> Void)? = nil) {
+    public init(model: YouModel, open: ((YouRoute) -> Void)? = nil, voiceJournal: any VoiceJournalStoring = FileVoiceJournalStore.standard) {
         self.model = model
         self.open = open
+        self.voiceJournal = voiceJournal
     }
 
     public var body: some View {
@@ -156,7 +165,10 @@ public struct YouRootView: View {
         // Library are what a training week touches; the two libraries are one
         // screen with a segment, and heart-rate zones sit beside the watch
         // whose data they interpret.
-        SettingsSection("Training", footer: "Rating sets by effort adds an RPE field (1–10) to every set in the tracker. Remembered on this device.") {
+        SettingsSection(
+            "Training",
+            footer: "Rating sets by effort adds an RPE field (1–10) to every set in the tracker. Logging by voice adds a microphone to the tracker: say “bench 225 for 5” and the set is logged — on this iPhone, nothing is uploaded. The voice log keeps the last 200 transcripts and what became of them, never audio; share it to help tune recognition. All remembered on this device."
+        ) {
             if model.blocks != nil {
                 SettingsLink("Training blocks", value: model.blocks?.current?.name, to: YouRoute.blocks, identifier: "you.row.blocks")
                 SettingsDivider()
@@ -168,6 +180,26 @@ public struct YouRootView: View {
             SettingsLink("Library", value: "Exercises · Workouts", to: YouRoute.library, identifier: "you.row.library")
             SettingsDivider()
             SettingsToggle("Rate sets by effort (RPE)", isOn: $tracksRpe, identifier: "you.toggle.rpe")
+            SettingsDivider()
+            SettingsToggle("Log sets by voice", isOn: $logsByVoice, identifier: "you.toggle.voice")
+            SettingsDivider()
+            ShareLink(item: VoiceLogExport(journal: voiceJournal), preview: SharePreview("Apex voice log")) {
+                SettingsRow("Share voice log", showsChevron: false) {
+                    ApexIcon.share.image.foregroundStyle(ApexColor.textMuted)
+                }
+            }
+            .buttonStyle(SettingsRowButtonStyle())
+            .accessibilityIdentifier("you.row.voice-log")
+            SettingsDivider()
+            SettingsButton("Clear voice log", tone: .destructive, showsChevron: false, identifier: "you.row.voice-clear") {
+                confirmingVoiceLogClear = true
+            }
+            .confirmationDialog("Clear the voice log?", isPresented: $confirmingVoiceLogClear, titleVisibility: .visible) {
+                Button("Clear voice log", role: .destructive) { voiceJournal.clear() }
+                    .accessibilityIdentifier("you.row.voice-clear.confirm")
+            } message: {
+                Text("The last 200 transcripts and what became of them. Share it first if it is still useful.")
+            }
         }
 
         SettingsSection("AI coach", footer: "The coach runs on your own Anthropic key — every chat, post-workout summary and monthly review is billed to it.") {
@@ -316,5 +348,19 @@ struct InlineError: View {
             .foregroundStyle(ApexPalette.dangerText)
             .fixedSize(horizontal: false, vertical: true)
             .accessibilityIdentifier(identifier)
+    }
+}
+
+/// The voice journal as a JSON file for the share sheet, written when the
+/// share starts — never audio, never anything but what the tracker logged.
+struct VoiceLogExport: Transferable {
+    let journal: any VoiceJournalStoring
+
+    static var transferRepresentation: some TransferRepresentation {
+        FileRepresentation(exportedContentType: .json) { export in
+            let url = FileManager.default.temporaryDirectory.appendingPathComponent("apex-voice-log.json")
+            try export.journal.load().exportJSON().write(to: url, options: .atomic)
+            return SentTransferredFile(url)
+        }
     }
 }
