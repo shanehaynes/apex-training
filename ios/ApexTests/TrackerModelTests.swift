@@ -742,7 +742,7 @@ final class TrackerModelTests: XCTestCase {
             return answer
         }
         func append(_ op: TrackerOp) async throws -> Int64 { try await inner.append(op) }
-        func update(_ op: TrackerOp) async throws { try await inner.update(op) }
+        func update(_ op: TrackerOp) async throws -> Bool { try await inner.update(op) }
         func delete(id: Int64) async throws { try await inner.delete(id: id) }
         func nextPending(for session: SessionKey) async throws -> TrackerOp? { try await inner.nextPending(for: session) }
         func ops(for session: SessionKey) async throws -> [TrackerOp] { try await inner.ops(for: session) }

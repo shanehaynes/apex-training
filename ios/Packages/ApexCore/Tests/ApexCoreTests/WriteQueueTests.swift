@@ -613,7 +613,7 @@ final class WriteQueueTests: XCTestCase {
             return answer
         }
         func append(_ op: TrackerOp) async throws -> Int64 { try await inner.append(op) }
-        func update(_ op: TrackerOp) async throws { try await inner.update(op) }
+        func update(_ op: TrackerOp) async throws -> Bool { try await inner.update(op) }
         func delete(id: Int64) async throws { try await inner.delete(id: id) }
         func tail(for session: SessionKey) async throws -> TrackerOp? { try await inner.tail(for: session) }
         func ops(for session: SessionKey) async throws -> [TrackerOp] { try await inner.ops(for: session) }
@@ -668,7 +668,7 @@ final class WriteQueueTests: XCTestCase {
             return answer
         }
         func append(_ op: TrackerOp) async throws -> Int64 { try await inner.append(op) }
-        func update(_ op: TrackerOp) async throws { try await inner.update(op) }
+        func update(_ op: TrackerOp) async throws -> Bool { try await inner.update(op) }
         func delete(id: Int64) async throws { try await inner.delete(id: id) }
         func nextPending(for session: SessionKey) async throws -> TrackerOp? { try await inner.nextPending(for: session) }
         func ops(for session: SessionKey) async throws -> [TrackerOp] { try await inner.ops(for: session) }
@@ -803,6 +803,142 @@ final class WriteQueueTests: XCTestCase {
         await queue.flush(session)
         let weights = await transport.requests.flatMap { ($0.body?["setLogs"] as? [[String: Any]] ?? []).compactMap { $0["actual_weight"] as? String } }
         XCTAssertEqual(weights, ["100", "105"])
+    }
+
+    func testAPurgeTakesASaveThatWasAlreadyBeingQueued() async throws {
+        // Account deletion purges the store while the autosave's save waits on
+        // its tail read. The save goes with everything else: appended after
+        // the purge, it would 404 forever for an account that no longer exists.
+        let gate = Gate()
+        let store = HeldTailStore(on: gate)
+        let queue = WriteQueue(store: store, client: makeClient(ScriptedTransport()), clock: TestClock(now: Date(timeIntervalSince1970: 1_788_868_800)))
+        let edit = save([setRow(1)])
+        let saving = Task { [session] in try await queue.enqueue(edit, for: session) }
+        while await store.tails < 1 { await Task.yield() }
+        let purging = Task { await queue.purgeAll() }
+        for _ in 0..<50 { await Task.yield() }
+        await gate.open()
+        _ = try await saving.value
+        await purging.value
+
+        let left = await store.all()
+        XCTAssertEqual(left, [])
+    }
+
+    /// Answers the tail with a pending save that is no longer stored: a row
+    /// removed between the merge's read and its write.
+    private actor GoneTailStore: WriteQueueStore {
+        let inner = MemoryWriteQueueStore()
+        let gone: TrackerOp
+        init(gone: TrackerOp) { self.gone = gone }
+        func tail(for session: SessionKey) async throws -> TrackerOp? { gone }
+        func append(_ op: TrackerOp) async throws -> Int64 { try await inner.append(op) }
+        func update(_ op: TrackerOp) async throws -> Bool { try await inner.update(op) }
+        func delete(id: Int64) async throws { try await inner.delete(id: id) }
+        func nextPending(for session: SessionKey) async throws -> TrackerOp? { try await inner.nextPending(for: session) }
+        func ops(for session: SessionKey) async throws -> [TrackerOp] { try await inner.ops(for: session) }
+        func sessionsWithPending() async throws -> [SessionKey] { try await inner.sessionsWithPending() }
+        func purge(session: SessionKey) async throws { try await inner.purge(session: session) }
+        func purgeAll() async throws { try await inner.purgeAll() }
+        func all() async -> [TrackerOp] { await inner.all }
+    }
+
+    func testASaveWhoseMergeTargetIsGoneIsAppendedNotLost() async throws {
+        let gone = TrackerOp(id: 999, session: session, payload: save([setRow(1, weight: "100")]), createdAt: Date(timeIntervalSince1970: 1_788_868_800))
+        let store = GoneTailStore(gone: gone)
+        let queue = WriteQueue(store: store, client: makeClient(ScriptedTransport()), clock: TestClock(now: Date(timeIntervalSince1970: 1_788_868_800)))
+        try await queue.enqueue(save([setRow(2, weight: "105")]), for: session)
+
+        let stored = await store.all().map(\.payload)
+        XCTAssertEqual(stored, [save([setRow(2, weight: "105")])])
+    }
+
+    /// Holds the first `ops(for:)` read after `arm()` once it has read the
+    /// store, so the caller answers what the lane held before the gate.
+    private actor HeldOpsStore: WriteQueueStore {
+        let inner = MemoryWriteQueueStore()
+        let gate: Gate
+        private var armed = false
+        private(set) var isHolding = false
+        init(on gate: Gate) { self.gate = gate }
+        func arm() { armed = true }
+        func ops(for session: SessionKey) async throws -> [TrackerOp] {
+            let answer = try await inner.ops(for: session)
+            if armed {
+                armed = false
+                isHolding = true
+                await gate.wait()
+            }
+            return answer
+        }
+        func tail(for session: SessionKey) async throws -> TrackerOp? { try await inner.tail(for: session) }
+        func append(_ op: TrackerOp) async throws -> Int64 { try await inner.append(op) }
+        func update(_ op: TrackerOp) async throws -> Bool { try await inner.update(op) }
+        func delete(id: Int64) async throws { try await inner.delete(id: id) }
+        func nextPending(for session: SessionKey) async throws -> TrackerOp? { try await inner.nextPending(for: session) }
+        func sessionsWithPending() async throws -> [SessionKey] { try await inner.sessionsWithPending() }
+        func purge(session: SessionKey) async throws { try await inner.purge(session: session) }
+        func purgeAll() async throws { try await inner.purgeAll() }
+    }
+
+    private let oats = MealOpPayload(kind: .create, id: "meal-oats", title: "Oats", day: "2026-09-08", columns: [:])
+
+    func testALetGoMadeWhileAFlushPutsTheOpBackIsNotUndone() async throws {
+        // A flush reads the lane to put its gave-up ops back while the user
+        // lets one go. Written from that earlier read, the put-back would
+        // turn the let-go meal pending again, and send it.
+        let transport = ScriptedTransport()
+        let gate = Gate()
+        let store = HeldOpsStore(on: gate)
+        let queue = WriteQueue(store: store, client: makeClient(transport), clock: TestClock(now: Date(timeIntervalSince1970: 1_788_868_800)))
+        var meal = try await queue.enqueue(.meal(oats), for: .outbox)
+        meal.state = .failed
+        meal.gaveUp = true
+        meal.giveUpCount = TrackerOp.letGoThreshold
+        try await store.update(meal)
+
+        await store.arm()
+        let flushing = Task { await queue.flush() }
+        while await !store.isHolding { await Task.yield() }   // the put-back holds its read
+        let id = meal.id
+        let lettingGo = Task { await queue.letGo(id, in: .outbox) }
+        for _ in 0..<50 { await Task.yield() }
+        await gate.open()
+        await flushing.value
+        let letGo = await lettingGo.value
+        await queue.flush(.outbox)
+
+        XCTAssertEqual(letGo, .meal(oats))
+        let sent = await transport.requests.map(\.path)
+        XCTAssertEqual(sent, [], "a let-go meal is never sent")
+        let kept = await queue.ops(for: .outbox)
+        XCTAssertEqual(kept.map(\.isRefused), [true])
+    }
+
+    func testLetGoLeavesAnOpThatIsBeingSentAlone() async throws {
+        // The send's outcome is written over the op, so a let-go written
+        // during it would be undone the moment the send fails again.
+        let transport = ScriptedTransport([.throwNetwork, .ok()])
+        let gate = Gate()
+        await transport.hold(with: gate)
+        let store = MemoryWriteQueueStore()
+        let clock = HeldClock()
+        let queue = makeQueue(transport, store: store, clock: clock)
+        var meal = try await queue.enqueue(.meal(oats), for: .outbox)
+        meal.giveUpCount = TrackerOp.letGoThreshold   // put back after three give-ups
+        try await store.update(meal)
+        let flushing = Task { await queue.flush(.outbox) }
+        while await transport.count == 0 { await Task.yield() }
+
+        let letGo = await queue.letGo(meal.id, in: .outbox)
+        await gate.open()
+        await flushing.value
+
+        XCTAssertNil(letGo)
+        let waiting = await queue.waitingOps(for: .outbox).map(\.id)
+        XCTAssertEqual(waiting, [meal.id], "still waiting, its retry scheduled")
+        clock.open()
+        await queue.awaitRetries()
     }
 
     // MARK: - The outbox lane (an exercise created offline outside a workout)
