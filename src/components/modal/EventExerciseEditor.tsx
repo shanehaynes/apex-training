@@ -1,9 +1,9 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { CSSProperties } from 'react';
 import {
   DndContext, KeyboardSensor, PointerSensor, closestCenter, useSensor, useSensors,
 } from '@dnd-kit/core';
-import type { DragEndEvent, Modifier } from '@dnd-kit/core';
+import type { Announcements, DragEndEvent, Modifier, UniqueIdentifier } from '@dnd-kit/core';
 import {
   SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
@@ -243,7 +243,38 @@ export function ExerciseSectionsEditor({ lists, onChange, errors, pickerCategory
     if (moved !== lists[key]) setSection(key, moved);
   };
 
+  // While a card is held, Escape cancels the drag (dnd-kit listens for it on
+  // the document) and must not also reach the modal, whose Escape closes the
+  // editor and drops every unsaved edit. A capture listener claims the key
+  // first; dnd-kit still sees it, and useModalChrome skips claimed keys.
+  const [dragging, setDragging] = useState(false);
+  useEffect(() => {
+    if (!dragging) return;
+    const claim = (e: KeyboardEvent) => { if (e.key === 'Escape') e.preventDefault(); };
+    document.addEventListener('keydown', claim, true);
+    return () => document.removeEventListener('keydown', claim, true);
+  }, [dragging]);
+
+  // Screen readers hear the exercise and its place, not the entry id.
+  const announcementsFor = (key: SectionKey): Announcements => {
+    const entries = lists[key];
+    const name = (id: UniqueIdentifier) => entries.find(e => e.id === id)?.name ?? 'Exercise';
+    const place = (id: UniqueIdentifier) =>
+      `position ${entries.findIndex(e => e.id === id) + 1} of ${entries.length}`;
+    return {
+      onDragStart: ({ active }) => `Picked up ${name(active.id)}, ${place(active.id)}.`,
+      onDragOver: ({ active, over }) => over
+        ? `${name(active.id)} is over ${place(over.id)}.`
+        : `${name(active.id)} is outside the list.`,
+      onDragEnd: ({ active, over }) => over
+        ? `${name(active.id)} dropped at ${place(over.id)}.`
+        : `${name(active.id)} dropped back in place.`,
+      onDragCancel: ({ active }) => `Move cancelled. ${name(active.id)} is back in place.`,
+    };
+  };
+
   const onDragEnd = (key: SectionKey) => ({ active, over }: DragEndEvent) => {
+    setDragging(false);
     if (!over) return;
     const ids = lists[key].map(e => e.id);
     moveEntry(key, ids.indexOf(String(active.id)), ids.indexOf(String(over.id)));
@@ -298,6 +329,9 @@ export function ExerciseSectionsEditor({ lists, onChange, errors, pickerCategory
             sensors={sensors}
             collisionDetection={closestCenter}
             modifiers={[verticalOnly]}
+            accessibility={{ announcements: announcementsFor(key) }}
+            onDragStart={() => setDragging(true)}
+            onDragCancel={() => setDragging(false)}
             onDragEnd={onDragEnd(key)}
           >
             <SortableContext items={lists[key].map(e => e.id)} strategy={verticalListSortingStrategy}>

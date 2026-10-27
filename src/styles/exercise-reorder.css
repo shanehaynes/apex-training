@@ -11,10 +11,6 @@
 
 .editor-card--dragging .editor-card__grip { cursor: grabbing; }
 
-/* A bigger hit area on touch, where the grip is the only way to drag. */
-@media (pointer: coarse) {
-  .editor-card__grip { padding: 6px; }
-}
 
 .editor-card__position {
   flex-shrink: 0;
@@ -32,3 +28,10 @@
 
 .editor-card__position:hover { color: var(--text-primary); }
 .editor-card__position:focus-visible { border-color: var(--accent-primary); }
+
+/* Bigger hit areas on touch, where the grip is the only way to drag and the
+   picker is the quickest way to make a far move. */
+@media (pointer: coarse) {
+  .editor-card__grip { padding: 10px; margin: -8px 0 -8px -8px; }
+  .editor-card__position { height: 32px; min-width: 40px; padding: 0 8px; font-size: 13px; }
+}

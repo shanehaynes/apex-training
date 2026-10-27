@@ -91,3 +91,36 @@ test('the position picker moves an exercise anywhere in one step', async ({ page
   expect(saved?.[0]).toBe('Band External Rotation');
   expect(saved?.[11]).toBe('Back Squat');
 });
+
+test('the keyboard moves a card, and Escape cancels the move without closing the editor', async ({ page }) => {
+  const patches = watchPatches(page);
+  await openSessionB(page);
+  const before = await mainNames(page);
+
+  // An unsaved edit that a stray Escape reaching the modal would throw away.
+  const reps = mainCards(page).first().locator('.editor-field', { hasText: 'Reps' }).locator('input');
+  await reps.fill('5');
+
+  const lastGrip = mainCards(page).last().locator('.editor-card__grip');
+  await lastGrip.focus();
+  await page.keyboard.press('Space');
+  await page.keyboard.press('ArrowUp');
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.exercise-editor'), 'Escape cancels the drag, not the editor').toBeVisible();
+  expect(await mainNames(page)).toEqual(before);
+  await expect(reps).toHaveValue('5');
+
+  // Pick up, move up three places, drop.
+  await lastGrip.focus();
+  await page.keyboard.press('Space');
+  for (let i = 0; i < 3; i++) {
+    await page.keyboard.press('ArrowUp');
+    await page.waitForTimeout(150);
+  }
+  await page.keyboard.press('Space');
+  await expect.poll(() => mainNames(page).then(n => n.indexOf('Band External Rotation'))).toBe(8);
+
+  await saveWholeSeries(page);
+  const saved = patches.at(-1)?.body.fields?.exercises?.map(e => e.name);
+  expect(saved?.[8]).toBe('Band External Rotation');
+});
