@@ -142,22 +142,91 @@ test('a missing dimension can be added mid-workout', async ({ page }) => {
   await shot(page, 'tracker-added-weight');
 });
 
-test('a note can be left on one exercise for this workout only', async ({ page }) => {
+test('a day-only note on an exercise sticks and reads back under its label', async ({ page }) => {
   await gotoCalendar(page);
   await page.locator('.event-chip__main').first().click();
   await page.locator('.modal-completion__btn--start').click();
   const exercise = page.locator('.tracker-exercise').first();
   await expect(exercise).toBeVisible({ timeout: 15000 });
 
-  await exercise.locator('button[aria-label^="Add a note on"]').click();
-  const note = exercise.locator('textarea[aria-label$="for this workout only"]');
+  // With no notes the card's "+ note" chip opens the panel; with an every-time
+  // note already there, the panel's own "note for today" does.
+  await exercise
+    .locator('button[aria-label^="Add a note on"]:not([aria-label$="for every workout"])')
+    .first()
+    .click();
+  const panel = exercise.locator('.tracker-notes--open');
+  await expect(panel.locator('.tracker-notes__label', { hasText: 'This workout only' })).toBeVisible();
+  const note = panel.locator('textarea[aria-label$="for this workout only"]');
   await expect(note).toBeFocused();
   await note.fill('used the blue band');
-  await note.blur();
-  // A non-empty note stays open; the add button is gone.
-  await expect(note).toHaveValue('used the blue band');
-  await expect(exercise.locator('button[aria-label^="Add a note on"]')).toHaveCount(0);
+
+  await panel.getByRole('button', { name: 'Done' }).click();
+  // Closed, the note reads back under its label and is the way to edit it.
+  const saved = exercise.locator('button[aria-label$="for this workout"]', { hasText: 'used the blue band' });
+  await expect(saved).toBeVisible();
+  await expect(saved).toContainText('This workout only');
+  await saved.click();
+  await expect(exercise.locator('textarea[aria-label$="for this workout only"]')).toHaveValue('used the blue band');
   await shot(page, 'tracker-session-note');
+});
+
+test('a library movement offers both notes and the every-time one saves to the library', async ({ page }) => {
+  // The mock library is empty; give the first seed exercise its definition so
+  // the "Every time" section (which writes the definition) is offered.
+  await page.route('**/exercise_definitions*', route => {
+    if (route.request().method() !== 'GET') return route.fallback();
+    return route.fulfill({
+      status: 200, contentType: 'application/json', headers: { 'Access-Control-Allow-Origin': '*' },
+      body: JSON.stringify([{
+        id: 'glute-squeeze-holds', canonical_name: 'Glute Squeeze Holds', aliases: [], category: 'strength',
+        muscle_groups: [], equipment: [], image_url: null, technique_notes: null, is_unilateral: false,
+        default_sets: null, default_reps: null, default_duration: null, default_weight: null, default_rest: null,
+        log_fields: [], archived_at: null, created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z',
+      }]),
+    });
+  });
+  const patches: { fields?: Record<string, unknown> }[] = [];
+  page.on('request', req => {
+    if (req.method() === 'PATCH' && req.url().includes('/api/exercise-definitions?id=glute-squeeze-holds')) {
+      patches.push(req.postDataJSON());
+    }
+  });
+
+  await gotoCalendar(page);
+  await page.locator('.event-chip__main').first().click();
+  await page.locator('.modal-completion__btn--start').click();
+  const exercise = page.locator('.tracker-exercise', { hasText: 'Glute Squeeze Holds' }).first();
+  await expect(exercise).toBeVisible({ timeout: 15000 });
+
+  await exercise.getByRole('button', { name: 'Add a note on Glute Squeeze Holds', exact: true }).click();
+  const panel = exercise.locator('.tracker-notes--open');
+  await expect(panel.locator('.tracker-notes__label', { hasText: 'Every time' })).toBeVisible();
+  await expect(panel.locator('.tracker-notes__label', { hasText: 'This workout only' })).toBeVisible();
+  await shot(page, 'tracker-notes-open');
+
+  const every = panel.locator('textarea[aria-label$="for every workout"]');
+  const saved = page.waitForRequest(req =>
+    req.method() === 'PATCH' && req.url().includes('/api/exercise-definitions?id=glute-squeeze-holds'));
+  await every.fill('  squeeze for a full two count  ');
+  await panel.getByRole('button', { name: 'Done' }).click();
+  expect((await saved).postDataJSON()?.fields?.technique_notes).toBe('squeeze for a full two count');
+
+  // Closed, it reads back under its label, and the day-only kind is one tap away.
+  const read = exercise.locator('button[aria-label$="every-time note on Glute Squeeze Holds"]');
+  await expect(read).toContainText('Every time');
+  await expect(read).toContainText('squeeze for a full two count');
+  await expect(exercise.getByRole('button', { name: 'Add a note on Glute Squeeze Holds for this workout' })).toBeVisible();
+
+  // Reopening and closing without a change writes nothing more.
+  await read.click();
+  await expect(exercise.locator('textarea[aria-label$="for every workout"]')).toBeFocused();
+  await exercise.locator('.tracker-notes--open').getByRole('button', { name: 'Done' }).click();
+  await expect(read).toBeVisible();
+  expect(patches).toHaveLength(1);
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await shot(page, 'tracker-notes-mobile');
 });
 
 test('an exercise the plan lacks can be added mid-workout and removed again', async ({ page }) => {
