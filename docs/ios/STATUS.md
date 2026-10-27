@@ -157,6 +157,12 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
    (`printf` the two ids back after a tidy) — both git-ignored, so never from the primary checkout.
 
 ## Recent sessions
+- 2026-10-27 · Write-queue ordering fix · Mac. A Finish or Swap tapped as the autosave queued its
+  save could take the lower id and be sent first (`WriteQueue` is a reentrant actor; the save waited
+  on its GRDB tail read). Same root found two save-loss races (a merge into a row the drain was
+  sending) and a save landing after a cancel. A per-lane turn now serialises `enqueue`,
+  `cancelSession` and the drain's pick and settle; the send holds none. Four ApexCore and two
+  TrackerModel tests fail on `main` and pass here. ApexCore only, no app-visible change.
 - 2026-10-25 · W17 M3 pins, R8 edges · Mac. Seven authored cases (106–112) pin decision 4 for every
   connective and both sides of the boundary: the four #488's review asked for — `5 reps for 3` → W3 (`for` apart from `x`), `10 x 5 reps`
   → 10 sets and `11 x 5 reps` → W11 (the boundary), `225 at 5 reps` → W225 — then, after one reviewer
