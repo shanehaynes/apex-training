@@ -142,22 +142,39 @@ test('a missing dimension can be added mid-workout', async ({ page }) => {
   await shot(page, 'tracker-added-weight');
 });
 
-test('a note can be left on one exercise for this workout only', async ({ page }) => {
+test('exercise notes open in two sections and a day-only note sticks', async ({ page }) => {
   await gotoCalendar(page);
   await page.locator('.event-chip__main').first().click();
   await page.locator('.modal-completion__btn--start').click();
   const exercise = page.locator('.tracker-exercise').first();
   await expect(exercise).toBeVisible({ timeout: 15000 });
 
-  await exercise.locator('button[aria-label^="Add a note on"]').click();
-  const note = exercise.locator('textarea[aria-label$="for this workout only"]');
+  // With no notes the card's "+ note" chip opens the panel; with an every-time
+  // note already there, the panel's own "note for today" does.
+  await exercise
+    .locator('button[aria-label^="Add a note on"]:not([aria-label$="for every workout"])')
+    .first()
+    .click();
+  const panel = exercise.locator('.tracker-notes--open');
+  // "Every time" writes to the library, so it is there for a library movement.
+  if (await panel.locator('textarea[aria-label$="for every workout"]').count()) {
+    await expect(panel.locator('.tracker-notes__label', { hasText: 'Every time' })).toBeVisible();
+  }
+  await expect(panel.locator('.tracker-notes__label', { hasText: 'This workout only' })).toBeVisible();
+  const note = panel.locator('textarea[aria-label$="for this workout only"]');
   await expect(note).toBeFocused();
   await note.fill('used the blue band');
-  await note.blur();
-  // A non-empty note stays open; the add button is gone.
-  await expect(note).toHaveValue('used the blue band');
-  await expect(exercise.locator('button[aria-label^="Add a note on"]')).toHaveCount(0);
-  await shot(page, 'tracker-session-note');
+  await shot(page, 'tracker-notes-open');
+
+  await panel.getByRole('button', { name: 'Done' }).click();
+  // Closed, the note reads back under its label and is the way to edit it.
+  const saved = exercise.locator('button[aria-label$="for this workout"]', { hasText: 'used the blue band' });
+  await expect(saved).toBeVisible();
+  await expect(saved).toContainText('This workout only');
+  await saved.click();
+  await expect(exercise.locator('textarea[aria-label$="for this workout only"]')).toHaveValue('used the blue band');
+  await page.setViewportSize({ width: 390, height: 844 });
+  await shot(page, 'tracker-notes-mobile');
 });
 
 test('an exercise the plan lacks can be added mid-workout and removed again', async ({ page }) => {

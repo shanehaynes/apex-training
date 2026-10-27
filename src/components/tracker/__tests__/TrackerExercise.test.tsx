@@ -51,24 +51,33 @@ describe('TrackerExercise — library-driven fields', () => {
     expect(html).not.toContain('aria-label="Track weight for Ring Pull-Up"');
   });
 
-  it('shows the library subtitle as an editable line, and a header pencil when there is none', () => {
-    const withSubtitle = render({ techniqueNotes: 'False grip, rings at chest height' });
-    expect(withSubtitle).toContain('False grip, rings at chest height');
-    expect(withSubtitle).toContain('aria-label="Edit subtitle for Ring Pull-Up"');
-    expect(withSubtitle).not.toContain('aria-label="Add a subtitle for Ring Pull-Up"');
-
-    const without = render({});
-    expect(without).toContain('aria-label="Add a subtitle for Ring Pull-Up"');
+  it('shows the every-time note (the library technique notes) labelled and tappable to edit', () => {
+    const html = render({ techniqueNotes: 'False grip, rings at chest height' });
+    expect(html).toContain('False grip, rings at chest height');
+    expect(html).toContain('Every time');
+    expect(html).toContain('aria-label="Edit the every-time note on Ring Pull-Up"');
+    // The other kind can still be added from the panel.
+    expect(html).toContain('aria-label="Add a note on Ring Pull-Up for this workout"');
+    expect(html).not.toContain('aria-label="Add a note on Ring Pull-Up"');
   });
 
-  it('has no subtitle control for an exercise outside the library', () => {
+  it('shows the note for this workout labelled, with a way to add the every-time one', () => {
+    const html = render({}, 'blue band');
+    expect(html).toContain('This workout only');
+    expect(html).toContain('blue band');
+    expect(html).toContain('aria-label="Edit the note on Ring Pull-Up for this workout"');
+    expect(html).toContain('aria-label="Add a note on Ring Pull-Up for every workout"');
+  });
+
+  it('offers one + note chip when there is no note of either kind', () => {
+    const html = render({});
+    expect(html).toContain('aria-label="Add a note on Ring Pull-Up"');
+    expect(html).not.toContain('Every time');
+  });
+
+  it('offers no every-time note for an exercise outside the library', () => {
     const html = render(null);
-    expect(html).not.toContain('subtitle for Ring Pull-Up');
-  });
-
-  it('shows a saved note for this workout open, and the + note chip otherwise', () => {
-    expect(render({}, 'blue band')).toContain('blue band</textarea>');
-    expect(render({}, 'blue band')).not.toContain('aria-label="Add a note on Ring Pull-Up for this workout"');
-    expect(render({})).toContain('aria-label="Add a note on Ring Pull-Up for this workout"');
+    expect(html).not.toContain('aria-label="Add a note on Ring Pull-Up for every workout"');
+    expect(html).toContain('aria-label="Add a note on Ring Pull-Up"');
   });
 });
