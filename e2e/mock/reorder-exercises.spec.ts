@@ -74,14 +74,14 @@ test('the position picker moves an exercise anywhere in one step', async ({ page
   const patches = watchPatches(page);
   await openSessionB(page);
 
-  const position = mainCards(page).last().locator('.editor-card__position');
+  const position = mainCards(page).last().locator('.reorder-position');
   await expect(position).toHaveValue('11');
   await position.selectOption({ label: '1' });
   await expect.poll(() => mainNames(page).then(n => n[0])).toBe('Band External Rotation');
   await shot(page, 'reorder-exercises-position');
 
   // And back down: Back Squat, now second, to the bottom.
-  await mainCards(page).nth(1).locator('.editor-card__position').selectOption({ label: '12' });
+  await mainCards(page).nth(1).locator('.reorder-position').selectOption({ label: '12' });
   const names = await mainNames(page);
   expect(names[0]).toBe('Band External Rotation');
   expect(names[11]).toBe('Back Squat');
@@ -123,4 +123,32 @@ test('the keyboard moves a card, and Escape cancels the move without closing the
   await saveWholeSeries(page);
   const saved = patches.at(-1)?.body.fields?.exercises?.map(e => e.name);
   expect(saved?.[8]).toBe('Band External Rotation');
+});
+
+// Mid-workout: the rack is free, so the last exercise moves to the top of
+// the live tracker. The order saves with this session only (exerciseOrder on
+// the save op), never as an edit to the plan.
+test('mid-workout, the position picker moves an exercise and saves the session order', async ({ page }) => {
+  const saves: Array<{ exerciseOrder?: { exercise?: string[] } }> = [];
+  page.on('request', req => {
+    if (new URL(req.url()).pathname !== '/api/workout-sessions' || req.method() !== 'POST') return;
+    const body = req.postDataJSON();
+    if (body?.action === 'save') saves.push(body);
+  });
+
+  await gotoCalendar(page);
+  await page.locator('.event-chip__main', { hasText: 'Session B' }).first().click();
+  await page.locator('.modal-completion__btn--start').click();
+  const main = page.locator('.tracker-sortable-list').nth(1).locator(':scope > .tracker-sortable');
+  await expect(main).toHaveCount(12, { timeout: 15000 });
+  const names = () => main.locator('.tracker-exercise__name').allTextContents();
+  expect((await names())[11]).toContain('Band External Rotation');
+
+  await main.last().locator('.reorder-position').selectOption({ label: '1' });
+  await expect.poll(() => names().then(n => n[0])).toContain('Band External Rotation');
+  expect((await names())[1]).toContain('Back Squat');
+  await shot(page, 'reorder-exercises-tracker');
+
+  await expect.poll(() => saves.find(s => s.exerciseOrder)?.exerciseOrder?.exercise?.length, { timeout: 10000 }).toBe(12);
+  expect(saves.some(s => 'fields' in s), 'the plan is not edited').toBe(false);
 });

@@ -1,6 +1,7 @@
-/* Reordering an editor card (src/components/modal/EventExerciseEditor.tsx):
-   the card being dragged, and the position picker in each card's header
-   that moves a card to any place in one step. */
+/* Reordering exercises: the editor's cards (modal/EventExerciseEditor) and
+   the live tracker's exercises (tracker/TrackerView). The item being
+   dragged, the grip that drags it, and the position picker that moves an
+   item to any place in one step (reorder/PositionPicker). */
 
 .editor-card--dragging {
   position: relative;
@@ -11,9 +12,9 @@
 
 .editor-card--dragging .editor-card__grip { cursor: grabbing; }
 
-
-.editor-card__position {
+.reorder-position {
   flex-shrink: 0;
+  align-self: center;
   height: 22px;
   padding: 0 4px;
   border: 1px solid var(--border-subtle);
@@ -26,12 +27,64 @@
   outline: none;
 }
 
-.editor-card__position:hover { color: var(--text-primary); }
-.editor-card__position:focus-visible { border-color: var(--accent-primary); }
+.reorder-position:hover { color: var(--text-primary); }
+.reorder-position:focus-visible { border-color: var(--accent-primary); }
+
+/* ── Tracker ── */
+
+.tracker-sortable-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.tracker-sortable { position: relative; }
+
+/* The wrapper makes each exercise its li's last child; keep the dividers
+   between exercises, not after the last one. */
+.tracker-sortable .tracker-exercise { border-bottom: 1px solid var(--border-subtle); }
+.tracker-sortable:last-child .tracker-exercise { border-bottom: none; }
+
+.tracker-sortable--dragging {
+  z-index: 2;
+  background: var(--bg-surface);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+}
+
+.tracker-reorder {
+  display: inline-flex;
+  align-items: center;
+  align-self: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.tracker-reorder__grip {
+  display: inline-flex;
+  align-items: center;
+  border: none;
+  background: none;
+  color: var(--text-muted);
+  cursor: grab;
+  padding: 2px;
+  touch-action: none;
+}
+
+.tracker-sortable--dragging .tracker-reorder__grip { cursor: grabbing; }
+
+/* Grip, name and badge read as one lead group at the header's left. */
+.tracker-exercise__lead {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+}
 
 /* Bigger hit areas on touch, where the grip is the only way to drag and the
    picker is the quickest way to make a far move. */
 @media (pointer: coarse) {
-  .editor-card__grip { padding: 10px; margin: -8px 0 -8px -8px; }
-  .editor-card__position { height: 32px; min-width: 40px; padding: 0 8px; font-size: 13px; }
+  .editor-card__grip,
+  .tracker-reorder__grip { padding: 10px; margin: -8px 0 -8px -8px; }
+  .reorder-position { height: 32px; min-width: 40px; padding: 0 8px; font-size: 13px; }
 }

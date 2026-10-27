@@ -11,7 +11,14 @@ import { pauseCause, useWorkoutSession } from '../../hooks/useWorkoutSession';
 import type { TrackedSection } from '../../lib/db/types';
 import type { ExerciseCategory, ExerciseDefinition, WorkoutEvent } from '../../types/workout';
 import { eventPitches, isOutdoorClimbing } from '../../lib/climbing';
+import { DndContext, closestCenter } from '@dnd-kit/core';
+import type { DragEndEvent } from '@dnd-kit/core';
+import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import TrackerExercise from './TrackerExercise';
+import SortableTrackerExercise from './SortableTrackerExercise';
+import {
+  reorderAnnouncements, useClaimEscapeWhileDragging, useReorderSensors, verticalOnly,
+} from '../reorder/sortable';
 import ExercisePicker from '../modal/ExercisePicker';
 import WorkoutSummary from './WorkoutSummary';
 import ConfirmBar from './ConfirmBar';
@@ -68,7 +75,7 @@ export default function TrackerView() {
 
   const {
     groups, session, elapsed, isFinished, isFinishing, isCancelling, summary, saveState, sessionNote,
-    onSetChange, onSetMetaChange, onSessionNoteChange, editTimes, onCardioChange, onCommitSetShadow, onCommitCardioShadow, onAddSet, onRemoveSet,
+    onSetChange, onSetMetaChange, onSessionNoteChange, onReorderExercise, editTimes, onCardioChange, onCommitSetShadow, onCommitCardioShadow, onAddSet, onRemoveSet,
     onAddExercise, onRemoveAddedExercise, onSwapExercise, onNoteChange, flushSave, retrySave, getSaveState, requestFinish, cancelWorkout, openSavedSummary, dismissSummary,
   } = useWorkoutSession(event, setCompletion);
 
@@ -89,6 +96,9 @@ export default function TrackerView() {
   // Rest countdown between sets: a row's first non-empty reps/duration (or
   // its ghost tapped) starts it from the exercise's rest text (lib/tracking/rest.ts).
   const rest = useTrackerRestTimer({ groups, sessionKey: event?.id ?? null, finished: isFinished });
+  // Reordering mid-workout: this sitting's order only (useWorkoutSession).
+  const sensors = useReorderSensors();
+  const setDragging = useClaimEscapeWhileDragging();
 
   const color = event ? getWorkoutColor(event.type) : null;
   if (!event || !color) return null;
@@ -284,25 +294,55 @@ export default function TrackerView() {
                 <span className="modal-section__label">{group.label}</span>
                 <span className="modal-section__line" />
               </div>
-              {group.exercises.map(tracked => (
-                <TrackerExercise
-                  key={tracked.exercise.id}
-                  tracked={tracked}
-                  accentColor={color.solid}
-                  onSetChange={(setNumber, field, value) => onSetChange(group.section, tracked.exercise.id, setNumber, field, value)}
-                  onSetMetaChange={(setNumber, patch) => onSetMetaChange(group.section, tracked.exercise.id, setNumber, patch)}
-                  showRpe={showRpe}
-                  onCardioChange={(field, value) => onCardioChange(group.section, tracked.exercise.id, field, value)}
-                  onCommitSetShadow={(setNumber, values) => onCommitSetShadow(group.section, tracked.exercise.id, setNumber, values)}
-                  onCommitCardioShadow={field => onCommitCardioShadow(group.section, tracked.exercise.id, field)}
-                  onSetCommit={setNumber => rest.commit(group.section, tracked.exercise.id, setNumber)}
-                  onAddSet={() => onAddSet(group.section, tracked.exercise.id)}
-                  onRemoveSet={setNumber => onRemoveSet(group.section, tracked.exercise.id, setNumber)}
-                  onSwap={def => handleSwap(group.section, tracked.exercise.id, def)}
-                  onNoteChange={note => onNoteChange(group.section, tracked.exercise.id, note)}
-                  onRemove={tracked.isAdded ? () => onRemoveAddedExercise(group.section, tracked.exercise.id) : undefined}
-                />
-              ))}
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                modifiers={[verticalOnly]}
+                accessibility={{ announcements: reorderAnnouncements(group.exercises.map(t => ({ id: t.exercise.id, name: t.exercise.name }))) }}
+                onDragStart={() => setDragging(true)}
+                onDragCancel={() => setDragging(false)}
+                onDragEnd={({ active, over }: DragEndEvent) => {
+                  setDragging(false);
+                  if (!over) return;
+                  const ids = group.exercises.map(t => t.exercise.id);
+                  onReorderExercise(group.section, ids.indexOf(String(active.id)), ids.indexOf(String(over.id)));
+                }}
+              >
+                <SortableContext items={group.exercises.map(t => t.exercise.id)} strategy={verticalListSortingStrategy}>
+                  <ul className="tracker-sortable-list">
+                    {group.exercises.map((tracked, idx) => (
+                      <SortableTrackerExercise
+                        key={tracked.exercise.id}
+                        id={tracked.exercise.id}
+                        name={tracked.exercise.name}
+                        index={idx}
+                        count={group.exercises.length}
+                        onMove={to => onReorderExercise(group.section, idx, to)}
+                      >
+                        {reorder => (
+                          <TrackerExercise
+                            tracked={tracked}
+                            accentColor={color.solid}
+                            onSetChange={(setNumber, field, value) => onSetChange(group.section, tracked.exercise.id, setNumber, field, value)}
+                            onSetMetaChange={(setNumber, patch) => onSetMetaChange(group.section, tracked.exercise.id, setNumber, patch)}
+                            showRpe={showRpe}
+                            onCardioChange={(field, value) => onCardioChange(group.section, tracked.exercise.id, field, value)}
+                            onCommitSetShadow={(setNumber, values) => onCommitSetShadow(group.section, tracked.exercise.id, setNumber, values)}
+                            onCommitCardioShadow={field => onCommitCardioShadow(group.section, tracked.exercise.id, field)}
+                            onSetCommit={setNumber => rest.commit(group.section, tracked.exercise.id, setNumber)}
+                            onAddSet={() => onAddSet(group.section, tracked.exercise.id)}
+                            onRemoveSet={setNumber => onRemoveSet(group.section, tracked.exercise.id, setNumber)}
+                            onSwap={def => handleSwap(group.section, tracked.exercise.id, def)}
+                            onNoteChange={note => onNoteChange(group.section, tracked.exercise.id, note)}
+                            onRemove={tracked.isAdded ? () => onRemoveAddedExercise(group.section, tracked.exercise.id) : undefined}
+                            reorder={reorder}
+                          />
+                        )}
+                      </SortableTrackerExercise>
+                    ))}
+                  </ul>
+                </SortableContext>
+              </DndContext>
             </div>
           ))
         )}

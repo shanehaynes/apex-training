@@ -1,12 +1,8 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import type { CSSProperties } from 'react';
-import {
-  DndContext, KeyboardSensor, PointerSensor, closestCenter, useSensor, useSensors,
-} from '@dnd-kit/core';
-import type { Announcements, DragEndEvent, Modifier, UniqueIdentifier } from '@dnd-kit/core';
-import {
-  SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy,
-} from '@dnd-kit/sortable';
+import { DndContext, closestCenter } from '@dnd-kit/core';
+import type { DragEndEvent } from '@dnd-kit/core';
+import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { GripVertical, Link2, Plus, X } from 'lucide-react';
 import { useCalendar } from '../../context/calendar';
@@ -23,7 +19,10 @@ import { notify } from '../../lib/notify';
 import { CLIMB_STYLES, ascentStylesFor, climbStyleLabel, sectionLabels } from '../../lib/climbing';
 import ExercisePicker from './ExercisePicker';
 import PlannedSetsEditor from './PlannedSetsEditor';
-import '../../styles/exercise-reorder.css';
+import PositionPicker from '../reorder/PositionPicker';
+import {
+  reorderAnnouncements, useClaimEscapeWhileDragging, useReorderSensors, verticalOnly,
+} from '../reorder/sortable';
 import type { AscentStyle, ClimbStyle, Exercise, ExerciseCategory, ExerciseDefinition, WorkoutEvent, WorkoutType } from '../../types/workout';
 
 export type { SectionKey, SectionLists };
@@ -35,9 +34,6 @@ interface Props {
   accentColor: string;
   onDone: () => void;
 }
-
-// Cards only move within their own section's column.
-const verticalOnly: Modifier = ({ transform }) => ({ ...transform, x: 0 });
 
 function EditorCard({
   entry, index, count, error, canLink, onChange, onRemove, onToggleLink, onMoveTo,
@@ -82,21 +78,7 @@ function EditorCard({
           <GripVertical size={14} strokeWidth={1.5} />
         </button>
         <span className="editor-card__name">{entry.name}</span>
-        {count > 1 && (
-          // A far move in one step — dragging the tenth card to the top of a
-          // long section means a long scroll, which this skips.
-          <select
-            className="editor-card__position"
-            value={index}
-            onChange={e => onMoveTo(Number(e.target.value))}
-            aria-label={`Position of ${entry.name}`}
-            title="Move to position"
-          >
-            {Array.from({ length: count }, (_, i) => (
-              <option key={i} value={i}>{i + 1}</option>
-            ))}
-          </select>
-        )}
+        <PositionPicker index={index} count={count} name={entry.name} onMove={onMoveTo} />
         {entry.superset && <span className="superset-badge">{entry.superset}</span>}
         {(canLink || entry.superset) && (
           <button
@@ -243,35 +225,8 @@ export function ExerciseSectionsEditor({ lists, onChange, errors, pickerCategory
     if (moved !== lists[key]) setSection(key, moved);
   };
 
-  // While a card is held, Escape cancels the drag (dnd-kit listens for it on
-  // the document) and must not also reach the modal, whose Escape closes the
-  // editor and drops every unsaved edit. A capture listener claims the key
-  // first; dnd-kit still sees it, and useModalChrome skips claimed keys.
-  const [dragging, setDragging] = useState(false);
-  useEffect(() => {
-    if (!dragging) return;
-    const claim = (e: KeyboardEvent) => { if (e.key === 'Escape') e.preventDefault(); };
-    document.addEventListener('keydown', claim, true);
-    return () => document.removeEventListener('keydown', claim, true);
-  }, [dragging]);
-
-  // Screen readers hear the exercise and its place, not the entry id.
-  const announcementsFor = (key: SectionKey): Announcements => {
-    const entries = lists[key];
-    const name = (id: UniqueIdentifier) => entries.find(e => e.id === id)?.name ?? 'Exercise';
-    const place = (id: UniqueIdentifier) =>
-      `position ${entries.findIndex(e => e.id === id) + 1} of ${entries.length}`;
-    return {
-      onDragStart: ({ active }) => `Picked up ${name(active.id)}, ${place(active.id)}.`,
-      onDragOver: ({ active, over }) => over
-        ? `${name(active.id)} is over ${place(over.id)}.`
-        : `${name(active.id)} is outside the list.`,
-      onDragEnd: ({ active, over }) => over
-        ? `${name(active.id)} dropped at ${place(over.id)}.`
-        : `${name(active.id)} dropped back in place.`,
-      onDragCancel: ({ active }) => `Move cancelled. ${name(active.id)} is back in place.`,
-    };
-  };
+  const setDragging = useClaimEscapeWhileDragging();
+  const sensors = useReorderSensors();
 
   const onDragEnd = (key: SectionKey) => ({ active, over }: DragEndEvent) => {
     setDragging(false);
@@ -279,16 +234,6 @@ export function ExerciseSectionsEditor({ lists, onChange, errors, pickerCategory
     const ids = lists[key].map(e => e.id);
     moveEntry(key, ids.indexOf(String(active.id)), ids.indexOf(String(over.id)));
   };
-
-  // The pointer sensor serves mouse and touch alike: the grip sets
-  // touch-action: none, so a finger on it drags instead of scrolling.
-  // Dragging near the scroll container's edge auto-scrolls it (dnd-kit's
-  // default), and the drop target accounts for that scroll — a card can
-  // travel past everything that was on screen when it was picked up.
-  const sensors = useSensors(
-    useSensor(PointerSensor),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
-  );
 
   const addPitch = (key: SectionKey) => {
     // New pitches inherit the previous pitch's style — multi-pitch days
@@ -329,7 +274,7 @@ export function ExerciseSectionsEditor({ lists, onChange, errors, pickerCategory
             sensors={sensors}
             collisionDetection={closestCenter}
             modifiers={[verticalOnly]}
-            accessibility={{ announcements: announcementsFor(key) }}
+            accessibility={{ announcements: reorderAnnouncements(lists[key]) }}
             onDragStart={() => setDragging(true)}
             onDragCancel={() => setDragging(false)}
             onDragEnd={onDragEnd(key)}

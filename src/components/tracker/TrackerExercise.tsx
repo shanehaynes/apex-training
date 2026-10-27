@@ -1,4 +1,5 @@
 import { useContext, useRef, useState } from 'react';
+import type { ReactNode } from 'react';
 import { Minus, Pencil, Plus, Repeat2, X } from 'lucide-react';
 import type { AscentStyle, ExerciseCategory, ExerciseDefinition, PlannedSet } from '../../types/workout';
 import type { TrackedExercise, TrackedSet, CardioActuals, LastSetActuals } from '../../lib/tracking/plan';
@@ -42,6 +43,9 @@ interface Props {
   onNoteChange: (note: string) => void;
   /** Added mid-workout only: take it back out, deleting what it logged. */
   onRemove?: () => void;
+  /** The grip and position picker that reorder this exercise within its
+   *  section for this sitting (TrackerView); shown before the name. */
+  reorder?: ReactNode;
 }
 
 // A swap has to keep the logged shape: cardio logs one structured row, every
@@ -342,6 +346,7 @@ export default function TrackerExercise({
   onSwap,
   onNoteChange,
   onRemove,
+  reorder,
 }: Props) {
   const { definitions, updateDefinition } = useSchedule();
   // Suffixing needs the unit the profile actually holds (knownUnitContext).
@@ -432,7 +437,14 @@ export default function TrackerExercise({
   return (
     <div className="tracker-exercise">
       <div className="tracker-exercise__header">
-        <span className="tracker-exercise__name">{exercise.name}</span>
+        {reorder ? (
+          <span className="tracker-exercise__lead">
+            {reorder}
+            <span className="tracker-exercise__name">{exercise.name}</span>
+          </span>
+        ) : (
+          <span className="tracker-exercise__name">{exercise.name}</span>
+        )}
         {exercise.superset && (
           <span className="superset-badge" title={`Superset ${exercise.superset} — alternate sets with its partners`}>
             {exercise.superset}

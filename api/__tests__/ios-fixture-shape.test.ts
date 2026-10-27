@@ -134,7 +134,7 @@ const finishedSession: Tables<'workout_sessions'> = {
   started_at: '2026-09-22T17:30:00.000Z', finished_at: '2026-09-22T18:00:00.000Z',
   total_duration_seconds: 1800, updated_at: '2026-09-22T18:00:00.000Z', coach_summary: null,
   template_id: null, score_type: null, score_time_seconds: null, score_rounds: null, score_reps: null,
-  note: null,
+  note: null, exercise_order: null,
 };
 
 const history = [
