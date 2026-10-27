@@ -76,19 +76,20 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
    (it carries 1.1.0 and the entitlement). In parallel: **W16 MT** (Mac — a signed-in user can
    re-accept updated terms in the app; the privacy bump waits for it) and **W16 M0** (Linux —
    the one migration for M2/M3; HELD).
-0. **Tracker parity with web #390, second half — the subtitle and the day-only note.** Goal: the two
-   edits #390 added to the web card that the iOS card still lacks. Scope: (a) the definition's
-   technique notes as an editable subtitle under the exercise name (pencil in the header when
-   empty; a PATCH of `technique_notes` through the same `update-definition` op, generalised from
-   `log_fields` to a `[String: JSONValue]` of changed columns); (b) "+ note" — a note on one
-   exercise for this occurrence only, `workout_exercise_notes` (phase 54, keyed by event_id +
+0. **Tracker parity with web: an exercise's two notes (#390, reshaped by the notes panel PR).** Shane
+   logs in the iPhone app and wants to add or edit an exercise's notes mid-workout, in two sections:
+   saved across every time, and just this instance. Goal: the web card's notes panel
+   (`src/components/tracker/ExerciseNotes.tsx`) on `TrackedExerciseView`. Scope: (a) "Every time"
+   is the definition's `technique_notes`, editable multi-line, written through the same
+   `update-definition` op, generalised from `log_fields` to a `[String: JSONValue]` of changed
+   columns; (b) "This workout only" is `workout_exercise_notes` (phase 54, keyed by event_id +
    event_date + section + exercise_id), which rides the web's debounced save, loads in bootstrap
    and goes with the session on cancel — check `api/_lib` for how `save` carries it and whether
-   the iOS `SavePayload`/`TrackerBootstrap` need the field (fixtures re-emitted if so).
-   Acceptance: both edits on `TrackedExerciseView` with identifiers; `ApexCore` tests for the
-   op payload and the save merge; the smoke drives "+ weight" on a reps-only fixture exercise
-   (`tracker.add-field.<id>.weight`, from this session's chips) and the new note; snapshots
-   re-recorded. Owns: `ios/Packages/ApexCore/Sources/ApexCore/{Tracker,Cache,API}`,
+   the iOS `SavePayload`/`TrackerBootstrap` need the field (fixtures re-emitted if so). Closed, the
+   panel reads as the notes under their labels and a tap opens the editor on one; with neither
+   note, one "+ note" chip. Acceptance: both edits on `TrackedExerciseView` with identifiers;
+   `ApexCore` tests for the op payload and the save merge; the smoke drives the new note;
+   snapshots re-recorded. Owns: `ios/Packages/ApexCore/Sources/ApexCore/{Tracker,Cache,API}`,
    `ApexFeatures/Tracker`, fixtures only if the bootstrap shape changes. Mac session.
 0. **Tracker scroll fix (D-054) is PR #398** — carries no migration; next
    `testflight.yml` run after merge ships it, and Shane's phone run is the real verdict. If the

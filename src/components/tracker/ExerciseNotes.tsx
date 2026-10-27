@@ -10,9 +10,13 @@ interface Props {
   /** The library definition's technique notes: shown with this movement in
    *  every workout. */
   everyTime: string;
-  /** False for an exercise outside the library: there is no definition to
-   *  write to, so its every-time note (if the plan carries one) is read-only. */
+  /** False when there is no loaded library definition to write to, so the
+   *  every-time note (if the plan carries one) is read-only. */
   canEditEveryTime: boolean;
+  /** The plan entry names a library movement, even if its definition did not
+   *  load: the read-only hint then says the library is unavailable rather
+   *  than that the exercise is not in it. */
+  inLibrary: boolean;
   onSaveEveryTime: (next: string) => void;
   /** This occurrence's note (workout_exercise_notes) — rides the tracker's save. */
   thisWorkout: string;
@@ -38,6 +42,7 @@ export default function ExerciseNotes({
   exerciseName,
   everyTime,
   canEditEveryTime,
+  inLibrary,
   onSaveEveryTime,
   thisWorkout,
   onThisWorkoutChange,
@@ -64,8 +69,9 @@ export default function ExerciseNotes({
     onDone();
   };
 
-  const hasEvery = !!everyTime;
+  const hasEvery = !!everyTime.trim();
   const hasToday = !!thisWorkout.trim();
+  const readOnlyHint = inLibrary ? "library didn't load, read-only" : 'not in your library, read-only';
 
   if (!open) {
     if (!hasEvery && !hasToday) return null;
@@ -78,7 +84,7 @@ export default function ExerciseNotes({
             onClick={() => onEdit('everyTime')}
             disabled={!canEditEveryTime}
             aria-label={canEditEveryTime ? `Edit the every-time note on ${exerciseName}` : undefined}
-            title={canEditEveryTime ? 'Saved to the exercise — shows in every workout' : 'Not in your library, so it can only be read here'}
+            title={canEditEveryTime ? 'Saved to the exercise — shows in every workout' : readOnlyHint}
           >
             <span className="tracker-notes__label">
               Every time {canEditEveryTime && <Pencil size={10} strokeWidth={1.5} aria-hidden="true" />}
@@ -135,7 +141,7 @@ export default function ExerciseNotes({
           <span className="tracker-notes__label">
             Every time
             <span className="tracker-notes__hint">
-              {canEditEveryTime ? 'saved to the exercise, shows in every workout' : 'not in your library, read-only'}
+              {canEditEveryTime ? 'saved to the exercise, shows in every workout' : readOnlyHint}
             </span>
           </span>
           {canEditEveryTime ? (

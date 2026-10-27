@@ -383,17 +383,24 @@ export default function TrackerExercise({
   const addable = isClimb ? [] : FIELD_ORDER.filter(f => !fields.includes(f));
 
   const everyTime = savedEveryTime ?? definition?.techniqueNotes ?? exercise.techniqueNotes ?? '';
+  // Chained like the log-field writes, so two quick edits land in order and
+  // the later text is the one the library keeps; only the latest edit's
+  // failure rolls the card back.
+  const everyTimeWrites = useRef<Promise<unknown>>(Promise.resolve());
+  const everyTimeEdit = useRef(0);
   const saveEveryTime = (next: string) => {
     if (!definition) return;
+    const { id } = definition;
+    const edit = ++everyTimeEdit.current;
     setSavedEveryTime(next);
-    void updateDefinition({ id: definition.id, fields: { techniqueNotes: next } }).then(ok => {
-      if (!ok) setSavedEveryTime(null);
-    });
+    everyTimeWrites.current = everyTimeWrites.current
+      .then(() => updateDefinition({ id, fields: { techniqueNotes: next } }))
+      .then(ok => { if (!ok && edit === everyTimeEdit.current) setSavedEveryTime(null); });
   };
   // With no note of either kind the panel has nothing to show, so the card
   // offers one chip beside "Add set"; once a note exists the panel itself
   // carries the way to edit it or add the other kind.
-  const hasAnyNote = !!everyTime || !!tracked.sessionNote.trim();
+  const hasAnyNote = !!everyTime.trim() || !!tracked.sessionNote.trim();
   const noteButton = hasAnyNote || editingNote ? null : (
     <button
       className="tracker-add-set"
@@ -489,6 +496,7 @@ export default function TrackerExercise({
         exerciseName={exercise.name}
         everyTime={everyTime}
         canEditEveryTime={!!definition}
+        inLibrary={!!exercise.definitionId}
         onSaveEveryTime={saveEveryTime}
         thisWorkout={tracked.sessionNote}
         onThisWorkoutChange={onNoteChange}

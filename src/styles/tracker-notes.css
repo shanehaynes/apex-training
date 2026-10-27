@@ -112,7 +112,7 @@
   }
 
   .tracker-notes__done {
-    min-height: 36px;
-    padding: 6px 16px;
+    min-height: 44px;
+    padding: 6px 18px;
   }
 }
