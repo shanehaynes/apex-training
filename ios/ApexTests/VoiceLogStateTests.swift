@@ -116,7 +116,8 @@ final class VoiceLogStateTests: XCTestCase {
             let candidates = made.model.voice.candidates ?? []
             XCTAssertEqual(candidates.map(\.id), ["fx-press"], "the session's set-tracked exercises, at most four; the cardio row never")
             XCTAssertLessThanOrEqual(candidates.count, 4)
-            made.model.confirmSpoken(candidates[0])
+            guard let first = candidates.first else { return XCTFail("nothing to confirm: \(made.model.voice)") }
+            made.model.confirmSpoken(first)
             XCTAssertEqual(made.model.voice.applied?.keys, [VoiceSupport.press3], "an extra, both planned rows being full")
         }
     }
@@ -137,7 +138,7 @@ final class VoiceLogStateTests: XCTestCase {
             for word in ["for", "at", "and", "reps", "sets", "the"] { XCTAssertFalse(names.contains(word), word) }
             made.model.tapMic()
             await VoiceSupport.waitUntil { made.fake.biases.count == 1 }
-            XCTAssertEqual(made.fake.biases[0], names)
+            XCTAssertEqual(made.fake.biases.first, names)
         }
     }
 

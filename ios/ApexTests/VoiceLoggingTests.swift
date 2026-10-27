@@ -32,7 +32,7 @@ final class VoiceLoggingTests: XCTestCase {
             XCTAssertEqual(model.loggedSetCount, 1)
             XCTAssertEqual(model.voice.applied?.keys, [press1])
             XCTAssertEqual(model.voice.applied?.kind, .planned)
-            XCTAssertEqual(made.fake.biases[0].first, "Fixture Press", "today's names lead the bias")
+            XCTAssertEqual(made.fake.biases.first?.first, "Fixture Press", "today's names lead the bias")
 
             // The next utterance takes the next empty row; the third adds an extra.
             model.tapMic()
@@ -85,7 +85,8 @@ final class VoiceLoggingTests: XCTestCase {
             XCTAssertEqual(model.voiceConfirmCount, 1)
             XCTAssertEqual(made.journal.load().entries.last?.action, .confirming)
 
-            model.confirmSpoken(candidates[0])
+            guard let rdl = candidates.first else { return XCTFail("nothing to confirm: \(model.voice)") }
+            model.confirmSpoken(rdl)
             XCTAssertTrue(model.voice.isApplied)
             XCTAssertEqual(model.editor.groups.flatMap(\.exercises).count, before + 1, "added for today")
             let added = model.editor.groups.flatMap(\.exercises).first { $0.exercise.name == "Romanian Deadlift" }
@@ -130,13 +131,17 @@ final class VoiceLoggingTests: XCTestCase {
 
     func testTheSaveCarriesABareWeightAndASpokenUnit() async {
         await VoiceSupport.withVoiceEnabled {
-            let made = await VoiceSupport.make(script: ["fixture press 225 for 5", "fixture press 100 kilos for 5"])
+            // Stalled, so each explicit flush is the only sender and has sent its
+            // save when it returns. On the test clock the debounce fires at once
+            // and can take the payload first, leaving the explicit flush nothing
+            // to send or wait on.
+            let made = await VoiceSupport.make(script: ["fixture press 225 for 5", "fixture press 100 kilos for 5"], stalled: true)
             let model = made.model
             model.tapMic()
             await VoiceSupport.waitUntil { model.voice.isApplied }
             await model.flushEdits()
             var saves = made.transport.bodies(action: "save")
-            XCTAssertEqual(saves.count, 1)
+            guard saves.count == 1 else { return XCTFail("one save per flush, got \(saves.count)") }
             XCTAssertTrue(saves[0].contains(#""actual_weight":"225""#), "bare, like a typed 225: \(saves[0])")
             XCTAssertTrue(saves[0].contains(#""actual_reps":"5""#))
 
@@ -144,7 +149,7 @@ final class VoiceLoggingTests: XCTestCase {
             await VoiceSupport.waitUntil { model.set(at: self.press2)?.actualWeight == "100 kg" }
             await model.flushEdits()
             saves = made.transport.bodies(action: "save")
-            XCTAssertEqual(saves.count, 2)
+            guard saves.count == 2 else { return XCTFail("one save per flush, got \(saves.count)") }
             XCTAssertTrue(saves[1].contains(#""actual_weight":"100 kg""#), "a spoken unit is kept: \(saves[1])")
         }
     }
@@ -204,25 +209,51 @@ final class VoiceLoggingTests: XCTestCase {
             early.model.undoSpoken()
             await early.model.flushEdits()
             let earlySaves = early.transport.bodies(action: "save")
-            XCTAssertEqual(earlySaves.count, 1)
-            XCTAssertFalse(earlySaves[0].contains(#""actual_weight":"225""#), "the undone row is not sent: \(earlySaves[0])")
-            XCTAssertTrue(earlySaves[0].contains(#""setLogs":[]"#), "no row at all: \(earlySaves[0])")
-            XCTAssertTrue(earlySaves[0].contains(#""removedSets":[{"#), "the planned row's undo records its removal; the server's delete of a row it never saw is a no-op")
+            // Not a guard: a miss here must not skip the late half.
+            if earlySaves.count == 1 {
+                XCTAssertFalse(earlySaves[0].contains(#""actual_weight":"225""#), "the undone row is not sent: \(earlySaves[0])")
+                XCTAssertTrue(earlySaves[0].contains(#""setLogs":[]"#), "no row at all: \(earlySaves[0])")
+                XCTAssertTrue(earlySaves[0].contains(#""removedSets":[{"#), "the planned row's undo records its removal; the server's delete of a row it never saw is a no-op")
+            } else {
+                XCTFail("one save, got \(earlySaves.count)")
+            }
 
             // After: the first save carried the row; the undo's save deletes it.
-            let late = await VoiceSupport.make(script: ["fixture press 225 for 5"])
+            // Stalled too, so each explicit flush sends its own save before it
+            // returns, and the two land in order.
+            let late = await VoiceSupport.make(script: ["fixture press 225 for 5"], stalled: true)
             late.model.tapMic()
             await VoiceSupport.waitUntil { late.model.voice.isApplied }
             await late.model.flushEdits()
             late.model.undoSpoken()
             await late.model.flushEdits()
             let lateSaves = late.transport.bodies(action: "save")
-            XCTAssertEqual(lateSaves.count, 2)
+            guard lateSaves.count == 2 else { return XCTFail("one save per flush, got \(lateSaves.count)") }
             XCTAssertTrue(lateSaves[0].contains(#""actual_weight":"225""#))
             XCTAssertTrue(lateSaves[1].contains(#""removedSets":[{"#), "the delete: \(lateSaves[1])")
             XCTAssertTrue(lateSaves[1].contains(#""setNumber":1"#), lateSaves[1])
             XCTAssertTrue(lateSaves[1].contains(#""setLogs":[]"#), lateSaves[1])
             XCTAssertFalse(lateSaves[1].contains(#""actual_weight":"225""#))
+        }
+    }
+
+    func testASpokenSetAndItsUndoSaveOnTheirOwn() async {
+        await VoiceSupport.withVoiceEnabled {
+            // No explicit flush: the debounce alone sends each one. It fires at
+            // once on the test clock, so waiting on the count is enough. The
+            // first send is then waited out of the queue, so the undo's save
+            // cannot meet it mid-delete.
+            let made = await VoiceSupport.make(script: ["fixture press 225 for 5"])
+            made.model.tapMic()
+            await VoiceSupport.waitUntil { made.model.voice.isApplied }
+            await VoiceSupport.waitUntil { made.transport.bodies(action: "save").count == 1 }
+            await made.queue.untilIdle(made.model.session)
+            made.model.undoSpoken()
+            await VoiceSupport.waitUntil { made.transport.bodies(action: "save").count == 2 }
+            let saves = made.transport.bodies(action: "save")
+            guard saves.count == 2 else { return XCTFail("a save for the set and one for its undo, got \(saves.count)") }
+            XCTAssertTrue(saves[0].contains(#""actual_weight":"225""#), saves[0])
+            XCTAssertTrue(saves[1].contains(#""removedSets":[{"#), "the undo's delete: \(saves[1])")
         }
     }
 
