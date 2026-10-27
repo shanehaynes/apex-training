@@ -106,10 +106,18 @@ final class TrackerModelTests: XCTestCase {
         func workoutCancelled(_ session: SessionKey) async { lock.withLock { _order.append("deleted") } }
     }
 
+    /// Flush, then wait out a flush already running for the session (a debounce
+    /// save, or the one `requestFinish` starts): the awaited flush returns at
+    /// once when one is, before the op it was called for has been sent.
+    private static func settle(_ queue: WriteQueue, _ session: SessionKey) async {
+        await queue.flush(session)
+        await queue.untilIdle(session)
+    }
+
     @MainActor
     private func make(
         _ transport: ScriptedTransport, cache: MemoryCacheStore = MemoryCacheStore(),
-        store: MemoryWriteQueueStore = MemoryWriteQueueStore(), clock: TestClock = TestClock(now: now),
+        store: any WriteQueueStore = MemoryWriteQueueStore(), clock: TestClock = TestClock(now: now),
         calendar: Calendar = Calendar(), event: ScheduleEvent = TrackerModelTests.event,
         activity: any TrackerActivityPublishing = NoActivityPublisher(),
         health: any HealthWorkoutPublishing = NoHealthPublisher(),
@@ -289,7 +297,7 @@ final class TrackerModelTests: XCTestCase {
         await model.requestFinish(force: true)
         XCTAssertEqual(spy.calls.last, .end(model.session, model.totalDurationSeconds))
         XCTAssertNotNil(model.totalDurationSeconds)
-        await queue.flush(model.session)
+        await Self.settle(queue, model.session)
 
         model.confirmCancel()
         _ = await model.cancelWorkout()
@@ -361,7 +369,7 @@ final class TrackerModelTests: XCTestCase {
         let (model, queue) = make(healthy(), health: spy)
         await model.open()
         await model.requestFinish(force: true)
-        await queue.flush(model.session)
+        await Self.settle(queue, model.session)
         model.confirmCancel()
         _ = await model.cancelWorkout()
         XCTAssertEqual(spy.calls.count, 2)
@@ -392,6 +400,70 @@ final class TrackerModelTests: XCTestCase {
         let w1 = await store.all.count
         XCTAssertEqual(w1, 0)
         XCTAssertTrue(model.sync.isIdle)
+    }
+
+    /// The summary's volume reads the profile the Schedule tab cached: a
+    /// 120 lb × 3 is 360 to a pounds lifter and 163 to a kg one.
+    @MainActor
+    func testTheVolumeReadsInTheCachedProfilesUnit() async throws {
+        let press1 = SetKey(section: "exercise", exerciseId: "fx-press", setNumber: 1)
+        let (pounds, _) = make(healthy())
+        await pounds.open()
+        XCTAssertNil(pounds.sessionVolume, "nothing logged yet")
+        pounds.setValue("120 lb", .weight, at: press1)
+        pounds.setValue("3", .reps, at: press1)
+        XCTAssertEqual(pounds.weightContext, .default, "nothing cached: pounds")
+        XCTAssertEqual(pounds.sessionVolume, 360)
+
+        let cache = MemoryCacheStore()
+        let profile = ProfileResponse(hasAnthropicKey: false, anthropicKeyLast4: nil, termsAccepted: nil, termsCurrent: true,
+                                      weightUnit: "kg", bodyWeightLb: 180)
+        try await cache.write(CacheEntry(kind: .profile, key: ScheduleCacheKey.profile,
+                                         json: JSONEncoder().encode(profile), fetchedAt: Self.now))
+        let (kilos, _) = make(healthy(), cache: cache)
+        await kilos.open()
+        kilos.setValue("120 lb", .weight, at: press1)
+        kilos.setValue("3", .reps, at: press1)
+        XCTAssertEqual(kilos.weightContext, Weight.Context(unit: .kg, bodyWeightLb: 180))
+        XCTAssertEqual(kilos.sessionVolume, 163, "360 lb is 163.3 kg")
+    }
+
+    /// A profile that lands after the tracker opened — a fresh install whose
+    /// Schedule had not loaded yet, or a unit changed on the web — is read at
+    /// Finish, so the summary's volume is in the right unit.
+    @MainActor
+    func testTheWeightContextIsReadAgainAtFinish() async throws {
+        let cache = MemoryCacheStore()
+        let (model, _) = make(healthy(), cache: cache)
+        await model.open()
+        XCTAssertEqual(model.weightContext, .default)
+        let profile = ProfileResponse(hasAnthropicKey: false, anthropicKeyLast4: nil, termsAccepted: nil, termsCurrent: true,
+                                      weightUnit: "kg", bodyWeightLb: nil)
+        try await cache.write(CacheEntry(kind: .profile, key: ScheduleCacheKey.profile,
+                                         json: JSONEncoder().encode(profile), fetchedAt: Self.now))
+        await model.requestFinish(force: true)
+        XCTAssertEqual(model.weightContext.unit, .kg)
+    }
+
+    /// The #422 metadata through the model: a warm-up toggle and a rating
+    /// are edits like any other — one debounced save carries both — and the
+    /// rating settles when its field is left.
+    @MainActor
+    func testWarmupAndRpeRideTheNextSave() async throws {
+        let transport = healthy()
+        let (model, _) = make(transport, store: MemoryWriteQueueStore())
+        await model.open()
+
+        model.setWarmup(true, at: press2)
+        model.setRpe("7.3", at: press2)
+        model.didLeaveRpe(press2)
+        XCTAssertEqual(model.set(at: press2)?.rpe, "7.5")
+        await model.flushEdits()
+        let saves = transport.requests(action: "save")
+        XCTAssertEqual(saves.count, 1)
+        XCTAssertTrue(saves[0].body!.contains(#""is_warmup":true"#))
+        XCTAssertTrue(saves[0].body!.contains(#""rpe":7.5"#))
+        XCTAssertFalse(saves[0].body!.contains("ascent_style"), "a set's row names no pitch columns")
     }
 
     /// D-015: the first non-empty reps of a row starts the exercise's rest, the
@@ -491,7 +563,7 @@ final class TrackerModelTests: XCTestCase {
         await model.requestFinish()
         XCTAssertEqual(model.gate, .needsConfirm(count: 1))
         await model.requestFinish(force: true)
-        await queue.flush(model.session)
+        await Self.settle(queue, model.session)
 
         XCTAssertTrue(model.isFinished)
         XCTAssertEqual(model.gate, .idle)
@@ -529,7 +601,7 @@ final class TrackerModelTests: XCTestCase {
         await model.requestFinish()
         XCTAssertEqual(model.gate, .needsScore)
         await model.requestFinish(force: true, score: .entered(.forTime(timeSeconds: 2492)))
-        await queue.flush(model.session)
+        await Self.settle(queue, model.session)
         let finish = try XCTUnwrap(transport.requests(action: "finish").first)
         XCTAssertTrue(finish.body!.contains(#""score":{"templateId":"wt-murph","timeSeconds":2492,"type":"for-time"}"#), finish.body!)
         XCTAssertEqual(model.summary?.score, .forTime(timeSeconds: 2492))
@@ -542,7 +614,7 @@ final class TrackerModelTests: XCTestCase {
         let (model, queue) = make(transport, event: Self.event(scoring: "amrap"))
         await model.open()
         await model.requestFinish(force: true, score: .skipped)
-        await queue.flush(model.session)
+        await Self.settle(queue, model.session)
         XCTAssertTrue(model.isFinished)
         let finish = try XCTUnwrap(transport.requests(action: "finish").first)
         XCTAssertFalse(finish.body!.contains("\"score\""))
@@ -584,13 +656,13 @@ final class TrackerModelTests: XCTestCase {
         let (model, queue) = make(transport, store: store, calendar: calendar)
         await model.open()
         await model.requestFinish(force: true)
-        await queue.flush(model.session)
+        await Self.settle(queue, model.session)
         model.confirmCancel()
         XCTAssertEqual(model.gate, .confirmCancel)
         let ok = await model.cancelWorkout()
         XCTAssertTrue(ok)
         XCTAssertEqual(calendar.flips.map(\.1), [true, false])
-        await queue.flush(model.session)
+        await Self.settle(queue, model.session)
         XCTAssertEqual(transport.requests(action: "cancel").count, 1)
         XCTAssertEqual(transport.requests.filter { $0.path == "/api/completions" }.count, 2)
         let w3 = await store.all.count
@@ -640,6 +712,99 @@ final class TrackerModelTests: XCTestCase {
         XCTAssertEqual(press.substitutedFrom, "Fixture Press")
         XCTAssertNotNil(model.perSideWarning(for: press), "10 reps on a unilateral movement, no side stated")
         XCTAssertEqual(model.inputFields(for: press), [.weight, .reps])
+    }
+
+    // MARK: - An op tapped as the autosave queues
+
+    /// Holds the first `tail(for:)` read after `arm()` — the autosave's, as
+    /// the debounce fires — until `open()`. In the app that read is GRDB's,
+    /// and it suspends.
+    private actor HeldTailStore: WriteQueueStore {
+        let inner = MemoryWriteQueueStore()
+        private var armed = false
+        private var held: CheckedContinuation<Void, Never>?
+        private(set) var isHolding = false
+
+        func arm() { armed = true }
+        func open() {
+            armed = false
+            held?.resume()
+            held = nil
+        }
+
+        func tail(for session: SessionKey) async throws -> TrackerOp? {
+            let answer = try await inner.tail(for: session)
+            if armed {
+                armed = false
+                isHolding = true
+                await withCheckedContinuation { held = $0 }
+            }
+            return answer
+        }
+        func append(_ op: TrackerOp) async throws -> Int64 { try await inner.append(op) }
+        func update(_ op: TrackerOp) async throws -> Bool { try await inner.update(op) }
+        func delete(id: Int64) async throws { try await inner.delete(id: id) }
+        func nextPending(for session: SessionKey) async throws -> TrackerOp? { try await inner.nextPending(for: session) }
+        func ops(for session: SessionKey) async throws -> [TrackerOp] { try await inner.ops(for: session) }
+        func sessionsWithPending() async throws -> [SessionKey] { try await inner.sessionsWithPending() }
+        func purge(session: SessionKey) async throws { try await inner.purge(session: session) }
+        func purgeAll() async throws { try await inner.purgeAll() }
+    }
+
+    /// The tracker's writes in the order they were sent, by action.
+    private static func sent(_ transport: ScriptedTransport, _ actions: [String]) -> [String] {
+        transport.requests.compactMap { r in actions.first { r.body?.contains("\"action\":\"\($0)\"") == true } }
+    }
+
+    @MainActor
+    func testAFinishTappedAsTheAutosaveQueuesLandsBehindTheLastSet() async throws {
+        // The debounce has taken the edits and its save waits on the queue's
+        // tail read when Finish is tapped. `flushEdits` then finds nothing to
+        // take and returns at once, so the finish is queued straight away:
+        // it must still land after the save, or the server builds the recap
+        // and PRs without the last set.
+        let transport = healthy()
+        let store = HeldTailStore()
+        let (model, queue) = make(transport, store: store)
+        await model.open()
+        await store.arm()
+        model.focusSet(at: press1)
+        model.focusSet(at: press2)
+        while await !store.isHolding { await Task.yield() }
+
+        let finishing = Task { await model.requestFinish(force: true) }
+        while model.gate != .finishing, !model.isFinished { await Task.yield() }
+        for _ in 0..<50 { await Task.yield() }
+        await store.open()
+        await finishing.value
+        await Self.settle(queue, model.session)
+
+        XCTAssertEqual(Self.sent(transport, ["save", "finish"]), ["save", "finish"])
+        let save = try XCTUnwrap(transport.requests(action: "save").first)
+        XCTAssertTrue(save.body!.contains(#""set_number":2"#), "the last set went with the save, not the finish's autofill")
+    }
+
+    @MainActor
+    func testASwapTappedAsTheAutosaveQueuesLandsAfterTheSaveItRelabels() async throws {
+        // The save carries the old name; sent after the swap it would put it back.
+        let transport = healthy()
+        let store = HeldTailStore()
+        let (model, queue) = make(transport, store: store)
+        await model.open()
+        await store.arm()
+        model.setValue("10", .reps, at: press1)
+        while await !store.isHolding { await Task.yield() }
+
+        let db = model.definitions.first { $0.id == "d-db" }!
+        let swapping = Task { await model.swap(section: "exercise", exerciseId: "fx-press", to: db) }
+        // Relabelled locally: the swap is being queued.
+        while model.editor.exercise(section: "exercise", id: "fx-press")?.exercise.name != db.canonicalName { await Task.yield() }
+        for _ in 0..<50 { await Task.yield() }
+        await store.open()
+        await swapping.value
+        await Self.settle(queue, model.session)
+
+        XCTAssertEqual(Self.sent(transport, ["save", "swap-exercise"]), ["save", "swap-exercise"])
     }
 
     @MainActor

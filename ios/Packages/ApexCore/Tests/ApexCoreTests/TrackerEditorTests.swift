@@ -235,12 +235,13 @@ final class TrackerEditorTests: XCTestCase {
         XCTAssertNil(row.actualReps)
         XCTAssertFalse(row.isAutofilled)
 
-        // The wire shape: exactly the allowlisted columns, nulls explicit.
+        // The wire shape: exactly the allowlisted columns, nulls explicit —
+        // `setToRow`'s keys, the metadata on every row and no pitch columns.
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.sortedKeys]
         XCTAssertEqual(
             String(decoding: try encoder.encode(row), as: UTF8.self),
-            #"{"actual_duration":null,"actual_reps":null,"actual_weight":"185","definition_id":"def-bench","event_date":"2026-07-06","event_id":"eid","exercise_id":"ub-1","exercise_name":"Bench Press","is_autofilled":false,"planned_duration":null,"planned_reps":"5","planned_weight":"185lb","section":"exercise","set_number":1}"#
+            #"{"actual_duration":null,"actual_reps":null,"actual_weight":"185","definition_id":"def-bench","event_date":"2026-07-06","event_id":"eid","exercise_id":"ub-1","exercise_name":"Bench Press","is_autofilled":false,"is_warmup":false,"planned_duration":null,"planned_reps":"5","planned_weight":"185lb","rpe":null,"section":"exercise","set_number":1}"#
         )
     }
 
@@ -463,6 +464,175 @@ final class TrackerEditorTests: XCTestCase {
         XCTAssertEqual(order.count, 1 + 6 + 4 + 1)
     }
 
+    // MARK: - Set metadata (phase55)
+
+    private var bench1: SetKey { SetKey(section: "exercise", exerciseId: "ub-1", setNumber: 1) }
+    private var pitch1: SetKey { SetKey(section: "exercise", exerciseId: "p-1", setNumber: 1) }
+
+    private func wire(_ row: SetLogRow) throws -> String {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys]
+        return String(decoding: try encoder.encode(row), as: UTF8.self)
+    }
+
+    func testParseRpeVectors() {
+        // plan.test.ts: 1–10, rounded to the half, anything else is no rating.
+        XCTAssertEqual(SetMetadata.parseRpe("8"), 8)
+        XCTAssertEqual(SetMetadata.parseRpe(" 7.5 "), 7.5)
+        XCTAssertEqual(SetMetadata.parseRpe("7.3"), 7.5)
+        XCTAssertEqual(SetMetadata.parseRpe("7.2"), 7)
+        XCTAssertEqual(SetMetadata.parseRpe("1"), 1)
+        XCTAssertEqual(SetMetadata.parseRpe("10"), 10)
+        XCTAssertEqual(SetMetadata.parseRpe("7,5"), 7.5, "a comma locale's keypad")
+        for bad in ["", "  ", "0", "0.5", "10.5", "11", "-3", "hard", "inf", nil] as [String?] {
+            XCTAssertNil(SetMetadata.parseRpe(bad), "\(String(describing: bad))")
+        }
+        XCTAssertEqual(SetMetadata.normalizeRpeText("8.0"), "8")
+        XCTAssertEqual(SetMetadata.normalizeRpeText("7.3"), "7.5")
+        XCTAssertEqual(SetMetadata.normalizeRpeText("12"), "")
+    }
+
+    func testParseAttemptsVectors() {
+        XCTAssertEqual(SetMetadata.parseAttempts("3"), 3)
+        XCTAssertEqual(SetMetadata.parseAttempts(" 1 "), 1)
+        for bad in ["", "0", "-1", "2.5", "two", nil] as [String?] {
+            XCTAssertNil(SetMetadata.parseAttempts(bad), "\(String(describing: bad))")
+        }
+    }
+
+    func testBoulderingNeverFollows() {
+        XCTAssertEqual(SetMetadata.ascentStyles(for: "sport").map(\.value), ["flash", "redpoint", "follow", "attempt"])
+        XCTAssertEqual(SetMetadata.ascentStyles(for: "boulder").map(\.value), ["flash", "redpoint", "attempt"])
+    }
+
+    func testWarmupAndRpeDirtyTheSetAndRideTheRow() throws {
+        var editor = handBuilt()
+        XCTAssertTrue(editor.setWarmup(true, at: bench1))
+        XCTAssertTrue(editor.setRpe("7.3", at: bench1))
+        XCTAssertEqual(editor.dirtySets, [bench1])
+        let row = try XCTUnwrap(editor.takeSavePayload()?.setLogs.first)
+        XCTAssertTrue(row.isWarmup)
+        XCTAssertEqual(row.rpe, 7.5)
+        XCTAssertEqual(
+            try wire(row),
+            #"{"actual_duration":null,"actual_reps":null,"actual_weight":null,"definition_id":"def-bench","event_date":"2026-07-06","event_id":"eid","exercise_id":"ub-1","exercise_name":"Bench Press","is_autofilled":false,"is_warmup":true,"planned_duration":null,"planned_reps":"5","planned_weight":"185lb","rpe":7.5,"section":"exercise","set_number":1}"#
+        )
+    }
+
+    func testAnUnparseableRpeIsSentAsNoRatingAndSettlesToBlank() throws {
+        var editor = handBuilt()
+        editor.setRpe("11", at: bench1)
+        XCTAssertNil(try XCTUnwrap(editor.takeSavePayload()?.setLogs.first).rpe)
+        XCTAssertTrue(editor.settleRpe(at: bench1))
+        XCTAssertEqual(editor.set(at: bench1)?.rpe, "")
+        editor.setRpe("8.0", at: bench1)
+        editor.settleRpe(at: bench1)
+        XCTAssertEqual(editor.set(at: bench1)?.rpe, "8")
+        XCTAssertFalse(editor.settleRpe(at: bench1), "already settled")
+    }
+
+    func testAPitchRowCarriesItsAscentAndOnlyAPitchRow() throws {
+        var editor = handBuilt()
+        XCTAssertTrue(editor.setAscentStyle("redpoint", at: pitch1))
+        editor.stepAttempts(by: 1, at: pitch1)
+        editor.stepAttempts(by: 1, at: pitch1)
+        let row = try XCTUnwrap(editor.takeSavePayload()?.setLogs.first)
+        XCTAssertEqual(row.ascentStyle, "redpoint")
+        XCTAssertEqual(row.attempts, 2)
+        // Picking a style with the grade empty takes the planned grade.
+        XCTAssertEqual(row.actualWeight, "5.10c")
+        XCTAssertEqual(
+            try wire(row),
+            #"{"actual_duration":null,"actual_reps":null,"actual_weight":"5.10c","ascent_style":"redpoint","attempts":2,"definition_id":null,"event_date":"2026-07-06","event_id":"eid","exercise_id":"p-1","exercise_name":"Pitch 1","is_autofilled":false,"is_warmup":false,"planned_duration":null,"planned_reps":null,"planned_weight":"5.10c","rpe":null,"section":"exercise","set_number":1}"#
+        )
+    }
+
+    func testPickingAStyleNeverOverwritesATypedGrade() throws {
+        var editor = handBuilt()
+        editor.setValue("5.11a", .weight, at: pitch1)
+        editor.setAscentStyle("flash", at: pitch1)
+        XCTAssertEqual(editor.set(at: pitch1)?.actualWeight, "5.11a")
+        editor.setAscentStyle(nil, at: pitch1)
+        XCTAssertNil(try XCTUnwrap(editor.takeSavePayload()?.setLogs.first).ascentStyle)
+    }
+
+    func testTheAttemptsStepperCountsFromOneAndBackToNone() {
+        var editor = handBuilt()
+        XCTAssertFalse(editor.stepAttempts(by: -1, at: pitch1), "nothing to step down from")
+        editor.stepAttempts(by: 1, at: pitch1)
+        XCTAssertEqual(editor.set(at: pitch1)?.attempts, "1")
+        editor.stepAttempts(by: -1, at: pitch1)
+        XCTAssertEqual(editor.set(at: pitch1)?.attempts, "", "down from one is none")
+    }
+
+    func testAZeroFilledSetIsNeverAWarmupARatingOrASend() {
+        var editor = handBuilt()
+        editor.setWarmup(true, at: bench1)
+        editor.setRpe("9", at: bench1)
+        editor.setAscentStyle("attempt", at: pitch1)
+        editor.setValue("", .weight, at: pitch1)
+        _ = editor.takeSavePayload()
+        let rows = editor.collectUntouchedPlanned()
+        let bench = rows.first { $0.key == bench1 }
+        XCTAssertEqual(bench?.isWarmup, false)
+        XCTAssertNil(bench?.rpe)
+        let pitch = rows.first { $0.key == pitch1 }
+        XCTAssertEqual(pitch?.isPitch, true, "the zero-fill still names its pitch columns, as null")
+        XCTAssertNil(pitch?.ascentStyle)
+        XCTAssertNil(pitch?.attempts)
+    }
+
+    func testAQueuedRowReplaysItsMetadata() throws {
+        var editor = handBuilt()
+        editor.setWarmup(true, at: bench1)
+        editor.setRpe("6.5", at: bench1)
+        editor.setAscentStyle("flash", at: pitch1)
+        editor.stepAttempts(by: 1, at: pitch1)
+        let payload = try XCTUnwrap(editor.takeSavePayload())
+        // Round-trip through the queue's storage, then onto a fresh model.
+        let stored = try JSONDecoder().decode(SavePayload.self, from: JSONEncoder().encode(payload))
+        XCTAssertEqual(stored, payload)
+        var fresh = handBuilt()
+        fresh.apply(stored)
+        XCTAssertEqual(fresh.set(at: bench1)?.isWarmup, true)
+        XCTAssertEqual(fresh.set(at: bench1)?.rpe, "6.5")
+        XCTAssertEqual(fresh.set(at: pitch1)?.ascentStyle, "flash")
+        XCTAssertEqual(fresh.set(at: pitch1)?.attempts, "1")
+    }
+
+    func testAReplayedPitchRowForAnUnseenAddedExerciseComesBackAsAPitch() throws {
+        var editor = handBuilt()
+        let row = SetLogRow(
+            eventId: "eid", eventDate: "2026-07-06", section: "exercise", exerciseId: "added-1", exerciseName: "Extra Pitch",
+            setNumber: 1, actualWeight: "5.9", isPitch: true, ascentStyle: "flash", attempts: 1
+        )
+        editor.apply(SavePayload(setLogs: [row]))
+        let tracked = try XCTUnwrap(editor.exercise(section: "exercise", id: "added-1"))
+        XCTAssertEqual(tracked.exercise.category, "climbing")
+        let key = SetKey(section: "exercise", exerciseId: "added-1", setNumber: 1)
+        XCTAssertEqual(editor.set(at: key)?.ascentStyle, "flash")
+        let resent = TrackerEditor.setToRow(session: editor.session, tracked: tracked, set: try XCTUnwrap(editor.set(at: key)))
+        XCTAssertTrue(try wire(resent).contains(#""ascent_style":"flash""#))
+    }
+
+    func testARowQueuedBeforeTheMetadataStillDecodes() throws {
+        let old = #"{"event_id":"eid","event_date":"2026-07-06","section":"exercise","exercise_id":"ub-1","exercise_name":"Bench Press","definition_id":null,"set_number":1,"planned_weight":null,"planned_reps":null,"planned_duration":null,"actual_weight":"185","actual_reps":"5","actual_duration":null,"is_autofilled":false}"#
+        let row = try JSONDecoder().decode(SetLogRow.self, from: Data(old.utf8))
+        XCTAssertFalse(row.isWarmup)
+        XCTAssertNil(row.rpe)
+        XCTAssertFalse(row.isPitch)
+    }
+
+    func testFieldOrderPlacesEachRatingAfterItsSet() {
+        let editor = handBuilt()
+        let order = editor.fieldOrder(rpe: true) { TrackerEditor.inputFields(for: $0, definition: nil) }
+        XCTAssertEqual(order[1], .rpe(SetKey(section: "warmup", exerciseId: "ub-cd-1", setNumber: 1)))
+        XCTAssertEqual(order[2], .set(bench1, .weight))
+        XCTAssertEqual(order[3], .set(bench1, .reps))
+        XCTAssertEqual(order[4], .rpe(bench1))
+        XCTAssertEqual(order.count, (1 + 1) + 3 * 3 + 4 + (1 + 1))
+    }
+
     // MARK: - Replay and refresh
 
     func testApplyReplaysAQueuedSaveIncludingARemovedExtra() throws {
@@ -599,5 +769,298 @@ final class TrackerEditorTests: XCTestCase {
         ]))
         XCTAssertNil(editor.exercise(section: "exercise", id: "added-1000"))
         XCTAssertNil(editor.exercise(section: "exercise", id: "added-2000"))
+    }
+
+    // MARK: - Voice (W17)
+
+    private var bench2: SetKey { SetKey(section: "exercise", exerciseId: "ub-1", setNumber: 2) }
+    private var bench3: SetKey { SetKey(section: "exercise", exerciseId: "ub-1", setNumber: 3) }
+    private var bench4: SetKey { SetKey(section: "exercise", exerciseId: "ub-1", setNumber: 4) }
+
+    private func spoken(_ weight: Double? = 225, reps: Int? = 5, sets: Int = 1) -> SpokenIntent {
+        .log(sets: sets, values: SpokenValues(weight: weight.map { SpokenWeight(value: $0) }, reps: reps))
+    }
+
+    func testClearShadowLeavesTheKeyClean() throws {
+        var editor = try editor()
+        XCTAssertNotNil(editor.set(at: set2)?.shadow)
+        XCTAssertTrue(editor.clearShadow(at: set2))
+        XCTAssertNil(editor.set(at: set2)?.shadow)
+        XCTAssertEqual(editor.set(at: set2)?.actualWeight, "", "nothing committed")
+        XCTAssertFalse(editor.isDirty)
+        XCTAssertFalse(editor.clearShadow(at: set2), "nothing left to clear")
+        XCTAssertFalse(editor.clearShadow(at: set1), "a row that never had a ghost")
+        XCTAssertFalse(editor.clearShadow(at: SetKey(section: "exercise", exerciseId: "nope", setNumber: 1)))
+    }
+
+    func testApplySpokenFillsTheFirstEmptyPlannedSetAndClearsItsGhost() throws {
+        var editor = handBuilt(shadowOnBench: true)
+        let applied = try XCTUnwrap(editor.applySpoken(spoken(), section: "exercise", exerciseId: "ub-1", unit: .lb))
+        XCTAssertEqual(applied.keys, [bench1])
+        XCTAssertEqual(applied.kind, .planned)
+        XCTAssertNotNil(applied.previous[0].shadow, "the row as it was, ghost included")
+        let set = try XCTUnwrap(editor.set(at: bench1))
+        XCTAssertEqual(set.actualWeight, "225")
+        XCTAssertEqual(set.actualReps, "5")
+        XCTAssertEqual(set.actualDuration, "", "a field that was not said is not written")
+        XCTAssertNil(set.shadow)
+        XCTAssertNotNil(editor.set(at: bench2)?.shadow, "the next row keeps its ghost")
+        XCTAssertEqual(editor.dirtySets, [bench1])
+        XCTAssertEqual(editor.takeSavePayload()?.setLogs.map(\.actualWeight), ["225"], "bare, as typed")
+
+        // The next utterance lands on the next empty row.
+        let second = try XCTUnwrap(editor.applySpoken(spoken(230), section: "exercise", exerciseId: "ub-1", unit: .lb))
+        XCTAssertEqual(second.keys, [bench2])
+        XCTAssertEqual(editor.set(at: bench2)?.actualWeight, "230")
+    }
+
+    func testApplySpokenAddsAnExtraWhenNoPlannedRowIsEmpty() throws {
+        var editor = handBuilt()
+        for n in 1...3 { editor.setValue("5", .reps, at: SetKey(section: "exercise", exerciseId: "ub-1", setNumber: n)) }
+        let applied = try XCTUnwrap(editor.applySpoken(spoken(), section: "exercise", exerciseId: "ub-1", unit: .lb))
+        XCTAssertEqual(applied.keys, [bench4])
+        XCTAssertEqual(applied.kind, .extra)
+        XCTAssertEqual(applied.previous[0].isExtra, true)
+        XCTAssertEqual(editor.set(at: bench4)?.isExtra, true)
+        XCTAssertEqual(editor.set(at: bench4)?.actualWeight, "225")
+        XCTAssertTrue(editor.dirtySets.contains(bench4))
+    }
+
+    func testApplySpokenSpansSetsAcrossPlannedRowsThenExtras() throws {
+        var editor = handBuilt()
+        editor.setValue("5", .reps, at: bench1)
+        let applied = try XCTUnwrap(editor.applySpoken(spoken(sets: 3), section: "exercise", exerciseId: "ub-1", unit: .lb))
+        XCTAssertEqual(applied.keys, [bench2, bench3, bench4])
+        XCTAssertEqual(applied.kind, .planned)
+        XCTAssertEqual(applied.previous.map(\.isExtra), [false, false, true])
+        XCTAssertEqual(editor.exercise(section: "exercise", id: "ub-1")?.sets.map(\.actualWeight), ["", "225", "225", "225"])
+        XCTAssertEqual(editor.set(at: bench1)?.actualReps, "5", "a row with actuals is never overwritten")
+    }
+
+    func testApplySpokenRepeatCopiesTheLastSetWithActuals() throws {
+        var editor = handBuilt()
+        XCTAssertNil(editor.applySpoken(.repeat, section: "exercise", exerciseId: "ub-1", unit: .lb), "nothing to repeat yet")
+        XCTAssertFalse(editor.isDirty)
+        editor.setValue("185", .weight, at: bench1)
+        editor.setValue("5", .reps, at: bench1)
+        editor.setValue("190", .weight, at: bench2)
+        editor.setValue("4", .reps, at: bench2)
+        editor.setRpe("9", at: bench2)
+        let applied = try XCTUnwrap(editor.applySpoken(.repeat, section: "exercise", exerciseId: "ub-1", unit: .lb))
+        XCTAssertEqual(applied.keys, [bench3])
+        let set = try XCTUnwrap(editor.set(at: bench3))
+        XCTAssertEqual(set.actualWeight, "190")
+        XCTAssertEqual(set.actualReps, "4")
+        XCTAssertNil(set.rpe, "effort is per set; only the actuals repeat")
+    }
+
+    func testApplySpokenRefusesCardioClimbingAndUnknownExercises() {
+        var editor = handBuilt()
+        XCTAssertNil(editor.applySpoken(spoken(), section: "exercise", exerciseId: "run-1", unit: .lb))
+        XCTAssertNil(editor.applySpoken(spoken(), section: "exercise", exerciseId: "p-1", unit: .lb))
+        XCTAssertNil(editor.applySpoken(spoken(), section: "exercise", exerciseId: "nope", unit: .lb))
+        XCTAssertNil(editor.applySpoken(spoken(), section: "warmup", exerciseId: "ub-1", unit: .lb), "the wrong section is unknown")
+        XCTAssertFalse(editor.isDirty)
+        XCTAssertEqual(editor, handBuilt())
+    }
+
+    func testApplySpokenWritesEveryValueThroughTheFormatter() throws {
+        var editor = handBuilt()
+        let values = SpokenValues(weight: SpokenWeight(value: 62.5, unit: .kg), reps: 8, durationSeconds: 90, rpe: 8.5, isWarmup: true)
+        _ = editor.applySpoken(.log(sets: 1, values: values), section: "exercise", exerciseId: "ub-1", unit: .lb)
+        let set = try XCTUnwrap(editor.set(at: bench1))
+        XCTAssertEqual(set.actualWeight, "62.5 kg")
+        XCTAssertEqual(set.actualReps, "8")
+        XCTAssertEqual(set.actualDuration, "1:30")
+        XCTAssertEqual(set.rpe, "8.5")
+        XCTAssertEqual(set.isWarmup, true)
+        let row = try XCTUnwrap(editor.takeSavePayload()?.setLogs.first)
+        XCTAssertEqual(row.actualWeight, "62.5 kg")
+        XCTAssertEqual(row.actualDuration, "1:30")
+        XCTAssertEqual(row.rpe, 8.5)
+        XCTAssertTrue(row.isWarmup)
+        // The bench now shows a duration column, as the "+ time" chip would have made it.
+        XCTAssertEqual(TrackerEditor.inputFields(for: editor.exercise(section: "exercise", id: "ub-1")!, definition: nil), [.weight, .reps, .duration])
+    }
+
+    func testRevertOfAnEmptyPriorRowRecordsARemovalAndNeverBoth() throws {
+        var editor = handBuilt(shadowOnBench: true)
+        let before = try XCTUnwrap(editor.set(at: bench1))
+        let applied = try XCTUnwrap(editor.applySpoken(spoken(), section: "exercise", exerciseId: "ub-1", unit: .lb))
+        editor.revert(applied)
+        XCTAssertEqual(editor.set(at: bench1), before, "verbatim, ghost back")
+        XCTAssertFalse(editor.dirtySets.contains(bench1))
+        XCTAssertEqual(editor.removedSets, [bench1])
+        XCTAssertEqual(editor.takeSavePayload(), SavePayload(removedSets: [bench1]), "the delete, never an upsert too")
+        XCTAssertFalse(editor.isDirty)
+    }
+
+    func testRevertAfterTheSaveFlushedStillRecordsTheRemoval() throws {
+        var editor = handBuilt()
+        let applied = try XCTUnwrap(editor.applySpoken(spoken(), section: "exercise", exerciseId: "ub-1", unit: .lb))
+        let flushed = try XCTUnwrap(editor.takeSavePayload())
+        XCTAssertEqual(flushed.setLogs.map(\.key), [bench1])
+        editor.revert(applied)
+        XCTAssertEqual(editor.set(at: bench1)?.actualWeight, "")
+        XCTAssertEqual(editor.takeSavePayload(), SavePayload(removedSets: [bench1]))
+        // Queued behind the unsent upsert, the delete wins (the queue's merge).
+        XCTAssertEqual(flushed.merging(SavePayload(removedSets: [bench1])), SavePayload(removedSets: [bench1]))
+    }
+
+    /// Undo, then another set on the same row inside one autosave window: the
+    /// save must upsert the row, never also delete it (the server runs both
+    /// lists in one unordered batch).
+    func testAWriteAfterARevertIsAnUpsertNotADelete() throws {
+        var editor = handBuilt()
+        let first = try XCTUnwrap(editor.applySpoken(spoken(), section: "exercise", exerciseId: "ub-1", unit: .lb))
+        editor.revert(first)
+        XCTAssertEqual(editor.removedSets, [bench1])
+        let second = try XCTUnwrap(editor.applySpoken(spoken(235), section: "exercise", exerciseId: "ub-1", unit: .lb))
+        XCTAssertEqual(second.keys, [bench1], "the row freed by the undo is the first empty one again")
+        let payload = try XCTUnwrap(editor.takeSavePayload())
+        XCTAssertEqual(payload.setLogs.map(\.actualWeight), ["235"])
+        XCTAssertEqual(payload.removedSets, [])
+        XCTAssertTrue(Set(payload.setLogs.map(\.key)).isDisjoint(with: payload.removedSets))
+
+        // The same for a typed edit after the undo.
+        var typed = handBuilt()
+        let applied = try XCTUnwrap(typed.applySpoken(spoken(), section: "exercise", exerciseId: "ub-1", unit: .lb))
+        typed.revert(applied)
+        typed.setValue("230", .weight, at: bench1)
+        let typedPayload = try XCTUnwrap(typed.takeSavePayload())
+        XCTAssertEqual(typedPayload.setLogs.map(\.key), [bench1])
+        XCTAssertEqual(typedPayload.removedSets, [])
+
+        // And for an extra the undo dropped and the next set re-created under the same number.
+        var extras = handBuilt()
+        for n in 1...3 { extras.setValue("5", .reps, at: SetKey(section: "exercise", exerciseId: "ub-1", setNumber: n)) }
+        _ = extras.takeSavePayload()
+        let extra = try XCTUnwrap(extras.applySpoken(spoken(), section: "exercise", exerciseId: "ub-1", unit: .lb))
+        extras.revert(extra)
+        XCTAssertEqual(extras.removedSets, [bench4])
+        XCTAssertEqual(extras.applySpoken(spoken(), section: "exercise", exerciseId: "ub-1", unit: .lb)?.keys, [bench4])
+        let extraPayload = try XCTUnwrap(extras.takeSavePayload())
+        XCTAssertEqual(extraPayload.setLogs.map(\.key), [bench4])
+        XCTAssertEqual(extraPayload.removedSets, [])
+
+        // The pre-existing shape of the same hole: remove an extra, add one, type into it.
+        var manual = handBuilt()
+        let n = try XCTUnwrap(manual.addExtraSet(section: "exercise", exerciseId: "ub-1"))
+        manual.setValue("8", .reps, at: SetKey(section: "exercise", exerciseId: "ub-1", setNumber: n))
+        manual.removeExtraSet(at: SetKey(section: "exercise", exerciseId: "ub-1", setNumber: n))
+        XCTAssertEqual(manual.addExtraSet(section: "exercise", exerciseId: "ub-1"), n)
+        manual.setValue("9", .reps, at: SetKey(section: "exercise", exerciseId: "ub-1", setNumber: n))
+        let manualPayload = try XCTUnwrap(manual.takeSavePayload())
+        XCTAssertEqual(manualPayload.setLogs.map(\.actualReps), ["9"])
+        XCTAssertEqual(manualPayload.removedSets, [])
+        // A removal with no write after it still goes out.
+        var plain = handBuilt()
+        let gone = try XCTUnwrap(plain.applySpoken(spoken(), section: "exercise", exerciseId: "ub-1", unit: .lb))
+        plain.revert(gone)
+        XCTAssertEqual(plain.takeSavePayload(), SavePayload(removedSets: [bench1]))
+    }
+
+    func testRevertOfARowWithPriorActualsReDirties() throws {
+        var editor = try editor()
+        let before = try XCTUnwrap(editor.set(at: set1))
+        XCTAssertTrue(before.hasAnyActual)
+        // Write over a logged row the way a later apply might (the primitive
+        // itself never targets one), then take it back.
+        editor.setValue("225", .weight, at: set1)
+        editor.setValue("5", .reps, at: set1)
+        _ = editor.takeSavePayload()
+        editor.revert(VoiceApplied(keys: [set1], previous: [before], kind: .planned))
+        XCTAssertEqual(editor.set(at: set1), before)
+        XCTAssertEqual(editor.set(at: set1)?.actualWeight, "120 lb")
+        XCTAssertEqual(editor.dirtySets, [set1], "the old row is re-sent")
+        XCTAssertEqual(editor.removedSets, [])
+        XCTAssertEqual(editor.takeSavePayload()?.setLogs.map(\.actualWeight), ["120 lb"])
+    }
+
+    func testRevertDropsTheExtraTheApplyCreated() throws {
+        var editor = handBuilt()
+        for n in 1...3 { editor.setValue("5", .reps, at: SetKey(section: "exercise", exerciseId: "ub-1", setNumber: n)) }
+        _ = editor.takeSavePayload()
+        let applied = try XCTUnwrap(editor.applySpoken(spoken(sets: 2), section: "exercise", exerciseId: "ub-1", unit: .lb))
+        XCTAssertEqual(applied.keys.map(\.setNumber), [4, 5])
+        editor.revert(applied)
+        XCTAssertEqual(editor.exercise(section: "exercise", id: "ub-1")?.sets.map(\.setNumber), [1, 2, 3], "an empty extra persists nothing")
+        XCTAssertEqual(editor.takeSavePayload(), SavePayload(removedSets: [bench4, SetKey(section: "exercise", exerciseId: "ub-1", setNumber: 5)]))
+    }
+
+    func testRevertRestoresAnExtraTheAthleteAddedByHand() throws {
+        var editor = handBuilt()
+        for n in 1...3 { editor.setValue("5", .reps, at: SetKey(section: "exercise", exerciseId: "ub-1", setNumber: n)) }
+        _ = editor.takeSavePayload()
+        XCTAssertEqual(editor.addExtraSet(section: "exercise", exerciseId: "ub-1"), 4)
+        let before = try XCTUnwrap(editor.set(at: bench4))
+        let applied = try XCTUnwrap(editor.applySpoken(spoken(sets: 2), section: "exercise", exerciseId: "ub-1", unit: .lb))
+        XCTAssertEqual(applied.keys.map(\.setNumber), [4, 5])
+        XCTAssertEqual(applied.created.map(\.setNumber), [5], "only the second row was the apply's own")
+        editor.revert(applied)
+        XCTAssertEqual(editor.set(at: bench4), before, "the hand-added row is back, empty")
+        XCTAssertNil(editor.set(at: SetKey(section: "exercise", exerciseId: "ub-1", setNumber: 5)))
+        XCTAssertEqual(editor.takeSavePayload(), SavePayload(removedSets: [bench4, SetKey(section: "exercise", exerciseId: "ub-1", setNumber: 5)]),
+                       "both deletes go out: the voice save may have persisted either")
+    }
+
+    func testRevertOfAnAddedExerciseRemovesIt() throws {
+        var editor = withPushups()
+        var applied = try XCTUnwrap(editor.applySpoken(spoken(nil, reps: 20), section: "exercise", exerciseId: "added-1000", unit: .lb))
+        XCTAssertEqual(applied.keys, [pushupSet1])
+        XCTAssertEqual(applied.kind, .extra)
+        XCTAssertEqual(editor.set(at: pushupSet1)?.actualReps, "20")
+        applied.kind = .addedExercise(id: "added-1000")
+        editor.revert(applied)
+        XCTAssertNil(editor.exercise(section: "exercise", id: "added-1000"))
+        XCTAssertEqual(editor.takeSavePayload(), SavePayload(removedSets: [pushupSet1]))
+    }
+
+    func testCurrentExerciseFallbackOrder() {
+        var editor = handBuilt()
+        XCTAssertEqual(editor.currentExercise(lastLogged: bench2)?.id, "ub-1", "the last logged key's exercise")
+        XCTAssertEqual(editor.currentExercise(lastLogged: nil)?.id, "ub-cd-1", "else the first set-tracked exercise with an empty row")
+        XCTAssertEqual(editor.currentExercise(lastLogged: nil)?.section, "warmup")
+        let cardio = SetKey(section: "exercise", exerciseId: "run-1", setNumber: 1)
+        XCTAssertEqual(editor.currentExercise(lastLogged: cardio)?.id, "ub-cd-1", "a cardio key falls back")
+        XCTAssertEqual(editor.currentExercise(lastLogged: SetKey(section: "exercise", exerciseId: "gone", setNumber: 1))?.id, "ub-cd-1")
+        editor.setValue("60s", .duration, at: SetKey(section: "warmup", exerciseId: "ub-cd-1", setNumber: 1))
+        XCTAssertEqual(editor.currentExercise(lastLogged: nil)?.id, "ub-1")
+        for n in 1...3 { editor.setValue("5", .reps, at: SetKey(section: "exercise", exerciseId: "ub-1", setNumber: n)) }
+        XCTAssertNil(editor.currentExercise(lastLogged: nil), "a cardio row and a pitch never qualify")
+        XCTAssertEqual(editor.currentExercise(lastLogged: pitch1)?.id, nil, "nor as a last key")
+        editor.addExtraSet(section: "exercise", exerciseId: "ub-1")
+        XCTAssertEqual(editor.currentExercise(lastLogged: nil)?.id, "ub-1", "an empty extra counts")
+    }
+
+    /// A planned-row Undo records a removal; replaying that removal on an
+    /// offline relaunch must leave the row — planned-empty — not delete it.
+    func testReplayOfARemovedPlannedKeyKeepsTheRow() throws {
+        var editor = handBuilt(shadowOnBench: true, resolvedOnBench: "187.5 lb")
+        editor.apply(SavePayload(setLogs: [SetLogRow(
+            eventId: "eid", eventDate: "2026-07-06", section: "exercise", exerciseId: "ub-1", exerciseName: "Bench Press",
+            definitionId: "def-bench", setNumber: 1, plannedWeight: "185lb", plannedReps: "5",
+            actualWeight: "225", actualReps: "5", rpe: 8, isWarmup: true
+        )]))
+        XCTAssertEqual(editor.set(at: bench1)?.isLogged, true)
+        editor.apply(SavePayload(removedSets: [bench1]))
+        let set = try XCTUnwrap(editor.set(at: bench1), "the planned row is still there")
+        XCTAssertEqual(set.actualWeight, "")
+        XCTAssertEqual(set.actualReps, "")
+        XCTAssertFalse(set.isLogged)
+        XCTAssertFalse(set.isAutofilled)
+        XCTAssertNil(set.rpe)
+        XCTAssertNil(set.isWarmup)
+        XCTAssertEqual(set.planned?.targetWeight, "185lb")
+        XCTAssertEqual(set.resolvedPlannedWeight, "187.5 lb")
+        XCTAssertFalse(set.isExtra)
+        XCTAssertEqual(editor.exercise(section: "exercise", id: "ub-1")?.sets.count, 3)
+        XCTAssertFalse(editor.isDirty, "replay is not an edit")
+        // An extra's removal still removes it.
+        var fixture = try self.editor()
+        fixture.apply(SavePayload(setLogs: [setRow(5)]))
+        XCTAssertNotNil(fixture.set(at: SetKey(section: "exercise", exerciseId: "fx-press", setNumber: 5)))
+        fixture.apply(SavePayload(removedSets: [SetKey(section: "exercise", exerciseId: "fx-press", setNumber: 5)]))
+        XCTAssertNil(fixture.set(at: SetKey(section: "exercise", exerciseId: "fx-press", setNumber: 5)))
     }
 }

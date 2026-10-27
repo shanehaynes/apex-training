@@ -1,6 +1,7 @@
 import ApexActivity
 import ApexCore
 import ApexHealth
+import ApexSpeech
 import ApexUI
 import Foundation
 import Observation
@@ -70,7 +71,7 @@ public final class TrackerModel {
     public let session: SessionKey
 
     public private(set) var phase: Phase = .loading
-    public private(set) var editor: TrackerEditor
+    public internal(set) var editor: TrackerEditor
     public private(set) var startedAt: Date?
     public private(set) var isFinished = false
     public private(set) var totalDurationSeconds: Int?
@@ -96,21 +97,53 @@ public final class TrackerModel {
     /// The rest countdown between sets (D-015): pure state in ApexCore, driven
     /// by the injected clock. The one-second tick settles it; the bar reads
     /// `restRemaining`, and the island gets `rest.endsAt` through `syncActivity`.
-    public private(set) var rest = RestTimer()
+    public internal(set) var rest = RestTimer()
     /// Seconds left on the rest — refreshed by the tick and by every rest
     /// change, so the bar is observable without reading the clock itself.
     public private(set) var restRemaining = 0
 
     /// `.sensoryFeedback` triggers (design-spec §9): bump, never reset.
-    public private(set) var loggedSetCount = 0
+    public internal(set) var loggedSetCount = 0
+    /// How this athlete's weights read (the profile's unit and body weight),
+    /// for the summary's volume. From the profile the Schedule tab caches, so
+    /// an offline finish reads it too; pounds when nothing is cached yet.
+    public private(set) var weightContext: Weight.Context = .default
     public private(set) var prCount = 0
     public private(set) var confirmCount = 0
     public private(set) var completedCount = 0
     /// The buzz at zero (D-015): bumped once when a rest runs out on the tick.
     public private(set) var restEndedCount = 0
 
-    private let deps: TrackerDependencies
-    private var services: TrackerServices { deps.services }
+    // MARK: Voice set logging (W17, D-059) — the state; the logic is in TrackerModel+Voice.swift
+
+    /// Whether the tracker offers the microphone: a device preference under
+    /// You → Training, off by default while W17 earns its default.
+    nonisolated public static let voicePreferenceKey = "apex.tracker.voice"
+    /// What the voice strip and the mic show. Value-typed like `rest` and
+    /// `gate`; written only by the voice extension.
+    public internal(set) var voice: VoiceLogState = .idle
+    /// `.sensoryFeedback` triggers (design-spec §9): a listen started, an ask, a failure.
+    public internal(set) var voiceListenCount = 0
+    public internal(set) var voiceConfirmCount = 0
+    public internal(set) var voiceFailCount = 0
+    /// The utterance in flight and its timings; nil between listens.
+    var voiceSession: VoiceSession?
+    /// Bumped on every start and cancel, so a stale sheet or stream is ignored.
+    var voiceGeneration = 0
+    /// The consumer of the live utterance's events, and the 100 ms tick that
+    /// settles the end-of-utterance windows against `services.clock`.
+    var listenTask: Task<Void, Never>?
+    var voiceTimerTask: Task<Void, Never>?
+    /// The exercise a phrase-less utterance means (`TrackerEditor.currentExercise`).
+    var lastLoggedKey: SetKey?
+    /// Undo restores the rest exactly as it was before the apply — when the
+    /// rest is still the one the apply started (`voiceRestAfter`).
+    var voiceRestBefore: RestTimer?
+    var voiceRestAfter: RestTimer?
+    var voiceAppliedAt: Date?
+
+    let deps: TrackerDependencies
+    var services: TrackerServices { deps.services }
     private var saveGeneration = 0
     private var timerTask: Task<Void, Never>?
     private var queueTask: Task<Void, Never>?
@@ -141,11 +174,30 @@ public final class TrackerModel {
 
     // MARK: - Lifecycle
 
+    /// The weight context from the profile the Schedule tab caches, re-read at
+    /// open and again before every summary — a unit changed on the web, or a
+    /// profile that landed after the tracker opened, is seen at Finish. With
+    /// nothing cached (a fresh install whose Schedule has not loaded yet) it
+    /// asks the server once; offline it keeps what it had.
+    private func loadWeightContext() async {
+        if let entry = try? await services.cache.read(kind: .profile, key: ScheduleCacheKey.profile),
+           let profile = try? JSONDecoder().decode(ProfileResponse.self, from: entry.json) {
+            weightContext = profile.weightContext
+        } else if let profile = try? await services.client.send(.profile, as: ProfileResponse.self) {
+            weightContext = profile.weightContext
+        }
+    }
+
+    /// Σ weight × reps over this session's working sets, in the profile's
+    /// unit — the summary's volume line (`sessionTonnage`).
+    public var sessionVolume: Int? { Weight.sessionTonnage(editor.groups, weightContext) }
+
     /// Cache → render → replay the queue → flush → network → refresh what is
     /// not ahead locally. On `.network` with a cached peek and no session, this
     /// is the offline start: stamp now, queue `start`, and remember it.
     public func open() async {
         isPresented = true
+        await loadWeightContext()
         let cached = await readCachedBootstrap()
         if let cached { apply(cached) }
         await replayQueue()
@@ -179,6 +231,7 @@ public final class TrackerModel {
     /// Back: flush what is dirty into the queue, then let the queue try. The
     /// Live Activity stays up — leaving the screen is not leaving the gym.
     public func close() async {
+        cancelVoice()
         isPresented = false
         await flushEdits()
         timerTask?.cancel()
@@ -328,7 +381,7 @@ public final class TrackerModel {
     /// keystroke is the commit — on a phone mid-set there is no blur to wait
     /// for — and the row is spent by its first one, so "1" then "12" is one
     /// set. A finished workout's edits are corrections, not sets.
-    private func restCommitted(_ key: SetKey) {
+    func restCommitted(_ key: SetKey) {
         guard !isFinished, let set = editor.set(at: key) else { return }
         let prescription = editor.exercise(section: key.section, id: key.exerciseId)?.exercise.restPeriod
         let now = services.clock.now
@@ -351,7 +404,7 @@ public final class TrackerModel {
         })
     }
 
-    private func restChanged() {
+    func restChanged() {
         restRemaining = rest.remaining(at: services.clock.now)
         Task { await syncActivity() }
     }
@@ -380,7 +433,44 @@ public final class TrackerModel {
 
     public func setValue(_ value: String, _ field: SetField, at key: SetKey) {
         guard editor.setValue(value, field, at: key) else { return }
+        voiceEdited(key)
         restCommitted(key)
+        scheduleSave()
+    }
+
+    // MARK: - Set metadata (phase55)
+
+    /// Whether set rows offer an RPE field: a device preference, under the
+    /// key the web keeps in localStorage (`RPE_PREFERENCE_KEY`), set in
+    /// You → Training.
+    public static let rpePreferenceKey = "apex.tracker.rpe"
+    public var showsRpe: Bool { UserDefaults.standard.bool(forKey: Self.rpePreferenceKey) }
+
+    public func setWarmup(_ on: Bool, at key: SetKey) {
+        guard editor.setWarmup(on, at: key) else { return }
+        voiceEdited(key)
+        scheduleSave()
+    }
+
+    public func setRpe(_ text: String, at key: SetKey) {
+        guard editor.setRpe(text, at: key) else { return }
+        voiceEdited(key)
+        scheduleSave()
+    }
+
+    /// Leaving the field settles what was typed (the web's blur).
+    public func didLeaveRpe(_ key: SetKey) {
+        guard editor.settleRpe(at: key) else { return }
+        scheduleSave()
+    }
+
+    public func setAscentStyle(_ style: String?, at key: SetKey) {
+        guard editor.setAscentStyle(style, at: key) else { return }
+        scheduleSave()
+    }
+
+    public func stepAttempts(by delta: Int, at key: SetKey) {
+        guard editor.stepAttempts(by: delta, at: key) else { return }
         scheduleSave()
     }
 
@@ -433,6 +523,7 @@ public final class TrackerModel {
 
     public func removeSet(at key: SetKey) {
         guard editor.removeExtraSet(at: key) else { return }
+        voiceEdited(key)
         scheduleSave()
     }
 
@@ -441,7 +532,7 @@ public final class TrackerModel {
         if editor.set(at: key)?.hasAnyActual == true, editor.dirtySets.contains(key) { loggedSetCount += 1 }
     }
 
-    private func scheduleSave() {
+    func scheduleSave() {
         saveGeneration += 1
         let mine = saveGeneration
         let clock = services.clock
@@ -552,7 +643,7 @@ public final class TrackerModel {
     }
 
     public func nextField(after current: FieldID) -> FieldID? {
-        let order = editor.fieldOrder { self.inputFields(for: $0) }
+        let order = editor.fieldOrder(rpe: showsRpe) { self.inputFields(for: $0) }
         guard let i = order.firstIndex(of: current), i + 1 < order.count else { return nil }
         return order[i + 1]
     }
@@ -584,6 +675,8 @@ public final class TrackerModel {
     /// calendar completion. `force` is the confirm bar's "Finish anyway".
     public func requestFinish(force: Bool = false, score: ScoreChoice = .notAsked) async {
         guard phase == .ready, !isFinished, gate != .finishing else { return }
+        cancelVoice()
+        await loadWeightContext()
         if !force {
             let count = editor.unloggedPlannedCount
             if count > 0 {
@@ -724,6 +817,7 @@ public final class TrackerModel {
     /// The Done badge on a finished session: the records came with the
     /// bootstrap and the summary text may have too, so no request is needed.
     public func openSavedSummary() async {
+        await loadWeightContext()
         summary = Summary(
             prs: savedPRs, scoreRecord: savedScoreRecord, score: savedScore,
             coachText: coachSummary, coachStatus: coachSummary == nil ? .loading : .ready,
@@ -740,7 +834,10 @@ public final class TrackerModel {
 
     // MARK: - Cancel
 
-    public func confirmCancel() { gate = .confirmCancel }
+    public func confirmCancel() {
+        cancelVoice()
+        gate = .confirmCancel
+    }
 
     /// Deletes everything logged for the session, here and on the server:
     /// pending edits dropped, queued ops purged, `cancel` queued, and the
@@ -865,13 +962,15 @@ public final class TrackerModel {
     /// A movement the plan does not have (`onAddExercise`): appended to the
     /// main section with one empty set. Nothing is queued — like any extra set
     /// it is saved once something is typed, and only for this day.
-    public func addExercise(_ definition: ExerciseDefinition) {
+    @discardableResult
+    public func addExercise(_ definition: ExerciseDefinition) -> TrackedExercise {
         let label = event.type.rawValue == "outdoor-climbing" ? "Pitches" : "Main Work"
-        editor.addExercise(
+        let tracked = editor.addExercise(
             id: TrackerEditor.addedExerciseId(at: services.clock.now), name: definition.canonicalName,
             definitionId: definition.id, category: definition.category, sectionLabel: label
         )
         Task { await syncActivity() }
+        return tracked
     }
 
     /// Take an added exercise back out; what it logged is deleted with the next save.

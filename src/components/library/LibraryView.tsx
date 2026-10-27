@@ -33,7 +33,8 @@ export default function LibraryView() {
     let cancelled = false;
     fetchLastPerformedRows()
       .then(rows => { if (!cancelled) setLastPerformed(lastPerformedByCanonical(rows, aliasIndex.toCanonical)); })
-      .catch(() => {});
+      // The last-performed column is decoration: on a failed load it stays blank.
+      .catch(err => console.warn('[apex] last-performed load failed:', err));
     return () => { cancelled = true; };
   }, [aliasIndex]);
 

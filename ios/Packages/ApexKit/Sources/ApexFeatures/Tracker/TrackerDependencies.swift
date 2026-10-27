@@ -1,12 +1,13 @@
 import ApexActivity
 import ApexCore
 import ApexHealth
+import ApexSpeech
 import Foundation
 
 /// What the tracker needs from the app: the client, the read cache, the write
-/// queue, the clock, the Live Activity (W12) and Apple Health (W16). Built once
-/// by `AppModel` per signed-in user (the queue store is per owner) and handed to
-/// the Schedule tab.
+/// queue, the clock, the Live Activity (W12), Apple Health (W16) and speech
+/// recognition (W17). Built once by `AppModel` per signed-in user (the queue
+/// store is per owner) and handed to the Schedule tab.
 public struct TrackerServices: Sendable {
     public var client: ApexClient
     public var cache: any CacheStore
@@ -15,6 +16,12 @@ public struct TrackerServices: Sendable {
     public var activity: any TrackerActivityPublishing
     /// A finished session's workout in Apple Health; a cancel takes it back.
     public var health: any HealthWorkoutPublishing
+    /// Voice set logging (W17): the on-device recognizer behind the tracker's
+    /// microphone. `NoSpeechRecognizer` means no microphone is shown at all.
+    public var speech: any SpeechRecognizing
+    /// The voice journal (W17): transcripts and outcomes, never audio. The
+    /// app's is a file; tests and previews get memory.
+    public var journal: any VoiceJournalStoring
     /// The running session, for anything outside the cover that has to say so
     /// — today the Day view's card (ux-review §3.4). One per signed-in user,
     /// like the queue, because it dies with the services that hold it.
@@ -23,6 +30,7 @@ public struct TrackerServices: Sendable {
     public init(
         client: ApexClient, cache: any CacheStore, queue: WriteQueue, clock: any ApexClock = SystemClock(),
         activity: any TrackerActivityPublishing = NoActivityPublisher(), health: any HealthWorkoutPublishing = NoHealthPublisher(),
+        speech: any SpeechRecognizing = NoSpeechRecognizer(), journal: any VoiceJournalStoring = MemoryVoiceJournalStore(),
         live: LiveSessionStore = LiveSessionStore()
     ) {
         self.client = client
@@ -31,6 +39,8 @@ public struct TrackerServices: Sendable {
         self.clock = clock
         self.activity = activity
         self.health = health
+        self.speech = speech
+        self.journal = journal
         self.live = live
     }
 }

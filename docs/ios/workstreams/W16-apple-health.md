@@ -2,7 +2,7 @@
 
 **Machine:** both (M0, M2b, M3b Linux · M1, MT, M2i, M3i, M4 Mac) · **Depends on:** W4, W11, W12;
 1.0 App Review approval before M1 merges · **Unblocks:** Apple Watch companion (later)
-**Status:** not started — brief drafted 2026-10-14 (D-056 supersedes D-018)
+**Status:** in progress — M1 (#430) and MT (#438) shipped in 1.1.0 (561); M0 landed (phase59, #469, in production); M2b landed (#472); M3b in review; then the privacy bump and M2i, then M3i. Brief drafted 2026-10-14 (D-056 supersedes D-018)
 
 ## Goal
 Apex is a citizen of the Apple Health ecosystem: a workout finished in the tracker shows up in
@@ -135,7 +135,7 @@ Acceptance:
 - [x] Smoke leg on `-apexMockTermsStale`; snapshot of the sheet.
 - [ ] In a released build that most testers have installed **before** `PRIVACY_VERSION` moves.
 
-### M0 — Migration `phaseN_apple_health.sql` (one file for M2 and M3) · Linux · HELD
+### M0 — Migration `phase59_apple_health.sql` (one file for M2 and M3) · Linux · HELD
 Claim `N` with `scripts/next-phase.sh` at PR time. SQL before code; the account export reads
 `daily_metrics` the moment this deploys, so the table must exist in prod first.
 - `provider_connections.provider` CHECK → `IN ('coros','apple')`; `+ categories jsonb NOT NULL
@@ -157,6 +157,12 @@ Acceptance:
       clean; `prod-schema-check` exit 0 after Shane pastes it.
 
 ### M2b — Backend: Health workouts in as provider `apple` · Linux
+(Also in scope, from the M0 review: `provider_connections` is redacted whole from the account
+export as "Watch-provider OAuth tokens", but an `apple` row holds no token and its `categories`
+are the athlete's Health consent. Export a summary without token columns — provider, status,
+`categories`, `connected_at` — the way `mcpTokenSummary` exports token metadata, and reword
+the redaction note.)
+
 The phone *is* the provider: activities arrive in the body and there is no token
 (`handleSyncAction` skips `getFreshAccessToken` for `apple`).
 Contract — all `POST /api/provider-sync` (JWT; bucket `providerSync` 60/h; `client:'ios'`
@@ -225,16 +231,19 @@ Scope:
 - Docs: `backend-changes.md` W16 section.
 
 Acceptance:
-- [ ] `provider-sync.test.ts`: apple connect / set-categories / status / disconnect / client
-      gate / category gate; `connect-start` and `set-auto-sync` refused for apple.
-- [ ] New `apple-activity.test.ts`: parser bounds; the mapper table including the
-      "Traditional Strength" trap.
-- [ ] `integration/provider-sync.integration.test.ts`: apple fill, create, skip, replay; a
+- [x] `provider-sync.test.ts`: apple connect / set-categories / status / disconnect / client
+      gate / category gate; `connect-start` and `set-auto-sync` refused for apple. (In
+      `provider-sync-apple.test.ts`, with a fake that keeps one row per provider.)
+- [x] New `apple-activity.test.ts`: parser bounds; the mapper table including the
+      "Traditional Strength" trap. The table is the iOS 26.5 SDK's raw values, printed on a Mac.
+- [x] `integration/provider-sync.integration.test.ts`: apple fill, create, skip, replay; a
       Watch workout overlapping a finished tracker session is `duplicate`; overlapping an open
-      one is `in-progress` with no ledger row; an activity 5 days old matches its plan.
-- [ ] `edit-times` still allowed on a session with only a skipped ledger row.
-- [ ] `provider-cron.test.ts`: apple rows absent from the nightly list.
-- [ ] Fixtures: `ios/Fixtures/provider-status.json` (apple block), `provider-preview-apple.json`.
+      one is `in-progress` with no ledger row; an activity 5 days old matches its plan. (In
+      `provider-sync-apple.integration.test.ts`; no stub needed, the body is the provider.)
+- [x] `edit-times` still allowed on a session with only a skipped ledger row.
+- [x] `provider-cron.test.ts`: apple rows absent from the nightly list. (Proved against the
+      stack in `provider-sync-apple.integration.test.ts`: `listAutoSyncConnections` returns none.)
+- [x] Fixtures: `ios/Fixtures/provider-status.json` (apple block), `provider-preview-apple.json`.
 
 **Privacy bump (approved by Shane 2026-10-14; after M2b merges, after MT is adopted, before M2i ships).**
 `legal/privacy-v2.md` + `PRIVACY_VERSION` in `src/lib/legal/versions.ts` — one bump, with text
@@ -311,6 +320,9 @@ GET  /api/daily-metrics?start&end (≤ 400 days) → { days }
 - **Body weight never moves backwards.** `bodyMassLb` writes `profiles.body_weight_lb` +
   `body_weight_updated_at` + `body_weight_source='apple'` only when `bodyMassAt` is newer than
   `body_weight_updated_at`; a backfilled or older sample leaves a newer manual entry alone.
+  phase59's CHECK allows exactly `'user'` and `'apple'`, and stamped every weight entered before
+  it as `'user'` at the row's `updated_at`, so a NULL `body_weight_updated_at` means no body
+  weight at all — a sample then writes.
 - `GET /api/profile` already returns `weightUnit` and `bodyWeightLb` (`profile.ts:125-126`); it
   gains `bodyWeightUpdatedAt` and `bodyWeightSource`. `PATCH body_weight_lb` stamps
   `updated_at = now()` and `source='user'`.
@@ -330,11 +342,13 @@ Scope:
   for M3; HR-derived load later).
 
 Acceptance:
-- [ ] `daily-metrics.test.ts` (merge, null-clears, category gate, body-weight recency),
+- [x] `daily-metrics.test.ts` (merge, null-clears, category gate, body-weight recency),
       `coach-physiology.test.ts`, `physiology.test.ts`, `profile.test.ts`, `router.test.ts`,
-      `account.test.ts` green.
+      `account.test.ts` green. (Merge, null-clears, consent and recency against the stack in
+      `integration/daily-metrics.integration.test.ts`; the daily lines in
+      `src/lib/physiology/__tests__/daily.test.ts`.)
 - [ ] `eval-analyst` run before merge — prompt text moves and the gate baseline is HELD.
-- [ ] Fixtures: `daily-metrics.json`; `profile.json` regenerated.
+- [x] Fixtures: `daily-metrics.json`; `profile.json` regenerated.
 
 ### M3i — iOS: daily metrics + body weight both ways · Mac
 Backend contract consumed: M3b. After M2i (server toggles, health lane).

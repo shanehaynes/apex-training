@@ -509,8 +509,10 @@ export async function applyEditTimes(
       .eq('user_id', userId).eq('event_id', eventId).eq('event_date', eventDate).eq('is_autofilled', false),
     supabase.from('workout_cardio_logs').select('event_id', { count: 'exact', head: true })
       .eq('user_id', userId).eq('event_id', eventId).eq('event_date', eventDate).eq('is_autofilled', false),
+    // A declined Health import ("Don't import", phase59) wrote nothing to the
+    // session, so it never locks its times.
     supabase.from('provider_activity_imports').select('event_id', { count: 'exact', head: true })
-      .eq('user_id', userId).eq('event_id', eventId).eq('event_date', eventDate),
+      .eq('user_id', userId).eq('event_id', eventId).eq('event_date', eventDate).neq('mode', 'skipped'),
   ]);
   const failed = [sets, cardio, imports].find(r => r.error);
   if (failed?.error) {

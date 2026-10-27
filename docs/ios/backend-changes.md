@@ -425,7 +425,7 @@ The caller's threads for one coach surface, newest activity first, capped at 20.
 ```
 
 ### `GET /api/coach-conversations?id=<uuid>`
-One thread's messages, oldest first, capped at the same 80 `/api/chat` accepts.
+One thread's messages, oldest first, capped at the same 160 `/api/chat` accepts (`api/_lib/coach/limits.ts`).
 
 ```jsonc
 {
@@ -444,7 +444,7 @@ One thread's messages, oldest first, capped at the same 80 `/api/chat` accepts.
 ### `POST /api/coach-conversations { mode, title? }` · `{ id, messages: [] }`
 The two POSTs are told apart by the body: `messages` present is an append, absent is a create.
 An append stores the batch and bumps `updated_at`; `413 Conversation too large` once the thread
-would pass 80 messages or the batch passes 400 KB — the same caps `api/chat.ts:179` enforces,
+would pass 160 messages or the batch passes 400 KB — the same caps `api/chat.ts` enforces (`api/_lib/coach/limits.ts`),
 moved to where the growth happens. Each message is `{ role, api_content, display_text, kind }`
 and must carry at least one of `api_content` / `display_text`.
 
@@ -494,11 +494,12 @@ terms (`AppModel.syncTimezone`).
 
 ## W16 — Apple Health (planned, D-056)
 Full contracts in [workstreams/W16-apple-health.md](workstreams/W16-apple-health.md); landing
-order M0 → M2b → M3b. Nothing here has landed yet. The privacy-version bump that comes with
+order M0 → M2b → M3b. M0 landed (phase59, #469, applied to production); M2b landed (#472); M3b is
+in review. The privacy-version bump that comes with
 M2b waits for an iOS build that can re-accept terms while signed in (W16 MT): a bump answers
 403 `terms-acceptance-required` on every JWT route.
 
-### Migration `phaseN_apple_health.sql` (M0)
+### Migration `phase59_apple_health.sql` (M0)
 `provider_connections.provider` CHECK widened to `('coros','apple')` and `+ categories jsonb`;
 `provider_activity_imports.mode` gains `'skipped'`; new service-role-only `daily_metrics`
 (PK `user_id, date, provider`); `profiles + body_weight_updated_at, body_weight_source`.
@@ -514,6 +515,21 @@ earliest start, not the watermark; an activity overlapping a finished tracker se
 ignored by the edit-times import check. Idempotent on the ledger PK
 `(user_id, 'apple', activityId = HKWorkout.uuid)`. Fixtures `provider-status.json` (apple block),
 `provider-preview-apple.json`.
+As built: `preview` answers `{ proposals, skipped:[{ activityId, reason }] }` for apple (COROS
+unchanged, `{ proposals }`), reasons `already-imported | own-app | out-of-window | in-progress |
+duplicate`; `apply` refuses a fill or create of a set-aside workout with that reason in `errors`
+(`skip` is always allowed) and answers `skipped` beside `created`/`filled`; `ingest` ledgers
+`duplicate` and `own-app` as skipped, never `in-progress`. Every apple action but `disconnect`
+needs `client:'ios'`. A finished session is a `duplicate` only when the two share at least half
+of the shorter interval; a zero-length session (quick-complete, a coach log) never matches;
+sessions are found by when they ran (`started_at`), not by their occurrence's date. A tracker
+session opened and never finished counts as in progress for 12 h, then is abandoned and
+blocks nothing. `summaryExtras` cannot set any field the server computes or the coach reads
+(`avgHr`, `durationSec`, `trainingLoad`, `hrv`, `hrZones`, …). **Known gap:** dedup is Apple-side
+only — a COROS import that arrives after the Apple copy of the same workout still creates a
+second one (COROS is unchanged by M2b); a follow-up brief. The
+account export gains `providerConnectionSummary` (provider, status, dates, Health categories —
+no tokens).
 
 ### `POST` / `GET /api/daily-metrics` + profile weight fields (M3b)
 Upsert per `(user_id, date, provider)`, absent fields untouched, `null` clears; fields from an
@@ -523,6 +539,34 @@ off category are 409 `category-off`. `bodyMassLb` writes `profiles.body_weight_l
 `bodyWeightUpdatedAt`, `bodyWeightSource`. The coach's
 `<physiology>` block gains sleep, resting HR, HRV (SDNN), steps and body mass lines. Fixtures
 `daily-metrics.json`, `profile.json`.
+As built: `POST` answers `{ ok, upserted, profileBodyWeightLb? }`; 409 `{ error:'not-connected' }`
+or `{ error:'category-off', category }`, checked for the whole batch before anything is
+written; 400s name the field and day. Each day is its own upsert (a batch would write nulls into
+fields a day did not carry). The body-weight write is one conditional `UPDATE` (newer than the
+stored stamp, or no stamp), so racing writes cannot move it backwards. `PATCH /api/profile
+body_weight_lb` stamps `body_weight_updated_at` = now and `body_weight_source` = `'user'`. The
+coach reads `daily_metrics` from the five-week window and computes over 28 days, **only for what
+the athlete has switched on now** — a category turned off, or a disconnect without purging, stops
+its stored values reaching the prompt at once (the same read feeds the nightly reflection and the
+weekly review). Steps means use completed days only; HRV prefers the daily SDNN while it has a
+reading in the last 7 days, never mixing it with activity readings (`HrvSummary.source:'daily'`);
+with no daily data the panel is byte-identical to before. Clearing a field with `null` needs no
+consent; `sources` needs no category of its own; instants are ISO with a zone and not in the
+future. Clearing the profile weight (`body_weight_lb: null`) clears its provenance too.
+
+## Open sign-up — Create account (docs/specs/open-signup.md M3; server landed in #452 and #477)
+
+No new endpoint; the app consumes the web's.
+
+### `POST /api/signup { email, captchaToken, ageConfirmed }`
+Unauthenticated (no account yet), `Content-Type: application/json` required. `ageConfirmed`
+must be the JSON boolean `true`; `captchaToken` is a Turnstile token, which the app gets from
+the web's `/signup-check` page in a `WKWebView` (the token arrives over the `turnstile` message
+handler). 200 `{ status: 'pending' }` for every address it accepts — new, already invited,
+throttled or a confirmed account alike — so the app can only say "check your inbox"; every
+refusal (400, 429, 500, 503) is `{ error }` with the sentence to show. The mailed link opens set-password through the existing
+`apextraining://auth` hand-off. The app mirrors the handler's `EMAIL_RE` in
+`SignUp.isPlausibleEmail`, so an address the server refuses never reaches the check.
 
 ## Not in this roadmap (Backlog)
 `device_tokens` migration + `/api/devices` + APNs sender (push).

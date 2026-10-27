@@ -1,5 +1,5 @@
 import { useContext, useRef, useState } from 'react';
-import { Minus, Pencil, Plus, Repeat2, X } from 'lucide-react';
+import { Minus, Plus, Repeat2, X } from 'lucide-react';
 import type { AscentStyle, ExerciseCategory, ExerciseDefinition, PlannedSet } from '../../types/workout';
 import type { TrackedExercise, TrackedSet, CardioActuals, LastSetActuals } from '../../lib/tracking/plan';
 import { FIELD_ORDER, SET_FIELD_TO_LOG_FIELD, inputFields, nextLogFields, type SetField } from '../../lib/tracking/fields';
@@ -12,6 +12,7 @@ import { AuthContext } from '../../context/auth';
 import { knownUnitContext, withExplicitUnit } from '../../lib/tracking/weight';
 import ExercisePicker from '../modal/ExercisePicker';
 import DurationInput from './DurationInput';
+import ExerciseNotes, { type NoteSection } from './ExerciseNotes';
 import { selectOnNextFrame } from './selectOnFocus';
 import '../../styles/climbing.css';
 import '../../styles/percent-1rm.css';
@@ -351,12 +352,13 @@ export default function TrackerExercise({
   // realtime refetch, and an ad-hoc entry with no definition keeps them for
   // this sitting only.
   const [addedHere, setAddedHere] = useState<SetField[]>([]);
-  // The subtitle is the library definition's technique notes, so it follows
-  // the movement into every workout. The draft is null while not editing;
-  // savedSubtitle covers the gap until the realtime refetch brings it back.
-  const [subtitleDraft, setSubtitleDraft] = useState<string | null>(null);
-  const [savedSubtitle, setSavedSubtitle] = useState<string | null>(null);
-  const [noteOpen, setNoteOpen] = useState(false);
+  // Two notes, one panel (ExerciseNotes): "every time" is the library
+  // definition's technique notes, so it follows the movement into every
+  // workout; savedEveryTime covers the gap until the realtime refetch brings
+  // it back. "This workout only" is tracked.sessionNote. editingNote is the
+  // section the editor is open on, null while it reads as the notes.
+  const [savedEveryTime, setSavedEveryTime] = useState<string | null>(null);
+  const [editingNote, setEditingNote] = useState<NoteSection | null>(null);
   // Log-field writes go out one after another, each carrying every field
   // added so far: built from the definition alone, a second tap before the
   // realtime refetch would send a stale array and drop the first.
@@ -369,8 +371,8 @@ export default function TrackerExercise({
   if (scopeId !== tracked.exercise.definitionId) {
     setScopeId(tracked.exercise.definitionId);
     setAddedHere([]);
-    setSubtitleDraft(null);
-    setSavedSubtitle(null);
+    setSavedEveryTime(null);
+    setEditingNote(null);
   }
 
   const { exercise, substitutedFrom } = tracked;
@@ -380,29 +382,35 @@ export default function TrackerExercise({
   const fields = inputFields(tracked, definition, addedHere);
   const addable = isClimb ? [] : FIELD_ORDER.filter(f => !fields.includes(f));
 
-  const showNote = noteOpen || !!tracked.sessionNote;
-  const noteButton = showNote ? null : (
+  const everyTime = savedEveryTime ?? definition?.techniqueNotes ?? exercise.techniqueNotes ?? '';
+  // Chained like the log-field writes, so two quick edits land in order and
+  // the later text is the one the library keeps; only the latest edit's
+  // failure rolls the card back.
+  const everyTimeWrites = useRef<Promise<unknown>>(Promise.resolve());
+  const everyTimeEdit = useRef(0);
+  const saveEveryTime = (next: string) => {
+    if (!definition) return;
+    const { id } = definition;
+    const edit = ++everyTimeEdit.current;
+    setSavedEveryTime(next);
+    everyTimeWrites.current = everyTimeWrites.current
+      .then(() => updateDefinition({ id, fields: { techniqueNotes: next } }))
+      .then(ok => { if (!ok && edit === everyTimeEdit.current) setSavedEveryTime(null); });
+  };
+  // With no note of either kind the panel has nothing to show, so the card
+  // offers one chip beside "Add set"; once a note exists the panel itself
+  // carries the way to edit it or add the other kind.
+  const hasAnyNote = !!everyTime.trim() || !!tracked.sessionNote.trim();
+  const noteButton = hasAnyNote || editingNote ? null : (
     <button
       className="tracker-add-set"
-      onClick={() => setNoteOpen(true)}
-      aria-label={`Add a note on ${exercise.name} for this workout`}
-      title="Stays with this workout only"
+      onClick={() => setEditingNote('thisWorkout')}
+      aria-label={`Add a note on ${exercise.name}`}
+      title="For this workout only, or saved to the exercise for every workout"
     >
       <Plus size={13} strokeWidth={1.5} /> note
     </button>
   );
-
-  const subtitle = savedSubtitle ?? definition?.techniqueNotes ?? exercise.techniqueNotes ?? '';
-  const commitSubtitle = () => {
-    if (subtitleDraft === null || !definition) return;
-    const next = subtitleDraft.trim();
-    setSubtitleDraft(null);
-    if (next === subtitle) return;
-    setSavedSubtitle(next);
-    void updateDefinition({ id: definition.id, fields: { techniqueNotes: next } }).then(ok => {
-      if (!ok) setSavedSubtitle(null);
-    });
-  };
 
   const addField = (field: SetField) => {
     setAddedHere(prev => [...prev, field]);
@@ -448,16 +456,6 @@ export default function TrackerExercise({
             <Repeat2 size={14} strokeWidth={1.5} />
           </button>
         )}
-        {definition && !subtitle && subtitleDraft === null && (
-          <button
-            className="tracker-exercise__swap"
-            onClick={() => setSubtitleDraft('')}
-            aria-label={`Add a subtitle for ${exercise.name}`}
-            title="Add a subtitle, shown with this exercise in every workout"
-          >
-            <Pencil size={13} strokeWidth={1.5} />
-          </button>
-        )}
         {onRemove && (
           <button
             className="tracker-exercise__swap"
@@ -490,39 +488,22 @@ export default function TrackerExercise({
         </p>
       )}
       {specNote && <p className="tracker-exercise__notes">{specNote}</p>}
-      {subtitleDraft !== null ? (
-        <input
-          className="tracker-input"
-          style={{ fontFamily: 'inherit', marginBottom: 8 }}
-          autoFocus
-          maxLength={500}
-          aria-label={`Subtitle for ${exercise.name}, shown in every workout`}
-          placeholder="e.g. false grip, rings at chest height"
-          value={subtitleDraft}
-          onChange={e => setSubtitleDraft(e.target.value)}
-          onBlur={commitSubtitle}
-          onKeyDown={e => {
-            if (e.key === 'Enter') e.currentTarget.blur();
-            if (e.key === 'Escape') setSubtitleDraft(null);
-          }}
-        />
-      ) : definition && subtitle ? (
-        <button
-          type="button"
-          className="tracker-exercise__notes"
-          style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', padding: 0, cursor: 'pointer', textAlign: 'left' }}
-          onClick={() => setSubtitleDraft(subtitle)}
-          aria-label={`Edit subtitle for ${exercise.name}`}
-          title="Shown with this exercise in every workout"
-        >
-          {subtitle} <Pencil size={11} strokeWidth={1.5} aria-hidden="true" />
-        </button>
-      ) : subtitle ? (
-        <p className="tracker-exercise__notes">{subtitle}</p>
-      ) : null}
-      {exercise.notes && exercise.notes !== subtitle && (
+      {exercise.notes && exercise.notes !== everyTime && (
         <p className="tracker-exercise__notes">{exercise.notes}</p>
       )}
+      <ExerciseNotes
+        key={exercise.definitionId ?? exercise.id}
+        exerciseName={exercise.name}
+        everyTime={everyTime}
+        canEditEveryTime={!!definition}
+        inLibrary={!!exercise.definitionId}
+        onSaveEveryTime={saveEveryTime}
+        thisWorkout={tracked.sessionNote}
+        onThisWorkoutChange={onNoteChange}
+        editing={editingNote}
+        onEdit={setEditingNote}
+        onDone={() => setEditingNote(null)}
+      />
 
       {tracked.isCardio && tracked.cardio ? (
         <div className="tracker-cardio">
@@ -618,21 +599,6 @@ export default function TrackerExercise({
             {noteButton}
           </div>
         </>
-      )}
-
-      {showNote && (
-        <textarea
-          className="tracker-input"
-          style={{ fontFamily: 'inherit', height: 'auto', padding: '6px 10px', marginTop: 8, resize: 'vertical' }}
-          rows={2}
-          maxLength={2000}
-          autoFocus={noteOpen && !tracked.sessionNote}
-          aria-label={`Note on ${exercise.name} for this workout only`}
-          placeholder="Today only — e.g. left shoulder pinchy on set 3"
-          value={tracked.sessionNote}
-          onChange={e => onNoteChange(e.target.value)}
-          onBlur={() => { if (!tracked.sessionNote.trim()) setNoteOpen(false); }}
-        />
       )}
 
       {picking && (

@@ -1187,3 +1187,78 @@ writes it on every load; the app does the same so an iOS-only athlete stops defa
   one more after a trip (also through `scenePhase(.active)`), no profile read once confirmed,
   none behind the terms gate and one after accepting. A UI smoke could
   not observe a request at all, so the brief's `-apexMockProfileTimezone` flag was not added.
+
+## D-058 · Set metadata on iOS: the web's controls, phone-shaped, and no volume line yet
+**Status:** decided · session call · 2026-10-16
+The phone edits per-set metadata (phase55) the way the web's #422 tracker does, and saves the
+same rows (`setToRow`'s keys byte for byte: `rpe` and `is_warmup` on every row, `ascent_style` and
+`attempts` only on a pitch's).
+- **Warm-up is the set number's tap target**, as on the web: the number at rest, a W once marked.
+- **RPE is a device preference**, not a profile column — the web keeps it in localStorage — under
+  the same key (`apex.tracker.rpe`) in UserDefaults, switched in You → Training. The field is in
+  the keyboard's Next order after its set's fields, and settles on leaving it (`normalizeRpeText`).
+  Unlike the web, a decimal comma is read as a point — a comma locale's keypad types "7,5".
+- **The set's metadata goes on lines of its own** under the row: the rating ("RPE [ ]"), and for
+  a pitch the style menu and attempts stepper. A 48pt rating beside weight and reps overflowed
+  375–390pt phones and clipped any three-field row; the style menu and stepper do not fit beside
+  a grade either. A boulder offers no "Followed". The warm-up toggle draws 22pt wide and takes
+  taps across 44.
+- **The summary has no volume line.** The web's "Volume" sums performed sets through its weight
+  parser; iOS has no port of that parser, so the brief's "warm-up excluded from the summary
+  volume" has nothing to apply to here. The summary tags warm-ups and ratings instead, and the
+  port is the next brief (STATUS Next up).
+- **Update 2026-10-16:** the port landed (branch `feat/ios-session-volume`): ApexCore `Weight`
+  and the summary's "Volume" line, warm-ups excluded through `Weight.isPerformed`.
+
+## D-059 · Voice set logging: on-device Speech, a Swift-origin parser on a JSON fixture, applied through the typed path
+**Status:** decided · planning session (Shane chose the platform and the commit policy) · 2026-10-20
+W17 lets a user log a set by voice in the tracker — tap a mic, say "bench 225 for 5" — with no
+LLM, no tokens and no network: Apple's Speech framework runs with `requiresOnDeviceRecognition`,
+and a deterministic Swift parser turns the transcript into a set. Brief: [W17](workstreams/W17-voice-set-logging.md).
+- **iOS native only.** A Home Screen web app on iOS cannot use speech recognition (WebKit bug
+  225298, "resolved later"), and `vercel.json` denies the microphone; the web gets nothing in W17
+  and a later port would read W17's fixture.
+- **On-device only; nothing said leaves the phone.** The privacy manifest and the App Privacy
+  answers do not change (on-device-only processing is not "collected"; the logged set is the
+  fitness data already declared). A server fallback is a separate decision (D-060 if ever), never
+  a silent flag flip. A device or locale without on-device support shows no mic; the real runtime
+  failures (Dictation off, assets missing) are mapped to a Settings line, not hidden.
+- **The parser and resolver live in ApexCore** as utterance-time logic that runs before any
+  request exists — the D-023/D-024 rule, extended: the grammar's contract is a hand-authored JSON
+  fixture under the ApexCore test target that any later web implementation must pass, and the
+  fixture only grows. This entry also records, retroactively, that `NearMatch` is a port of the
+  web's near-match table, and that the voice resolver's `voiceKey` (strip punctuation,
+  singularise) deliberately differs from the picker's `normalize`, because speech carries no
+  punctuation or casing.
+- **Exercise names resolve on the phone the way the picker already does**: exact on name and
+  alias; a near match is offered, never applied. Containment inside today's session ("bench" →
+  Bench Press, when it is the only one) is auto-applied because it changes no identity. **An
+  exact library hit asks first in v1** and is promoted to auto-apply only after the M3 exit shows
+  ≥ 20 library confirmations with zero wrong picks.
+- **Log immediately with Undo** (Shane's call): the fastest path between sets; the strip always
+  names the exercise and the values; Undo lasts until the next logged set, the next mic tap or
+  15 s, and never auto-dismisses under VoiceOver.
+- **Typed parser values, one storage formatter.** A bare spoken weight is stored bare (iOS
+  typed-entry parity — `setToRow` sends what was typed), a spoken unit is kept, durations go
+  through `DurationBuffer.formatSeconds`, RPE snaps to halves. (The web suffixes the profile unit
+  at send; closing that iOS gap for both paths is a follow-up, not W17's.)
+- **The spoken set goes through `TrackerEditor` like keystrokes**: the ghost is cleared with a new
+  `clearShadow` (never committed — nothing the user did not say is logged), fields are set, one
+  debounced save. `revert` is deterministic (a row that had actuals is re-sent; an empty one is
+  deleted, never both), and the replay of a queued save resets a removed planned row instead of
+  deleting it, so an offline relaunch after Undo keeps the row.
+- **`ApexSpeech` is an ApexKit product like `ApexHealth`**: audio and recognition callbacks
+  arrive off-main, so it is not MainActor-default (`check-deinits.sh` pins that count);
+  `Speech`, `AVFoundation` and `AVFAudio` join the ApexCore import ban. Audio session
+  `.playAndRecord` / `.measurement` / `[.duckOthers, .allowBluetoothA2DP, .defaultToSpeaker]` — no
+  HFP in v1 (it degrades music); the end of an utterance is decided in the model over the test
+  clock with grammar-aware silence windows, not in the adapter.
+- **Ships dark** behind You → Training's "Log sets by voice" (`apex.tracker.voice`, default off),
+  so W17 rides any TestFlight or store build before it is proven; a transcript-only voice journal
+  (≤ 200 entries, share-sheet export, never audio) is the dogfood instrument, with numeric targets,
+  a device scorecard, an exit criterion and a budget in the brief. `MARKETING_VERSION` never
+  moves in a W17 PR.
+- Rejected: an LLM parse (tokens, network, non-deterministic); Siri / App Intents (leaves the
+  tracker); server-side recognition (the offline premise); Web Speech on the web (no Home Screen
+  support on iOS); the iOS 26 `SpeechAnalyzer` adapter in v1 (`DictationTranscriber` uses the same
+  on-device models; an M3 candidate for its `.phrase` preset and the custom language model).

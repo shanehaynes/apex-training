@@ -1,11 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { downsample } from '../_lib/providers/streams';
 import {
   ACTIVITY_DETAIL_TOOL,
   SPORT_RECORDS_TOOL,
   buildDateArgs,
-  downsample,
   normalizeActivity,
   parseDetailText,
   parseSportRecordsText,

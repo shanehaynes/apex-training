@@ -6,5 +6,14 @@
     "autoSync": true,
     "pendingFillCount": 0,
     "configured": true
+  },
+  "apple": {
+    "status": "connected",
+    "connectedAt": "<timestamp>",
+    "lastSyncedAt": null,
+    "categories": {
+      "workoutsWrite": true,
+      "workoutsRead": true
+    }
   }
 }

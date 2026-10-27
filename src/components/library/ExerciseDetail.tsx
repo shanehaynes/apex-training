@@ -43,6 +43,7 @@ export default function ExerciseDetail({ definition, onBack, onClose }: Props) {
   const { definitions, events } = useSchedule();
   const { weightContext } = useAuth();
   const [stats, setStats] = useState<ExerciseStats | null>(null);
+  const [historyFailed, setHistoryFailed] = useState(false);
   const [editing, setEditing] = useState(false);
   // Recharts wants concrete colours: read the tokens rather than paste them.
   const tickInk = cssToken('--text-muted');
@@ -54,20 +55,26 @@ export default function ExerciseDetail({ definition, onBack, onClose }: Props) {
   );
 
   useEffect(() => {
-    let cancelled = false;
+    // Aborting stops the paged reads too, not just the state updates.
+    const abort = new AbortController();
+    setHistoryFailed(false);
     const index = buildAliasIndex(definitions.values());
     const spellings = index.spellings.get(definition.canonicalName) ?? [definition.canonicalName];
-    fetchExerciseHistory(spellings)
+    fetchExerciseHistory(spellings, abort.signal)
       .then(({ setRows, cardioRows }) => {
-        if (cancelled) return;
+        if (abort.signal.aborted) return;
         setStats(buildExerciseStats(
           canonicalizeLogNames(setRows, index),
           canonicalizeLogNames(cardioRows, index),
           { ctx: weightContext },
         ));
       })
-      .catch(() => { if (!cancelled) setStats(buildExerciseStats([], [])); });
-    return () => { cancelled = true; };
+      .catch(err => {
+        if (abort.signal.aborted) return;
+        console.warn('[apex] exercise history load failed:', err);
+        setHistoryFailed(true);
+      });
+    return () => abort.abort();
   }, [definition, definitions, weightContext]);
 
   const trendData = stats?.trend ?? [];
@@ -109,7 +116,9 @@ export default function ExerciseDetail({ definition, onBack, onClose }: Props) {
           <p className="library-detail__notes">{definition.techniqueNotes}</p>
         )}
 
-        {stats === null ? (
+        {stats === null && historyFailed ? (
+          <p className="library-empty" role="alert">Couldn&apos;t load history — close and reopen to try again.</p>
+        ) : stats === null ? (
           <p className="library-empty">Loading history…</p>
         ) : stats.totalSessions === 0 ? (
           <p className="library-empty">No logged history yet.</p>

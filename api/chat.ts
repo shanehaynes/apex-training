@@ -19,6 +19,7 @@ import { executeReadTool, readToolLabel, readToolSchemas } from './_lib/coach/re
 import { DOCTRINE_TOPICS, readDoctrine, readDoctrineToolSchema } from '../src/lib/coach/doctrine/index.js';
 import { MEMORY_TOOL, memoryReadChip, memoryToolSchema } from '../src/lib/coach/memory.js';
 import { viewPath } from './_lib/coach/memory.js';
+import { CONVERSATION_MAX_BYTES, CONVERSATION_MAX_MESSAGES } from './_lib/coach/limits.js';
 
 // Server-side proxy for the coach chat, running on the CALLER'S OWN
 // Anthropic key (server-only user_api_keys table — no key ever reaches the
@@ -363,7 +364,7 @@ export function injectVolatile(
     while (after < blocks.length && blocks[after].type === 'tool_result') after++;
     content = [...blocks.slice(0, after), block, ...blocks.slice(after)];
   }
-  return [...messages.slice(0, at), { ...target, content }, ...messages.slice(at + 1)];
+  return [...messages.slice(0, at), { ...target, role: 'user', content }, ...messages.slice(at + 1)];
 }
 
 function lastIndexOfRole(messages: Anthropic.MessageParam[], role: Anthropic.MessageParam['role']): number {
@@ -452,15 +453,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return;
   }
 
-  // Sanity bounds well above legitimate usage — a request outside them is a
-  // bug or abuse, not a long conversation. The count was 80 before the sight
-  // loop; a turn that reads twice now stores two assistant/user pairs on top
-  // of its own, so the same conversation trips a count bound about three
-  // times sooner. 160 keeps the ~10x headroom the old bound had. The byte
-  // cap is unchanged — read results are the bytes that grow, and 400 KB is
-  // still far past any real thread. The real fix is context editing /
-  // compaction of old tool results, not a higher number (FOLLOW-UPS).
-  if (body.messages.length > 160 || JSON.stringify(body.messages).length > 400_000) {
+  // Sanity bounds well above legitimate usage (why these numbers: limits.ts).
+  if (
+    body.messages.length > CONVERSATION_MAX_MESSAGES ||
+    JSON.stringify(body.messages).length > CONVERSATION_MAX_BYTES
+  ) {
     res.status(413).send('Conversation too large');
     return;
   }

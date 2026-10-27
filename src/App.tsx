@@ -12,6 +12,7 @@ import AppShell from './components/layout/AppShell';
 import LoginView from './components/auth/LoginView';
 import SetPasswordView from './components/auth/SetPasswordView';
 import ConnectApproval from './components/auth/ConnectApproval';
+import SignupCheckPage from './components/auth/SignupCheckPage';
 import LegalPage from './components/legal/LegalPage';
 import TermsGate from './components/legal/TermsGate';
 import { LEGAL_DOCUMENTS } from './lib/legal/versions';
@@ -84,6 +85,16 @@ export default function App() {
     return (
       <ErrorBoundary>
         <LegalPage slug={legal.slug} />
+      </ErrorBoundary>
+    );
+  }
+
+  // The iOS app's human check (SignupCheckPage) is for a visitor with no
+  // account yet, so it renders above AuthProvider as well.
+  if (window.location.pathname === '/signup-check') {
+    return (
+      <ErrorBoundary>
+        <SignupCheckPage />
       </ErrorBoundary>
     );
   }

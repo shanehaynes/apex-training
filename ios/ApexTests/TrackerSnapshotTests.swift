@@ -3,6 +3,7 @@ import SnapshotTesting
 import SwiftUI
 import XCTest
 import ApexFeatures
+import ApexSpeech
 import ApexUI
 
 /// Opt-in, not a CI gate (see ScheduleSnapshotTests for why):
@@ -98,7 +99,9 @@ final class TrackerSnapshotTests: XCTestCase {
     }
 
     @MainActor
-    private func model(finished: Bool = false, scoring: String? = nil, full: Bool = false) async -> (TrackerModel, FixtureTransport) {
+    private func model(
+        finished: Bool = false, scoring: String? = nil, full: Bool = false, speech: any SpeechRecognizing = NoSpeechRecognizer()
+    ) async -> (TrackerModel, FixtureTransport) {
         ApexFonts.register()
         let transport = FixtureTransport()
         transport.finished = finished
@@ -107,7 +110,7 @@ final class TrackerSnapshotTests: XCTestCase {
         let clock = TestClock(now: Date(timeIntervalSince1970: 1_790_080_920))  // 12:42 on the fixture day
         let queue = WriteQueue(store: MemoryWriteQueueStore(), client: client, clock: clock)
         let deps = TrackerDependencies(
-            services: TrackerServices(client: client, cache: MemoryCacheStore(), queue: queue, clock: clock),
+            services: TrackerServices(client: client, cache: MemoryCacheStore(), queue: queue, clock: clock, speech: speech),
             definitions: { [] },
             onCompletionChanged: { _, _, _ in }
         )
@@ -154,6 +157,22 @@ final class TrackerSnapshotTests: XCTestCase {
     func testPercentTargetAndPitchRows() async {
         let (model, _) = await model(full: true)
         snapshot(TrackerScreen(model: model, onClose: {}), named: "tracker-percent-pitch", size: CGSize(width: 393, height: 2200))
+    }
+
+    /// The #422 metadata on the full fixture: squat set 1 a warm-up (its W),
+    /// RPE on (a rating typed on set 2), and the pitch flashed in two tries.
+    @MainActor
+    func testWarmupRpeAndPitchAscent() async {
+        UserDefaults.standard.set(true, forKey: TrackerModel.rpePreferenceKey)
+        defer { UserDefaults.standard.removeObject(forKey: TrackerModel.rpePreferenceKey) }
+        let (model, _) = await model(full: true)
+        model.setRpe("8", at: SetKey(section: "exercise", exerciseId: "mx-squat", setNumber: 2))
+        let pitch = SetKey(section: "exercise", exerciseId: "mx-pitch", setNumber: 1)
+        model.stepAttempts(by: 1, at: pitch)
+        model.stepAttempts(by: 1, at: pitch)
+        snapshot(TrackerScreen(model: model, onClose: {}), named: "tracker-metadata", size: CGSize(width: 393, height: 2200))
+        // The narrowest phone iOS 17 runs on: the rating's own line keeps every row inside its card.
+        snapshot(TrackerScreen(model: model, onClose: {}), named: "tracker-metadata-375", size: CGSize(width: 375, height: 2200))
     }
 
     @MainActor
@@ -204,6 +223,25 @@ final class TrackerSnapshotTests: XCTestCase {
         snapshot(TrackerPreviews.summary(model: model, summary: unavailable), named: "summary-coach-unavailable")
     }
 
+    /// The volume line under the title (`sessionTonnage`): 120 × 3 + 115 × 3
+    /// working, with set 2's warm-up of 95 × 5 kept out — "Volume 705".
+    @MainActor
+    func testSummaryVolume() async throws {
+        let (model, _) = await model()
+        let press = { SetKey(section: "exercise", exerciseId: "fx-press", setNumber: $0) }
+        model.setValue("120 lb", .weight, at: press(1))
+        model.setValue("3", .reps, at: press(1))
+        model.setValue("115 lb", .weight, at: press(2))
+        model.setValue("3", .reps, at: press(2))
+        model.addSet(section: "exercise", exerciseId: "fx-press")
+        model.setValue("95 lb", .weight, at: press(3))
+        model.setValue("5", .reps, at: press(3))
+        model.setWarmup(true, at: press(3))
+        XCTAssertEqual(model.sessionVolume, 705)
+        await model.requestFinish(force: true)
+        snapshot(TrackerScreen(model: model, onClose: {}), named: "summary-volume")
+    }
+
     /// Planned · shadow · logged · extra · a cardio card with one ghost, plus a
     /// pending-sync strip once an edit is queued offline.
     @MainActor
@@ -216,5 +254,47 @@ final class TrackerSnapshotTests: XCTestCase {
         model.focusSet(at: SetKey(section: "exercise", exerciseId: "fx-press", setNumber: 2))
         await model.flushEdits()
         snapshot(TrackerScreen(model: model, onClose: {}), named: "tracker-pending-sync")
+    }
+
+    // MARK: - Voice (W17)
+
+    /// The strip in each state, default size and the largest accessibility
+    /// size. A pure view over the state, so no model is needed.
+    @MainActor
+    func testVoiceStripStates() {
+        ApexFonts.register()
+        let applied = VoiceApplied(keys: [SetKey(section: "exercise", exerciseId: "fx-press", setNumber: 1)], previous: [], kind: .planned)
+        let intent = SpokenIntent.log(sets: 1, values: SpokenValues(weight: SpokenWeight(value: 225), reps: 5))
+        let states: [(String, VoiceLogState)] = [
+            ("listening", .listening(partial: "fixture press 225 for", heardSpeech: true)),
+            ("applied", .applied(applied, label: "Logged Fixture Press · 225 lb × 5")),
+            ("chips", .confirming(intent, phrase: "fixture prss", candidates: [
+                SpokenExercise.Candidate(scope: .session, id: "fx-press", name: "Fixture Press", match: .near, distance: 1),
+                SpokenExercise.Candidate(scope: .library, id: "rdl", name: "Romanian Deadlift", match: .exact, distance: 0),
+            ])),
+            ("denied", .denied(reason: TrackerModel.deniedReason)),
+            ("unresolved", .unresolved(phrase: "incline press", intent: intent)),
+        ]
+        for (name, state) in states {
+            let strip = VStack(spacing: 0) {
+                VoiceStrip(state: state)
+                Spacer(minLength: 0)
+            }
+            snapshot(strip, named: "tracker-voice-\(name)", size: CGSize(width: 393, height: 120))
+            snapshot(strip.environment(\.dynamicTypeSize, .accessibility3), named: "tracker-voice-\(name)-axxxl", size: CGSize(width: 393, height: 300))
+        }
+    }
+
+    /// The header with the microphone: the toggle on and a recognizer available.
+    @MainActor
+    func testTrackerScreenWithTheMic() async {
+        let defaults = UserDefaults.standard
+        let previous = defaults.object(forKey: TrackerModel.voicePreferenceKey)
+        defaults.set(true, forKey: TrackerModel.voicePreferenceKey)
+        defer {
+            if let previous { defaults.set(previous, forKey: TrackerModel.voicePreferenceKey) } else { defaults.removeObject(forKey: TrackerModel.voicePreferenceKey) }
+        }
+        let (model, _) = await model(speech: FakeSpeechRecognizer(authorization: .authorized))
+        snapshot(TrackerScreen(model: model, onClose: {}), named: "tracker-voice-mic")
     }
 }

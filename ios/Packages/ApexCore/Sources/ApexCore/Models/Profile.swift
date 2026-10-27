@@ -33,6 +33,11 @@ public struct ProfileResponse: Codable, Sendable, Equatable {
     /// server-side with the web's own progress logic (D-008, D-035). Optional
     /// because a profile cached by an older build must still decode.
     public let onboarding: OnboardingState?
+    /// Weight entry (phase55): the unit bare numbers are typed and read in
+    /// ("lb" or "kg"), and the body weight "BW+25" resolves against, always
+    /// pounds. Optional for a cached older response; read through `weightContext`.
+    public let weightUnit: String?
+    public let bodyWeightLb: Double?
     /// The athlete's IANA time zone (`profiles.timezone`, phase58): what the
     /// server computes "today" in when no client is there to say. nil until a
     /// client has written one, and from a server older than the column.
@@ -45,7 +50,8 @@ public struct ProfileResponse: Codable, Sendable, Equatable {
         coachGoal: String? = nil, coachContext: String? = nil,
         maxHr: Int? = nil, thresholdHr: Int? = nil,
         calendarFeedUrl: String? = nil, coachModels: [CoachModelOption]? = nil,
-        onboarding: OnboardingState? = nil, timezone: String? = nil
+        onboarding: OnboardingState? = nil, timezone: String? = nil,
+        weightUnit: String? = nil, bodyWeightLb: Double? = nil
     ) {
         self.hasAnthropicKey = hasAnthropicKey
         self.anthropicKeyLast4 = anthropicKeyLast4
@@ -63,6 +69,13 @@ public struct ProfileResponse: Codable, Sendable, Equatable {
         self.coachModels = coachModels
         self.onboarding = onboarding
         self.timezone = timezone
+        self.weightUnit = weightUnit
+        self.bodyWeightLb = bodyWeightLb
+    }
+
+    /// `weightContextFromProfile`: how this athlete's weights read.
+    public var weightContext: Weight.Context {
+        Weight.Context(profileUnit: weightUnit, bodyWeightLb: bodyWeightLb)
     }
 
     /// The zone to write to the profile, or nil when there is nothing to do:

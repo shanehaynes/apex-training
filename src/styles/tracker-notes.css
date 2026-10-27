@@ -1,0 +1,118 @@
+/* ─── Tracker: an exercise's two notes (ExerciseNotes.tsx) ──────────────────
+   "Every time" (the library's technique notes) and "This workout only"
+   (workout_exercise_notes), under the exercise name. Closed, each note is a
+   tap target that opens the editor on it; open, each is a textarea with a
+   label saying where it is saved. Its own file so app.css stays untouched;
+   it builds on the tracker's .tracker-input and .tracker-add-set. */
+
+.tracker-notes {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.tracker-notes__read {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  padding: 6px 10px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color var(--duration-fast);
+}
+
+.tracker-notes__read:hover:not(:disabled) {
+  border-color: var(--text-muted);
+}
+
+.tracker-notes__read:disabled {
+  cursor: default;
+}
+
+.tracker-notes__label {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.tracker-notes__hint {
+  letter-spacing: normal;
+  text-transform: none;
+  opacity: 0.8;
+}
+
+.tracker-notes__text {
+  display: block;
+  font-size: var(--text-sm);
+  line-height: 1.5;
+  color: var(--text-secondary);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.tracker-notes__adds {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.tracker-notes__adds .tracker-add-set {
+  margin-top: 0;
+}
+
+.tracker-notes__field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.tracker-notes__input {
+  height: auto;
+  min-height: 52px;
+  padding: 6px 10px;
+  font-family: inherit;
+  line-height: 1.5;
+  resize: vertical;
+  /* Grows with a long technique note where the browser supports it. */
+  field-sizing: content;
+  max-height: 40vh;
+}
+
+.tracker-notes__actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.tracker-notes__done {
+  margin-top: 0;
+}
+
+@media (max-width: 640px) {
+  /* Anything under 16px makes iOS Safari zoom the page on focus. */
+  .tracker-notes__input {
+    font-size: 16px;
+  }
+
+  /* Thumb-sized targets mid-set. */
+  .tracker-notes__read {
+    padding: 8px 10px;
+  }
+
+  .tracker-notes__done {
+    min-height: 44px;
+    padding: 6px 18px;
+  }
+}

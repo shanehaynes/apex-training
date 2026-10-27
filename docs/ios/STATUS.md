@@ -25,25 +25,41 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
 | W13 | Release + polish | done (#190, #191, #193, #194) · **App Store: 1.0 (509) rejected 2026-10-09 — 2.1 Information Needed; reply + recording pending (app-store.md §3)** | Mac | 2026-10-09: build 10 = 1.0.0 (509) from `testflight.yml` run 37964880205 carries W15, #383–#388; phase52 in prod; Push Notifications enabled on the App ID; version 1.0 at *Prepare for Submission*, manual release set |
 | W14 | UX review implementation | done (#283–#292, #296, #297) | Mac | ux-review.md §7; decisions D-037…D-044; **TestFlight build 8 (0.9.0/424) uploaded 2026-09-22 by the first `testflight.yml` run**; snapshots re-recorded on the iPhone 17 (#300); Shane's device run on build 8 is next |
 | W15 | Connector access level (look-only / full tokens) | done (#379) | Mac | after #371/#376 gave `/api/mcp` write access; brief [W15](workstreams/W15-connector-access.md) |
-| W16 | Apple Health (write, read workouts, daily metrics, body weight, meals) | M1 (#430) + MT (#438) shipped in TestFlight 1.1.0 (561); M0/M2b next | both | D-056 supersedes D-018; M1 (write, no migration) merges after 1.0 is approved and ships as 1.1; MT (in-app terms re-acceptance) gates the privacy bump; brief [W16](workstreams/W16-apple-health.md) |
+| W16 | Apple Health (write, read workouts, daily metrics, body weight, meals) | M1 (#430) + MT (#438) shipped in TestFlight 1.1.0 (561); M0 landed (phase59, #469); M2b landed (#472); M3b in review; privacy bump, then M2i next | both | D-056 supersedes D-018; M1 (write, no migration) merges after 1.0 is approved and ships as 1.1; MT (in-app terms re-acceptance) gates the privacy bump; brief [W16](workstreams/W16-apple-health.md) |
+| W17 | Voice set logging (on-device Speech, no LLM) | PR-H #480, M1 #483, M2 #484 merged; TestFlight 1.1.0 (604), toggle off by default; M3 dogfood next | both | D-059; Swift parser on a JSON fixture (112 cases, ratchet), Undo, ships dark behind `apex.tracker.voice`; 604 uploaded 2026-10-22 from main at 75096526 (#486); next: Shane's device run on 604 (toggle on, the scorecard, #480's pins — all NOT VERIFIED), then one `fix/w17-voice-cases-<date>` ApexCore PR per gym session; brief [W17](workstreams/W17-voice-set-logging.md) |
 
 ## Next up
-0. **Tracker set metadata on iOS — warm-up, RPE, ascent style and attempts (Mac).** Goal: the
-   phone edits what the web's #422 tracker edits, so a session logged on iOS carries the same
-   rows. Today ApexCore decodes `isWarmup`/`rpe`/`ascentStyle`/`attempts` but `SetLogRow` sends
-   none of them, and a warm-up set looks like a working set. Scope: (a) `SetLogRow` gains
-   `is_warmup`, `rpe` (parsed with the web's `parseRpe`: 1–10, half steps, else null) and, on a
-   pitch's row only, `ascent_style`/`attempts` (`parseAttempts`) — check the server's
-   `SET_LOG_COLUMNS` allowlist first; (b) `TrackerEditor` setters that dirty the set; (c) the
-   row: a "W" warm-up toggle, an RPE field behind the profile preference the web uses, a style
-   picker + attempts on climbing rows; (d) `collectUntouchedPlanned` sends `is_warmup: false,
-   rpe: null` like plan.ts:657, so a zero-filled set never stays a warm-up from another client.
-   Acceptance: `TrackerEditorTests` for each setter and the row encoding (byte-for-byte keys vs
-   `setToRow` in plan.ts); a warm-up set excluded from the summary volume the way
-   `isPerformedSet` does; the smoke toggles a warm-up and saves; snapshots of a warm-up row and a
-   pitch row with style. Owns: `ApexCore/Tracker/{TrackerRows,TrackerEditor}.swift`,
-   `ApexFeatures/Tracker`, its tests. Also stale: eight tracker snapshot references predate
-   #398/#408/#413/#430 — re-record them in that PR or its own.
+0. **W17 M3 — the device run on TestFlight 1.1.0 (604), then ApexCore PRs.** All three lanes are on
+   `main` (PR-H #480 and M1 #483 on 2026-10-20, M2 #484 on 2026-10-21) and build 604, uploaded
+   2026-10-22 from `main` at 75096526 (#486), carries them with the toggle off. First, Shane:
+   install 604, turn on You › Training › *Log sets by voice*, run the device scorecard in the
+   [W17 brief](workstreams/W17-voice-set-logging.md) — its rows answer #480's Speech pins (none
+   verified yet; the 15 Pro was never connected): 14 and 7 the two sheets and denial / Dictation
+   off, 2 and 12 ducking and the orange indicator, 3 the A2DP route, 5 and 13 a call and lock
+   mid-listen, 1, 9 and 19 with the journal the bias and dictation's number shapes, 15 and L2
+   `isFinal` latency; row 6 is airplane mode. The first gym session is collection-only (no parser
+   edit): You › Training › *Share voice log* to the Mac for the first journal → fixture PR. Then
+   one `fix/w17-voice-cases-<date>` ApexCore PR per gym
+   session: record A2–A7, L1–L2 and E1 in the brief's Session log, one `journal:<date>` fixture case
+   per failed, undone or disputed utterance, rules changed red-to-green, the reviewer, an unheld
+   PR; the ratchet (112) only rises. Exit: two consecutive sessions of ≥ 20 utterances with zero
+   new failure-sourced cases and A2 ≥ 90% → the one-line default-on PR and the library auto-apply
+   decision on the evidence; budget six device sessions, then D-060. The brief's "Next brief" is
+   the drafted M3 brief.
+0. **W16 M2i — iOS reads Health workouts (Mac), after the privacy bump.** Goal: a Watch,
+   Garmin-via-Health or Whoop-via-Health workout reaches the server as provider `apple` (M2b,
+   #472) from the phone, durable through kills and offline, and a match the athlete has not
+   decided is never lost. **First, Shane:** the privacy bump approved 2026-10-14 (`legal/privacy-v2.md`
+   + `PRIVACY_VERSION`, text naming Health categories, server storage and Anthropic for daily
+   metrics) once testers are on 561 — M2i ships only after it. Scope (full contract:
+   [W16 brief, M2i](workstreams/W16-apple-health.md)): `HealthWorkoutReader` (anchored query,
+   now−30d start, own source excluded, HR per workout, background delivery that only enqueues);
+   its own queue lane `SessionKey.health` (429 backs off; 409 drops and refreshes status); the
+   `.healthIngest` op holds the activities; the anchor saved after the enqueue; `pending`
+   proposals saved to `healthPending` before anything else and decided in a `ProviderSyncModel`
+   extracted from `CorosModel`; toggles move to the server (`connect`/`set-categories`). HELD
+   files: the background-delivery entitlement, `PrivacyInfo.xcprivacy`. Acceptance: the brief's
+   M2i boxes. Owns: `ApexHealth`, the health lane, `HealthModel`, `ProviderSyncModel`, their tests.
 0. **W16 M1 — write finished sessions to Apple Health (Mac).** Goal: a tracker finish writes an
    Apex-branded `HKWorkout` with the real start and end, the mapped activity type and
    `HKMetadataKeySyncIdentifier`/`SyncVersion` so a re-save replaces; cancel-after-finish deletes
@@ -60,19 +76,20 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
    (it carries 1.1.0 and the entitlement). In parallel: **W16 MT** (Mac — a signed-in user can
    re-accept updated terms in the app; the privacy bump waits for it) and **W16 M0** (Linux —
    the one migration for M2/M3; HELD).
-0. **Tracker parity with web #390, second half — the subtitle and the day-only note.** Goal: the two
-   edits #390 added to the web card that the iOS card still lacks. Scope: (a) the definition's
-   technique notes as an editable subtitle under the exercise name (pencil in the header when
-   empty; a PATCH of `technique_notes` through the same `update-definition` op, generalised from
-   `log_fields` to a `[String: JSONValue]` of changed columns); (b) "+ note" — a note on one
-   exercise for this occurrence only, `workout_exercise_notes` (phase 54, keyed by event_id +
+0. **Tracker parity with web: an exercise's two notes (#390, reshaped by the notes panel PR).** Shane
+   logs in the iPhone app and wants to add or edit an exercise's notes mid-workout, in two sections:
+   saved across every time, and just this instance. Goal: the web card's notes panel
+   (`src/components/tracker/ExerciseNotes.tsx`) on `TrackedExerciseView`. Scope: (a) "Every time"
+   is the definition's `technique_notes`, editable multi-line, written through the same
+   `update-definition` op, generalised from `log_fields` to a `[String: JSONValue]` of changed
+   columns; (b) "This workout only" is `workout_exercise_notes` (phase 54, keyed by event_id +
    event_date + section + exercise_id), which rides the web's debounced save, loads in bootstrap
    and goes with the session on cancel — check `api/_lib` for how `save` carries it and whether
-   the iOS `SavePayload`/`TrackerBootstrap` need the field (fixtures re-emitted if so).
-   Acceptance: both edits on `TrackedExerciseView` with identifiers; `ApexCore` tests for the
-   op payload and the save merge; the smoke drives "+ weight" on a reps-only fixture exercise
-   (`tracker.add-field.<id>.weight`, from this session's chips) and the new note; snapshots
-   re-recorded. Owns: `ios/Packages/ApexCore/Sources/ApexCore/{Tracker,Cache,API}`,
+   the iOS `SavePayload`/`TrackerBootstrap` need the field (fixtures re-emitted if so). Closed, the
+   panel reads as the notes under their labels and a tap opens the editor on one; with neither
+   note, one "+ note" chip. Acceptance: both edits on `TrackedExerciseView` with identifiers;
+   `ApexCore` tests for the op payload and the save merge; the smoke drives the new note;
+   snapshots re-recorded. Owns: `ios/Packages/ApexCore/Sources/ApexCore/{Tracker,Cache,API}`,
    `ApexFeatures/Tracker`, fixtures only if the bootstrap shape changes. Mac session.
 0. **Tracker scroll fix (D-054) is PR #398** — carries no migration; next
    `testflight.yml` run after merge ships it, and Shane's phone run is the real verdict. If the
@@ -141,6 +158,106 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
    (`printf` the two ids back after a tidy) — both git-ignored, so never from the primary checkout.
 
 ## Recent sessions
+- 2026-10-27 · Write-queue ordering fix · Mac. A Finish or Swap tapped as the autosave queued its
+  save could take the lower id and be sent first (`WriteQueue` is a reentrant actor; the save waited
+  on its GRDB tail read). Same root found two save-loss races (a merge into a row the drain was
+  sending) and a save landing after a cancel. A per-lane turn now serialises every read-then-write
+  on a lane (`enqueue`, `cancelSession`, the drain's pick and settle, Retry, Discard, Let go, the
+  outbox put-back); the send holds none. Follow-ups in the same PR: a purge counter so nothing
+  called before `purgeAll` (account deletion) lands after it; `WriteQueueStore.update` returns
+  whether its row existed, and a merge into a gone row appends; Let go during a send waits for it.
+  16 new ApexCore tests (15 fail without their fix), 2 TrackerModel, 1 GRDB store. Only change you
+  can see: Let go on an op being sent takes effect once the send ends, with no busy state meanwhile (#495).
+- 2026-10-25 · W17 M3 pins, R8 edges · Mac. Seven authored cases (106–112) pin decision 4 for every
+  connective and both sides of the boundary: the four #488's review asked for — `5 reps for 3` → W3 (`for` apart from `x`), `10 x 5 reps`
+  → 10 sets and `11 x 5 reps` → W11 (the boundary), `225 at 5 reps` → W225 — then, after one reviewer
+  round, `3 at 5 reps` → W3 (`at` apart from `x`), `5 reps by 3` and `5 reps times 3` → 3 sets. All
+  holding on `main` as written, no rule changed; the ratchet 105 → 112. ApexCore tests and docs only
+  (#489).
+- 2026-10-22 · W17 M3 pins · Mac. Five authored fixture cases (101–105) pin the rules the docs sync
+  found holding on `main` unpinned — `225 x 5 reps` and `5 reps for 225` (R8's complement of marked
+  reps), `225 lbs at 8` → RPE 8 (R7 before R8), `more` / `another` alone → repeat (R16) — plus one
+  resolver test (`fixture pres` is a near match, not a containment); the ratchet 100 → 105; no
+  parser change. ApexCore tests and docs only (#488).
+- 2026-10-22 · W17 M3 TestFlight · Mac. Build 1.1.0 (604) uploaded from main at 75096526 with
+  PR-H #480, M1 #483 and M2 #484: W17 on TestFlight, toggle off by default — Shane turns on
+  You → Training › Log sets by voice. `testflight.sh --check` (production schema in sync with
+  main, every migration stamped) and `--dry-run` (archive, export, assert-ipa; both usage strings
+  and 1.1.0/604 in the archive) green before the upload. Device run and the M3 scorecard are
+  Shane's. Docs only.
+- 2026-10-22 · W17 docs sync · Mac. With #480, #483 and #484 on `main`, the brief says what the
+  lanes built: M1's grammar decisions (7, 10, 17, 23–31, plus 4 and 18–22) as a table under the
+  slot rules, with the rule cells, the vocabulary, `extractPhrase`, tier 2 and the editor primitives
+  adjusted; fixture cases 60–100 and the ratchet 100; PR-H's outcomes (`sdk:` lines not needed) and
+  its session-log line, moved in from #480's body; acceptance boxes ticked where CI and the PR
+  bodies prove them, the device-side pins left open; "Not verified" is the union of the three PRs;
+  the Next brief is M3. This row and Next up point at M3 on TestFlight 1.1.0 (604), uploaded the same
+  day from main (#486). Docs only.
+- 2026-10-20 · W17 M2 · Mac. The tracker logs what it hears: `VoiceLogState` on `TrackerModel`,
+  the end-of-utterance policy over the injected clock, `applySpoken` through the typed path, Undo
+  restoring the rest timer whole, chips and Pick…, the strip and the mic, the You → Training
+  toggle with share/clear of the transcript-only journal; 29 unit tests, 13 snapshots, three smoke
+  legs. Stacked on PR-H #480 (held) and M1. Snapshot references need `content_size medium` on the
+  simulator. Device scorecard is Shane's.
+- 2026-10-20 · signed UI tests (no WS) · Mac. A signed `build-for-testing` failed on `main`
+  because ApexTests and ApexUITests had no Info.plist; both now set `GENERATE_INFOPLIST_FILE`
+  (`project.yml`, HELD). SmokeUITests now passes signed (20/20) as well as unsigned. It dismisses
+  the "Save Password?" sheet that the signed app's `webcredentials` brings, only when its bundle
+  is signed, and the live test signs out in its teardown. How-to in ios/CLAUDE.md.
+- 2026-10-20 · W17 M1 · Mac (Linux-shaped). The voice parser, resolver, storage formatter and the
+  `TrackerEditor` primitives (`clearShadow`, `applySpoken`, `revert`, `currentExercise`, the replay
+  reset) landed in ApexCore as #483 (unheld): 100 fixture cases (the brief's 59 plus 41 authored,
+  ratchet 100), two reviewer rounds folded in — a keyword-hidden name no longer auto-applies to the
+  current exercise, an undone key never goes out as upsert and delete in one save — `swift test`
+  641 and `agent:check` green on the Mac; Linux is the PR's job. PR-H (held) runs in parallel; M2
+  after both merge.
+- 2026-10-20 · W17 brief · Mac. Voice set logging planned and decided (D-059): on-device Speech
+  only, a deterministic Swift parser on a JSON fixture in ApexCore, log-with-Undo for session
+  exercises, confirm-first for near, unknown and library names, ships dark behind
+  `apex.tracker.voice`, a transcript-only journal with numeric targets and a device scorecard.
+  Three explorers, three design passes and three independent reviews reconciled in the brief;
+  PR-H and M1 proposed as parallel lanes. No code.
+- 2026-10-20 · ApexWidgets sim crash (no WS) · Mac. The 2026-10-19 `ApexWidgets` SIGTRAP in an
+  xcresult is a simulator reinstall artifact (the new bundle's binaries were hardlinks of the copy
+  just moved to containermanagerd's `Dead/`, and the extension resolved its path there), not an
+  Apex bug; not reproduced in 13 unsigned UI-test runs + ~60 signed and unsigned reinstalls. How
+  to tell it apart: ios/CLAUDE.md. Side finding:
+  signed `build-for-testing` fails — `ApexTests`/`ApexUITests` have no Info.plist (HELD fix).
+- 2026-10-17 · W16 M3b · Linux-shaped, on the Mac. `POST`/`GET /api/daily-metrics`: one upsert
+  per day (absent untouched, null clears), consent per category for the whole batch before any
+  write, and a Health weigh-in moving `profiles.body_weight_lb` only when newer (one conditional
+  UPDATE); Profile weight saves stamp `'user'`/now; `GET /api/profile` reports the provenance. The
+  coach's physiology gains sleep, resting HR, steps (completed days) and body mass lines, and
+  prefers Health's overnight SDNN for HRV. Built on M2b (#472, merged in). The eval gate is
+  Shane's call. Next up: privacy bump, then M2i.
+- 2026-10-17 · W16 M2b · Linux-shaped, on the Mac. Health workouts come in as provider `apple`
+  on the COROS rails: `connect`/`set-categories`/`status`/`disconnect` (with `purgeMetrics`),
+  `preview`/`apply` (with `'skip'`)/`ingest` with the activities in the body; consent enforced
+  server-side (`not-connected`, `category-off`); the window from the batch; dedup against
+  tracker sessions (`duplicate`, `in-progress` without a ledger row, ≤ 12 h for an unfinished
+  one), other providers' imports and Apex's own Health writes (`own-app`); a mapper on the
+  integer `HKWorkoutActivityType` pinned to the iOS 26.5 SDK. Fixtures `provider-status.json`
+  (apple block), `provider-preview-apple.json`. Next up: M3b.
+- 2026-10-16 · W16 M0 · Linux-shaped, on the Mac. `phase59_apple_health.sql`: provider CHECK
+  widened to `('coros','apple')` with `categories jsonb` (`{}` for COROS), `provider_activity_imports`
+  mode gains `'skipped'`, a service-role-only `daily_metrics` (PK `user_id, date, provider`, the
+  phase52 grants verbatim), `profiles.body_weight_updated_at` / `body_weight_source`
+  (`manual`|`apple`); `daily_metrics` joins `USER_DATA_TABLES`; TS and Swift types regenerated.
+  HELD for Shane: production paste (`prod-schema-check` before and after), then `shipit`.
+  Next up: M2b.
+- 2026-10-16 · Session volume · Mac. The summary says "Volume 705" under its title, as the web's
+  does: Σ weight × reps over working sets (no warm-ups, zero-fills, pitches or cardio) in the
+  profile's unit. ApexCore `Weight` ports `weight.ts`'s `parseWeight` grammar ("62,5 kg", "BW+25",
+  a bare number in the profile's unit) and `parseLeadingNumber`, with the web's own vectors;
+  `ProfileResponse.weightUnit`/`bodyWeightLb`; the tracker reads them from the profile the
+  Schedule tab caches, so an offline finish reads the right unit. Snapshot `summary-volume`.
+- 2026-10-16 · Tracker set metadata · Mac. The phone edits what the web's #422 tracker does
+  (D-058): the set number is the warm-up toggle (a W), an RPE field per set behind You → Training's
+  "Rate sets by effort" (device preference under the web's `apex.tracker.rpe` key) and a pitch's
+  ascent style and attempts, each on a line under the row. `SetLogRow` sends `rpe`/`is_warmup` on every row and
+  `ascent_style`/`attempts` on a pitch's only (`setToRow`'s keys); zero-fills reset them; a queued
+  row replays them. The summary tags warm-ups and ratings. Tracker and You snapshots re-recorded
+  (the stale ones included) plus `tracker-metadata` at 393 and 375. Next up: session volume on the summary.
 - 2026-10-15 · Write-queue store failures · Mac. `WriteQueue.drain` no longer discards its six
   store writes with `try?`: a failed write stops the drain, emits the new `QueueEvent.storeFailed`
   (not `failed` — nothing was refused, so no refusal UI fires) and retries the session after a
@@ -148,7 +265,7 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
   `maxAttempts` still arrives while the store is down. Before, a store that kept failing handed the
   same op straight back and re-sent it in a loop; two of the four new `WriteQueueStoreFailureTests`
   hang the old code. ApexCore 553/553 on macOS and Linux. The app does not surface `storeFailed` yet (the pending-sync chip stays up); the
-  user-action paths still use `try?` (docs/improvements/04-clean-code/ios-core.md).
+  user-action paths still use `try?` (docs/improvements/04-clean-code/ios-core.md). Brought up to date with #495 on 2026-10-27: `record` runs inside the drain's settle turn.
 - 2026-10-15 · Profile time zone · Mac. The app writes `TimeZone.current` to `profiles.timezone`
   (phase58, #449) after sign-in, on every foreground and after accepting updated terms, when it
   differs from what `GET /api/profile` reports (D-057). `ProfileResponse.timezone`,

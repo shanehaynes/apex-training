@@ -67,6 +67,27 @@ struct RootView: View {
         }
     }
 
+    /// `-apexMockSignupToken <token>` (mock builds only): Create account skips
+    /// the web check and submits this token, so the smoke reaches the answer.
+    private var signUpPresetToken: String? {
+        #if DEBUG
+        if CommandLine.arguments.contains("-apexMockClient") {
+            return MockEnvironment.argument("-apexMockSignupToken")
+        }
+        #endif
+        return nil
+    }
+
+    /// `-apexMockSignupTokenDelay <ms>`: how long the preset token is held back.
+    private var signUpPresetTokenDelay: Duration {
+        #if DEBUG
+        if let ms = MockEnvironment.argument("-apexMockSignupTokenDelay").flatMap(Int.init) {
+            return .milliseconds(ms)
+        }
+        #endif
+        return .milliseconds(300)
+    }
+
     @ViewBuilder
     private var signedInContent: some View {
         switch model.state {
@@ -79,6 +100,16 @@ struct RootView: View {
         case .signedOut(let reason):
             SignInView(
                 inviteContact: AppConfig.inviteContactURL,
+                signUp: SignUpOptions(
+                    checkURL: AppConfig.publicOrigin.appending(path: "signup-check"),
+                    termsURL: AppConfig.publicOrigin.appending(path: "terms"),
+                    privacyURL: AppConfig.publicOrigin.appending(path: "privacy"),
+                    presetToken: signUpPresetToken,
+                    presetTokenDelay: signUpPresetTokenDelay,
+                    submit: { email, token, ageConfirmed in
+                        await model.signUp(email: email, captchaToken: token, ageConfirmed: ageConfirmed)
+                    }
+                ),
                 onSignIn: { email, password in
                     await model.signIn(email: email, password: password)
                 },

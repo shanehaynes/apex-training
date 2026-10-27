@@ -62,7 +62,36 @@ to the test process only under a `TEST_RUNNER_` prefix, so it is
 is right for CI — but an unsigned app cannot write the Keychain, so the session silently fails
 to persist and the app returns to sign-in on every launch. It looks exactly like a session-restore
 bug and is not one. Drop the flag (the normal Xcode build signs ad-hoc) whenever you are
-checking sign-in, session restore or sign-out.
+checking sign-in, session restore or sign-out. That includes UI tests: the two test bundles
+generate their Info.plist (`GENERATE_INFOPLIST_FILE` in `project.yml`; before that, signing
+refused both), so a signed `build-for-testing` then `test-without-building
+-only-testing:ApexUITests/SmokeUITests` passes on your own simulator. Two things differ from
+CI's unsigned run. The signed app carries `webcredentials`, so iOS offers "Save Password?" after
+every sign-in; `signIn` dismisses it. And a live sign-in persists: the live test signs out in
+its teardown, but a run killed before that leaves the simulator signed in, and every
+`launch(mock: false)` test fails on a missing sign-in field — `xcrun simctl keychain <udid>
+reset` (simulator booted) clears it.
+
+**An `ApexWidgets` crash in an xcresult is usually the reinstall, not the widget.** It looks like
+`EXC_BREAKPOINT` / `Trace/BPT trap: 5`, a life of well under a second, and a main thread that is
+only `_assertionFailure` ← `_EXRunningExtension._start(withArguments:count:)` ← `EXExtensionMain`
+← `NSExtensionMain` ← dyld; the app and the test are fine. It is a simulator install artifact: on
+2026-10-19 a reinstall of the same build left the new `Apex.app`'s binaries hardlinked to the old
+copy, which containermanagerd had just moved to `Dead/`, and an extension started within a second
+of the install can resolve its own executable path to that dead name. ExtensionFoundation then
+asserts on a bundle that is no longer registered, before any Apex code runs. The hardlinks come
+from the simulator installing straight from DerivedData; a device or TestFlight install unpacks a
+fresh copy, so there is no known path to users. The signature is in the report's JSON: the
+`procPath` field, and the `ApexWidgets.debug.dylib` entry in `usedImages`, point into
+`…/com.apple.containermanagerd/Dead/…`, while the main `ApexWidgets` image in `usedImages` is
+under `Containers/Bundle/Application/` (the images list shows both, so read `procPath`). It is
+rare: the 2026-10-19 report did not come back in 13 unsigned UI-test runs and about 60 more
+`simctl install`s of unsigned and signed builds on main, and every one of those extension launches
+reached the widget bundle. Treat it as real if the faulting thread has a frame in `ApexWidgets`,
+`ApexWidgets.debug.dylib`, `ApexActivity` or `ApexUI`, if `procPath` is under
+`Containers/Bundle/Application/`, or if it happens on a first install. Spawning the executable
+directly (`simctl spawn … ApexWidgets`) traps too, but in `xpc_main` under PlugInKit, which is a
+different signature.
 
 ## Configuration
 

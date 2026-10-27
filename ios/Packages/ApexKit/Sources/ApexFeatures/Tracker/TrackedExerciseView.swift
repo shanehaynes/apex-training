@@ -27,6 +27,8 @@ nonisolated struct ExerciseRowInput: Equatable, Sendable {
     /// a focus move elsewhere compares equal here.
     let focusedField: FieldID?
     let durationModeToggle: Int
+    /// You → Training's RPE preference: a rating field on every set row.
+    let showsRpe: Bool
 }
 
 /// One exercise (`TrackerExercise.tsx`): name, swap or remove, rest, the swapped or added note
@@ -186,7 +188,11 @@ struct TrackedExerciseView: View, Equatable {
                     input: SetRowInput(
                         key: SetKey(section: tracked.section, exerciseId: tracked.exercise.id, setNumber: set.setNumber),
                         set: set, fields: fields, added: tracked.added, climbing: tracked.exercise.category == "climbing",
-                        focusedField: focusedSetField(of: set), durationModeToggle: input.durationModeToggle
+                        climbStyle: tracked.exercise.climbStyle,
+                        focusedField: focusedSetField(of: set), durationModeToggle: input.durationModeToggle,
+                        showsRpe: input.showsRpe, rpeFocused: input.focusedField == .rpe(SetKey(
+                            section: tracked.section, exerciseId: tracked.exercise.id, setNumber: set.setNumber
+                        ))
                     ),
                     focus: focus
                 )
@@ -257,9 +263,13 @@ nonisolated struct SetRowInput: Equatable, Sendable {
     let fields: [SetField]
     let added: Bool
     let climbing: Bool
+    /// The pitch's discipline: a boulder problem offers no "Followed".
+    let climbStyle: String?
     /// The field of this set that has focus, if any.
     let focusedField: SetField?
     let durationModeToggle: Int
+    let showsRpe: Bool
+    let rpeFocused: Bool
 }
 
 /// One set (`SetRow`): number · target · inputs · remove. A shadowed row shows
@@ -298,12 +308,58 @@ struct SetRowView: View, Equatable {
         field == .reps ? 60 : 78
     }
 
+    static let rpeWidth: CGFloat = 48
+
+    private var isWarmup: Bool { self.set.isWarmup ?? false }
+
     var body: some View {
+        VStack(alignment: .leading, spacing: Spacing.xs) {
+            mainRow
+            // The set's metadata goes on a line of its own: the row is already
+            // full on a phone (a 48pt rating beside weight and reps overflows
+            // 375–390pt screens, and clips a three-field row anywhere).
+            // A pitch's ascent and the rating each get a line: together they do
+            // not fit a 375pt phone either.
+            if climbing {
+                HStack(spacing: Spacing.sm) { pitchControls }
+                    .padding(.leading, 22 + Spacing.sm)
+            }
+            if input.showsRpe {
+                rpeField.padding(.leading, 22 + Spacing.sm)
+            }
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("tracker.set.\(key.exerciseId).\(set.setNumber)")
+    }
+
+    /// The leading slot is the warm-up toggle (`.tracker-set__warmup`): the
+    /// set number at rest, a W once marked. A warm-up set is logged and shown
+    /// like any other and counted in no stat.
+    private var warmupToggle: some View {
+        Button {
+            model.setWarmup(!isWarmup, at: key)
+        } label: {
+            Text(isWarmup ? "W" : "\(set.setNumber)")
+                .font(.apex(.mono, size: TypeScale.xs, weight: isWarmup ? .semibold : .regular, relativeTo: .caption))
+                .foregroundStyle(isWarmup ? WorkoutTypeTokens.morningRoutine.solid : ApexColor.textMuted)
+                .frame(width: 22, height: 44, alignment: .leading)
+                // A 44pt-wide hit area that lays out at 22: it reaches into the
+                // target label beside it, which takes no taps of its own.
+                .padding(.trailing, 22)
+                .contentShape(.rect)
+        }
+        .buttonStyle(.plain)
+        .padding(.trailing, -22)
+        .accessibilityLabel(isWarmup
+            ? "Set \(set.setNumber) is a warm-up — tap to count it"
+            : "Set \(set.setNumber) — tap to mark as a warm-up")
+        .accessibilityAddTraits(isWarmup ? .isSelected : [])
+        .accessibilityIdentifier("tracker.warmup.\(key.exerciseId).\(set.setNumber)")
+    }
+
+    private var mainRow: some View {
         HStack(spacing: Spacing.sm) {
-            Text("\(set.setNumber)")
-                .font(.apex(.mono, size: TypeScale.xs, relativeTo: .caption))
-                .foregroundStyle(ApexColor.textMuted)
-                .frame(width: 22, alignment: .leading)
+            warmupToggle
             Text(CountSpec.targetLabel(of: set, added: input.added))
                 .font(.apex(.mono, size: TypeScale.xs, relativeTo: .caption))
                 .italic(set.isExtra && !input.added)
@@ -333,8 +389,93 @@ struct SetRowView: View, Equatable {
                 Color.clear.frame(width: 32, height: 44)
             }
         }
-        .accessibilityElement(children: .contain)
-        .accessibilityIdentifier("tracker.set.\(key.exerciseId).\(set.setNumber)")
+    }
+
+    /// The effort rating (1–10, half steps), labelled since it has no column.
+    private var rpeField: some View {
+        HStack(spacing: Spacing.xs) {
+            Text("rpe")
+                .font(.apex(.mono, size: TypeScale.micro, relativeTo: .caption2))
+                .textCase(.uppercase)
+                .foregroundStyle(ApexColor.textMuted)
+                .accessibilityHidden(true)
+            TrackerTextField(
+                text: Binding(get: { set.rpe ?? "" }, set: { model.setRpe($0, at: key) }),
+                ghost: "",
+                keyboard: .decimalPad,
+                id: .rpe(key),
+                isFocused: input.rpeFocused,
+                focus: focus
+            )
+            .frame(width: Self.rpeWidth)
+            .accessibilityLabel("Set \(set.setNumber) RPE")
+            .accessibilityIdentifier("tracker.input.\(key.exerciseId).\(set.setNumber).rpe")
+        }
+    }
+
+    /// A pitch's ascent (`PitchControls`): how it went, and the goes it took.
+    @ViewBuilder
+    private var pitchControls: some View {
+        let attempts = SetMetadata.parseAttempts(set.attempts)
+            Menu {
+                Button("No style") { model.setAscentStyle(nil, at: key) }
+                ForEach(SetMetadata.ascentStyles(for: input.climbStyle)) { style in
+                    Button(style.label) { model.setAscentStyle(style.value, at: key) }
+                }
+            } label: {
+                HStack(spacing: Spacing.xs) {
+                    Text(SetMetadata.ascentLabel(set.ascentStyle) ?? "Style")
+                        .foregroundStyle(set.ascentStyle == nil ? ApexColor.textMuted : ApexColor.textPrimary)
+                    ApexIcon.chevronDown.image.font(.system(size: 10, weight: .medium)).foregroundStyle(ApexColor.textMuted)
+                }
+                .font(.apex(.mono, size: TypeScale.xs, relativeTo: .caption))
+                .padding(.horizontal, Spacing.sm)
+                .frame(minWidth: 110, minHeight: 36, alignment: .leading)
+                .background(ApexColor.bgElevated, in: .rect(cornerRadius: Radius.md))
+                .overlay(RoundedRectangle(cornerRadius: Radius.md).strokeBorder(ApexColor.borderSubtle, lineWidth: 1))
+            }
+            .accessibilityLabel("Set \(set.setNumber) ascent style")
+            .accessibilityValue(SetMetadata.ascentLabel(set.ascentStyle) ?? "None")
+            .accessibilityIdentifier("tracker.style.\(key.exerciseId).\(set.setNumber)")
+
+            HStack(spacing: 0) {
+                stepButton("minus", label: "Fewer attempts", enabled: attempts != nil) { model.stepAttempts(by: -1, at: key) }
+                Text(attempts.map(String.init) ?? "–")
+                    .font(.apex(.mono, size: TypeScale.sm, relativeTo: .callout))
+                    .foregroundStyle(ApexColor.textPrimary)
+                    .frame(minWidth: 24)
+                    .accessibilityIdentifier("tracker.attempts.\(key.exerciseId).\(set.setNumber)")
+                stepButton("plus", label: "More attempts", enabled: true) { model.stepAttempts(by: 1, at: key) }
+            }
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("Set \(set.setNumber) attempts")
+            .accessibilityValue(attempts.map { "\($0)" } ?? "Not counted")
+            .accessibilityAdjustableAction { direction in
+                switch direction {
+                case .increment: model.stepAttempts(by: 1, at: key)
+                case .decrement: model.stepAttempts(by: -1, at: key)
+                @unknown default: break
+                }
+            }
+            Text("tries")
+                .font(.apex(.mono, size: TypeScale.micro, relativeTo: .caption2))
+                .textCase(.uppercase)
+                .fixedSize()
+                .foregroundStyle(ApexColor.textMuted)
+                .accessibilityHidden(true)
+    }
+
+    private func stepButton(_ symbol: String, label: String, enabled: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: symbol)
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(enabled ? ApexColor.textSecondary : ApexColor.textMuted.opacity(0.5))
+                .frame(width: 36, height: 36)
+                .contentShape(.rect)
+        }
+        .buttonStyle(.plain)
+        .disabled(!enabled)
+        .accessibilityLabel(label)
     }
 
     @ViewBuilder

@@ -114,6 +114,9 @@ targets:
       - package: ApexKit
         product: ApexHealth
       - sdk: HealthKit.framework
+      # Voice set logging (W17): the on-device Speech adapter and its fake.
+      - package: ApexKit
+        product: ApexSpeech
       # The Live Activity extension (W12). An app-extension dependency is
       # embedded into the app bundle by XcodeGen.
       - target: ApexWidgets
@@ -198,6 +201,15 @@ targets:
       - package: ApexKit
         product: ApexHealth
         link: false
+      - package: ApexKit
+        product: ApexSpeech
+        link: false
+    # Neither test bundle has an Info.plist on disk. Unsigned (CI's
+    # CODE_SIGNING_ALLOWED=NO) never notices; a signed build refuses to sign a
+    # bundle without one, and only a signed app can write the Keychain.
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
 
   ApexUITests:
     type: bundle.ui-testing
@@ -206,6 +218,9 @@ targets:
       - path: ApexUITests
     dependencies:
       - target: Apex
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
 
 schemes:
   Apex:

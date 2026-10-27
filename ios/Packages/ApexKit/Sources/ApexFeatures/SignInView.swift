@@ -1,13 +1,55 @@
+import ApexCore
 import ApexUI
 import SwiftUI
 
-/// Email + password, with the content types AutoFill and Face ID need. Sign-up
-/// is invite-only, so the screen says so and gives a way forward instead of a
+/// Open sign-up's half of the screen (docs/specs/open-signup.md M3): where
+/// the human check lives, the documents the terms toggle names, and the call.
+public struct SignUpOptions {
+    public let checkURL: URL
+    public let termsURL: URL
+    public let privacyURL: URL
+    /// (email, Turnstile token, 18+ attested) → nil on success, else the sentence to show.
+    public let submit: (String, String, Bool) async -> String?
+    /// Mock builds only (`-apexMockSignupToken`): the check sheet hands this
+    /// over instead of loading the page, so the smoke reaches the server's answer.
+    public let presetToken: String?
+    /// How long the sheet holds `presetToken` back before handing it over.
+    public let presetTokenDelay: Duration
+
+    public init(
+        checkURL: URL,
+        termsURL: URL,
+        privacyURL: URL,
+        presetToken: String? = nil,
+        presetTokenDelay: Duration = .milliseconds(300),
+        submit: @escaping (String, String, Bool) async -> String?
+    ) {
+        self.checkURL = checkURL
+        self.termsURL = termsURL
+        self.privacyURL = privacyURL
+        self.presetToken = presetToken
+        self.presetTokenDelay = presetTokenDelay
+        self.submit = submit
+    }
+}
+
+/// Email + password, with the content types AutoFill and Face ID need. With
+/// `signUp` set, a Create account mode sits beside it: email, the terms and
+/// 18+ toggles, a Turnstile check, then an invite by email — the password is
+/// chosen on the set-password screen the invite opens. Without it, sign-up is
+/// invite-only, so the screen says so and gives a way forward instead of a
 /// dead end (App Store guideline 5.1.1 wants exactly this).
 public struct SignInView: View {
     private let inviteContact: URL?
+    private let signUp: SignUpOptions?
     private let onSignIn: (String, String) async -> String?
     private let onForgotPassword: (String) async -> String?
+
+    private enum Mode: Hashable { case signIn, create }
+    @State private var mode: Mode = .signIn
+    @State private var accepted = false
+    @State private var ageConfirmed = false
+    @State private var showingCheck = false
 
     @State private var email = ""
     @State private var password = ""
@@ -22,10 +64,12 @@ public struct SignInView: View {
     /// build configuration); nil states invite-only without offering a link.
     public init(
         inviteContact: URL? = nil,
+        signUp: SignUpOptions? = nil,
         onSignIn: @escaping (String, String) async -> String?,
         onForgotPassword: @escaping (String) async -> String?
     ) {
         self.inviteContact = inviteContact
+        self.signUp = signUp
         self.onSignIn = onSignIn
         self.onForgotPassword = onForgotPassword
     }
@@ -36,6 +80,52 @@ public struct SignInView: View {
                 Spacer(minLength: Spacing.xxl)
                 Wordmark()
 
+                if signUp != nil {
+                    Picker("Mode", selection: $mode) {
+                        Text("Sign in").tag(Mode.signIn)
+                        Text("Create account").tag(Mode.create)
+                    }
+                    .pickerStyle(.segmented)
+                    .accessibilityIdentifier("signin.mode")
+                    .onChange(of: mode) {
+                        // Consent is an act per visit to the form, never carried over.
+                        accepted = false
+                        ageConfirmed = false
+                        problem = nil
+                        notice = nil
+                    }
+                }
+
+                if mode == .create, let signUp {
+                    createAccount(signUp)
+                } else {
+                    signInForm
+                }
+
+                if signUp == nil {
+                    inviteOnlyFooter
+                }
+
+                Spacer(minLength: Spacing.xxl)
+            }
+            .padding(.horizontal, Spacing.xl)
+            .frame(maxWidth: 420)
+            .frame(maxWidth: .infinity)
+        }
+        .background(ApexColor.bgPrimary)
+        .scrollDismissesKeyboard(.interactively)
+        .sheet(isPresented: $showingCheck) {
+            if let signUp {
+                TurnstileCheckView(url: signUp.checkURL, presetToken: signUp.presetToken,
+                                   presetTokenDelay: signUp.presetTokenDelay) { token in
+                    create(with: token, signUp)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var signInForm: some View {
                 VStack(spacing: Spacing.md) {
                     field("Email", text: $email, field: .email)
                         .textContentType(.username)
@@ -64,8 +154,10 @@ public struct SignInView: View {
                         .multilineTextAlignment(.center)
                 }
 
+                // An identifier, not the label: the mode picker's segment is also "Sign in".
                 ApexButton("Sign in", isLoading: isWorking) { submit() }
                     .disabled(email.isEmpty || password.isEmpty)
+                    .accessibilityIdentifier("signin.submit")
 
                 Button("Forgot password?") {
                     Task {
@@ -83,6 +175,10 @@ public struct SignInView: View {
                 .foregroundStyle(ApexColor.textMuted)
                 .frame(minHeight: 44)
 
+    }
+
+    @ViewBuilder
+    private var inviteOnlyFooter: some View {
                 VStack(spacing: Spacing.xs) {
                     Text("Apex is invite-only.")
                         .font(.apex(.display, size: TypeScale.xs, relativeTo: .caption))
@@ -97,15 +193,86 @@ public struct SignInView: View {
                     }
                 }
                 .padding(.top, Spacing.lg)
+    }
 
-                Spacer(minLength: Spacing.xxl)
+    @ViewBuilder
+    private func createAccount(_ signUp: SignUpOptions) -> some View {
+        Text("We'll email you a link to choose your password.")
+            .apexBody()
+            .multilineTextAlignment(.center)
+
+        field("Email", text: $email, field: .email)
+            .textContentType(.username)
+            .keyboardType(.emailAddress)
+            .textInputAutocapitalization(.never)
+            .autocorrectionDisabled()
+            .submitLabel(.done)
+
+        VStack(alignment: .leading, spacing: Spacing.sm) {
+            Toggle(isOn: $accepted) {
+                Text("I accept the Terms of Service and Privacy Policy.")
+                    .font(.apex(.display, size: TypeScale.sm, relativeTo: .callout))
+                    .foregroundStyle(ApexColor.textSecondary)
             }
-            .padding(.horizontal, Spacing.xl)
-            .frame(maxWidth: 420)
-            .frame(maxWidth: .infinity)
+            .tint(ApexColor.accent)
+            .accessibilityIdentifier("signup.terms")
+            // Beside the toggle, not in a footer: the documents being agreed to
+            // must be reachable at the moment of assent.
+            HStack(spacing: Spacing.md) {
+                Link("Terms of Service", destination: signUp.termsURL)
+                Link("Privacy Policy", destination: signUp.privacyURL)
+            }
+            .font(.apex(.display, size: TypeScale.xs, weight: .semibold, relativeTo: .caption))
+            .foregroundStyle(ApexColor.textSecondary)
+
+            Toggle(isOn: $ageConfirmed) {
+                Text("I am 18 or older (or the age of majority where I live).")
+                    .font(.apex(.display, size: TypeScale.sm, relativeTo: .callout))
+                    .foregroundStyle(ApexColor.textSecondary)
+            }
+            .tint(ApexColor.accent)
+            .accessibilityIdentifier("signup.age")
         }
-        .background(ApexColor.bgPrimary)
-        .scrollDismissesKeyboard(.interactively)
+
+        if let problem {
+            Text(problem)
+                .font(.apex(.display, size: TypeScale.sm, relativeTo: .callout))
+                .foregroundStyle(ApexPalette.dangerText)
+                .multilineTextAlignment(.center)
+                .accessibilityIdentifier("signup.problem")
+        }
+        if let notice {
+            Text(notice)
+                .font(.apex(.display, size: TypeScale.sm, relativeTo: .callout))
+                .foregroundStyle(ApexPalette.positive)
+                .multilineTextAlignment(.center)
+                .accessibilityIdentifier("signup.notice")
+        }
+
+        ApexButton("Create account", isLoading: isWorking) {
+            focus = nil
+            problem = nil
+            notice = nil
+            showingCheck = true
+        }
+        .disabled(!SignUp.isPlausibleEmail(email) || !accepted || !ageConfirmed || isWorking)
+        .accessibilityIdentifier("signup.submit")
+    }
+
+    private func create(with token: String, _ signUp: SignUpOptions) {
+        guard !isWorking else { return }
+        isWorking = true
+        let address = email.trimmingCharacters(in: .whitespacesAndNewlines)
+        Task {
+            if let message = await signUp.submit(address, token, ageConfirmed) {
+                problem = message
+            } else {
+                notice = "Check \(address) for a link to choose your password."
+                accepted = false
+                ageConfirmed = false
+            }
+            isWorking = false
+        }
     }
 
     @ViewBuilder

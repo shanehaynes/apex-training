@@ -4,6 +4,7 @@ import ApexCore
 import ApexFeatures
 import ApexHealth
 import ApexPersistence
+import ApexSpeech
 import ApexUI
 import Foundation
 import GRDB
@@ -242,7 +243,11 @@ final class AppModel {
             schedule.onIndexRefreshed = { index in await controller.endFinished { index.isCompleted($0) } }
         }
         let health = Self.healthServices(owner: owner)
-        trackerServices = TrackerServices(client: client, cache: cache, queue: queue, clock: clock, activity: publisher, health: health.publisher)
+        let speech = Self.speechRecognizer()
+        trackerServices = TrackerServices(
+            client: client, cache: cache, queue: queue, clock: clock, activity: publisher, health: health.publisher, speech: speech,
+            journal: FileVoiceJournalStore.standard
+        )
         queueDriver?.stop()
         queueDriver = WriteQueueDriver(queue: queue)
         // The Library's and the Builder's offline creates wait in its library lane.
@@ -396,6 +401,15 @@ final class AppModel {
         } catch {
             return Self.readable(error)
         }
+    }
+
+    /// Open sign-up (docs/specs/open-signup.md M3): nil when the server took
+    /// the address and an invite is on its way, else the sentence to show.
+    func signUp(email: String, captchaToken: String, ageConfirmed: Bool) async -> String? {
+        await SignUp.submit(
+            email: email, captchaToken: captchaToken, ageConfirmed: ageConfirmed,
+            baseURL: AppConfig.apiBase, transport: transport
+        )
     }
 
     func sendPasswordReset(email: String) async -> String? {
@@ -756,6 +770,26 @@ final class AppModel {
         }
         #endif
         return HealthServices(store: HKHealthStoreAdapter(), preferences: HealthPreferences(owner: owner))
+    }
+
+    /// Speech for the tracker's microphone (W17): Apple's on-device recognizer
+    /// on a phone; the fake under the XCUITest smoke and `-apexMockSpeech`, and
+    /// on any simulator — Apple's own Speech sample does not run there — unless
+    /// `-apexRealSpeech` asks for the real one. Nothing here touches the audio
+    /// session: that happens on a mic tap, never at launch.
+    private static func speechRecognizer() -> any SpeechRecognizing {
+        #if DEBUG
+        let args = CommandLine.arguments
+        if args.contains("-apexUITest") || args.contains("-apexMockSpeech") {
+            return MockEnvironment.speech()
+        }
+        #endif
+        #if targetEnvironment(simulator)
+        if !CommandLine.arguments.contains("-apexRealSpeech") {
+            return FakeSpeechRecognizer()
+        }
+        #endif
+        return SFSpeechRecognizerAdapter()
     }
 
     /// Tracker bootstraps are keyed by event *and* date: the schedule prefetches

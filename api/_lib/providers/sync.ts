@@ -2,6 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import type { getSupabaseAdmin } from '../supabaseAdmin.js';
 import { fetchCompletionsInRange, fetchExpandedSchedule } from '../mcp/data.js';
 import {
+  getConnection,
   getFreshAccessToken,
   NotConnectedError,
   recordSync,
@@ -10,7 +11,8 @@ import {
   type SyncProvider,
 } from './connection.js';
 import { CorosClient, type ProviderActivity } from './coros/client.js';
-import { mapSport, type ActivitySport } from './coros/mapSport.js';
+import { mapSport, type ActivitySport, type SportMapping } from './coros/mapSport.js';
+import { isOwnAppActivity, mapAppleActivityType, parseAppleActivities } from './apple/activity.js';
 import { McpAuthExpiredError, McpToolError } from './mcpHttp.js';
 import { matchActivity, occurrenceKey } from '../../../src/lib/sync/matching.js';
 import { minutesToDisplayTime } from '../../../src/lib/time.js';
@@ -33,12 +35,41 @@ import { isValidTimezone } from '../userTimezone.js';
 // re-validated server-side, and each activity's ledger row is written LAST
 // so a mid-sequence crash re-proposes it — every earlier write is an
 // upsert, so the retry converges instead of duplicating.
+//
+// Apple Health (W16 M2b) rides the same rails with the phone as the
+// provider: the activities arrive in the body (no token, no fetch, no detail
+// call), the match window comes from the batch rather than the watermark, and
+// three rules COROS never needed keep a Health workout from becoming a second
+// copy of one Apex already has — see classifyApple below.
 
 type Admin = NonNullable<ReturnType<typeof getSupabaseAdmin>>;
 
 const FIRST_SYNC_DAYS = 30;
 const OVERLAP_MS = 48 * 3600 * 1000;
 const MAX_DECISIONS = 100;
+/** A Health batch's window reaches a day before its earliest workout, so a
+ *  late Watch sync or a first sync's second batch still finds its plan. */
+const APPLE_BATCH_LEAD_MS = 24 * 3600 * 1000;
+/** Health workouts start no later than this past "now" (clock skew). */
+const FUTURE_SKEW_MS = 5 * 60 * 1000;
+/** A tracker session started and never finished counts as in progress for
+ *  this long; past it the session is abandoned and blocks nothing. */
+const OPEN_SESSION_MS = 12 * 3600 * 1000;
+/** Two workouts are the same one when they share at least this much of the
+ *  shorter: a Watch strength session recorded alongside the Apex tracker
+ *  does; a walk home that brushes the session's last minute does not. */
+const SAME_WORKOUT_OVERLAP = 0.5;
+/** Another provider's copy of the same workout: start within ±2 min,
+ *  duration within ±10 %. */
+const CROSS_PROVIDER_START_MS = 120 * 1000;
+const CROSS_PROVIDER_DURATION_RATIO = 0.1;
+
+/** Type, title and sport bucket for an activity, by who measured it. */
+export function sportFor(provider: SyncProvider, sport: string | number): SportMapping {
+  return provider === 'apple' ? mapAppleActivityType(sport) : mapSport(sport);
+}
+
+const SUBTITLES: Record<SyncProvider, string> = { coros: 'Synced from COROS', apple: 'Synced from Apple Health' };
 
 // ─── Local-time conversion ───────────────────────────────────────────────────
 // The schema stores floating dates + display-time strings and no timezone;
@@ -84,48 +115,81 @@ export function elevationLabel(meters: number | undefined): string | null {
 // ─── Shared context ──────────────────────────────────────────────────────────
 
 interface SyncContext {
+  provider: SyncProvider;
   activities: ProviderActivity[];
   occurrences: WorkoutEvent[];
   completedKeys: Set<string>;
   ledgerActivityIds: Set<string>;
   ledgerFilledKeys: Set<string>;
   windowStartIso: string;
+  /** Apple only: tracker sessions in the window, [start, end] in ms; end is
+   *  null for a session still open. Grows as this request writes sessions. */
+  sessions: { start: number; end: number | null }[];
+  /** Apple only: other providers' imported activities in the window. */
+  otherProviderActivities: { start: number; durationSec: number }[];
+}
+
+/** Where the activities come from: COROS is fetched with the athlete's
+ *  token; Apple Health arrives in the request body. */
+export type ActivitySource =
+  | { provider: 'coros'; accessToken: string }
+  | { provider: 'apple'; activities: ProviderActivity[] };
+
+function dayBefore(isoDate: string): string {
+  return new Date(Date.parse(`${isoDate.slice(0, 10)}T00:00:00Z`) - 86_400_000).toISOString().slice(0, 10);
 }
 
 async function loadSyncContext(
-  supabase: Admin, userId: string, provider: SyncProvider, accessToken: string,
+  supabase: Admin, userId: string, source: ActivitySource,
 ): Promise<SyncContext> {
+  const provider = source.provider;
   const now = Date.now();
   const floor = now - FIRST_SYNC_DAYS * 86_400_000;
 
-  const { data: conn, error: connErr } = await supabase
-    .from('provider_connections')
-    .select('last_synced_at')
-    .eq('user_id', userId)
-    .eq('provider', provider)
-    .maybeSingle();
-  if (connErr) throw new Error(`connection read failed: ${connErr.message}`);
-
-  const lastSynced = conn?.last_synced_at ? Date.parse(conn.last_synced_at as string) : null;
-  const windowStart = new Date(Math.max(floor, lastSynced ? lastSynced - OVERLAP_MS : floor));
+  let windowStart: Date;
+  if (source.provider === 'apple') {
+    // The batch, not the watermark: Health hands the phone workouts in any
+    // order and days late, and the phone sends them in batches.
+    const earliest = Math.min(...source.activities.map(a => Date.parse(a.startUtc)));
+    windowStart = new Date(Math.max(floor, earliest - APPLE_BATCH_LEAD_MS));
+  } else {
+    const { data: conn, error: connErr } = await supabase
+      .from('provider_connections')
+      .select('last_synced_at')
+      .eq('user_id', userId)
+      .eq('provider', provider)
+      .maybeSingle();
+    if (connErr) throw new Error(`connection read failed: ${connErr.message}`);
+    const lastSynced = conn?.last_synced_at ? Date.parse(conn.last_synced_at as string) : null;
+    windowStart = new Date(Math.max(floor, lastSynced ? lastSynced - OVERLAP_MS : floor));
+  }
   const windowStartIso = windowStart.toISOString();
   const windowEndIso = new Date(now).toISOString();
 
-  const client = new CorosClient(accessToken);
-  const [activities, ledger, expanded, completions] = await Promise.all([
-    client.fetchRecentActivities(windowStartIso, windowEndIso),
-    supabase
-      .from('provider_activity_imports')
-      .select('activity_id, mode, event_id, event_date')
-      .eq('user_id', userId)
-      .eq('provider', provider),
+  const fetchActivities = source.provider === 'apple'
+    ? Promise.resolve(source.activities)
+    : new CorosClient(source.accessToken).fetchRecentActivities(windowStartIso, windowEndIso);
+  const [activities, ledger, expanded, completions, dedup] = await Promise.all([
+    fetchActivities,
+    // Apple: only this batch's ids — the ledger holds every declined workout
+    // too and would outgrow one PostgREST page.
+    (source.provider === 'apple'
+      ? supabase.from('provider_activity_imports').select('activity_id, mode, event_id, event_date')
+        .eq('user_id', userId).eq('provider', provider).in('activity_id', source.activities.map(a => a.activityId))
+      : supabase.from('provider_activity_imports').select('activity_id, mode, event_id, event_date')
+        .eq('user_id', userId).eq('provider', provider)),
     fetchExpandedSchedule(supabase, userId, windowStartIso.slice(0, 10)),
     fetchCompletionsInRange(supabase, userId, windowStartIso.slice(0, 10), windowEndIso.slice(0, 10)),
+    provider === 'apple'
+      ? loadDedupContext(supabase, userId, provider, dayBefore(windowStartIso), new Date(windowStart.getTime() - OPEN_SESSION_MS).toISOString())
+      : Promise.resolve({ sessions: [], otherProviderActivities: [] }),
   ]);
   if (ledger.error) throw new Error(`ledger read failed: ${ledger.error.message}`);
 
   return {
-    activities: activities.sort((a, b) => a.startUtc.localeCompare(b.startUtc)),
+    provider,
+    ...dedup,
+    activities: [...activities].sort((a, b) => a.startUtc.localeCompare(b.startUtc)),
     occurrences: expanded.occurrences,
     completedKeys: new Set(
       completions.filter(c => c.is_completed).map(c => occurrenceKey(c.event_id, c.event_date)),
@@ -138,6 +202,118 @@ async function loadSyncContext(
   };
 }
 
+/** What a Health workout could be a second copy of: Apex's own tracker
+ *  sessions (any provider, or none) and other providers' imports. */
+async function loadDedupContext(
+  supabase: Admin, userId: string, provider: SyncProvider, fromDate: string, fromInstant: string,
+): Promise<Pick<SyncContext, 'sessions' | 'otherProviderActivities'>> {
+  const [sessions, streams] = await Promise.all([
+    // By when it ran, not by its occurrence's date: an overdue workout
+    // tracked today belongs to an occurrence dated days ago.
+    supabase.from('workout_sessions')
+      .select('started_at, finished_at')
+      .eq('user_id', userId)
+      .gte('started_at', fromInstant),
+    supabase.from('activity_streams')
+      .select('provider, summary')
+      .eq('user_id', userId)
+      .gte('event_date', fromDate)
+      .neq('provider', provider),
+  ]);
+  if (sessions.error) throw new Error(`session read failed: ${sessions.error.message}`);
+  if (streams.error) throw new Error(`streams read failed: ${streams.error.message}`);
+  return {
+    sessions: (sessions.data ?? []).flatMap(s => {
+      const start = Date.parse(s.started_at as string);
+      if (!Number.isFinite(start)) return [];
+      const end = s.finished_at ? Date.parse(s.finished_at as string) : null;
+      return [{ start, end: end !== null && Number.isFinite(end) ? end : null }];
+    }),
+    otherProviderActivities: (streams.data ?? []).flatMap(r => {
+      const summary = (r.summary ?? {}) as { startUtc?: unknown; durationSec?: unknown };
+      const start = typeof summary.startUtc === 'string' ? Date.parse(summary.startUtc) : NaN;
+      const durationSec = typeof summary.durationSec === 'number' ? summary.durationSec : NaN;
+      return Number.isFinite(start) && Number.isFinite(durationSec) ? [{ start, durationSec }] : [];
+    }),
+  };
+}
+
+export type AppleSkipReason = 'own-app' | 'duplicate' | 'in-progress' | 'out-of-window' | 'already-imported';
+
+/**
+ * Why a Health workout must not be imported, or null when it may be:
+ *   already-imported — the ledger has decided it (re-sends are no-ops)
+ *   own-app          — Apex wrote it to Health itself (M1)
+ *   out-of-window    — started more than 30 days ago, or in the future
+ *   in-progress      — overlaps a tracker session that is still open; no
+ *                      ledger row, so the next ingest after the finish
+ *                      re-evaluates it (as a duplicate)
+ *   duplicate        — overlaps a finished tracker session, or another
+ *                      provider's import of the same workout
+ */
+export function classifyApple(activity: ProviderActivity, ctx: SyncContext, now = Date.now()): AppleSkipReason | null {
+  if (ctx.ledgerActivityIds.has(activity.activityId)) return 'already-imported';
+  if (isOwnAppActivity(activity)) return 'own-app';
+  const { start, end } = activityInterval(activity);
+  if (start < now - FIRST_SYNC_DAYS * 86_400_000 || start > now + FUTURE_SKEW_MS) return 'out-of-window';
+  const overlaps = (s: number, e: number) => start < e && s < end;
+  // An open session counts while it is plausibly running; one opened and
+  // abandoned more than OPEN_SESSION_MS ago blocks nothing.
+  if (ctx.sessions.some(s => s.end === null && now - s.start <= OPEN_SESSION_MS && overlaps(s.start, Math.max(now, s.start + 1)))) {
+    return 'in-progress';
+  }
+  // A finished session is the same workout only when the two share most of
+  // the shorter one. Zero-length sessions — a quick-complete, a workout the
+  // coach logged — are a tap, not a workout, and never match.
+  if (ctx.sessions.some(s => s.end !== null && s.end > s.start && sameWorkout(start, end, s.start, s.end))) return 'duplicate';
+  if (ctx.otherProviderActivities.some(o =>
+    Math.abs(o.start - start) <= CROSS_PROVIDER_START_MS
+    && Math.abs(o.durationSec - activity.durationSec) <= CROSS_PROVIDER_DURATION_RATIO * Math.max(o.durationSec, activity.durationSec),
+  )) return 'duplicate';
+  return null;
+}
+
+/** A Health workout's wall-clock interval: start to the end Health
+ *  recorded (a paused workout's duration is shorter than its span), else
+ *  start + duration. */
+function activityInterval(activity: ProviderActivity): { start: number; end: number } {
+  const start = Date.parse(activity.startUtc);
+  const recordedEnd = typeof activity.summaryExtras.endUtc === 'string' ? Date.parse(activity.summaryExtras.endUtc) : NaN;
+  return { start, end: Number.isFinite(recordedEnd) && recordedEnd > start ? recordedEnd : start + activity.durationSec * 1000 };
+}
+
+/** Whether two intervals share at least SAME_WORKOUT_OVERLAP of the shorter. */
+function sameWorkout(aStart: number, aEnd: number, bStart: number, bEnd: number): boolean {
+  const shared = Math.min(aEnd, bEnd) - Math.max(aStart, bStart);
+  const shorter = Math.min(aEnd - aStart, bEnd - bStart);
+  return shorter > 0 && shared >= SAME_WORKOUT_OVERLAP * shorter;
+}
+
+/** Remember an imported (or proposed) workout's interval, so a second copy
+ *  in the same batch (Watch and a phone app both writing to Health) is a
+ *  duplicate. */
+function rememberSession(ctx: SyncContext, activity: ProviderActivity): void {
+  const { start, end } = activityInterval(activity);
+  ctx.sessions.push({ start, end });
+}
+
+/** "Don't import": the ledger remembers the decision and nothing else is
+ *  written. event_id '-' (the column is NOT NULL); the activity's local date. */
+async function writeSkip(
+  supabase: Admin, userId: string, provider: SyncProvider, activityId: string, localDate: string,
+): Promise<void> {
+  const { error } = await supabase.from('provider_activity_imports').upsert({
+    user_id: userId,
+    provider,
+    activity_id: activityId,
+    mode: 'skipped',
+    event_id: '-',
+    event_date: localDate,
+    imported_at: new Date().toISOString(),
+  }, { onConflict: 'user_id,provider,activity_id', ignoreDuplicates: true });
+  if (error) throw new Error(`ledger skip insert failed: ${error.message}`);
+}
+
 // ─── Handler entry ───────────────────────────────────────────────────────────
 
 export async function handleSyncAction(
@@ -146,14 +322,24 @@ export async function handleSyncAction(
   res: VercelResponse,
   userId: string,
   provider: SyncProvider,
-  action: 'preview' | 'apply',
+  action: 'preview' | 'apply' | 'ingest',
 ): Promise<void> {
-  const body = (req.body ?? {}) as { timezone?: unknown; decisions?: unknown };
+  const body = (req.body ?? {}) as { timezone?: unknown; decisions?: unknown; activities?: unknown };
   if (!isValidTimezone(body.timezone)) {
     res.status(400).send('A valid IANA timezone is required');
     return;
   }
   const timezone = body.timezone;
+
+  if (provider === 'apple') {
+    await handleAppleSync(supabase, req, res, userId, action, timezone, body.activities);
+    return;
+  }
+  if (action === 'ingest') {
+    res.status(400).send('Unknown action');
+    return;
+  }
+
   // Remember the browser's zone — the nightly cron has no browser to ask.
   await stampTimezone(supabase, userId, provider, timezone);
 
@@ -169,10 +355,11 @@ export async function handleSyncAction(
   }
 
   try {
+    const source: ActivitySource = { provider: 'coros', accessToken };
     if (action === 'preview') {
-      await handlePreview(supabase, res, userId, provider, accessToken, timezone);
+      await handlePreview(supabase, res, userId, source, timezone);
     } else {
-      await handleApply(supabase, req, res, userId, provider, accessToken, timezone);
+      await handleApply(supabase, req, res, userId, source, timezone);
     }
   } catch (err) {
     if (err instanceof McpAuthExpiredError) {
@@ -185,6 +372,38 @@ export async function handleSyncAction(
       return;
     }
     throw err;
+  }
+}
+
+/** Apple Health: consent first (server-side, never trusted to the phone),
+ *  then the body's activities. */
+async function handleAppleSync(
+  supabase: Admin, req: VercelRequest, res: VercelResponse, userId: string,
+  action: 'preview' | 'apply' | 'ingest', timezone: string, rawActivities: unknown,
+): Promise<void> {
+  const connection = await getConnection(supabase, userId, 'apple');
+  if (!connection || connection.status !== 'connected') {
+    res.status(409).json({ error: 'not-connected' });
+    return;
+  }
+  if (connection.categories.workoutsRead !== true) {
+    res.status(409).json({ error: 'category-off', category: 'workoutsRead' });
+    return;
+  }
+  const activities = parseAppleActivities(rawActivities);
+  if (!activities) {
+    res.status(400).send('activities must be 1–100 unique, well-formed Health workouts');
+    return;
+  }
+  await stampTimezone(supabase, userId, 'apple', timezone);
+  const source: ActivitySource = { provider: 'apple', activities };
+  if (action === 'preview') {
+    await handlePreview(supabase, res, userId, source, timezone);
+  } else if (action === 'apply') {
+    await handleApply(supabase, req, res, userId, source, timezone);
+  } else {
+    const ctx = await loadSyncContext(supabase, userId, source);
+    res.status(200).json(await runIngest(supabase, userId, ctx, timezone));
   }
 }
 
@@ -204,11 +423,55 @@ interface Proposal {
   match: { eventId: string; eventDate: string; title: string; startTime: string | null; type: string } | null;
 }
 
-function buildProposals(ctx: SyncContext, timezone: string): Proposal[] {
+function proposalFor(
+  ctx: SyncContext, activity: ProviderActivity, timezone: string, filled: Set<string>,
+): Proposal {
+  const sport = sportFor(ctx.provider, activity.sport);
+  const local = utcToLocal(activity.startUtc, timezone);
+  const durationMin = Math.max(1, Math.round(activity.durationSec / 60));
+  const match = matchActivity(
+    { localDate: local.date, startMinutes: local.minutes, durationMin, apexType: sport.type },
+    ctx.occurrences,
+    ctx.completedKeys,
+    filled,
+  );
+  if (match) filled.add(occurrenceKey(match.id, match.date));
+  return {
+    activity: {
+      activityId: activity.activityId,
+      sportLabel: sport.label,
+      apexType: sport.type,
+      localDate: local.date,
+      displayTime: local.display,
+      durationMin,
+      distance: distanceLabel(activity.distanceMeters),
+      avgHr: activity.avgHr ?? null,
+    },
+    match: match
+      ? { eventId: match.id, eventDate: match.date, title: match.title, startTime: match.startTime ?? null, type: match.type }
+      : null,
+  };
+}
+
+interface Skipped { activityId: string; reason: AppleSkipReason }
+
+function buildProposals(ctx: SyncContext, timezone: string): { proposals: Proposal[]; skipped: Skipped[] } {
   const filled = new Set(ctx.ledgerFilledKeys);
   const proposals: Proposal[] = [];
+  const skipped: Skipped[] = [];
 
   for (const activity of ctx.activities) {
+    if (ctx.provider === 'apple') {
+      const reason = classifyApple(activity, ctx);
+      if (reason) {
+        skipped.push({ activityId: activity.activityId, reason });
+        continue;
+      }
+      proposals.push(proposalFor(ctx, activity, timezone, filled));
+      // As apply and ingest do: a second copy in this batch is a duplicate.
+      rememberSession(ctx, activity);
+      continue;
+    }
     if (ctx.ledgerActivityIds.has(activity.activityId)) continue;
     const sport = mapSport(activity.sport);
     const local = utcToLocal(activity.startUtc, timezone);
@@ -238,27 +501,30 @@ function buildProposals(ctx: SyncContext, timezone: string): Proposal[] {
         : null,
     });
   }
-  return proposals;
+  return { proposals, skipped };
 }
 
 async function handlePreview(
-  supabase: Admin, res: VercelResponse, userId: string,
-  provider: SyncProvider, accessToken: string, timezone: string,
+  supabase: Admin, res: VercelResponse, userId: string, source: ActivitySource, timezone: string,
 ): Promise<void> {
-  const ctx = await loadSyncContext(supabase, userId, provider, accessToken);
-  res.status(200).json({ proposals: buildProposals(ctx, timezone) });
+  const ctx = await loadSyncContext(supabase, userId, source);
+  const { proposals, skipped } = buildProposals(ctx, timezone);
+  // COROS's answer is unchanged; Apple also says what it set aside and why.
+  res.status(200).json(source.provider === 'apple' ? { proposals, skipped } : { proposals });
 }
 
 // ─── apply ───────────────────────────────────────────────────────────────────
 
 interface Decision {
   activityId: string;
-  action: 'fill' | 'create';
+  action: 'fill' | 'create' | 'skip';
   targetEventId?: string;
   eventDate?: string;
 }
 
-function parseDecisions(raw: unknown): Decision[] | null {
+/** `'skip'` ("Don't import") is Apple's only: a COROS activity is either
+ *  filled into a plan or imported on its own. */
+function parseDecisions(raw: unknown, provider: SyncProvider): Decision[] | null {
   if (!Array.isArray(raw) || raw.length === 0 || raw.length > MAX_DECISIONS) return null;
   const out: Decision[] = [];
   const seen = new Set<string>();
@@ -272,6 +538,8 @@ function parseDecisions(raw: unknown): Decision[] | null {
       out.push({ activityId: d.activityId, action: 'fill', targetEventId: d.targetEventId, eventDate: d.eventDate });
     } else if (d.action === 'create') {
       out.push({ activityId: d.activityId, action: 'create' });
+    } else if (d.action === 'skip' && provider === 'apple') {
+      out.push({ activityId: d.activityId, action: 'skip' });
     } else {
       return null;
     }
@@ -335,25 +603,28 @@ function sanitizeEventId(provider: SyncProvider, activityId: string): string {
 interface ApplyOutcome {
   created: number;
   filled: number;
+  /** Apple only: "Don't import" decisions recorded. */
+  skipped?: number;
   errors: { activityId: string; error: string }[];
 }
 
 async function handleApply(
   supabase: Admin, req: VercelRequest, res: VercelResponse,
-  userId: string, provider: SyncProvider, accessToken: string, timezone: string,
+  userId: string, source: ActivitySource, timezone: string,
 ): Promise<void> {
-  const decisions = parseDecisions((req.body as Record<string, unknown>).decisions);
+  const provider = source.provider;
+  const decisions = parseDecisions((req.body as Record<string, unknown>).decisions, provider);
   if (!decisions) {
     res.status(400).send(`decisions must be 1–${MAX_DECISIONS} unique {activityId, action} entries`);
     return;
   }
 
-  const ctx = await loadSyncContext(supabase, userId, provider, accessToken);
+  const ctx = await loadSyncContext(supabase, userId, source);
   const byId = new Map(ctx.activities.map(a => [a.activityId, a]));
-  const client = new CorosClient(accessToken);
+  const client = source.provider === 'coros' ? new CorosClient(source.accessToken) : null;
   const occurrenceIndex = new Map(ctx.occurrences.map(o => [occurrenceKey(o.id, o.date), o]));
 
-  const outcome: ApplyOutcome = { created: 0, filled: 0, errors: [] };
+  const outcome: ApplyOutcome = { created: 0, filled: 0, ...(provider === 'apple' ? { skipped: 0 } : {}), errors: [] };
   // Fills already executed this apply — a second decision naming the same
   // occurrence must fail validation, exactly like a ledgered fill.
   const filledThisApply = new Set<string>();
@@ -369,10 +640,28 @@ async function handleApply(
       continue;
     }
 
+    // The same rules preview applied: a Health workout Apex already has, or
+    // one still being tracked, is never imported — only declined.
+    if (provider === 'apple' && decision.action !== 'skip') {
+      const reason = classifyApple(listItem, ctx);
+      if (reason) {
+        outcome.errors.push({ activityId: decision.activityId, error: reason });
+        continue;
+      }
+    }
+
     try {
-      const activity = await withDetail(client, listItem);
+      // COROS's list item is thin; its detail and FIT add the rest. Apple's
+      // body already carries everything the phone could read.
+      const activity = client ? await withDetail(client, listItem) : listItem;
       const local = utcToLocal(activity.startUtc, timezone);
-      const sport = mapSport(activity.sport);
+      const sport = sportFor(provider, activity.sport);
+
+      if (decision.action === 'skip') {
+        await writeSkip(supabase, userId, provider, activity.activityId, local.date);
+        outcome.skipped = (outcome.skipped ?? 0) + 1;
+        continue;
+      }
 
       if (decision.action === 'fill') {
         const key = occurrenceKey(decision.targetEventId!, decision.eventDate!);
@@ -389,6 +678,7 @@ async function handleApply(
         }
         await writeActivityRecords(supabase, userId, provider, activity, sport.label, local, target, null);
         filledThisApply.add(key);
+        rememberSession(ctx, activity);
         outcome.filled += 1;
       } else {
         const eventId = sanitizeEventId(provider, activity.activityId);
@@ -397,6 +687,7 @@ async function handleApply(
           type: sport.type,
           sport: sport.sport,
         });
+        rememberSession(ctx, activity);
         outcome.created += 1;
       }
     } catch (err) {
@@ -443,7 +734,7 @@ export async function runAutoSync(
   timezone: string,
 ): Promise<AutoSyncOutcome> {
   const accessToken = await getFreshAccessToken(supabase, userId, provider);
-  const ctx = await loadSyncContext(supabase, userId, provider, accessToken);
+  const ctx = await loadSyncContext(supabase, userId, { provider: 'coros', accessToken });
   const client = new CorosClient(accessToken);
   const outcome: AutoSyncOutcome = { created: 0, pendingFills: 0, errors: 0 };
   const filled = new Set(ctx.ledgerFilledKeys);
@@ -487,6 +778,70 @@ export async function runAutoSync(
     await recordSync(supabase, userId, provider);
   }
   await setPendingFillCount(supabase, userId, provider, outcome.pendingFills);
+  return outcome;
+}
+
+export interface IngestOutcome {
+  created: number;
+  skipped: Skipped[];
+  /** Matches waiting on the athlete: a fill is never made unattended. */
+  pending: Proposal[];
+  errors: { activityId: string; error: string }[];
+}
+
+/**
+ * Apple's unattended import, the phone's background delivery: the same rules
+ * as runAutoSync — create what matches nothing, never fill a planned workout,
+ * count the matches into pending_fill_count — with Health's dedup on top. A
+ * duplicate or own-app workout is ledgered as skipped so it is not weighed
+ * again; an in-progress one is not, so it is re-weighed after the session
+ * finishes. The watermark moves only when nothing is pending or failed.
+ */
+export async function runIngest(
+  supabase: Admin, userId: string, ctx: SyncContext, timezone: string,
+): Promise<IngestOutcome> {
+  const provider = ctx.provider;
+  const outcome: IngestOutcome = { created: 0, skipped: [], pending: [], errors: [] };
+  const filled = new Set(ctx.ledgerFilledKeys);
+
+  for (const activity of ctx.activities) {
+    const reason = classifyApple(activity, ctx);
+    if (reason) {
+      outcome.skipped.push({ activityId: activity.activityId, reason });
+      if (reason === 'duplicate' || reason === 'own-app') {
+        try {
+          await writeSkip(supabase, userId, provider, activity.activityId, utcToLocal(activity.startUtc, timezone).date);
+        } catch (err) {
+          console.error(`[provider-sync] skip ledger failed for ${activity.activityId}:`, err instanceof Error ? err.message : err);
+        }
+      }
+      continue;
+    }
+
+    const proposal = proposalFor(ctx, activity, timezone, filled);
+    if (proposal.match) {
+      outcome.pending.push(proposal);
+      continue;
+    }
+    try {
+      const sport = sportFor(provider, activity.sport);
+      await writeActivityRecords(supabase, userId, provider, activity, sport.label, utcToLocal(activity.startUtc, timezone), null, {
+        eventId: sanitizeEventId(provider, activity.activityId),
+        type: sport.type,
+        sport: sport.sport,
+      });
+      rememberSession(ctx, activity);
+      outcome.created += 1;
+    } catch (err) {
+      console.error(`[provider-sync] ingest failed for ${activity.activityId}:`, err instanceof Error ? err.message : err);
+      outcome.errors.push({ activityId: activity.activityId, error: 'write-failed' });
+    }
+  }
+
+  if (outcome.pending.length === 0 && outcome.errors.length === 0) {
+    await recordSync(supabase, userId, provider);
+  }
+  await setPendingFillCount(supabase, userId, provider, outcome.pending.length);
   return outcome;
 }
 
@@ -558,7 +913,7 @@ async function writeActivityRecords(
       type: createSpec.type,
       sport: createSpec.sport,
       title: sportLabel,
-      subtitle: 'Synced from COROS',
+      subtitle: SUBTITLES[provider],
       date: local.date,
       start_time: local.display,
       estimated_duration: durationMin,

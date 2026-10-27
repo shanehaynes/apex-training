@@ -28,8 +28,26 @@ final class SmokeUITests: XCTestCase {
     private func signIn(_ app: XCUIApplication) {
         type("agent@apex.local", into: app.textFields["signin.email"])
         type("apex-agent-password", into: app.secureTextFields["signin.password"])
-        app.buttons["Sign in"].tap()
+        app.buttons["signin.submit"].tap()
+        dismissSavePassword(app)
     }
+
+    /// A signed build carries the app's `webcredentials` entitlement, so iOS
+    /// offers to save the password once the sign-in fields go away, and that
+    /// sheet covers every tap after it. An unsigned build (CI) never gets the
+    /// offer, so it skips the wait.
+    private func dismissSavePassword(_ app: XCUIApplication) {
+        guard Self.isSigned,
+              app.textFields["signin.email"].waitForNonExistence(timeout: 10) else { return }
+        let notNow = app.buttons["Not Now"]
+        if notNow.waitForExistence(timeout: 5) { notNow.tap() }
+    }
+
+    /// The test bundle is signed exactly when the app under test is: one
+    /// `xcodebuild` invocation signs both or neither.
+    private static let isSigned = FileManager.default.fileExists(
+        atPath: Bundle(for: SmokeUITests.self).bundleURL.appendingPathComponent("_CodeSignature").path
+    )
 
     /// Today rides in the Day/Month toolbar menu (ux-review §3.2): four
     /// controls is the most the bar holds with the date still legible.
@@ -94,16 +112,118 @@ final class SmokeUITests: XCTestCase {
         let email = app.textFields["signin.email"]
         XCTAssertTrue(email.waitForExistence(timeout: 10))
         XCTAssertTrue(app.secureTextFields["signin.password"].exists)
-        XCTAssertTrue(app.buttons["Sign in"].exists)
-
-        // Invite-only has to be stated, not implied (App Store 5.1.1) — and
-        // stated with a way forward: the contact link, not a dead end (W13).
-        XCTAssertTrue(app.staticTexts.containing(
-            NSPredicate(format: "label CONTAINS[c] 'invite-only'")
-        ).firstMatch.exists)
-        XCTAssertTrue(app.links["signin.invite"].exists || app.buttons["signin.invite"].exists, "no invite contact link")
+        XCTAssertTrue(app.buttons["signin.submit"].exists)
 
         attach(app, name: "01-sign-in")
+    }
+
+    /// Open sign-up (docs/specs/open-signup.md M3), and App Store 5.1.1's way
+    /// to an account: email, the terms and 18+ toggles (neither enough alone),
+    /// then the human check opens as a sheet, which only Cancel closes.
+    ///
+    /// The check is the mock's preset token held back 8 s, so no web page (and
+    /// no local server) is involved, and Cancel has a late token to stop.
+    func testCreateAccountNeedsBothTogglesThenOpensTheCheck() {
+        let app = XCUIApplication()
+        app.launchArguments += ["-apexUITest", "-apexMockClient",
+                                "-apexMockSignupToken", "late-token", "-apexMockSignupTokenDelay", "8000"]
+        app.launch()
+        let mode = app.segmentedControls["signin.mode"]
+        XCTAssertTrue(mode.waitForExistence(timeout: 10), "no Create account mode")
+        mode.buttons["Create account"].tap()
+
+        XCTAssertFalse(app.secureTextFields["signin.password"].exists, "the invite is where the password is chosen")
+        let submit = app.buttons["signup.submit"]
+        XCTAssertTrue(submit.waitForExistence(timeout: 5))
+        XCTAssertFalse(submit.isEnabled)
+
+        // An address the server refuses (a dot, but none after the @) never
+        // opens the check, however many boxes are ticked.
+        let email = app.textFields["signin.email"]
+        email.tap()
+        email.typeText("someone.else@example")
+        let age = app.switches["signup.age"]
+        XCTAssertEqual(age.value as? String, "0", "the 18+ toggle must never start on")
+        flip(app.switches["signup.terms"])
+        flip(age)
+        XCTAssertFalse(submit.isEnabled, "an address the server refuses must not open the check")
+        email.tap()
+        email.typeText(".com")
+        XCTAssertTrue(submit.isEnabled)
+        attach(app, name: "01b-create-account")
+
+        // Terms alone is not enough.
+        flip(age)
+        XCTAssertFalse(submit.isEnabled, "terms alone must not be enough")
+        flip(age)
+        XCTAssertTrue(submit.isEnabled)
+
+        // Age alone is not enough either.
+        flip(app.switches["signup.terms"])
+        XCTAssertFalse(submit.isEnabled, "the 18+ toggle alone must not be enough")
+        flip(app.switches["signup.terms"])
+        XCTAssertTrue(submit.isEnabled)
+
+        // Consent is per visit to the form: Sign in and back resets both.
+        mode.buttons["Sign in"].tap()
+        mode.buttons["Create account"].tap()
+        XCTAssertEqual(app.switches["signup.terms"].value as? String, "0")
+        XCTAssertEqual(app.switches["signup.age"].value as? String, "0")
+        XCTAssertFalse(submit.isEnabled)
+        flip(app.switches["signup.terms"])
+        flip(app.switches["signup.age"])
+
+        submit.tap()
+        let check = app.navigationBars["Quick check"]
+        XCTAssertTrue(check.waitForExistence(timeout: 10), "the human check did not open")
+
+        // Cancel is the only way out: a swipe would leave no moment to stop a
+        // token that lands mid-animation, so the sheet refuses it.
+        check.swipeDown(velocity: .fast)
+        XCTAssertFalse(check.waitForNonExistence(timeout: 2), "a swipe must not dismiss the check")
+        check.buttons["Cancel"].tap()
+        XCTAssertTrue(check.waitForNonExistence(timeout: 5))
+        // The held-back token lands after Cancel; the mock would accept it, so
+        // a notice here means the latch let it through.
+        XCTAssertFalse(app.staticTexts["signup.notice"].waitForExistence(timeout: 10), "Cancel must send nothing")
+        XCTAssertFalse(app.staticTexts["signup.problem"].exists)
+    }
+
+    /// The form's way through to the server's answer, on the mock's
+    /// `-apexMockSignupToken` (the check sheet hands that token over instead of
+    /// loading the page). The mock refuses what the server refuses — no JSON
+    /// body, no boolean 18+ attestation, no token — so the notice is proof of
+    /// what the app sent; after it, consent starts over.
+    func testCreateAccountReachesTheServersAnswer() {
+        let app = XCUIApplication()
+        app.launchArguments += ["-apexUITest", "-apexMockClient", "-apexMockSignupToken", "mock-token"]
+        app.launch()
+        let mode = app.segmentedControls["signin.mode"]
+        XCTAssertTrue(mode.waitForExistence(timeout: 10))
+        mode.buttons["Create account"].tap()
+
+        let email = app.textFields["signin.email"]
+        email.tap()
+        email.typeText("someone@example.com")
+        flip(app.switches["signup.terms"])
+        flip(app.switches["signup.age"])
+        app.buttons["signup.submit"].tap()
+
+        let notice = app.staticTexts["signup.notice"]
+        XCTAssertTrue(notice.waitForExistence(timeout: 10),
+                      "no notice: \(app.staticTexts["signup.problem"].exists ? app.staticTexts["signup.problem"].label : "no answer")")
+        XCTAssertTrue(notice.label.contains("someone@example.com"))
+        XCTAssertEqual(app.switches["signup.terms"].value as? String, "0", "consent is per submission")
+        XCTAssertEqual(app.switches["signup.age"].value as? String, "0")
+        XCTAssertFalse(app.buttons["signup.submit"].isEnabled)
+        attach(app, name: "01c-create-account-sent")
+    }
+
+    /// A Toggle's own switch sits at its trailing edge; tapping the middle
+    /// lands on the label, which does not always flip it.
+    private func flip(_ toggle: XCUIElement) {
+        XCTAssertTrue(toggle.waitForExistence(timeout: 5))
+        toggle.coordinate(withNormalizedOffset: CGVector(dx: 0.95, dy: 0.5)).tap()
     }
 
     /// sign in → today → month → day sheet → event → complete, all on fixtures.
@@ -218,6 +338,14 @@ final class SmokeUITests: XCTestCase {
         let cleared = expectation(for: NSPredicate(format: "exists == false"), evaluatedWith: syncText)
         wait(for: [cleared], timeout: 30)
 
+        // The set number is the warm-up toggle (#422): it turns into a W and
+        // the set saves again; the summary tags it.
+        let warmup = app.buttons["tracker.warmup.fx-press.2"]
+        XCTAssertTrue(warmup.waitForExistence(timeout: 10))
+        warmup.tap()
+        XCTAssertTrue(app.buttons["Set 2 is a warm-up — tap to count it"].waitForExistence(timeout: 5))
+        attach(app, name: "08b-tracker-warmup")
+
         // Finish: set 1 was never touched, so the gate asks first.
         app.buttons["tracker.finish"].tap()
         let finishAnyway = app.buttons["Finish anyway"]
@@ -231,6 +359,7 @@ final class SmokeUITests: XCTestCase {
         let coach = app.staticTexts["Strong session — a new estimated 1RM on Fixture Press."]
         XCTAssertTrue(coach.waitForExistence(timeout: 20), "the fixture stream renders")
         XCTAssertTrue(app.staticTexts.containing(NSPredicate(format: "label CONTAINS 'est. 1RM 132'")).firstMatch.exists)
+        XCTAssertTrue(app.staticTexts["warm-up"].exists, "the summary tags the warm-up set")
         attach(app, name: "10-tracker-summary")
 
         app.buttons["tracker.summary.back"].tap()
@@ -238,6 +367,90 @@ final class SmokeUITests: XCTestCase {
         // Finished, so the card goes back to stating a time — the running
         // timer belongs to a session that is still open (ux-review §3.4).
         XCTAssertFalse(app.staticTexts["event.card.Fixture Push Day.running"].exists)
+    }
+
+    /// W17: a spoken set lands on the first empty row, Undo takes it back,
+    /// and a near miss asks first. The fake recognizer plays the two
+    /// utterances one mic tap each; the toggle is on because the flag is set.
+    func testVoiceLoggingOnFixtures() throws {
+        let app = XCUIApplication()
+        app.launchArguments += ["-apexUITest", "-apexMockClient", "-apexMockSpeech", "Fixture Press 115 for 4;fixture prss 120 for 3"]
+        app.launch()
+        signIn(app)
+
+        openEvent(app, card: "Fixture Push Day")
+        let start = app.buttons["schedule.event.start"]
+        XCTAssertTrue(start.waitForExistence(timeout: 10))
+        start.tap()
+        let mic = app.buttons["tracker.voice"]
+        XCTAssertTrue(mic.waitForExistence(timeout: 20), "the toggle is on, so the header has the mic")
+        XCTAssertTrue(app.staticTexts["tracker.title"].exists)
+        let weight1 = app.textFields["tracker.input.fx-press.1.weight"]
+        XCTAssertTrue(weight1.waitForExistence(timeout: 10))
+        let shownBefore = weight1.value as? String
+
+        mic.tap()
+        let applied = app.staticTexts["tracker.voice.applied"]
+        XCTAssertTrue(applied.waitForExistence(timeout: 10))
+        XCTAssertEqual(applied.label, "Logged Fixture Press · 115 lb × 4")
+        XCTAssertEqual(weight1.value as? String, "115")
+        XCTAssertEqual(app.textFields["tracker.input.fx-press.1.reps"].value as? String, "4")
+        attach(app, name: "w17-01-voice-applied")
+
+        // The audit with the strip up. Only the voice elements are this
+        // workstream's to answer for; anything else is reported, not failed.
+        try app.performAccessibilityAudit { issue in
+            let identifier = issue.element?.identifier ?? ""
+            guard identifier.hasPrefix("tracker.voice") else {
+                print("accessibility audit (not voice): \(issue.compactDescription)")
+                return true
+            }
+            return false
+        }
+
+        app.buttons["tracker.voice.undo"].tap()
+        XCTAssertTrue(applied.waitForNonExistence(timeout: 5))
+        XCTAssertEqual(weight1.value as? String, shownBefore, "undone: the row shows what it showed before the tap (its ghost)")
+
+        mic.tap()
+        let chip = app.buttons["tracker.voice.chip.fx-press"]
+        XCTAssertTrue(chip.waitForExistence(timeout: 10), "a near miss asks first")
+        attach(app, name: "w17-02-voice-chips")
+        chip.tap()
+        XCTAssertTrue(applied.waitForExistence(timeout: 10))
+        XCTAssertEqual(applied.label, "Logged Fixture Press · 120 lb × 3")
+        XCTAssertEqual(weight1.value as? String, "120")
+    }
+
+    /// W17: a refused sheet is a Settings line, not a dead mic.
+    func testVoiceDeniedShowsTheSettingsLineOnFixtures() {
+        let app = XCUIApplication()
+        app.launchArguments += ["-apexUITest", "-apexMockClient", "-apexMockSpeech", "denied"]
+        app.launch()
+        signIn(app)
+        openEvent(app, card: "Fixture Push Day")
+        let start = app.buttons["schedule.event.start"]
+        XCTAssertTrue(start.waitForExistence(timeout: 10))
+        start.tap()
+        let mic = app.buttons["tracker.voice"]
+        XCTAssertTrue(mic.waitForExistence(timeout: 20))
+        mic.tap()
+        XCTAssertTrue(app.buttons["tracker.voice.settings"].waitForExistence(timeout: 10))
+        attach(app, name: "w17-03-voice-denied")
+    }
+
+    /// W17: with the toggle off there is no microphone at all.
+    func testVoiceToggleOffHidesTheMicOnFixtures() {
+        let app = XCUIApplication()
+        app.launchArguments += ["-apexUITest", "-apexMockClient", "-apexMockSpeech", "off"]
+        app.launch()
+        signIn(app)
+        openEvent(app, card: "Fixture Push Day")
+        let start = app.buttons["schedule.event.start"]
+        XCTAssertTrue(start.waitForExistence(timeout: 10))
+        start.tap()
+        XCTAssertTrue(app.staticTexts["tracker.title"].waitForExistence(timeout: 20))
+        XCTAssertFalse(app.buttons["tracker.voice"].exists)
     }
 
     /// ux-review §3.4: back out of a running workout and the day card says so
@@ -289,6 +502,22 @@ final class SmokeUITests: XCTestCase {
         let schedule = app.tabBars.buttons["Schedule"]
         guard schedule.waitForExistence(timeout: 20) else {
             throw XCTSkip("no local Supabase stack reachable from this simulator")
+        }
+        // A signed build keeps this session in the Keychain, and every later
+        // `launch(mock: false)` would open signed in instead of on sign-in.
+        addTeardownBlock { @MainActor in
+            app.tabBars.buttons["You"].tap()
+            // The settings list's button, or the bare one a failed profile
+            // load shows in its place.
+            let signOut = app.buttons.matching(
+                NSPredicate(format: "identifier == 'you.signout' OR label == 'Sign out'")
+            ).firstMatch
+            for _ in 0..<6 where !signOut.isHittable { app.swipeUp() }
+            signOut.tap()
+            // Sign-out runs in a Task; the next test's launch kills the app,
+            // so wait for it to land rather than trusting the tap.
+            XCTAssertTrue(app.textFields["signin.email"].waitForExistence(timeout: 10),
+                          "sign-out never returned to sign-in")
         }
         for tab in ["Schedule", "Coach", "Analytics", "You"] {
             XCTAssertTrue(app.tabBars.buttons[tab].exists, "missing tab: \(tab)")

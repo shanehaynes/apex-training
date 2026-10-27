@@ -19,6 +19,17 @@ enum TestFixtures {
         try Data(contentsOf: directory.appendingPathComponent(name))
     }
 
+    /// Hand-authored fixtures that live beside the tests (`Fixtures/` in this
+    /// target, excluded from the build in Package.swift) — the voice grammar's
+    /// contract (W17), which no emitter writes. Read by path like `directory`.
+    static let localDirectory: URL = URL(fileURLWithPath: #filePath)
+        .deletingLastPathComponent()  // ApexCoreTests
+        .appendingPathComponent("Fixtures")
+
+    static func local(_ name: String) throws -> Data {
+        try Data(contentsOf: localDirectory.appendingPathComponent(name))
+    }
+
     static func decode<T: Decodable>(_ type: T.Type, _ name: String) throws -> T {
         try JSONDecoder().decode(type, from: try data(name))
     }

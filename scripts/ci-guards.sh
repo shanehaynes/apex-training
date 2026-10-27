@@ -59,7 +59,7 @@ ios/scripts/check-deinits.sh
 # `swift test` (architecture.md rule 2), and CI's apexcore-linux job builds the
 # whole package. One Apple-only or SDK import silently ends that, and only a
 # Linux run would ever notice — so check it here, where every run does.
-if grep -rnE '^[[:space:]]*import[[:space:]]+(UIKit|SwiftUI|Combine|Supabase|Auth|PostgREST|Realtime|Storage|GRDB|CoreText|HealthKit)\b' \
+if grep -rnE '^[[:space:]]*import[[:space:]]+(UIKit|SwiftUI|Combine|Supabase|Auth|PostgREST|Realtime|Storage|GRDB|CoreText|HealthKit|Speech|AVFoundation|AVFAudio)\b' \
      ios/Packages/ApexCore/Sources; then
   echo "::error::ApexCore imports an Apple-only or SDK module (listed above)." \
     "Move that code to ios/Packages/ApexKit (ApexAuth / ApexPersistence / ApexUI)" \

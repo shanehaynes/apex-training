@@ -23,8 +23,10 @@ interface AdminState {
   /** Count of hand-logged (is_autofilled = false) set / cardio rows. */
   performedSets: number;
   performedCardio: number;
-  /** provider_activity_imports rows for the occurrence. */
+  /** provider_activity_imports rows for the occurrence that wrote something. */
   imports: number;
+  /** …and "Don't import" rows (mode 'skipped', phase59), which wrote nothing. */
+  skippedImports?: number;
   /** Recorded: every update payload, by table. */
   updates: Array<{ table: string; row: Record<string, unknown>; filters: Array<[string, unknown]> }>;
   /** Recorded: every upsert, by table. */
@@ -40,7 +42,10 @@ function makeAdmin(state: AdminState) {
       const count = (): number => {
         if (table === 'workout_set_logs') return state.performedSets;
         if (table === 'workout_cardio_logs') return state.performedCardio;
-        if (table === 'provider_activity_imports') return state.imports;
+        if (table === 'provider_activity_imports') {
+          const excludesSkips = filters.some(([c, v]) => c === '!mode' && v === 'skipped');
+          return state.imports + (excludesSkips ? 0 : state.skippedImports ?? 0);
+        }
         return 0;
       };
       const settle = () => {
@@ -50,6 +55,7 @@ function makeAdmin(state: AdminState) {
       };
       for (const m of ['is', 'in', 'lt', 'not', 'order', 'range', 'limit']) b[m] = () => b;
       b.eq = (column: string, value: unknown) => { filters.push([column, value]); return b; };
+      b.neq = (column: string, value: unknown) => { filters.push([`!${column}`, value]); return b; };
       b.select = () => b;
       b.update = (row: Record<string, unknown>) => {
         op = 'update';
@@ -171,6 +177,11 @@ describe('applyEditTimes — R4.1, R4.2, R4.4', () => {
     const result = await run();
     expect(result).toMatchObject({ ok: false, status: 409, message: expect.stringMatching(/synced activity/) });
     expect(state.updates).toEqual([]);
+  });
+
+  it('a declined Health import ("Don\'t import") never locks the times', async () => {
+    state.skippedImports = 1;
+    expect((await run()).ok).toBe(true);
   });
 
   it('applies the bounds before writing', async () => {

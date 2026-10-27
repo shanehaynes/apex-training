@@ -182,6 +182,41 @@ export function calendarReducer(state: CalendarState, action: CalendarAction): C
   }
 }
 
+/**
+ * Which state fields put a full-screen overlay (or modal) over the calendar.
+ * A Record over every key, so adding a field to CalendarState fails tsc until
+ * it is classified here — the hand-kept list this replaced missed two
+ * overlays (weekly review, analytics) when they were added.
+ */
+const OPENS_OVERLAY: Record<keyof CalendarState, boolean> = {
+  currentDate: false,
+  selectedView: false,
+  selectedEvent: true,
+  trackingSession: true,
+  libraryOpen: true,
+  librarySelection: false,
+  selectedDay: true,
+  composerDate: true,
+  editingWorkout: false,
+  mealComposerDate: true,
+  editingMeal: false,
+  profileOpen: true,
+  blocksOpen: true,
+  weeklyReviewOpen: true,
+  analyticsOpen: true,
+  notebookOpen: true,
+  historyOpen: true,
+  askCoach: false,
+};
+
+const OVERLAY_FIELDS = (Object.keys(OPENS_OVERLAY) as (keyof CalendarState)[])
+  .filter(key => OPENS_OVERLAY[key]);
+
+/** True when any page or modal is over the calendar. */
+export function isAnyOverlayOpen(state: CalendarState): boolean {
+  return OVERLAY_FIELDS.some(key => !!state[key]);
+}
+
 export interface CalendarContextValue {
   state: CalendarState;
   dispatch: Dispatch<CalendarAction>;

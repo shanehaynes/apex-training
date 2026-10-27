@@ -1,0 +1,31 @@
+{
+  "proposals": [
+    {
+      "activity": {
+        "activityId": "ios-fixture-apple-walk",
+        "sportLabel": "Walk",
+        "apexType": "cardio",
+        "localDate": "2026-09-09",
+        "displayTime": "6:30 PM",
+        "durationMin": 30,
+        "distance": null,
+        "avgHr": 140
+      },
+      "match": null
+    }
+  ],
+  "skipped": [
+    {
+      "activityId": "ios-fixture-apple-own",
+      "reason": "own-app"
+    },
+    {
+      "activityId": "ios-fixture-apple-run",
+      "reason": "duplicate"
+    },
+    {
+      "activityId": "ios-fixture-apple-ride",
+      "reason": "duplicate"
+    }
+  ]
+}

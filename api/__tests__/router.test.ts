@@ -5,6 +5,7 @@ import { handleTrainingBlocks } from '../_lib/trainingBlocks';
 import eventsHandler from '../_lib/handlers/events';
 import analyticsTilesHandler from '../_lib/handlers/analyticsTiles';
 import blockCycleHandler from '../_lib/handlers/blockCycle';
+import dailyMetricsHandler from '../_lib/handlers/dailyMetrics';
 
 // The router bridges to (req, res) handlers, so mocked handlers respond the
 // same way the real ones do: by writing to res, never by returning a value.
@@ -14,6 +15,11 @@ vi.mock('../_lib/trainingBlocks.js', () => ({
   }),
 }));
 vi.mock('../_lib/handlers/blockCycle.js', () => ({
+  default: vi.fn(async (_req: VercelRequest, res: VercelResponse) => {
+    res.status(200).json({ ok: true });
+  }),
+}));
+vi.mock('../_lib/handlers/dailyMetrics.js', () => ({
   default: vi.fn(async (_req: VercelRequest, res: VercelResponse) => {
     res.status(200).json({ ok: true });
   }),
@@ -58,6 +64,13 @@ describe('consolidated API router', () => {
     const { res, statusCode } = makeRes();
     await handler(makeReq('POST', '/api/events'), res);
     expect(eventsHandler).toHaveBeenCalledOnce();
+    expect(statusCode()).toBe(200);
+  });
+
+  it('dispatches /api/daily-metrics to the daily metrics handler (W16 M3b)', async () => {
+    const { res, statusCode } = makeRes();
+    await handler(makeReq('POST', '/api/daily-metrics'), res);
+    expect(dailyMetricsHandler).toHaveBeenCalledOnce();
     expect(statusCode()).toBe(200);
   });
 

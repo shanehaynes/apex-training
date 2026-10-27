@@ -1,6 +1,8 @@
 #if DEBUG
 import ApexCore
+import ApexFeatures
 import ApexHealth
+import ApexSpeech
 import Foundation
 
 /// The in-process backend behind `-apexMockClient`: every `/api/*` route the
@@ -38,6 +40,24 @@ import Foundation
 ///                                   `denied`: on but refused; `unavailable`);
 ///                                   without it the fake is undecided and off.
 ///                                   Fresh each launch either way.
+///   -apexMockSignupToken <token>    Create account's check sheet hands over
+///                                   <token> instead of loading /signup-check
+///                                   (open-signup M3), so the smoke reaches
+///                                   POST /api/signup's answer;
+///                                   `-apexMockSignupTokenDelay <ms>` holds it
+///                                   back (default 300), to prove Cancel stops
+///                                   a token that lands later
+///   -apexMockSpeech "<utt>;<utt>"   voice set logging (W17) hears those
+///                                   utterances in order, one per mic tap, as
+///                                   growing partials then the final; the
+///                                   literal `denied` refuses both sheets and
+///                                   `unavailable` has no recognizer (no mic).
+///                                   The You → Training toggle follows the flag
+///                                   on every launch — on with it, off without
+///                                   it or with the literal `off` — so no leg
+///                                   inherits another's choice. Under
+///                                   -apexUITest without it the fake is
+///                                   undecided and hears nothing.
 ///
 /// W7: the sheet's and the builder's writes (`/api/events`, `/api/event-instances`,
 /// `/api/workout-draft`, templates, definitions) are remembered and replayed
@@ -90,6 +110,24 @@ struct MockEnvironment {
             store = FakeHealthStore()
         }
         return HealthServices(store: store, preferences: preferences)
+    }
+
+    /// `-apexMockSpeech <script>`: see the flag list above. Utterances are
+    /// separated by `;`; each `listen` plays the next one.
+    static func speech() -> FakeSpeechRecognizer {
+        let script = argument("-apexMockSpeech")
+        UserDefaults.standard.set(script != nil && script != "off", forKey: TrackerModel.voicePreferenceKey)
+        switch script {
+        case "denied":
+            return FakeSpeechRecognizer(authorization: .denied, grantOnRequest: false)
+        case "unavailable":
+            return FakeSpeechRecognizer(authorization: .unavailable, availability: .unavailable(reason: "-apexMockSpeech unavailable"))
+        case "off", nil:
+            return FakeSpeechRecognizer()
+        case let script?:
+            let utterances = script.split(separator: ";").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
+            return FakeSpeechRecognizer(script: utterances)
+        }
     }
 
     static func argument(after value: String) -> String? {
@@ -256,8 +294,9 @@ actor FixtureTransport: HTTPTransport {
         // the acceptance itself, and the account's export and delete.
         let exempt: Set<String> = ["GET /api/profile", "GET /api/terms-acceptance", "POST /api/terms-acceptance",
                                    "GET /api/account", "DELETE /api/account",
-                                   // Unauthenticated: the launch's build check (G8).
-                                   "GET /api/version"]
+                                   // Unauthenticated: the launch's build check (G8)
+                                   // and open sign-up (no account yet).
+                                   "GET /api/version", "POST /api/signup"]
         if termsStale, !exempt.contains("\(method) \(path)") {
             await holdIfMarked(request)
             return HTTPResponse(status: 403, headers: [:], body: Data("terms-acceptance-required".utf8))
@@ -269,6 +308,25 @@ actor FixtureTransport: HTTPTransport {
                 return ok(Data(termsStale
                     ? #"{"accepted":{"termsVersion":"terms-v1","privacyVersion":"privacy-v1","acceptedAt":"2026-08-29T12:00:00.000Z"},"current":false,"termsVersion":"terms-v1","privacyVersion":"privacy-v2"}"#.utf8
                     : #"{"accepted":{"termsVersion":"terms-v1","privacyVersion":"privacy-v2","acceptedAt":"2026-09-08T12:00:00.000Z"},"current":true,"termsVersion":"terms-v1","privacyVersion":"privacy-v2"}"#.utf8))
+            // Open sign-up: the handler answers `pending` for every address it
+            // accepts, and refuses in its own words what it would refuse — a
+            // body that is not JSON, no 18+ attestation as a JSON `true`, or
+            // no token — so the smoke proves what the app sent.
+            case ("POST", "/api/signup"):
+                // The handler's pattern itself, not the app's SignUp.isPlausibleEmail:
+                // a check the client wrote cannot catch the client's own bug.
+                let email = (body?["email"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+                guard request.value(forHTTPHeaderField: "Content-Type") == "application/json",
+                      let email, email.utf16.count <= 254,
+                      email.range(of: #"^[^\s@]+@[^\s@]+\.[^\s@]+$"#, options: .regularExpression) != nil
+                else { return refusal("Enter a valid email address.") }
+                // NSNumber holds 1 and true alike; the server's `=== true` takes only the boolean.
+                guard let age = body?["ageConfirmed"] as? NSNumber,
+                      CFGetTypeID(age) == CFBooleanGetTypeID(), age.boolValue
+                else { return refusal("Please confirm you are 18 or older to continue.") }
+                guard let token = body?["captchaToken"] as? String, !token.isEmpty
+                else { return refusal("The human check failed — try again.") }
+                return ok(Data(#"{"status":"pending"}"#.utf8))
             case ("POST", "/api/terms-acceptance"):
                 termsStale = false
                 return ok(Data(#"{"accepted":{"termsVersion":"terms-v1","privacyVersion":"privacy-v2","acceptedAt":"2026-09-08T12:00:00.000Z"},"current":true}"#.utf8))
@@ -368,13 +426,13 @@ actor FixtureTransport: HTTPTransport {
                 return ok(try applyDraft(body))
             case ("PATCH", "/api/workout-templates"):
                 edits.archivedTemplates[queryValue("id", in: query)] = body?["archived_at"] ?? NSNull()
-                return ok(Data(#"{"id":"\(queryValue("id", in: query))"}"#.utf8))
+                return ok(Data(#"{"id":"\#(queryValue("id", in: query))"}"#.utf8))
             case ("POST", "/api/exercise-definitions"):
                 edits.addedDefinitions.append([
                     "id": body?["id"] ?? "", "canonicalName": body?["canonical_name"] ?? "", "category": body?["category"] ?? "strength",
                     "aliases": [], "muscleGroups": [], "equipment": [], "isUnilateral": body?["is_unilateral"] ?? false,
                 ])
-                return ok(Data(#"{"id":"\(body?["id"] as? String ?? "")"}"#.utf8))
+                return ok(Data(#"{"id":"\#(body?["id"] as? String ?? "")"}"#.utf8))
             case ("PATCH", "/api/exercise-definitions"):
                 return try patchDefinition(id: queryValue("id", in: query), fields: body?["fields"] as? [String: Any] ?? [:])
             case ("POST", "/api/query"):
@@ -496,7 +554,7 @@ actor FixtureTransport: HTTPTransport {
                     return HTTPResponse(status: 404, headers: [:], body: Data("Tile not found".utf8))
                 }
                 tileEdits.deleted.insert(id)
-                return ok(Data(#"{"id":"\(id)"}"#.utf8))
+                return ok(Data(#"{"id":"\#(id)"}"#.utf8))
             case ("POST", "/api/coach-summary"):
                 return HTTPResponse(
                     status: 200, headers: ["Content-Type": "application/x-ndjson; charset=utf-8"],
@@ -714,7 +772,7 @@ actor FixtureTransport: HTTPTransport {
             return ok(Data(#"{"ok":true}"#.utf8))
         case "set-auto-sync":
             corosAutoSync = body?["enabled"] as? Bool ?? true
-            return ok(Data(#"{"ok":true,"autoSync":\(corosAutoSync)}"#.utf8))
+            return ok(Data(#"{"ok":true,"autoSync":\#(corosAutoSync)}"#.utf8))
         case "preview":
             guard corosStatus == "connected" else { return HTTPResponse(status: 409, headers: [:], body: Data("provider-expired".utf8)) }
             return ok(try Fixtures.data("provider-preview.json"))
@@ -800,7 +858,7 @@ actor FixtureTransport: HTTPTransport {
     private func saveTile(_ body: [String: Any]?) throws -> Data {
         guard let draft = body?["draft"] as? [String: Any] else {
             // The web's spec body — accepted, not replayed.
-            return Data(#"{"id":"\(body?["id"] as? String ?? "")"}"#.utf8)
+            return Data(#"{"id":"\#(body?["id"] as? String ?? "")"}"#.utf8)
         }
         let title = (draft["title"] as? String ?? "").trimmingCharacters(in: .whitespaces)
         guard !title.isEmpty else {
@@ -856,6 +914,12 @@ actor FixtureTransport: HTTPTransport {
 
     private func ok(_ data: Data) -> HTTPResponse {
         HTTPResponse(status: 200, headers: ["Content-Type": "application/json"], body: data)
+    }
+
+    /// A 400 carrying the handler's own sentence, as `{ error }`.
+    private func refusal(_ sentence: String) -> HTTPResponse {
+        let body = (try? JSONSerialization.data(withJSONObject: ["error": sentence])) ?? Data()
+        return HTTPResponse(status: 400, headers: ["Content-Type": "application/json"], body: body)
     }
 
     // MARK: - W7 writes
