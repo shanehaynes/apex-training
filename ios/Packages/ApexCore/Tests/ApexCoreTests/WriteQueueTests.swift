@@ -623,9 +623,10 @@ final class WriteQueueTests: XCTestCase {
     }
 
     func testUntilIdleWaitsForTheRerunPassAnOpQueuedAfterTheLastReadNeeds() async throws {
-        // The narrow case: the running flush has sent everything and read an
-        // empty queue when the finish is queued. Only its re-run sends it, so
-        // `untilIdle` must not return before that pass.
+        // The narrow case: the running flush has sent everything and is reading
+        // an empty queue when the finish is queued. The enqueue waits for that
+        // read (the lane's turn) and lands after it, so only the re-run sends
+        // it, and `untilIdle` must not return before that pass.
         let transport = ScriptedTransport()
         let gate = Gate()
         let store = StaleReadStore(holdingRead: 2, on: gate)
@@ -633,7 +634,8 @@ final class WriteQueueTests: XCTestCase {
         try await queue.enqueue(save([setRow(1)]), for: session)
         let first = Task { [session] in await queue.flush(session) }
         while await store.reads < 2 { await Task.yield() }   // sent op 1, read empty, held
-        try await queue.enqueue(save([setRow(2)]), for: session)
+        let edit = save([setRow(2)])
+        let queued = Task { [session] in try await queue.enqueue(edit, for: session) }
         await queue.flush(session)                            // mid-flush: asks for a re-run
         let idle = Task { [session] in
             await queue.untilIdle(session)
@@ -642,8 +644,140 @@ final class WriteQueueTests: XCTestCase {
         for _ in 0..<50 { await Task.yield() }
         await gate.open()
         let sent = await idle.value
+        _ = try await queued.value
         await first.value
         XCTAssertEqual(sent, ["save", "save"])
+    }
+
+    // MARK: - Enqueue order
+
+    /// Holds the `held`-th `tail(for:)` read after it has read the store, so
+    /// the enqueue that made it answers what the store held before the gate.
+    /// The GRDB store's read is a real suspension and the queue is reentrant:
+    /// this is that suspension, made long enough to queue something behind.
+    private actor HeldTailStore: WriteQueueStore {
+        let inner = MemoryWriteQueueStore()
+        let gate: Gate
+        let held: Int
+        private(set) var tails = 0
+        init(holdingTail held: Int = 1, on gate: Gate) { self.held = held; self.gate = gate }
+        func tail(for session: SessionKey) async throws -> TrackerOp? {
+            tails += 1
+            let answer = try await inner.tail(for: session)
+            if tails == held { await gate.wait() }
+            return answer
+        }
+        func append(_ op: TrackerOp) async throws -> Int64 { try await inner.append(op) }
+        func update(_ op: TrackerOp) async throws { try await inner.update(op) }
+        func delete(id: Int64) async throws { try await inner.delete(id: id) }
+        func nextPending(for session: SessionKey) async throws -> TrackerOp? { try await inner.nextPending(for: session) }
+        func ops(for session: SessionKey) async throws -> [TrackerOp] { try await inner.ops(for: session) }
+        func sessionsWithPending() async throws -> [SessionKey] { try await inner.sessionsWithPending() }
+        func purge(session: SessionKey) async throws { try await inner.purge(session: session) }
+        func purgeAll() async throws { try await inner.purgeAll() }
+        func all() async -> [TrackerOp] { await inner.all }
+    }
+
+    func testAnOpQueuedWhileASaveReadsTheTailLandsBehindTheSave() async throws {
+        // The tracker's Finish or Swap tapped as the autosave fires: the save
+        // is inside `enqueue`, waiting on its tail read, when the finish is
+        // queued. The finish must not take the lower id — the server would
+        // build the recap and PRs without the last set, and a swap would be
+        // overwritten by the save carrying the old name.
+        let behind: [TrackerOpPayload] = [
+            .finish(FinishPayload(autofillRows: [], finishedAt: nil)),
+            .swapExercise(SwapPayload(section: "exercise", exerciseId: "fx-press", exerciseName: "Fixture Bench", definitionId: "fixture-bench")),
+        ]
+        for payload in behind {
+            let transport = ScriptedTransport()
+            let gate = Gate()
+            let store = HeldTailStore(on: gate)
+            let queue = WriteQueue(store: store, client: makeClient(transport), clock: TestClock(now: Date(timeIntervalSince1970: 1_788_868_800)))
+            let edit = save([setRow(1)])
+            let saving = Task { [session] in try await queue.enqueue(edit, for: session) }
+            while await store.tails < 1 { await Task.yield() }   // the save holds its tail read
+            let queuing = Task { [session] in try await queue.enqueue(payload, for: session) }
+            for _ in 0..<50 { await Task.yield() }
+            await gate.open()
+            _ = try await saving.value
+            _ = try await queuing.value
+
+            let stored = await store.all().map(\.payload.action)
+            XCTAssertEqual(stored, [.save, payload.action])
+            await queue.flush(session)
+            let sent = await transport.requests.map(\.action)
+            XCTAssertEqual(sent, ["save", payload.action.rawValue])
+        }
+    }
+
+    func testACancelQueuedWhileASaveReadsTheTailLeavesNothingBehindIt() async throws {
+        // Nothing queued for a cancelled session may land after the cancel:
+        // a save already inside `enqueue` is queued first and purged with it.
+        let gate = Gate()
+        let store = HeldTailStore(on: gate)
+        let queue = WriteQueue(store: store, client: makeClient(ScriptedTransport()), clock: TestClock(now: Date(timeIntervalSince1970: 1_788_868_800)))
+        let edit = save([setRow(1)])
+        let saving = Task { [session] in try await queue.enqueue(edit, for: session) }
+        while await store.tails < 1 { await Task.yield() }
+        let cancelling = Task { [session] in try await queue.cancelSession(session) }
+        for _ in 0..<50 { await Task.yield() }
+        await gate.open()
+        _ = try await saving.value
+        try await cancelling.value
+
+        let stored = await store.all().map(\.payload)
+        XCTAssertEqual(stored, [.cancel])
+    }
+
+    func testASaveWhoseTailWasSentDuringTheReadIsNotLost() async throws {
+        // The save reads the tail while that tail is in the air; the send
+        // lands and the row is deleted before the read returns. Merging into
+        // the row it read would write into nothing.
+        let transport = ScriptedTransport()
+        let sending = Gate()
+        await transport.hold(with: sending)
+        let reading = Gate()
+        let store = HeldTailStore(holdingTail: 2, on: reading)
+        let queue = WriteQueue(store: store, client: makeClient(transport), clock: TestClock(now: Date(timeIntervalSince1970: 1_788_868_800)))
+        try await queue.enqueue(save([setRow(1, weight: "100")]), for: session)
+        let flush = Task { [session] in await queue.flush(session) }
+        while await transport.count == 0 { await Task.yield() }   // the first save is in the air
+        let edit = save([setRow(2, weight: "105")])
+        let saving = Task { [session] in try await queue.enqueue(edit, for: session) }
+        while await store.tails < 2 { await Task.yield() }       // the second holds its tail read
+        await sending.open()
+        var spins = 0
+        while await !store.all().isEmpty, spins < 200 { spins += 1; await Task.yield() }   // landed, row deleted
+        await reading.open()
+        _ = try await saving.value
+        await flush.value
+
+        await queue.flush(session)
+        let weights = await transport.requests.flatMap { ($0.body?["setLogs"] as? [[String: Any]] ?? []).compactMap { $0["actual_weight"] as? String } }
+        XCTAssertEqual(weights, ["100", "105"])
+    }
+
+    func testASaveQueuedWhileTheDrainReadsItsNextOpIsNotMergedIntoWhatItSends() async throws {
+        // The drain has read the tail save and not yet marked it in flight. A
+        // save merged into that row now is not in what the drain sends, and
+        // goes when the drain deletes the row.
+        let transport = ScriptedTransport()
+        let gate = Gate()
+        let store = StaleReadStore(holdingRead: 1, on: gate)
+        let queue = WriteQueue(store: store, client: makeClient(transport), clock: TestClock(now: Date(timeIntervalSince1970: 1_788_868_800)))
+        try await queue.enqueue(save([setRow(1, weight: "100")]), for: session)
+        let flush = Task { [session] in await queue.flush(session) }
+        while await store.reads < 1 { await Task.yield() }   // the drain holds its read of the first save
+        let edit = save([setRow(2, weight: "105")])
+        let saving = Task { [session] in try await queue.enqueue(edit, for: session) }
+        for _ in 0..<50 { await Task.yield() }
+        await gate.open()
+        _ = try await saving.value
+        await flush.value
+
+        await queue.flush(session)
+        let weights = await transport.requests.flatMap { ($0.body?["setLogs"] as? [[String: Any]] ?? []).compactMap { $0["actual_weight"] as? String } }
+        XCTAssertEqual(weights, ["100", "105"])
     }
 
     // MARK: - The outbox lane (an exercise created offline outside a workout)
