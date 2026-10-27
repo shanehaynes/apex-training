@@ -31,9 +31,10 @@ public struct GRDBWriteQueueStore: WriteQueueStore {
         }
     }
 
-    public func update(_ op: TrackerOp) async throws {
+    @discardableResult
+    public func update(_ op: TrackerOp) async throws -> Bool {
         let payload = try JSONEncoder().encode(op.payload)
-        try await pool.write { [owner] db in
+        return try await pool.write { [owner] db in
             try db.execute(
                 sql: """
                 UPDATE tracker_ops SET action = ?, payload = ?, attempts = ?, last_error = ?, state = ?, gave_up = ?, give_up_count = ?
@@ -41,6 +42,7 @@ public struct GRDBWriteQueueStore: WriteQueueStore {
                 """,
                 arguments: [op.payload.action.rawValue, payload, op.attempts, op.lastError, op.state.rawValue, op.gaveUp, op.giveUpCount, op.id, owner]
             )
+            return db.changesCount > 0
         }
     }
 

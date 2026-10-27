@@ -48,6 +48,21 @@ final class WriteQueueStoreTests: XCTestCase {
         XCTAssertEqual(again[1].payload, save(2))
     }
 
+    func testUpdateSaysWhetherItsRowWasThere() async throws {
+        let box = try makePool()
+        let store = GRDBWriteQueueStore(pool: box.pool, owner: "u1")
+        let id = try await store.append(op(save(1), for: session))
+        var stored = try await store.ops(for: session)[0]
+        stored.attempts = 1
+        let found = try await store.update(stored)
+        XCTAssertTrue(found)
+        let otherOwner = try await GRDBWriteQueueStore(pool: box.pool, owner: "u2").update(stored)
+        XCTAssertFalse(otherOwner, "another account's row is not this store's")
+        try await store.delete(id: id)
+        let gone = try await store.update(stored)
+        XCTAssertFalse(gone, "a sent or purged row is not written into")
+    }
+
     func testTailNextPendingAndSessionsWithPending() async throws {
         let store = GRDBWriteQueueStore(pool: try makePool().pool, owner: "u1")
         let a = try await store.append(op(save(1), for: session))

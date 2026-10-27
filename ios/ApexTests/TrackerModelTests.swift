@@ -117,7 +117,7 @@ final class TrackerModelTests: XCTestCase {
     @MainActor
     private func make(
         _ transport: ScriptedTransport, cache: MemoryCacheStore = MemoryCacheStore(),
-        store: MemoryWriteQueueStore = MemoryWriteQueueStore(), clock: TestClock = TestClock(now: now),
+        store: any WriteQueueStore = MemoryWriteQueueStore(), clock: TestClock = TestClock(now: now),
         calendar: Calendar = Calendar(), event: ScheduleEvent = TrackerModelTests.event,
         activity: any TrackerActivityPublishing = NoActivityPublisher(),
         health: any HealthWorkoutPublishing = NoHealthPublisher(),
@@ -712,6 +712,99 @@ final class TrackerModelTests: XCTestCase {
         XCTAssertEqual(press.substitutedFrom, "Fixture Press")
         XCTAssertNotNil(model.perSideWarning(for: press), "10 reps on a unilateral movement, no side stated")
         XCTAssertEqual(model.inputFields(for: press), [.weight, .reps])
+    }
+
+    // MARK: - An op tapped as the autosave queues
+
+    /// Holds the first `tail(for:)` read after `arm()` — the autosave's, as
+    /// the debounce fires — until `open()`. In the app that read is GRDB's,
+    /// and it suspends.
+    private actor HeldTailStore: WriteQueueStore {
+        let inner = MemoryWriteQueueStore()
+        private var armed = false
+        private var held: CheckedContinuation<Void, Never>?
+        private(set) var isHolding = false
+
+        func arm() { armed = true }
+        func open() {
+            armed = false
+            held?.resume()
+            held = nil
+        }
+
+        func tail(for session: SessionKey) async throws -> TrackerOp? {
+            let answer = try await inner.tail(for: session)
+            if armed {
+                armed = false
+                isHolding = true
+                await withCheckedContinuation { held = $0 }
+            }
+            return answer
+        }
+        func append(_ op: TrackerOp) async throws -> Int64 { try await inner.append(op) }
+        func update(_ op: TrackerOp) async throws -> Bool { try await inner.update(op) }
+        func delete(id: Int64) async throws { try await inner.delete(id: id) }
+        func nextPending(for session: SessionKey) async throws -> TrackerOp? { try await inner.nextPending(for: session) }
+        func ops(for session: SessionKey) async throws -> [TrackerOp] { try await inner.ops(for: session) }
+        func sessionsWithPending() async throws -> [SessionKey] { try await inner.sessionsWithPending() }
+        func purge(session: SessionKey) async throws { try await inner.purge(session: session) }
+        func purgeAll() async throws { try await inner.purgeAll() }
+    }
+
+    /// The tracker's writes in the order they were sent, by action.
+    private static func sent(_ transport: ScriptedTransport, _ actions: [String]) -> [String] {
+        transport.requests.compactMap { r in actions.first { r.body?.contains("\"action\":\"\($0)\"") == true } }
+    }
+
+    @MainActor
+    func testAFinishTappedAsTheAutosaveQueuesLandsBehindTheLastSet() async throws {
+        // The debounce has taken the edits and its save waits on the queue's
+        // tail read when Finish is tapped. `flushEdits` then finds nothing to
+        // take and returns at once, so the finish is queued straight away:
+        // it must still land after the save, or the server builds the recap
+        // and PRs without the last set.
+        let transport = healthy()
+        let store = HeldTailStore()
+        let (model, queue) = make(transport, store: store)
+        await model.open()
+        await store.arm()
+        model.focusSet(at: press1)
+        model.focusSet(at: press2)
+        while await !store.isHolding { await Task.yield() }
+
+        let finishing = Task { await model.requestFinish(force: true) }
+        while model.gate != .finishing, !model.isFinished { await Task.yield() }
+        for _ in 0..<50 { await Task.yield() }
+        await store.open()
+        await finishing.value
+        await Self.settle(queue, model.session)
+
+        XCTAssertEqual(Self.sent(transport, ["save", "finish"]), ["save", "finish"])
+        let save = try XCTUnwrap(transport.requests(action: "save").first)
+        XCTAssertTrue(save.body!.contains(#""set_number":2"#), "the last set went with the save, not the finish's autofill")
+    }
+
+    @MainActor
+    func testASwapTappedAsTheAutosaveQueuesLandsAfterTheSaveItRelabels() async throws {
+        // The save carries the old name; sent after the swap it would put it back.
+        let transport = healthy()
+        let store = HeldTailStore()
+        let (model, queue) = make(transport, store: store)
+        await model.open()
+        await store.arm()
+        model.setValue("10", .reps, at: press1)
+        while await !store.isHolding { await Task.yield() }
+
+        let db = model.definitions.first { $0.id == "d-db" }!
+        let swapping = Task { await model.swap(section: "exercise", exerciseId: "fx-press", to: db) }
+        // Relabelled locally: the swap is being queued.
+        while model.editor.exercise(section: "exercise", id: "fx-press")?.exercise.name != db.canonicalName { await Task.yield() }
+        for _ in 0..<50 { await Task.yield() }
+        await store.open()
+        await swapping.value
+        await Self.settle(queue, model.session)
+
+        XCTAssertEqual(Self.sent(transport, ["save", "swap-exercise"]), ["save", "swap-exercise"])
     }
 
     @MainActor

@@ -186,7 +186,14 @@ tracker_ops(id INTEGER PRIMARY KEY AUTOINCREMENT, owner TEXT, event_id, event_da
   is proved by `swift test` on Linux. Ops: `start{startedAt}`, `save`, `finish{autofillRows,
   finishedAt, score?}`, `cancel`, `swap-exercise`, and `completion` (the `/api/completions` rows
   — finishing flips the occurrence the way the web does after `finish`; cancelling a finished
-  session flips it back). `state ∈ {pending, failed}`: a sent op is deleted.
+  session flips it back). `state ∈ {pending, failed}`: a sent op is deleted. FIFO is the order
+  `enqueue` was *called* in: every store call suspends and the actor is reentrant, so every
+  read-then-write on a lane — `enqueue`, `cancelSession`, the drain's pick and settle, Retry,
+  Discard, Let go and the outbox's put-back — takes a per-session turn (the send holds none);
+  otherwise a Finish queued while the autosave's save awaits its tail read is sent first.
+  `purgeAll` bumps a counter that `enqueue` and `cancelSession` check before they write, so no
+  call made before a purge lands after it. Let go on an op being sent waits for the send, and
+  lets go only if it did not land.
 - Coalescing mirrors the web's `dirtySetsRef` + 800ms `AUTOSAVE_DEBOUNCE_MS`: `TrackerEditor`
   accumulates dirty keys, `takeSavePayload()` hands the queue one `save`, and the queue merges
   it into the session's tail when that tail is an unsent, not-in-flight `save`
