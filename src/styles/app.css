@@ -2292,16 +2292,31 @@
 
 .tracker-input::placeholder {
   color: var(--text-muted);
+  font-weight: 400;
   opacity: 0.6;
 }
 
+/* Three tiers, so a glance tells what was logged from what is only offered:
+   a typed value is full ink at medium weight; a ghost (below) is muted
+   italic in a dashed cell; a format example is fainter still. */
+.tracker-set__inputs .tracker-input,
+.tracker-cardio .tracker-input {
+  font-weight: 500;
+}
+
 /* Shadow fill: last session's value waiting as ghost text — tapping the
-   field commits it. Italic + brighter distinguishes it from the generic
-   format-example placeholder above. */
+   field commits it. The dashed edge marks the cell as not yet logged
+   without leaning on colour alone; :placeholder-shown keeps it off a cell
+   that already holds a typed value. */
 .tracker-input--shadow::placeholder {
-  color: var(--text-secondary);
+  color: var(--text-muted);
   font-style: italic;
-  opacity: 0.9;
+  opacity: 1;
+}
+
+.tracker-input--shadow:placeholder-shown:not(:focus) {
+  border-style: dashed;
+  border-color: var(--border-strong);
 }
 
 .tracker-input:focus {
