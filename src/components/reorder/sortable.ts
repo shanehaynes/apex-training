@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
-import type { Announcements, Modifier, UniqueIdentifier } from '@dnd-kit/core';
-import { sortableKeyboardCoordinates } from '@dnd-kit/sortable';
+import type { Announcements, KeyboardCoordinateGetter, Modifier, UniqueIdentifier } from '@dnd-kit/core';
 
 // Shared pieces of the two exercise reorderers: the editor's cards
 // (modal/EventExerciseEditor) and the live tracker's exercises
@@ -14,6 +13,30 @@ import { sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 export const verticalOnly: Modifier = ({ transform }) => ({ ...transform, x: 0 });
 
 /**
+ * One arrow press, one place. dnd-kit's stock getter lines the held item's
+ * top edge up with the next item's, and the drop target is then the item
+ * whose centre is nearest the held item's centre. With cards of different
+ * heights those disagree: a tall card topped onto a short one centres nearer
+ * the card after it, so the target does not change and the press is lost.
+ * This getter steps through the list's order from the current target and
+ * centres the held item on the next one, which closest-centre then picks
+ * exactly. Other keys move nothing; the list is vertical.
+ */
+export const stepKeyboardCoordinates: KeyboardCoordinateGetter = (event, { context }) => {
+  const step = event.code === 'ArrowUp' ? -1 : event.code === 'ArrowDown' ? 1 : 0;
+  if (!step) return undefined;
+  event.preventDefault();
+  const { active, over, collisionRect, droppableRects } = context;
+  const items: UniqueIdentifier[] | undefined = active?.data.current?.sortable?.items;
+  if (!active || !collisionRect || !items) return undefined;
+  const from = items.indexOf(over?.id ?? active.id);
+  const to = (from >= 0 ? from : items.indexOf(active.id)) + step;
+  const target = to >= 0 && to < items.length ? droppableRects.get(items[to]) : undefined;
+  if (!target) return undefined;
+  return { x: collisionRect.left, y: target.top + target.height / 2 - collisionRect.height / 2 };
+};
+
+/**
  * Pointer serves mouse and touch alike (the grip sets touch-action: none, so
  * a finger on it drags instead of scrolling); the keyboard picks up with
  * Space, moves with the arrows, drops with Space and cancels with Escape.
@@ -21,7 +44,7 @@ export const verticalOnly: Modifier = ({ transform }) => ({ ...transform, x: 0 }
 export function useReorderSensors() {
   return useSensors(
     useSensor(PointerSensor),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+    useSensor(KeyboardSensor, { coordinateGetter: stepKeyboardCoordinates }),
   );
 }
 
