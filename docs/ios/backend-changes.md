@@ -563,8 +563,8 @@ Unauthenticated (no account yet), `Content-Type: application/json` required. `ag
 must be the JSON boolean `true`; `captchaToken` is a Turnstile token, which the app gets from
 the web's `/signup-check` page in a `WKWebView` (the token arrives over the `turnstile` message
 handler). 200 `{ status: 'pending' }` for every address it accepts — new, already invited,
-throttled or a confirmed account alike — so the app can only say "check your inbox"; 400/503
-`{ error }` carry the sentence to show. The mailed link opens set-password through the existing
+throttled or a confirmed account alike — so the app can only say "check your inbox"; every
+refusal (400, 429, 500, 503) is `{ error }` with the sentence to show. The mailed link opens set-password through the existing
 `apextraining://auth` hand-off. The app mirrors the handler's `EMAIL_RE` in
 `SignUp.isPlausibleEmail`, so an address the server refuses never reaches the check.
 

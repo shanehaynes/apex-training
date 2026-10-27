@@ -78,6 +78,16 @@ struct RootView: View {
         return nil
     }
 
+    /// `-apexMockSignupTokenDelay <ms>`: how long the preset token is held back.
+    private var signUpPresetTokenDelay: Duration {
+        #if DEBUG
+        if let ms = MockEnvironment.argument("-apexMockSignupTokenDelay").flatMap(Int.init) {
+            return .milliseconds(ms)
+        }
+        #endif
+        return .milliseconds(300)
+    }
+
     @ViewBuilder
     private var signedInContent: some View {
         switch model.state {
@@ -95,6 +105,7 @@ struct RootView: View {
                     termsURL: AppConfig.publicOrigin.appending(path: "terms"),
                     privacyURL: AppConfig.publicOrigin.appending(path: "privacy"),
                     presetToken: signUpPresetToken,
+                    presetTokenDelay: signUpPresetTokenDelay,
                     submit: { email, token, ageConfirmed in
                         await model.signUp(email: email, captchaToken: token, ageConfirmed: ageConfirmed)
                     }

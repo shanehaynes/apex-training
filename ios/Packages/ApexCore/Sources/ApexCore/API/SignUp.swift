@@ -51,16 +51,37 @@ public enum SignUp {
 
     static let fallback = "Sign-up failed — try again later."
 
-    /// The server's own test (`EMAIL_RE` and `MAX_EMAIL` in
-    /// api/_lib/handlers/signup.ts), so the form never sends someone through
-    /// the human check for an address the server will refuse.
+    /// The server's own test, so the form never sends someone through the
+    /// human check for an address the server will refuse: `trim()`,
+    /// `toLowerCase()`, then `EMAIL_RE` (/^[^\s@]+@[^\s@]+\.[^\s@]+$/) and
+    /// `MAX_EMAIL` (254 UTF-16 units) in api/_lib/handlers/signup.ts. It works
+    /// on Unicode scalars with JavaScript's `\s` set, not Swift's graphemes or
+    /// `isWhitespace`: those disagree with the server on U+FEFF, U+0085, a
+    /// combining mark after the @, and length.
     public static func isPlausibleEmail(_ raw: String) -> Bool {
-        let email = raw.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard email.count <= 254, !email.contains(where: \.isWhitespace) else { return false }
-        let parts = email.split(separator: "@", omittingEmptySubsequences: false)
-        guard parts.count == 2, !parts[0].isEmpty else { return false }
-        // `[^\s@]+\.[^\s@]+`: a dot with at least one character on each side.
-        let domain = Array(parts[1])
+        let all = Array(raw.unicodeScalars)
+        var start = all.startIndex, end = all.endIndex
+        while start < end, isJSWhitespace(all[start]) { start += 1 }
+        while end > start, isJSWhitespace(all[end - 1]) { end -= 1 }
+        let email = String(String.UnicodeScalarView(all[start..<end])).lowercased()
+        guard email.utf16.count <= 254 else { return false }
+        let scalars = Array(email.unicodeScalars)
+        guard !scalars.contains(where: isJSWhitespace),
+              let at = scalars.firstIndex(of: "@"), scalars.lastIndex(of: "@") == at, at > 0
+        else { return false }
+        // `[^\s@]+\.[^\s@]+`: a dot with at least one scalar on each side.
+        let domain = scalars[(at + 1)...]
         return domain.count >= 3 && domain.dropFirst().dropLast().contains(".")
+    }
+
+    /// JavaScript's `\s` (and what `String.prototype.trim` strips): the
+    /// WhiteSpace and LineTerminator code points of ECMA-262.
+    private static func isJSWhitespace(_ scalar: Unicode.Scalar) -> Bool {
+        switch scalar.value {
+        case 0x09...0x0D, 0x20, 0xA0, 0x1680, 0x2000...0x200A, 0x2028, 0x2029, 0x202F, 0x205F, 0x3000, 0xFEFF:
+            return true
+        default:
+            return false
+        }
     }
 }

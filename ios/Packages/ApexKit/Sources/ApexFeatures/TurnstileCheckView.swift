@@ -11,6 +11,7 @@ struct TurnstileCheckView: View {
     let url: URL
     /// See `SignUpOptions.presetToken`: set only by mock builds.
     var presetToken: String? = nil
+    var presetTokenDelay: Duration = .milliseconds(300)
     let onToken: (String) -> Void
     @Environment(\.dismiss) private var dismiss
     /// Cancel is final: a token Turnstile produces while the sheet animates
@@ -26,7 +27,10 @@ struct TurnstileCheckView: View {
                 if let presetToken {
                     Color.clear.task {
                         // Let the sheet finish presenting before it dismisses itself.
-                        try? await Task.sleep(for: .milliseconds(300))
+                        // Cancellation does not skip delivery, on purpose: the latch
+                        // is what stops it, as it is for a real token mid-dismissal,
+                        // so the smoke's Cancel step proves the latch.
+                        try? await Task.sleep(for: presetTokenDelay)
                         deliver(presetToken)
                     }
                 } else {
@@ -147,13 +151,16 @@ private struct TurnstileWebView: UIViewRepresentable {
             decisionHandler(isCheckPage(host: target?.host, scheme: target?.scheme, port: target?.port) ? .allow : .cancel)
         }
 
-        // A 4xx/5xx check page is a failure too, not a blank sheet.
+        // A missing or broken check page is a failure too, not a blank sheet.
+        // Other 4xx render: a firewall challenge (403/429) is a page that
+        // resolves itself and reloads the check.
         func webView(
             _ webView: WKWebView,
             decidePolicyFor response: WKNavigationResponse,
             decisionHandler: @escaping @MainActor (WKNavigationResponsePolicy) -> Void
         ) {
-            if response.isForMainFrame, let http = response.response as? HTTPURLResponse, http.statusCode >= 400 {
+            if response.isForMainFrame, let http = response.response as? HTTPURLResponse,
+               http.statusCode == 404 || http.statusCode >= 500 {
                 onFailure()
                 return decisionHandler(.cancel)
             }

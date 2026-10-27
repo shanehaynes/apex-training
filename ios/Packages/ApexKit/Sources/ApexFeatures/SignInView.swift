@@ -13,18 +13,22 @@ public struct SignUpOptions {
     /// Mock builds only (`-apexMockSignupToken`): the check sheet hands this
     /// over instead of loading the page, so the smoke reaches the server's answer.
     public let presetToken: String?
+    /// How long the sheet holds `presetToken` back before handing it over.
+    public let presetTokenDelay: Duration
 
     public init(
         checkURL: URL,
         termsURL: URL,
         privacyURL: URL,
         presetToken: String? = nil,
+        presetTokenDelay: Duration = .milliseconds(300),
         submit: @escaping (String, String, Bool) async -> String?
     ) {
         self.checkURL = checkURL
         self.termsURL = termsURL
         self.privacyURL = privacyURL
         self.presetToken = presetToken
+        self.presetTokenDelay = presetTokenDelay
         self.submit = submit
     }
 }
@@ -112,7 +116,8 @@ public struct SignInView: View {
         .scrollDismissesKeyboard(.interactively)
         .sheet(isPresented: $showingCheck) {
             if let signUp {
-                TurnstileCheckView(url: signUp.checkURL, presetToken: signUp.presetToken) { token in
+                TurnstileCheckView(url: signUp.checkURL, presetToken: signUp.presetToken,
+                                   presetTokenDelay: signUp.presetTokenDelay) { token in
                     create(with: token, signUp)
                 }
             }

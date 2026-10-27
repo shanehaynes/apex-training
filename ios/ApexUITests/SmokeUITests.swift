@@ -119,9 +119,15 @@ final class SmokeUITests: XCTestCase {
 
     /// Open sign-up (docs/specs/open-signup.md M3), and App Store 5.1.1's way
     /// to an account: email, the terms and 18+ toggles (neither enough alone),
-    /// then the human check opens as a sheet.
+    /// then the human check opens as a sheet, which only Cancel closes.
+    ///
+    /// The check is the mock's preset token held back 8 s, so no web page (and
+    /// no local server) is involved, and Cancel has a late token to stop.
     func testCreateAccountNeedsBothTogglesThenOpensTheCheck() {
-        let app = launch(mock: true)
+        let app = XCUIApplication()
+        app.launchArguments += ["-apexUITest", "-apexMockClient",
+                                "-apexMockSignupToken", "late-token", "-apexMockSignupTokenDelay", "8000"]
+        app.launch()
         let mode = app.segmentedControls["signin.mode"]
         XCTAssertTrue(mode.waitForExistence(timeout: 10), "no Create account mode")
         mode.buttons["Create account"].tap()
@@ -131,11 +137,11 @@ final class SmokeUITests: XCTestCase {
         XCTAssertTrue(submit.waitForExistence(timeout: 5))
         XCTAssertFalse(submit.isEnabled)
 
-        // An address the server refuses (no dot after the @) never opens the
-        // check, however many boxes are ticked.
+        // An address the server refuses (a dot, but none after the @) never
+        // opens the check, however many boxes are ticked.
         let email = app.textFields["signin.email"]
         email.tap()
-        email.typeText("someone@example")
+        email.typeText("someone.else@example")
         let age = app.switches["signup.age"]
         XCTAssertEqual(age.value as? String, "0", "the 18+ toggle must never start on")
         flip(app.switches["signup.terms"])
@@ -174,10 +180,12 @@ final class SmokeUITests: XCTestCase {
         // Cancel is the only way out: a swipe would leave no moment to stop a
         // token that lands mid-animation, so the sheet refuses it.
         check.swipeDown(velocity: .fast)
-        XCTAssertTrue(check.waitForExistence(timeout: 2), "a swipe must not dismiss the check")
+        XCTAssertFalse(check.waitForNonExistence(timeout: 2), "a swipe must not dismiss the check")
         check.buttons["Cancel"].tap()
         XCTAssertTrue(check.waitForNonExistence(timeout: 5))
-        XCTAssertFalse(app.staticTexts["signup.notice"].exists, "Cancel must send nothing")
+        // The held-back token lands after Cancel; the mock would accept it, so
+        // a notice here means the latch let it through.
+        XCTAssertFalse(app.staticTexts["signup.notice"].waitForExistence(timeout: 10), "Cancel must send nothing")
         XCTAssertFalse(app.staticTexts["signup.problem"].exists)
     }
 

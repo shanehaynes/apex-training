@@ -71,6 +71,24 @@ final class SignUpTests: XCTestCase {
         XCTAssertTrue(SignUp.isPlausibleEmail(String(long.dropFirst())))
     }
 
+    /// Where Swift's own notions differ from JavaScript's, the server's wins
+    /// (each verdict checked with node against the handler's trim, lowercase,
+    /// EMAIL_RE and .length).
+    func testEmailRuleFollowsJavaScriptOutsideASCII() {
+        // U+FEFF is \s in JavaScript, not Swift whitespace.
+        XCTAssertFalse(SignUp.isPlausibleEmail("a\u{FEFF}b@example.com"))
+        XCTAssertTrue(SignUp.isPlausibleEmail("\u{FEFF}someone@example.com"), "trim() strips it at the ends")
+        // U+0085 is Swift whitespace, not \s in JavaScript.
+        XCTAssertTrue(SignUp.isPlausibleEmail("a\u{0085}b@example.com"))
+        XCTAssertTrue(SignUp.isPlausibleEmail("\u{3000}someone@example.com\u{3000}"))
+        // A combining mark after an @ is one grapheme but still two @ scalars.
+        XCTAssertFalse(SignUp.isPlausibleEmail("a@\u{0301}b@c.com"))
+        // Length is UTF-16 units after lowercasing: 127 emoji are 254 units,
+        // and İ lowercases to two.
+        XCTAssertFalse(SignUp.isPlausibleEmail(String(repeating: "\u{1F600}", count: 127) + "@ex.com"))
+        XCTAssertFalse(SignUp.isPlausibleEmail(String(repeating: "\u{0130}", count: 240) + "@b.co"))
+    }
+
     func testOfflineSaysSo() async {
         let problem = await SignUp.submit(email: "a@b.co", captchaToken: "t", ageConfirmed: true, baseURL: base, transport: Transport(nil))
         XCTAssertEqual(problem, "Could not reach Apex — check your connection.")

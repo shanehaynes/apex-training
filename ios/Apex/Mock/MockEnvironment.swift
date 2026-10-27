@@ -43,7 +43,10 @@ import Foundation
 ///   -apexMockSignupToken <token>    Create account's check sheet hands over
 ///                                   <token> instead of loading /signup-check
 ///                                   (open-signup M3), so the smoke reaches
-///                                   POST /api/signup's answer
+///                                   POST /api/signup's answer;
+///                                   `-apexMockSignupTokenDelay <ms>` holds it
+///                                   back (default 300), to prove Cancel stops
+///                                   a token that lands later
 ///   -apexMockSpeech "<utt>;<utt>"   voice set logging (W17) hears those
 ///                                   utterances in order, one per mic tap, as
 ///                                   growing partials then the final; the
@@ -310,8 +313,12 @@ actor FixtureTransport: HTTPTransport {
             // body that is not JSON, no 18+ attestation as a JSON `true`, or
             // no token — so the smoke proves what the app sent.
             case ("POST", "/api/signup"):
+                // The handler's pattern itself, not the app's SignUp.isPlausibleEmail:
+                // a check the client wrote cannot catch the client's own bug.
+                let email = (body?["email"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
                 guard request.value(forHTTPHeaderField: "Content-Type") == "application/json",
-                      let email = body?["email"] as? String, SignUp.isPlausibleEmail(email)
+                      let email, email.utf16.count <= 254,
+                      email.range(of: #"^[^\s@]+@[^\s@]+\.[^\s@]+$"#, options: .regularExpression) != nil
                 else { return refusal("Enter a valid email address.") }
                 // NSNumber holds 1 and true alike; the server's `=== true` takes only the boolean.
                 guard let age = body?["ageConfirmed"] as? NSNumber,
