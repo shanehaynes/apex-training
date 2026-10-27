@@ -469,6 +469,12 @@ public struct Endpoint: Sendable, Equatable {
         profilePatch(["coach_goal": .string(goal), "coach_context": .string(context)])
     }
 
+    /// The device's IANA time zone (phase58). The server validates it against
+    /// its own Intl and answers 409 `column-missing` before the column exists.
+    public static func setTimezone(_ zone: String) -> Endpoint {
+        profilePatch(["timezone": .string(zone)])
+    }
+
     /// Which model the coach runs on. nil clears the pick, putting the user
     /// back on the server's default.
     public static func setCoachModel(_ id: String?) -> Endpoint {

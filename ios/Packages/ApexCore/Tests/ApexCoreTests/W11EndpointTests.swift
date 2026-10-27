@@ -39,6 +39,13 @@ final class W11EndpointTests: XCTestCase {
         XCTAssertEqual(body(Endpoint.setAnthropicKey(nil)), #"{"anthropic_api_key":null}"#)
     }
 
+    func testTimezoneIsAProfilePatch() {
+        let endpoint = Endpoint.setTimezone("America/Chicago")
+        XCTAssertEqual(endpoint.method, .patch)
+        XCTAssertEqual(endpoint.path, "api/profile")
+        XCTAssertEqual(body(endpoint), #"{"timezone":"America/Chicago"}"#)
+    }
+
     func testCoachModelAndProfileText() {
         XCTAssertEqual(body(Endpoint.setCoachModel("claude-sonnet-5")), #"{"coach_model":"claude-sonnet-5"}"#)
         // Empty strings are sent, not dropped: clearing the goal is an edit.
