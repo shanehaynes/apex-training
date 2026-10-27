@@ -815,11 +815,47 @@ final class WriteQueueTests: XCTestCase {
         let edit = save([setRow(1)])
         let saving = Task { [session] in try await queue.enqueue(edit, for: session) }
         while await store.tails < 1 { await Task.yield() }
-        let purging = Task { await queue.purgeAll() }
-        for _ in 0..<50 { await Task.yield() }
+        await queue.purgeAll()
+        await gate.open()
+        let returned = try await saving.value
+
+        let left = await store.all()
+        XCTAssertEqual(left, [])
+        XCTAssertEqual(returned.id, 0, "handed back unstored")
+    }
+
+    func testAPurgeTakesASaveThatReadAPendingSaveBeforeIt() async throws {
+        // The save read the lane's pending save as its merge target; the purge
+        // removes that row before the merge is written. Neither the merge nor
+        // its fallback append may bring the session back.
+        let gate = Gate()
+        let store = HeldTailStore(holdingTail: 2, on: gate)
+        let queue = WriteQueue(store: store, client: makeClient(ScriptedTransport()), clock: TestClock(now: Date(timeIntervalSince1970: 1_788_868_800)))
+        try await queue.enqueue(save([setRow(1, weight: "100")]), for: session)
+        let edit = save([setRow(2, weight: "105")])
+        let saving = Task { [session] in try await queue.enqueue(edit, for: session) }
+        while await store.tails < 2 { await Task.yield() }   // read the first save, held
+        await queue.purgeAll()
         await gate.open()
         _ = try await saving.value
-        await purging.value
+
+        let left = await store.all()
+        XCTAssertEqual(left, [])
+    }
+
+    func testACancelUnderWayWhenThePurgeRunsQueuesNothing() async throws {
+        let gate = Gate()
+        let store = HeldTailStore(on: gate)
+        let queue = WriteQueue(store: store, client: makeClient(ScriptedTransport()), clock: TestClock(now: Date(timeIntervalSince1970: 1_788_868_800)))
+        let edit = save([setRow(1)])
+        let saving = Task { [session] in try await queue.enqueue(edit, for: session) }
+        while await store.tails < 1 { await Task.yield() }
+        let cancelling = Task { [session] in try await queue.cancelSession(session) }   // waits behind the save
+        for _ in 0..<50 { await Task.yield() }
+        await queue.purgeAll()
+        await gate.open()
+        _ = try await saving.value
+        try await cancelling.value
 
         let left = await store.all()
         XCTAssertEqual(left, [])
@@ -895,7 +931,7 @@ final class WriteQueueTests: XCTestCase {
         meal.state = .failed
         meal.gaveUp = true
         meal.giveUpCount = TrackerOp.letGoThreshold
-        try await store.update(meal)
+        _ = try await store.update(meal)
 
         await store.arm()
         let flushing = Task { await queue.flush() }
@@ -915,10 +951,11 @@ final class WriteQueueTests: XCTestCase {
         XCTAssertEqual(kept.map(\.isRefused), [true])
     }
 
-    func testLetGoLeavesAnOpThatIsBeingSentAlone() async throws {
+    func testALetGoDuringASendTakesEffectWhenTheSendFails() async throws {
         // The send's outcome is written over the op, so a let-go written
-        // during it would be undone the moment the send fails again.
-        let transport = ScriptedTransport([.throwNetwork, .ok()])
+        // during it would be undone the moment the send failed. It waits for
+        // the send instead, then lets go of what is still waiting.
+        let transport = ScriptedTransport([.status(500, body: "boom"), .ok()])
         let gate = Gate()
         await transport.hold(with: gate)
         let store = MemoryWriteQueueStore()
@@ -930,15 +967,94 @@ final class WriteQueueTests: XCTestCase {
         let flushing = Task { await queue.flush(.outbox) }
         while await transport.count == 0 { await Task.yield() }
 
-        let letGo = await queue.letGo(meal.id, in: .outbox)
+        let id = meal.id
+        let lettingGo = Task { await queue.letGo(id, in: .outbox) }
+        for _ in 0..<50 { await Task.yield() }
         await gate.open()
         await flushing.value
+        let letGo = await lettingGo.value
 
-        XCTAssertNil(letGo)
-        let waiting = await queue.waitingOps(for: .outbox).map(\.id)
-        XCTAssertEqual(waiting, [meal.id], "still waiting, its retry scheduled")
+        XCTAssertEqual(letGo, .meal(oats))
+        let kept = await store.all.map(\.isRefused)
+        XCTAssertEqual(kept, [true], "kept as a refusal, not back waiting")
         clock.open()
         await queue.awaitRetries()
+        let sent = await transport.count
+        XCTAssertEqual(sent, 1, "the retry found nothing to send")
+    }
+
+    func testALetGoDuringASendThatLandsLetsNothingGo() async throws {
+        let transport = ScriptedTransport()
+        let gate = Gate()
+        await transport.hold(with: gate)
+        let store = MemoryWriteQueueStore()
+        let queue = makeQueue(transport, store: store)
+        var meal = try await queue.enqueue(.meal(oats), for: .outbox)
+        meal.giveUpCount = TrackerOp.letGoThreshold
+        try await store.update(meal)
+        let flushing = Task { await queue.flush(.outbox) }
+        while await transport.count == 0 { await Task.yield() }
+
+        let id = meal.id
+        let lettingGo = Task { await queue.letGo(id, in: .outbox) }
+        for _ in 0..<50 { await Task.yield() }
+        await gate.open()
+        await flushing.value
+        let letGo = await lettingGo.value
+
+        XCTAssertNil(letGo, "it landed: nothing to let go, nothing to undo")
+        let left = await store.all.count
+        XCTAssertEqual(left, 0)
+    }
+
+    // Two taps on the tracker's failure bar, Discard and Retry, a moment
+    // apart: the first one tapped decides.
+
+    func testDiscardTappedJustBeforeRetryWins() async throws {
+        let transport = ScriptedTransport()
+        let gate = Gate()
+        let store = HeldOpsStore(on: gate)
+        let queue = WriteQueue(store: store, client: makeClient(transport), clock: TestClock(now: Date(timeIntervalSince1970: 1_788_868_800)))
+        var failed = try await queue.enqueue(save([setRow(1)]), for: session)
+        failed.state = .failed
+        _ = try await store.update(failed)
+
+        await store.arm()
+        let discarding = Task { [session] in await queue.discardFailed(session) }
+        while await !store.isHolding { await Task.yield() }
+        let retrying = Task { [session] in await queue.retryFailed(session) }
+        for _ in 0..<50 { await Task.yield() }
+        await gate.open()
+        await discarding.value
+        await retrying.value
+
+        let sent = await transport.count
+        XCTAssertEqual(sent, 0, "discarded, so never sent")
+        let left = await queue.ops(for: session)
+        XCTAssertEqual(left, [])
+    }
+
+    func testRetryTappedJustBeforeDiscardWins() async throws {
+        let transport = ScriptedTransport()
+        let gate = Gate()
+        let store = HeldOpsStore(on: gate)
+        let queue = WriteQueue(store: store, client: makeClient(transport), clock: TestClock(now: Date(timeIntervalSince1970: 1_788_868_800)))
+        var failed = try await queue.enqueue(save([setRow(1)]), for: session)
+        failed.state = .failed
+        _ = try await store.update(failed)
+
+        await store.arm()
+        let retrying = Task { [session] in await queue.retryFailed(session) }
+        while await !store.isHolding { await Task.yield() }
+        let discarding = Task { [session] in await queue.discardFailed(session) }
+        for _ in 0..<50 { await Task.yield() }
+        await gate.open()
+        await retrying.value
+        await discarding.value
+        await queue.untilIdle(session)
+
+        let sent = await transport.requests.map(\.action)
+        XCTAssertEqual(sent, ["save"], "retried, so sent")
     }
 
     // MARK: - The outbox lane (an exercise created offline outside a workout)

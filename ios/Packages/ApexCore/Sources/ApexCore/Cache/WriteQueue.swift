@@ -81,6 +81,12 @@ public actor WriteQueue {
     /// Lanes whose turn is taken, and who waits for it next (`takeTurn`).
     private var turnTaken: Set<SessionKey> = []
     private var turnWaiters: [SessionKey: [CheckedContinuation<Void, Never>]] = [:]
+    /// Bumped by every `purgeAll`. The two writers that add rows (`enqueue`,
+    /// `cancelSession`) read it when called and write nothing if it has moved
+    /// by the time they would: no call made before a purge lands after it.
+    private var purges = 0
+    /// `letGo` calls waiting for an op in the air to settle, by op id.
+    private var settleWaiters: [Int64: [CheckedContinuation<Void, Never>]] = [:]
 
     public init(
         store: any WriteQueueStore, client: ApexClient,
@@ -101,6 +107,7 @@ public actor WriteQueue {
     /// tail. Does not flush — the caller decides when.
     @discardableResult
     public func enqueue(_ payload: TrackerOpPayload, for session: SessionKey) async throws -> TrackerOp {
+        let purgesBefore = purges
         await takeTurn(session)
         defer { endTurn(session) }
         if case .save(let incoming) = payload,
@@ -108,7 +115,7 @@ public actor WriteQueue {
            tail.state == .pending, inFlight[tail.id] == nil,
            case .save(let existing) = tail.payload {
             let merged = existing.merging(incoming)
-            if !merged.exceedsServerCap {
+            if !merged.exceedsServerCap, purges == purgesBefore {
                 var op = tail
                 op.payload = .save(merged)
                 // The turn should keep the row there, but a save written into
@@ -120,6 +127,9 @@ public actor WriteQueue {
             }
         }
         var op = TrackerOp(session: session, payload: payload, createdAt: clock.now)
+        // Purged since this was called (the account was deleted): the purge
+        // wins, and nothing is written. The op comes back unstored (id 0).
+        guard purges == purgesBefore else { return op }
         op.id = try await store.append(op)
         emit(.changed(session))
         return op
@@ -129,28 +139,32 @@ public actor WriteQueue {
     /// for the session may land after: purge (pending and failed alike), forget
     /// any in-flight op's result, then queue the cancel itself.
     public func cancelSession(_ session: SessionKey) async throws {
+        let purgesBefore = purges
         await takeTurn(session)
         defer { endTurn(session) }
         callOffRetry(for: session)
         notBefore[session] = nil
         if inFlight.values.contains(session) { cancelledMidFlight.insert(session) }
         try await store.purge(session: session)
+        // A purge since this was called removed the session already.
+        guard purges == purgesBefore else { return }
         var op = TrackerOp(session: session, payload: .cancel, createdAt: clock.now)
         op.id = try await store.append(op)
         emit(.changed(session))
     }
 
     /// Every read-then-write on a lane takes the lane's turn: an enqueue, a
-    /// cancel, the drain picking its next op and settling that op's row, the
-    /// user-action writers (`repend`, `retryFailed`, `discardFailed`,
-    /// `letGo`), and `purgeAll`, which takes every lane's that is held.
-    /// Every store call suspends and this actor is reentrant, so without a
-    /// turn an op queued while a save waited on its tail read took the lower
-    /// id and was sent first (a Finish ahead of the last set), a save landed
-    /// after a cancel or a purge, and a save merged into a row the drain was
-    /// sending was lost with it. The send itself holds no turn. Turns pass in
-    /// the order they were asked for, so the lane's ids follow the order
-    /// `enqueue` was called in. `discard` only deletes, and takes none.
+    /// cancel, the drain picking its next op and settling that op's row, and
+    /// the user-action writers (`repend`, `retryFailed`, `discardFailed`,
+    /// `letGo`). Every store call suspends and this actor is reentrant, so
+    /// without a turn an op queued while a save waited on its tail read took
+    /// the lower id and was sent first (a Finish ahead of the last set), a
+    /// save landed after a cancel, a save merged into a row the drain was
+    /// sending was lost with it, and of two taps (Retry, Discard; Let go
+    /// during a put-back) the later one could win. The send itself holds no
+    /// turn. Turns pass in the order they were asked for, so the lane's ids
+    /// follow the order `enqueue` was called in. `discard` only deletes, and
+    /// `purgeAll` spans every lane, so neither takes one (`purges`).
     private func takeTurn(_ session: SessionKey) async {
         guard turnTaken.contains(session) else {
             turnTaken.insert(session)
@@ -239,6 +253,7 @@ public actor WriteQueue {
             await takeTurn(session)
             defer {
                 inFlight[op.id] = nil
+                for waiter in settleWaiters.removeValue(forKey: op.id) ?? [] { waiter.resume() }
                 endTurn(session)
             }
 
@@ -525,12 +540,19 @@ public actor WriteQueue {
     /// let go, for the caller's undo.
     @discardableResult
     public func letGo(_ id: Int64, in session: SessionKey) async -> TrackerOpPayload? {
-        await takeTurn(session)
+        // Being sent right now: the send's outcome would be written over the
+        // let-go. Wait for it to settle and decide on what it left — gone if
+        // it landed, let go if it is still waiting.
+        while true {
+            while inFlight[id] != nil {
+                await withCheckedContinuation { settleWaiters[id, default: []].append($0) }
+            }
+            await takeTurn(session)
+            if inFlight[id] == nil { break }
+            endTurn(session)   // picked again before this had the turn
+        }
         defer { endTurn(session) }
-        // Being sent right now: the send's outcome is written over whatever
-        // this writes. Nothing is let go; it lands, or is back waiting.
-        guard inFlight[id] == nil,
-              let op = ((try? await store.ops(for: session)) ?? []).first(where: { $0.id == id }), op.canLetGo else { return nil }
+        guard let op = ((try? await store.ops(for: session)) ?? []).first(where: { $0.id == id }), op.canLetGo else { return nil }
         switch op.payload {
         case .meal, .workoutDraft:
             var kept = op
@@ -669,12 +691,9 @@ public actor WriteQueue {
     /// workout data outlives the session and flushes when its owner is back
     /// (the store is per owner); this is for tests and a deliberate reset.
     public func purgeAll() async {
-        // A write already inside a lane finishes first and goes with the rest
-        // (an enqueue mid-read would otherwise append after the purge). Lanes
-        // are taken in one order, so two purges cannot deadlock.
-        let lanes = turnTaken.sorted { ($0.eventId, $0.eventDate) < ($1.eventId, $1.eventDate) }
-        for lane in lanes { await takeTurn(lane) }
-        defer { for lane in lanes { endTurn(lane) } }
+        // Counted before anything awaits: an enqueue or a cancel already under
+        // way, on any lane, sees it before it writes and writes nothing.
+        purges += 1
         for token in waitingRetry.values { retryTasks[token]?.cancel() }
         waitingRetry = [:]
         notBefore = [:]
