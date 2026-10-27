@@ -82,8 +82,9 @@ public actor WriteQueue {
     private var turnTaken: Set<SessionKey> = []
     private var turnWaiters: [SessionKey: [CheckedContinuation<Void, Never>]] = [:]
     /// Bumped by every `purgeAll`. The two writers that add rows (`enqueue`,
-    /// `cancelSession`) read it when called and write nothing if it has moved
-    /// by the time they would: no call made before a purge lands after it.
+    /// `cancelSession`) read it when called, write nothing if it has moved by
+    /// the time they would, and delete what they wrote if it moved during the
+    /// write: no call made before a purge lands after it.
     private var purges = 0
     /// `letGo` calls waiting for an op in the air to settle, by op id.
     private var settleWaiters: [Int64: [CheckedContinuation<Void, Never>]] = [:]
@@ -131,6 +132,12 @@ public actor WriteQueue {
         // wins, and nothing is written. The op comes back unstored (id 0).
         guard purges == purgesBefore else { return op }
         op.id = try await store.append(op)
+        // A purge that started during the write can reach the store first.
+        if purges != purgesBefore {
+            try? await store.delete(id: op.id)
+            op.id = 0
+            return op
+        }
         emit(.changed(session))
         return op
     }
@@ -150,6 +157,10 @@ public actor WriteQueue {
         guard purges == purgesBefore else { return }
         var op = TrackerOp(session: session, payload: .cancel, createdAt: clock.now)
         op.id = try await store.append(op)
+        if purges != purgesBefore {   // as in `enqueue`
+            try? await store.delete(id: op.id)
+            return
+        }
         emit(.changed(session))
     }
 
