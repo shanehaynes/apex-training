@@ -364,7 +364,7 @@ export function injectVolatile(
     while (after < blocks.length && blocks[after].type === 'tool_result') after++;
     content = [...blocks.slice(0, after), block, ...blocks.slice(after)];
   }
-  return [...messages.slice(0, at), { ...target, content }, ...messages.slice(at + 1)];
+  return [...messages.slice(0, at), { ...target, role: 'user', content }, ...messages.slice(at + 1)];
 }
 
 function lastIndexOfRole(messages: Anthropic.MessageParam[], role: Anthropic.MessageParam['role']): number {
