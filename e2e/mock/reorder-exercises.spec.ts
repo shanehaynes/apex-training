@@ -129,6 +129,7 @@ test('the keyboard moves a card, and Escape cancels the move without closing the
 // the live tracker. The order saves with this session only (exerciseOrder on
 // the save op), never as an edit to the plan.
 test('mid-workout, the position picker moves an exercise and saves the session order', async ({ page }) => {
+  const patches = watchPatches(page);
   const saves: Array<{ exerciseOrder?: { exercise?: string[] } }> = [];
   page.on('request', req => {
     if (new URL(req.url()).pathname !== '/api/workout-sessions' || req.method() !== 'POST') return;
@@ -150,5 +151,5 @@ test('mid-workout, the position picker moves an exercise and saves the session o
   await shot(page, 'reorder-exercises-tracker');
 
   await expect.poll(() => saves.find(s => s.exerciseOrder)?.exerciseOrder?.exercise?.length, { timeout: 10000 }).toBe(12);
-  expect(saves.some(s => 'fields' in s), 'the plan is not edited').toBe(false);
+  expect(patches, 'the plan is not edited').toHaveLength(0);
 });

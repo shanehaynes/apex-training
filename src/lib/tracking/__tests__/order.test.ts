@@ -67,4 +67,18 @@ describe('moveTrackedExercise', () => {
     expect(moveTrackedExercise(groups, 'exercise', 1, 1)[1]).toBe(groups[1]);
     expect(moveTrackedExercise(groups, 'exercise', 0, 3)[1]).toBe(groups[1]);
   });
+
+  it('returns the same array when nothing moves, so a tap on the grip saves nothing', () => {
+    expect(moveTrackedExercise(groups, 'exercise', 1, 1)).toBe(groups);
+    expect(moveTrackedExercise(groups, 'exercise', -1, 0)).toBe(groups);
+    expect(moveTrackedExercise(groups, 'cooldown', 0, 1)).toBe(groups);
+  });
+});
+
+describe('exerciseOrderOf', () => {
+  it('saves distinct ids, so a plan with a duplicate entry id still sends an order the server takes', () => {
+    const order = exerciseOrderOf([group('exercise', ['a', 'b', 'a'])]);
+    expect(order).toEqual({ exercise: ['a', 'b'] });
+    expect(parseExerciseOrder(order)).toEqual(order);
+  });
 });

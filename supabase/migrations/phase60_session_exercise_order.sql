@@ -8,12 +8,12 @@
 -- on the event.
 --
 -- `exercise_order` maps a tracker section to the entry ids in the order the
--- athlete arranged them: {"warmup": [...], "exercises": [...], "cooldown":
+-- athlete arranged them: {"warmup": [...], "exercise": [...], "cooldown":
 -- [...]}. A section left out, or an id it does not name, keeps the plan's
 -- order (lib/tracking/order.ts). null = never reordered, which is exactly
--- today's behaviour, so the column is safe to apply ahead of or behind the
--- code. The handler bounds the shape and size; the check here only refuses a
--- non-object.
+-- today's behaviour. Apply this before the code ships: a save that carries
+-- an order fails against a database without the column. The handler bounds
+-- the shape and size; the check here only refuses a non-object.
 --
 -- RLS: workout_sessions already carries own-row policies with table-level
 -- grants; a new column needs no policy or grant work.

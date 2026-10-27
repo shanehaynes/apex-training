@@ -63,18 +63,23 @@ export function applyExerciseOrder(
 /** The order the tracker shows now, every section, for saving. */
 export function exerciseOrderOf(groups: TrackedSectionGroup[]): ExerciseOrder {
   const order: ExerciseOrder = {};
-  for (const group of groups) order[group.section] = group.exercises.map(t => t.exercise.id);
+  // Distinct ids only: a plan carrying a duplicate entry id would otherwise
+  // send an order the server refuses, and every later save with it.
+  for (const group of groups) order[group.section] = [...new Set(group.exercises.map(t => t.exercise.id))];
   return order;
 }
 
-/** Move one exercise within its section, from one index to another. */
+/**
+ * Move one exercise within its section, from one index to another. A move
+ * that changes nothing (same place, out of range) returns `groups` itself.
+ */
 export function moveTrackedExercise(
   groups: TrackedSectionGroup[],
   section: TrackedSection,
   from: number,
   to: number,
 ): TrackedSectionGroup[] {
-  return groups.map(group => {
+  const next = groups.map(group => {
     if (group.section !== section) return group;
     const last = group.exercises.length - 1;
     if (from === to || from < 0 || to < 0 || from > last || to > last) return group;
@@ -83,4 +88,5 @@ export function moveTrackedExercise(
     exercises.splice(to, 0, moved);
     return { ...group, exercises };
   });
+  return next.every((group, i) => group === groups[i]) ? groups : next;
 }

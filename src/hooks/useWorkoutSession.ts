@@ -427,6 +427,9 @@ export function useWorkoutSession(
    * own order on every other day.
    */
   const onReorderExercise = (section: TrackedSection, from: number, to: number) => {
+    // A tap on the grip, or a drop where it started, moves nothing: write
+    // nothing, so the session keeps following the plan's order.
+    if (moveTrackedExercise(groupsRef.current, section, from, to) === groupsRef.current) return;
     setGroups(prev => prev && moveTrackedExercise(prev, section, from, to));
     queueRef.current?.markDirty(ORDER_KEY);
     scheduleSave();

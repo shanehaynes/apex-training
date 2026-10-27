@@ -2852,6 +2852,7 @@ internal enum PublicSchema {
     internal let coachSummary: String?
     internal let eventDate: String
     internal let eventId: String
+    internal let exerciseOrder: AnyJSON?
     internal let finishedAt: String?
     internal let id: UUID
     internal let note: String?
@@ -2868,6 +2869,7 @@ internal enum PublicSchema {
       case coachSummary = "coach_summary"
       case eventDate = "event_date"
       case eventId = "event_id"
+      case exerciseOrder = "exercise_order"
       case finishedAt = "finished_at"
       case id = "id"
       case note = "note"
@@ -2886,6 +2888,7 @@ internal enum PublicSchema {
     internal let coachSummary: String?
     internal let eventDate: String
     internal let eventId: String
+    internal let exerciseOrder: AnyJSON?
     internal let finishedAt: String?
     internal let id: UUID?
     internal let note: String?
@@ -2902,6 +2905,7 @@ internal enum PublicSchema {
       case coachSummary = "coach_summary"
       case eventDate = "event_date"
       case eventId = "event_id"
+      case exerciseOrder = "exercise_order"
       case finishedAt = "finished_at"
       case id = "id"
       case note = "note"
@@ -2920,6 +2924,7 @@ internal enum PublicSchema {
     internal let coachSummary: String?
     internal let eventDate: String?
     internal let eventId: String?
+    internal let exerciseOrder: AnyJSON?
     internal let finishedAt: String?
     internal let id: UUID?
     internal let note: String?
@@ -2936,6 +2941,7 @@ internal enum PublicSchema {
       case coachSummary = "coach_summary"
       case eventDate = "event_date"
       case eventId = "event_id"
+      case exerciseOrder = "exercise_order"
       case finishedAt = "finished_at"
       case id = "id"
       case note = "note"

@@ -40,10 +40,12 @@
 
 .tracker-sortable { position: relative; }
 
-/* The wrapper makes each exercise its li's last child; keep the dividers
-   between exercises, not after the last one. */
-.tracker-sortable .tracker-exercise { border-bottom: 1px solid var(--border-subtle); }
-.tracker-sortable:last-child .tracker-exercise { border-bottom: none; }
+/* The wrapper makes each exercise its li's last child, which app.css's
+   `.tracker-exercise:last-child` would strip of its divider. This file loads
+   before app.css, so these selectors outrank it by specificity, not order:
+   dividers between exercises, none after the last one. */
+.tracker-sortable-list > .tracker-sortable > .tracker-exercise { border-bottom: 1px solid var(--border-subtle); }
+.tracker-sortable-list > .tracker-sortable:last-child > .tracker-exercise { border-bottom: none; }
 
 .tracker-sortable--dragging {
   z-index: 2;
@@ -82,9 +84,10 @@
 }
 
 /* Bigger hit areas on touch, where the grip is the only way to drag and the
-   picker is the quickest way to make a far move. */
+   picker is the quickest way to make a far move. `.editor-card` raises the
+   grip's specificity over app.css's base rule, which loads later. */
 @media (pointer: coarse) {
-  .editor-card__grip,
+  .editor-card .editor-card__grip,
   .tracker-reorder__grip { padding: 10px; margin: -8px 0 -8px -8px; }
   .reorder-position { height: 32px; min-width: 40px; padding: 0 8px; font-size: 13px; }
 }
