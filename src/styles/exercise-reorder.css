@@ -1,0 +1,34 @@
+/* Reordering an editor card (src/components/modal/EventExerciseEditor.tsx):
+   the card being dragged, and the position picker in each card's header
+   that moves a card to any place in one step. */
+
+.editor-card--dragging {
+  position: relative;
+  z-index: 2;
+  box-shadow: var(--shadow-lg);
+  border-color: var(--accent-primary);
+}
+
+.editor-card--dragging .editor-card__grip { cursor: grabbing; }
+
+/* A bigger hit area on touch, where the grip is the only way to drag. */
+@media (pointer: coarse) {
+  .editor-card__grip { padding: 6px; }
+}
+
+.editor-card__position {
+  flex-shrink: 0;
+  height: 22px;
+  padding: 0 4px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--bg-primary);
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  cursor: pointer;
+  outline: none;
+}
+
+.editor-card__position:hover { color: var(--text-primary); }
+.editor-card__position:focus-visible { border-color: var(--accent-primary); }

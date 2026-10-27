@@ -50,3 +50,17 @@ export function linkWithAbove(entries: Exercise[], id: string): Exercise[] {
 export function unlink(entries: Exercise[], id: string): Exercise[] {
   return normalizeSupersets(entries.map(e => (e.id === id ? stripLabel(e) : e)));
 }
+
+/**
+ * Move the entry at `from` to `to` (both section indexes), then re-letter:
+ * a move can split a group or strand a singleton. Out-of-range or same-place
+ * moves return `entries` itself.
+ */
+export function moveEntry(entries: Exercise[], from: number, to: number): Exercise[] {
+  const last = entries.length - 1;
+  if (from === to || from < 0 || to < 0 || from > last || to > last) return entries;
+  const next = [...entries];
+  const [moved] = next.splice(from, 1);
+  next.splice(to, 0, moved);
+  return normalizeSupersets(next);
+}
