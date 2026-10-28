@@ -174,8 +174,14 @@ test.describe('phone', () => {
     const card = page.locator('.tip');
     await expect(card).toBeVisible();
     await expect(page.locator('.mobile-nav')).toBeVisible();
-    // Let the entrance animation land before measuring.
-    await page.waitForTimeout(400);
+    // Measure the card at rest. Mid-entrance (translateY(10px) scale(0.94) →
+    // none, 250 ms) its bottom hangs lower, and on a loaded CPU the entrance
+    // can outlast a fixed sleep. Wait for an identity transform, not a polled
+    // fit: one measurement at rest.
+    await expect.poll(() => card.evaluate((el) => {
+      const transform = getComputedStyle(el).transform;
+      return transform === 'none' || new DOMMatrixReadOnly(transform).isIdentity ? 'at rest' : transform;
+    }), { message: 'the tip has finished its entrance' }).toBe('at rest');
     const cardBox = await card.boundingBox();
     const navBox = await page.locator('.mobile-nav').boundingBox();
     expect(cardBox!.y + cardBox!.height, 'card bottom clears the tab bar').toBeLessThanOrEqual(navBox!.y);
