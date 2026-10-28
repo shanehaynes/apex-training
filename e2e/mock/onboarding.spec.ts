@@ -149,15 +149,16 @@ test('every welcome card fits a 375×812 phone without scrolling', async ({ page
   for (let i = 0; i < STEPS; i += 1) {
     await expect(welcome.locator('.welcome__dots')).toHaveAttribute('aria-label', position(i + 1));
     await expect(welcome.locator('.welcome__dot').nth(i)).toHaveClass(/welcome__dot--active/);
-    // Measure the card at rest. It mounts with the profile, about when
-    // gotoCalendar's chip appears, so under load card 1's entrance
+    // Measure the card at rest. It mounts once the profile loads, which races
+    // the chip gotoCalendar waits on, so under load card 1's entrance
     // (translateY(10px) scale(0.94) → none, 250 ms) can still be running —
-    // and mid-entrance the bottom sheet hangs a pixel below the fold. Waiting
-    // for rest, not polling the fit, keeps the one measurement: a taller card
-    // shrinks more than it drops, and could pass mid-entrance yet not fit.
-    await expect.poll(() => welcome.evaluate(el => getComputedStyle(el).transform), {
-      message: `card ${i + 1} has finished its entrance`,
-    }).toBe('none');
+    // and mid-entrance the bottom sheet hangs a pixel below the fold. Wait for
+    // an identity transform, not a polled fit: one measurement at rest, and a
+    // frame the user never rests on can neither fail nor pass the card.
+    await expect.poll(() => welcome.evaluate((el) => {
+      const transform = getComputedStyle(el).transform;
+      return transform === 'none' || new DOMMatrixReadOnly(transform).isIdentity ? 'at rest' : transform;
+    }), { message: `card ${i + 1} has finished its entrance` }).toBe('at rest');
     // Neither the card nor its backdrop scrolls, and the card sits on screen.
     const fits = await welcome.evaluate((el) => {
       const box = el.getBoundingClientRect();
