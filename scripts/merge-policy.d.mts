@@ -12,4 +12,22 @@ export const GRANT_LABEL: string;
  * `changed` is the PR's total changed-file count; a mismatch with
  * `paths.length` means the listing is truncated and the verdict is a hold.
  */
-export function decide(paths: string[], labels: string[], changed?: number): string | null;
+export function decide(
+  paths: string[],
+  labels: string[],
+  changed?: number,
+  sources?: Record<string, { before: string | null; after: string | null }>,
+): string | null;
+
+/** Why a package.json change needs a human, or null when it only moves versions of names already present. */
+export function manifestHold(before: string | null, after: string | null): string | null;
+
+/** Why a package-lock.json needs a human, or null when every entry is a registry tarball with an integrity hash. */
+export function lockfileHold(before: string | null, after: string | null): string | null;
+
+/** Before/after contents for each content-checked path at the PR's merge base and head; undefined when unreadable. */
+export function gatherSources(
+  paths: string[],
+  number: unknown,
+  head: unknown,
+): Record<string, { before: string | null; after: string | null }> | undefined;
