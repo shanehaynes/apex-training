@@ -82,6 +82,8 @@ describe.skipIf(!RUN)('api handlers against the local stack', () => {
     admin = createClient(env.url, env.serviceKey, { auth: { persistSession: false } });
 
     await admin.from('workout_events').delete().eq('id', EVENT_ID);
+    // An interrupted run leaves its count behind; the bump test needs 1..5.
+    await admin.from('api_request_counts').delete().eq('bucket', 'itest');
   });
 
   afterAll(async () => {
