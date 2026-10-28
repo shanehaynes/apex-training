@@ -1905,6 +1905,20 @@ final class WriteQueueStoreFailureTests: XCTestCase {
         .save(SavePayload(setLogs: [setRow(1, weight: "100")], removedSets: []))
     }
 
+    /// Waits until `clock` has been asked for `count` sleeps (five seconds at
+    /// most). A retry sleeps in a task of its own, some time after the call
+    /// that scheduled it returns, and in no promised order with a retry that
+    /// call called off.
+    private func waitForSleeps(
+        _ count: Int, on clock: HeldClock, file: StaticString = #filePath, line: UInt = #line
+    ) async {
+        let deadline = Date().addingTimeInterval(5)
+        while clock.sleeps.count < count, Date() < deadline {
+            try? await Task.sleep(nanoseconds: 1_000_000)
+        }
+        XCTAssertEqual(clock.sleeps.count, count, "sleeps asked of the clock", file: file, line: line)
+    }
+
     func testAFailedDeleteAfterASendStopsTheDrainAndBacksOff() async throws {
         let transport = ScriptedTransport([.ok()])
         let store = FailingWritesStore()
@@ -2065,7 +2079,11 @@ final class WriteQueueStoreFailureTests: XCTestCase {
 
         let attempts = await store.inner.all.first?.attempts
         XCTAssertEqual(attempts, 1)
-        XCTAssertEqual(clock.sleeps.last, 1, "the first rung's backoff")
+        // Two retries sleep: the carry's 2s one, which `resume()` called off,
+        // and the 1s one its send scheduled. Each sleeps in its own task, in
+        // no promised order, so the newest is not always `sleeps.last`.
+        await waitForSleeps(2, on: clock)
+        XCTAssertEqual(clock.sleeps.sorted(), [1, 2], "the first rung's backoff, beside the called-off carry's")
         clock.open()
         await queue.awaitRetries()
     }
