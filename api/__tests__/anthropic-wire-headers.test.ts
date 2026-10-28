@@ -60,7 +60,7 @@ function sse(): string {
 /** Stubs global fetch BEFORE the client is built: the SDK resolves its fetch
  *  at construction (`options.fetch ?? getDefaultFetch()`), so the production
  *  factory is exercised unchanged. */
-function stubFetch(): Captured[] {
+function stubFetch(bodies: unknown[] = []): Captured[] {
   const calls: Captured[] = [];
   vi.stubGlobal('fetch', vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
     const headers: Record<string, string> = {};
@@ -68,7 +68,13 @@ function stubFetch(): Captured[] {
       if (!IGNORED(name)) headers[name] = value;
     });
     calls.push({ url: String(input), method: init?.method ?? 'GET', headers });
-    const body = JSON.parse(String(init?.body)) as { stream?: boolean };
+    if (init?.body == null) {
+      return new Response(JSON.stringify({ data: [], has_more: false, first_id: null, last_id: null }), {
+        headers: { 'content-type': 'application/json' },
+      });
+    }
+    const body = JSON.parse(String(init.body)) as { stream?: boolean };
+    bodies.push(body);
     return body.stream
       ? new Response(sse(), { headers: { 'content-type': 'text/event-stream' } })
       : new Response(JSON.stringify(MESSAGE), { headers: { 'content-type': 'application/json' } });
@@ -131,9 +137,23 @@ describe('Anthropic wire headers (pinned per @anthropic-ai/sdk version)', () => 
   });
 
   it("the production client on api/chat.ts's streamed chat request, tools and memory tool included", async () => {
-    const calls = stubFetch();
+    const bodies: unknown[] = [];
+    const calls = stubFetch(bodies);
     await makeAnthropicClient(KEY).messages.stream(chatRequest()).finalMessage();
     expect(calls).toEqual([PINNED]);
+    // The body too: a bump that adds a default field or drops one the coach
+    // relies on (cache_control.ttl, thinking, output_config) fails here.
+    expect(bodies).toEqual([{ ...chatRequest(), stream: true }]);
+  });
+
+  it('the production client on models.list, the key check (api/_lib/anthropicKey.ts)', async () => {
+    const calls = stubFetch();
+    await makeAnthropicClient(KEY).models.list({ limit: 1 });
+    expect(calls).toEqual([{
+      url: 'https://api.anthropic.com/v1/models?limit=1',
+      method: 'GET',
+      headers: { accept: PINNED.headers.accept, 'anthropic-version': PINNED.headers['anthropic-version'], authorization: PINNED.headers.authorization },
+    }]);
   });
 
   it('the eval API backend client (evals/src/models.ts makeClient)', async () => {
