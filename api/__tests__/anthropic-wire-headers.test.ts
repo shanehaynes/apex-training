@@ -62,7 +62,7 @@ function sse(): string {
  *  factory is exercised unchanged. */
 function stubFetch(): Captured[] {
   const calls: Captured[] = [];
-  vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+  vi.stubGlobal('fetch', vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
     const headers: Record<string, string> = {};
     new Headers(init?.headers).forEach((value, name) => {
       if (!IGNORED(name)) headers[name] = value;
