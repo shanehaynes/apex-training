@@ -18,10 +18,11 @@
 #   covered nightly here        only on Shane's box (run the sweep by hand)
 #   ────────────────────        ──────────────────────────────────────────
 #   main's latest CI run        the shared local Supabase stack's schema
-#   coach model catalog         the primary checkout: on main, and clean
-#   production auth config      git-tidy's dry run (merged branches)
-#   production DB schema        worktree age
-#   the nightly backup          session claims (.claude/state/claims.tsv)
+#   ios CI job vs its cap       the primary checkout: on main, and clean
+#   coach model catalog         git-tidy's dry run (merged branches)
+#   production auth config      worktree age
+#   production DB schema        session claims (.claude/state/claims.tsv)
+#   the nightly backup
 #   open PRs + combine check
 #
 # Its own workflow, not a job in ci.yml, for the reason model-catalog.yml
