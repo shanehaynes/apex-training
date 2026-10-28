@@ -111,6 +111,7 @@ skipped=""
 in_flight_prs=""
 merged_any=0
 merged_count=0
+gave_up=0
 fleet_n=0
 fleet_base=""
 
@@ -378,7 +379,9 @@ merge_pr() {
 # folded tree, merge the PRs in that order. Sets actionable/merged_* like the
 # serial pass does, so end_of_pass decides whether to loop.
 
-# The contexts branch protection requires — the floor. Read once.
+# The contexts branch protection requires — the floor. Read once, in the
+# main shell before the loop: required_green runs inside $(...), where a load
+# would be lost with the subshell and repeated for every PR.
 required_contexts=""
 required_contexts_loaded=0
 load_required_contexts() {
@@ -401,9 +404,13 @@ load_required_contexts() {
 # builds and passes its UI tests: the fleet's union proof runs agent:check,
 # which has neither. Counting only the required checks, fleet mode merged 12
 # of 16 iOS PRs (Oct 2026) while ios was still running, and 9 of those runs
-# ended red — #395 and #438 were cut off at the cap. Waiting costs a web-only
-# PR nothing: ios skips in seconds, and on 35 of 35 such PRs it finished
-# before the last required check.
+# ended red — #395 and #438 were cut off at the cap. A web-only PR waits only
+# for a macOS runner to start the skip: on the last 35 web-only PRs (Oct
+# 2026) ios finished before the last required check every time, but in the
+# saturated pool of the 2026-09-21 fleet #237's skip started 114 minutes
+# after its checks. That delays the waiting PR, not the others: each pass
+# merges whatever is ready. Copying CI's iOS-path rule here instead would
+# fail open the day the two drift.
 #
 # One verdict per check name, so a re-run decides and not the run it
 # replaced: a run still going makes the name pending, otherwise the newest
@@ -421,7 +428,7 @@ rollup_verdicts='
     else (max_by(.at) | "\(.name)\t\(.v)") end'
 required_green() {
   local rollup ctx st red="" pending=""
-  load_required_contexts || return 2
+  load_required_contexts || { echo "branch protection (could not read it)"; return 2; }
   rollup=$("$GH" pr view "$1" --json statusCheckRollup --jq "$rollup_verdicts") || return 2
   for ctx in $required_contexts; do
     st=$(printf '%s\n' "$rollup" | awk -F'\t' -v c="$ctx" '$1 == c { print $2; exit }')
@@ -660,9 +667,13 @@ end_of_pass() {
     fi
     return 1
   fi
+  # Giving up still runs the post-merge lifecycle for what this run already
+  # merged, then exits 1: a fleet waits on slow ios jobs, and a deadline that
+  # skipped deploy-verify would leave earlier merges unverified.
   if [ "$(date +%s)" -ge "$deadline" ]; then
     echo "── giving up after ${max_minutes}m — CI is slower than expected or something is wedged." >&2
-    exit 1
+    gave_up=1
+    return 1
   fi
   # After a merge GitHub recomputes every other PR's state; either way CI
   # needs real time. Poll, don't spin.
@@ -711,6 +722,8 @@ MSG
     echo "NOTE  could not read main's branch protection; --yes would refuse."
     ;;
 esac
+# A failure here is retried by each required_green call, which reports it.
+load_required_contexts || true
 
 while :; do
   # Checked every pass, not once: touching the file halts a loop mid-run too.
@@ -906,7 +919,7 @@ done
 # Pressing the button is not the end of a merge: merged branches need
 # retiring, the primary checkout should read what main now says, and prod
 # must still route — a deploy follows every merge.
-[ "$apply" -eq 1 ] && [ "$merged_any" -eq 1 ] || exit 0
+[ "$apply" -eq 1 ] && [ "$merged_any" -eq 1 ] || exit "$gave_up"
 
 echo
 echo "── post-merge: retiring merged branches and worktrees"
@@ -940,3 +953,4 @@ scripts/deploy-verify.sh --max-minutes="$dv_minutes" || {
   echo "ACTION deploy verification failed — check production and the Vercel dashboard now." >&2
   exit 1
 }
+exit "$gave_up"

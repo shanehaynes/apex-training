@@ -31,9 +31,9 @@ const gitEnv = {
 };
 
 // A gh that knows four calls: branch protection (the fixture's, else strict
-// with nothing required), the PR list, a PR's metadata, and anything else
-// (comment/merge) as a recorded no-op. Each answer goes through jq with the
-// --jq the script passed, as gh does.
+// with nothing required), the PR list (fixture.prs, else the one fixture.pr),
+// a PR's metadata by number, and anything else (comment/merge) as a recorded
+// no-op. Each answer goes through jq with the --jq the script passed, as gh does.
 const GH_STUB = `#!/usr/bin/env node
 const { spawnSync } = require('node:child_process');
 const { appendFileSync, readFileSync } = require('node:fs');
@@ -43,8 +43,8 @@ appendFileSync(process.env.GH_FIXTURE + '.calls', JSON.stringify(args) + '\\n');
 const jq = args[args.indexOf('--jq') + 1];
 let data;
 if (args[0] === 'api' && args[1].endsWith('/required_status_checks')) data = fixture.protection ?? { strict: true, contexts: [] };
-else if (args[0] === 'pr' && args[1] === 'list') data = [fixture.pr];
-else if (args[0] === 'pr' && args[1] === 'view') data = fixture.pr;
+else if (args[0] === 'pr' && args[1] === 'list') data = fixture.prs ?? [fixture.pr];
+else if (args[0] === 'pr' && args[1] === 'view') data = (fixture.prs ?? [fixture.pr]).find((p) => String(p.number) === args[2]);
 else process.exit(0);
 if (!args.includes('--jq')) { process.stdout.write(JSON.stringify(data)); process.exit(0); }
 const out = spawnSync('jq', ['-r', jq], { input: JSON.stringify(data), encoding: 'utf8' });
@@ -278,34 +278,43 @@ describe('merge-babysit.sh: a PR merges only once every check on its head has fi
   const requiredGreen = REQUIRED.map((name) => job(name, 'SUCCESS', at(0), at(12)));
   const vercel = { __typename: 'StatusContext', context: 'Vercel', state: 'SUCCESS', startedAt: at(0) };
 
-  /** stdout of a dry run against one iOS PR with this rollup. */
-  const babysit = async (rollup: object[], { fleet = true, state = 'UNSTABLE' } = {}) => {
+  const iosPr = (rollup: object[], { number = IOS_PR, state = 'UNSTABLE' } = {}) => ({
+    number,
+    title: `An iOS change (#${number})`,
+    baseRefName: 'main',
+    isDraft: false,
+    mergeStateStatus: state,
+    headRefName: BRANCH,
+    headRefOid: headSha,
+    changedFiles: 1,
+    files: [{ path: 'ios/Packages/ApexCore/Sources/Fixture.swift' }],
+    labels: [],
+    statusCheckRollup: rollup,
+  });
+
+  /** stdout and stderr of a run (a non-zero exit too) over these PRs, and every gh call it made. */
+  const babysitAll = async (prs: object[], { fleet = true, args = [] as string[] } = {}) => {
     const fixture = join(tmp, `gh-${Math.random().toString(36).slice(2)}.json`);
-    writeFileSync(fixture, JSON.stringify({
-      protection: { strict: !fleet, contexts: REQUIRED },
-      pr: {
-        number: IOS_PR,
-        title: 'An iOS change',
-        baseRefName: 'main',
-        isDraft: false,
-        mergeStateStatus: state,
-        headRefName: BRANCH,
-        headRefOid: headSha,
-        changedFiles: 1,
-        files: [{ path: 'ios/Packages/ApexCore/Sources/Fixture.swift' }],
-        labels: [],
-        statusCheckRollup: rollup,
-      },
-    }));
+    writeFileSync(fixture, JSON.stringify({ protection: { strict: !fleet, contexts: REQUIRED }, prs }));
     const gh = join(tmp, 'gh');
     writeFileSync(gh, GH_STUB);
     chmodSync(gh, 0o755);
-    const { stdout } = await run('bash', [join(work, 'scripts/merge-babysit.sh'), ...(fleet ? ['--fleet'] : [])], {
-      cwd: work,
-      env: { ...gitEnv, GH: gh, GH_FIXTURE: fixture },
-    });
-    return stdout;
+    let out: string;
+    let err: string;
+    try {
+      ({ stdout: out, stderr: err } = await run('bash', [join(work, 'scripts/merge-babysit.sh'), ...(fleet ? ['--fleet'] : []), ...args], {
+        cwd: work,
+        env: { ...gitEnv, GH: gh, GH_FIXTURE: fixture },
+      }));
+    } catch (e) {
+      ({ stdout: out, stderr: err } = e as { stdout: string; stderr: string });
+    }
+    const calls = readFileSync(`${fixture}.calls`, 'utf8').trim().split('\n').map((l) => JSON.parse(l) as string[]);
+    return { out, err, calls };
   };
+  /** stdout of a dry run against one iOS PR with this rollup. */
+  const babysit = async (rollup: object[], { fleet = true, state = 'UNSTABLE' } = {}) =>
+    (await babysitAll([iosPr(rollup, { state })], { fleet })).out;
 
   it('folds the PR once every check finished green — the fixture can go green at all', async () => {
     const out = await babysit([...requiredGreen, job('ios', 'SUCCESS', at(0), at(35)), vercel]);
@@ -336,6 +345,36 @@ describe('merge-babysit.sh: a PR merges only once every check on its head has fi
     ]);
     expect(out).toContain(`FLEET #${IOS_PR}`);
     expect(out).not.toMatch(/SKIP|WAIT/);
+  });
+
+  it('picks the newest run by time, not by its place in the rollup', async () => {
+    const green = await babysit([...requiredGreen, job('ios', 'SUCCESS', at(3), at(38)), job('ios', 'CANCELLED', at(0), at(3)), vercel]);
+    expect(green).toContain(`FLEET #${IOS_PR}`);
+    const red = await babysit([...requiredGreen, job('ios', 'FAILURE', at(3), at(38)), job('ios', 'SUCCESS', at(0), at(30)), vercel]);
+    expect(red).toContain(`SKIP  #${IOS_PR} has failing check(s): ios=FAILURE`);
+    expect(red).not.toMatch(/FLEET #/);
+  });
+
+  it('waits on a status that is still pending, and on a required check that has not reported', async () => {
+    const vercelPending = await babysit([...requiredGreen, job('ios', 'SUCCESS', at(0), at(35)), { ...vercel, state: 'PENDING' }]);
+    expect(vercelPending).toContain(`WAIT  #${IOS_PR}: UNSTABLE — CI still running — waiting on Vercel; next pass.`);
+    const checkMissing = await babysit([...requiredGreen.filter((j) => j.name !== 'check'), job('ios', 'SUCCESS', at(0), at(35)), vercel]);
+    expect(checkMissing).toContain(`WAIT  #${IOS_PR}: UNSTABLE — CI still running — waiting on check; next pass.`);
+  });
+
+  it('at the deadline, still runs the post-merge lifecycle for what it merged, and reads protection once', async () => {
+    const { out, err, calls } = await babysitAll(
+      [iosPr([...requiredGreen, job('ios', null, at(0)), vercel]), iosPr([...requiredGreen, job('ios', 'SUCCESS', at(0), at(35)), vercel], { number: IOS_PR + 1 })],
+      { args: ['--yes', '--no-check', '--max-minutes=0'] },
+    );
+    expect(out).toContain(`WAIT  #${IOS_PR}: UNSTABLE — CI still running — waiting on ios; next pass.`);
+    expect(out).toContain(`MERGE #${IOS_PR + 1}`);
+    expect(err).toContain('giving up after 0m');
+    expect(out).toContain('── post-merge: retiring merged branches and worktrees');
+    expect(calls).toContainEqual(['pr', 'merge', String(IOS_PR + 1), '--squash']);
+    expect(calls.some((c) => c[1] === 'merge' && c[2] === String(IOS_PR))).toBe(false);
+    // The strict check, then one load of the required contexts — not one per PR.
+    expect(calls.filter((c) => c[0] === 'api' && c[1].endsWith('/required_status_checks'))).toHaveLength(2);
   });
 
   it('waits, rather than calling it red, while the run that superseded a CANCELLED has not started', async () => {
