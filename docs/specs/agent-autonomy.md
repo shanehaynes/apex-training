@@ -178,6 +178,20 @@ Every box above checked, every PR merged (each is HELD by design and needs
   only for migration PRs. #510 pins fleet merges to the head the union proof saw, and
   the serial window between policy and merge is seconds. Revisit once #510 lands.
 
+- 2026-10-28 · From the M3 review. Any `$` outside a plain string literal, any E'' string
+  and any nested block comment holds the file: Postgres lexes `a$q$` as one
+  identifier, while the splitter saw a dollar quote that hid statements from the
+  classifier.
+- 2026-10-28 · On existing tables, DEFAULT, CHECK and index expressions may call only
+  side-effect-free built-ins (`SAFE_CALLS`), because Postgres runs them over every
+  existing row. `comment on` is allowed only for objects the file creates. The
+  applier refuses a drop-and-re-add whose dropped constraint is not a CHECK
+  (`contype`).
+- 2026-10-28 · The babysitter applies only files the PR adds. Before applying, it
+  re-asks the policy about the exact SHA, without labels, so a push between the
+  policy and the preflight cannot slip SQL through, and a shipit on other held
+  files does not extend to the apply. A partial apply is still logged and commented.
+
 ## Session log
 - 2026-10-28 · spec written; M1 on `chore/agent-autonomy-m1`, M2 on
   `chore/agent-autonomy-m2`, M3 on `db/agent-autonomy-m3` (stacked on M2). Not
