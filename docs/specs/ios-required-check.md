@@ -25,7 +25,9 @@
   starts from a `main` that has it.
 - #507 (`required_green` waits for every check), which M2 edits.
 
-**Status:** not started
+**Status:** M1 in review as #515 (HELD for `shipit`). Its pre-merge proof is done except its own
+green run, which goes in its PR body; the after-merge run ids are still to come. #507 merged
+2026-10-28, so M2 can start. M3 waits for both.
 
 ## Goal
 
@@ -87,7 +89,7 @@ Each milestone is one PR, except M3, which is a protection change plus this file
 M2 touch different files and can run in parallel. M3 waits for both.
 
 ### M1 — the iOS-path decision moves to ubuntu
-- [ ] A `changes` job: `runs-on: ubuntu-latest`, `timeout-minutes: 5`, checkout with
+- [x] A `changes` job: `runs-on: ubuntu-latest`, `timeout-minutes: 5`, checkout with
   `fetch-depth: 0`, one output `ios`. Its script sits between `# ios-paths:begin` and
   `# ios-paths:end` comment lines, and it writes `ios=true` or `ios=false` on every path:
   - on any event other than `pull_request` and `merge_group`, `true`;
@@ -95,7 +97,7 @@ M2 touch different files and can run in parallel. M3 waits for both.
     `git diff --quiet "$(git merge-base origin/main HEAD)" HEAD -- ios/ .github/workflows/ci.yml`
     succeeds;
   - anything else, including a failed merge-base, `true`.
-- [ ] `scripts/__tests__/ci-ios-paths.test.ts` reads `ci.yml` and extracts the script between
+- [x] `scripts/__tests__/ci-ios-paths.test.ts` reads `ci.yml` and extracts the script between
   the markers. It runs it in a temp git repo with `GITHUB_EVENT_NAME` and `GITHUB_OUTPUT` set,
   for five cases:
 
@@ -108,25 +110,26 @@ M2 touch different files and can run in parallel. M3 waits for both.
   | no merge base | `true` |
 
   The test fails if the markers are missing.
-- [ ] `ios` has `needs: changes` and
+- [x] `ios` has `needs: changes` and
   `if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.ios != 'false') }}`.
   Use `!= 'false'`, not `== 'true'`: an output that was never written reads as `''`, and
   `== 'true'` would skip the job.
 
   Its first step runs `if: needs.changes.result != 'success'` and exits 1 with an `::error::`
   naming the `changes` job.
-- [ ] The step "Skip when a pull request changes no iOS paths" and every `env.skip` condition
+- [x] The step "Skip when a pull request changes no iOS paths" and every `env.skip` condition
   are gone. Three conditions stay as they are:
   - the cache save keeps `github.ref == 'refs/heads/main' && steps.swiftpm.outputs.cache-hit != 'true'`;
   - the result upload keeps `if: always()`;
   - nothing else in the job changes.
-- [ ] The comments hold whether or not `ios` is required yet:
+- [x] The comments hold whether or not `ios` is required yet:
   - Say what the job-level skip and the fail-closed rule are for.
   - Drop #503's "ios is not a required check and nothing waits for it", which lives on the
     deleted step.
   - `coach-gate`'s "Same reasoning as the ios job above" stops pointing at a job that no longer
     skips internally. It states its own reason.
-- [ ] Before merge, evidence by run id in the PR body:
+- [ ] Before merge, evidence by run id in the PR body (2 is done, run ids in the Session log; 1
+  goes in #515's body when its run finishes, and is ticked here after merge):
   1. This PR's own run. It edits `ci.yml`, so `changes` says `ios=true` and `ios` builds and
      passes.
   2. Three pushes to one throwaway draft PR. In none of them may `ios` come out SKIPPED:
@@ -161,12 +164,12 @@ M2 touch different files and can run in parallel. M3 waits for both.
   | main push | `changes` says `ios=true`; `ios` built and tested |
   | web-only PR | `skipped`, `null`, `0` |
   | `ios/`-only PR | `ios` built and tested |
-- [ ] `docs/ios/testing-and-ci.md`:
+- [x] `docs/ios/testing-and-ci.md`:
   - The job snippet and the "Why the early-exit instead of `on.paths`" paragraph describe the
     job-level skip and why it fails closed.
   - Drop #503's sentence that `merge-babysit.sh` does not count `cancelled` as red. #507 makes
     it false.
-- [ ] `.claude/skills/parallel-agents/references/integration.md`'s rule "Use an always-running
+- [x] `.claude/skills/parallel-agents/references/integration.md`'s rule "Use an always-running
   job that skips internally" names the exception. When the job's runner is scarce (macOS),
   decide the paths on ubuntu and skip at job level, failing closed. If #506 has merged,
   `scripts/ios-ci-headroom.mjs`'s "finishes the job in seconds" comment says a web-only PR's
@@ -230,24 +233,77 @@ and the Next brief section below filled in.
 - 2026-10-28 · This departs on purpose from the parallel-agents rule "always-running job that
   skips internally". The internal skip needs a runner of the job's own kind, and macOS runners
   are the scarce ones. M1 records the exception in the rule.
+- 2026-10-28 · A whole-run cancel, by hand or by a newer push, leaves `ios` `cancelled` with no
+  runner and 0 steps; it does not run `ios` to its fail-closed step (probe d). Scope's "a
+  `changes` that … was cancelled makes `ios` run and fail" holds for a `changes` timeout, which
+  GitHub reports as `cancelled` while `cancelled()` stays false (probe b). The property that
+  matters, never SKIPPED, holds both ways, and `cancelled` fails a required check.
+- 2026-10-28 · `ci-ios-paths.test.ts` also pins the wiring line by line: the step's whole `run:`
+  block is the marked script, with keys `id` and `run` only; the `changes` checkout has
+  `fetch-depth: 0`; and `ios` has its job-level `needs:`/`if:` and the fail-closed first step.
+  Review showed that substring checks let a moved `if:` and a line above the begin marker
+  through. GitHub's semantics are still proven only by real runs.
+- 2026-10-28 · `ios` keeps its checkout's `fetch-depth: 0` ("nothing else in the job changes"),
+  although only the deleted skip step needed full history. Nothing in the CI build reads it
+  (`testflight.sh`'s `git rev-list --count` runs locally). Dropping it would save a full-history
+  fetch on macOS: a one-line follow-up, and a `ci.yml` PR that runs `ios` in full.
 
 ## Session log
 - 2026-10-28 · Spec drafted from the #507 investigation. Reviewed once (two major findings:
   M1's pre-merge web-only proof was impossible, and `== 'true'` failed open); both fixed here.
   Nothing implemented.
+- 2026-10-28 · M1 implemented in #515 (`chore/ios-skip-on-ubuntu`, HELD for `shipit`).
+  - Gate: `agent:check` green on every commit. The gate test kills 11 `ci.yml` mutants.
+  - Reviewer (spec plus diff only): five minor findings, all fixed in e6879326. Three were test
+    gaps (always-true events beyond push, lines outside the markers, unpinned indentation and
+    `fetch-depth`), one was wording (whole-run cancel), and one a temp-dir leak.
+  - Probes on throwaway draft #513 (`throwaway/ios-skip`, one push each; `ios` never SKIPPED):
+    - (a) 18f6bec2, `exit 1`: run 40785822725. `changes` failure; `ios` FAILURE at step 2,
+      "Fail when the changes job did not decide", `::error::The changes job ended 'failure', …`.
+    - (b) d9e4dc1a, `timeout-minutes: 1` + `sleep 120`: run 40785944133. `changes` cancelled
+      ("exceeded the maximum execution time of 1m0s"); `ios` ran and failed at step 2,
+      "… ended 'cancelled' …".
+    - (d, extra) d7c1aafc, run cancelled by hand while `changes` decided: run 40786328739.
+      `ios` cancelled, runner null, 0 steps; check run 123161562358 completed/cancelled.
+    - (c) 97d6f6c1, `changes` exits 0 without writing `ios=`: run 40786730850. Step 2 skipped;
+      checkout, Xcode, xcodegen, cache and sync ran, and "Build and test" ran. Its conclusion
+      is in #515's body.
+  - Not yet: #515's own green run (its PR body), and the three after-merge run ids (main push,
+    first web-only PR, first `ios/`-only PR). Their box stays open until someone reads them
+    after the merge.
 
 ## Next brief
-**M1 — the iOS-path decision moves to ubuntu.**
-- **Goal:** a web-only PR's `ios` check is a job-level SKIPPED that never asks for a macOS
-  runner. An iOS or `ci.yml` PR's `ios` builds and tests exactly as today. A broken, cancelled
-  or silent path decision fails or runs `ios`, never skips it.
-- **Scope:** add the `changes` job with its marked script and `ci-ios-paths.test.ts`, gate
-  `ios` on it, and delete the in-job skip step and its `env.skip` conditions. Then fix the
-  comments and docs the M1 boxes name. Nothing else in `ci.yml`.
-- **Acceptance:** the M1 boxes above: the five-case test, three failure probes on one throwaway
-  draft PR (closed and cleaned up), and the three after-merge run ids.
-- **Owns:** the M1 part of this spec's Owns list.
-- **Start only after #503 has merged** (same step):
-  `scripts/git-new.sh chore/ios-skip-on-ubuntu ".github/workflows/ci.yml ios + changes jobs, scripts/__tests__/ci-ios-paths.test.ts, docs/ios/testing-and-ci.md ios section"`.
-  Run the `reviewer` agent before `gh pr create`. The PR is HELD for `shipit` (`.github/`).
-  M2 can run at the same time in its own lane once #507 has merged.
+**M2 — the babysitter counts a skipped required check as passed.** It can start now: #507
+merged on 2026-10-28, and M2 does not wait for #515. Today `required_green` in
+`scripts/merge-babysit.sh` passes a required context only on SUCCESS. Anything it does not
+name, SKIPPED and NEUTRAL included, falls through to `*) pending`. So once M3 makes `ios`
+required, every web-only PR (whose `ios` is a job-level SKIPPED after M1) would WAIT forever.
+- **Goal:** a required context whose newest verdict is SKIPPED or NEUTRAL passes, like
+  SUCCESS. GitHub's branch protection treats it that way, and the babysitter must agree. An
+  unknown verdict stays pending, and CANCELLED stays red with #507's "cut off" reason.
+- **Scope:** the required-context `case` in `required_green` and the comment above that
+  function. Nothing else in the babysitter. The non-required loop already passes
+  SKIPPED|NEUTRAL; leave it alone.
+- **Acceptance:** the M2 boxes. A new describe block in `merge-babysit.test.ts` gets its own
+  required list (`check e2e-mock full coach-gate ios`) and leaves #507's block and its
+  `REQUIRED` untouched. It covers:
+  - a web-only PR with `ios` COMPLETED/SKIPPED folds in fleet mode and reads WOULD MERGE from a
+    serial CLEAN;
+  - an iOS PR with a required `ios` IN_PROGRESS waits;
+  - a newest required `ios` CANCELLED is SKIP "(required; cut off …)".
+
+  Run against the pre-M2 script, the skipped-required cases fail (name them in the PR body).
+  Done also needs `agent:check` green and the `reviewer` agent before `gh pr create`.
+- **Coordinate with #510** (fleet head pinning, open). It edits the same script and appends its
+  own describe block at the end of the same test file. Before cutting the lane, check whether
+  #510 has merged, and if it has, start from that `main`. Otherwise expect an end-of-file
+  conflict in the test file on whichever lands second: keep both blocks.
+- **Start:** `scripts/git-new.sh fix/babysit-skipped-required "scripts/merge-babysit.sh required_green required-context case + comment, new describe in scripts/__tests__/merge-babysit.test.ts"`.
+  The PR is HELD for `shipit` (the merge actor).
+- **M1 close-out, for whichever session comes first after #515 merges** (it can be this one's
+  first step):
+  - read the three runs with the jobs-API command in M1's last box, record each run id and
+    result in the Session log, and tick that box and the pre-merge evidence box;
+  - #515's own run id is in its PR body.
+
+  If any of the three reads differently from the table, stop and report: M3 must not go ahead.
