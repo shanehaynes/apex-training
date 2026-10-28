@@ -5,7 +5,8 @@
 #
 #   scripts/supervisor-report.sh [--no-local]
 #
-# Covers: is main green, is the shared local stack current, do production's
+# Covers: is main green, is the ios CI job running close to its timeout
+# cap, is the shared local stack current, do production's
 # auth redirects still reach the public app, does production's database have
 # every table, column and function main's code expects, how close open
 # sign-up is to its daily mail cap, is the primary checkout
@@ -71,6 +72,27 @@ if [ -n "$GH" ]; then
   esac
 else
   echo "   gh not found — skipped"
+fi
+
+echo
+echo "── ios CI headroom"
+# The ios job's timeout-minutes is the slowest legitimate run plus 15 (#503),
+# and the job grows 1–2 minutes a week as UI tests land. Once a run gets
+# within 15 minutes of the cap, docs/ios/testing-and-ci.md says shorten the
+# job rather than raise the cap — this is what notices. The script prints its
+# own ACTION and status lines; 2 is "could not check", status only.
+if [ ! -f scripts/ios-ci-headroom.mjs ]; then
+  echo "   ios-ci-headroom.mjs not in this checkout — skipped"
+elif [ -z "$GH" ]; then
+  echo "   gh not found — skipped"
+else
+  headroom_out=$(GH="$GH" node scripts/ios-ci-headroom.mjs 2>&1); headroom_code=$?
+  case $headroom_code in
+    0|1|2) printf '%s\n' "$headroom_out" ;;
+    *)
+      printf '%s\n' "$headroom_out" | sed 's/^/   /'
+      echo "ACTION scripts/ios-ci-headroom.mjs failed (exit $headroom_code) — the ios job's headroom under its cap goes unwatched until it is fixed" ;;
+  esac
 fi
 
 if [ "$local_sections" = 1 ]; then
