@@ -131,6 +131,22 @@ final class HeldClock: ApexClock, @unchecked Sendable {
         for sleep in ended { sleep.continuation.resume(throwing: CancellationError()) }
     }
 
+    /// Lets every sleep held right now finish, and stays closed for the next.
+    func releaseHeld() {
+        let ended = withLock {
+            let ended = Array(held.values)
+            held = [:]
+            return ended
+        }
+        for sleep in ended {
+            if sleep.cancelled {
+                sleep.continuation.resume(throwing: CancellationError())
+            } else {
+                sleep.continuation.resume()
+            }
+        }
+    }
+
     func advance(by seconds: Double) {
         withLock { current = current.addingTimeInterval(seconds) }
     }
