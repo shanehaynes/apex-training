@@ -173,7 +173,7 @@ jobs:
       - name: Decide whether ios must run
         id: paths
         run: |
-          echo "PROBE (d): the run is cancelled by hand while changes sleeps"; sleep 120
+          echo "PROBE (c): changes succeeds without writing ios="; exit 0
           # ios-paths:begin
           ios=true
           case "$GITHUB_EVENT_NAME" in
