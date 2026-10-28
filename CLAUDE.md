@@ -212,3 +212,6 @@ Shane, who grants one PR with the `shipit` label; the guard hook blocks
 `gh pr merge` and self-applied `shipit`, so the babysitter is the only merge
 path. Kill switch: `touch .claude/AUTOMERGE_OFF` in the primary checkout.
 Full rules: CONTRIBUTING.md, "Autonomous merging".
+Dependency bumps of names already present are not held: every lockfile entry
+must be the registry tarball of the name it installs, and no package may newly
+gain an install script (`manifestHold`, `lockfileHold`).

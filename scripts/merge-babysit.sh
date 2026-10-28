@@ -121,11 +121,13 @@ fleet_base=""
 # Ask scripts/merge-policy.mjs whether this PR may land without a human.
 # Prints the hold reason (if any); non-zero means hold. gh caps the file
 # listing, so changedFiles rides along and the policy holds on a mismatch.
+# The number and head let the policy read content-checked files (package.json)
+# at the PR's head itself; one it cannot read holds.
 # Unlike the guard hooks (fail open), this fails CLOSED: no verdict, no merge.
 policy_check() {
   local meta
-  meta=$("$GH" pr view "$1" --json files,labels,changedFiles \
-    --jq '{paths: [.files[].path], labels: [.labels[].name], changed: .changedFiles}') || {
+  meta=$("$GH" pr view "$1" --json number,headRefOid,files,labels,changedFiles \
+    --jq '{number: .number, head: .headRefOid, paths: [.files[].path], labels: [.labels[].name], changed: .changedFiles}') || {
     echo "could not read the PR's files and labels"
     return 1
   }

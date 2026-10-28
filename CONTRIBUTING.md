@@ -251,7 +251,9 @@ makes granting it a small decision rather than a large one:
 - **The merge policy is the boundary** ([scripts/merge-policy.mjs](scripts/merge-policy.mjs)):
   a PR touching `supabase/migrations/`, `.github/`, `scripts/ci-guards.sh`
   (where the floor's content lives — `ci.yml` delegates to it), `vercel.json`,
-  the dependency manifests, the iOS release surface (`ios/fastlane/` and
+  the dependency manifests (unless the change only bumps names already present,
+  from the npm registry, with no new install script — `manifestHold` and
+  `lockfileHold` in the policy), the iOS release surface (`ios/fastlane/` and
   `ios/scripts/` ship a build; `ios/project.yml`, `ios/Config/`, the
   entitlements, the `Info.plist`s and `PrivacyInfo.xcprivacy` decide what Apple
   receives), or any file of the automation itself — the policy,
