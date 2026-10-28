@@ -10,7 +10,7 @@ surface, `evals/baseline/`, and any removal from `HELD` — exceptions are carve
 by content checks inside `decide`, never by shrinking the list.
 **Depends on:** M3 touches `merge-babysit.sh`, which #507 and #510 also change; M3's
 PR opens after both merge.
-**Status:** in progress (M1: `chore/agent-autonomy-m1`)
+**Status:** in review (M1, M2 PRs; M3 branch waits for M2, #507 and #510)
 
 ## Goal
 Last month 22 of 100 merged PRs touched a held path and 21 of them were merged by
@@ -72,14 +72,18 @@ It reuses `statements()` from `prod-schema-check.mjs`. Allowed statements:
   not `temp`/`unlogged`, not `partition of`; every such table must also get
   `alter table <it> enable row level security` in the same file;
 - `alter table <t> add column [if not exists] …` (several per statement allowed),
-  and `alter table <t> enable row level security`;
+  `alter table <t> add constraint <n> check|foreign key|unique …` (no cascading
+  `on delete/update` on an existing table), `alter table <t> drop constraint if
+  exists <n>` only when the same file re-adds `<n>` as a CHECK on the same table
+  (the applier reads the old definition first so the inverse restores it), and
+  `alter table <new t> enable row level security`;
 - `create [unique] index [if not exists] … on <t> …` — not `concurrently`
   (it cannot run inside the single transaction the apply uses);
 - `comment on …`;
-- `create policy … on <t>`, `grant … on [table] <t> to authenticated|service_role`
+- `drop policy if exists … on <t>`, `create policy … on <t>`, `revoke … on <t>`,
+  `grant … on [table] <t> to authenticated|service_role`
   — only where `<t>` is created in the same file. A policy or grant on an existing
-  table widens access to data that already exists, additive or not;
-- `revoke …` (only narrows);
+  table changes access to data that already exists, additive or not;
 - `notify pgrst, 'reload schema'`;
 - the ledger stamp, as the last statement, matching `stampFor(file, sql)`.
 Everything else — `do`, `create function`, `create view`, triggers, `update`,
@@ -96,11 +100,14 @@ Everything else — `do`, `create function`, `create view`, triggers, `update`,
   it the same way M2's package.json does.
 - [ ] `scripts/migration-apply.mjs <ref> <file>…` applies each file, in `sort -V`
   order, through `POST https://api.supabase.com/v1/projects/<ref>/database/query`,
-  one file per request wrapped in `begin; … commit;`, using
+  one file per request (a multi-statement query is one implicit transaction), using
   `SUPABASE_ACCESS_TOKEN` from `~/.config/apex-training/prod.env`. Without the
   token it exits 3 and changes nothing; the babysitter then holds as today
   ("apply by hand"). The token's absence is the opt-out.
-- [ ] In `schema_preflight`, with `--yes` only: when production passes against
+- [ ] Before applying, every object the file creates is looked up and the apply is
+  refused if one exists: `if not exists` would no-op and the inverse would drop it.
+- [ ] Both new scripts are in `HELD` and in the authority-chain test.
+- [ ] In `schema_preflight`, with `--yes` only, serial loop only: when production passes against
   `main`, fails against the PR's head only on the PR's own migrations, and the
   policy passed the PR, the babysitter runs the applier, re-runs the head check,
   and merges only on exit 0. It posts the applied files and their inverse SQL as a
@@ -130,8 +137,22 @@ Every box above checked, every PR merged (each is HELD by design and needs
 - 2026-10-28 · The applier runs in the babysitter on Shane's Mac, not in CI: the
   production access token stays off GitHub, and the order stays DDL first, merge second.
 
+- 2026-10-28 · Applies run in the serial loop only. A fleet preflights before its union
+  proof and its one-migration rule, so it could apply DDL for a PR it then skips.
+- 2026-10-28 · No explicit BEGIN/COMMIT: on error a pooled connection could be left
+  in an aborted transaction. The implicit transaction of a multi-statement query
+  is atomic on its own.
+- 2026-10-28 · Replace-a-CHECK (drop if exists + add the same name) is additive. It is
+  the shape of phase57–59 and loses no data. With it, 34 of the 57 migrations on
+  main would have applied without a human.
+- 2026-10-28 · Access-control statements (RLS toggle, policies, grants, revokes) only
+  on tables the same file creates: on existing tables even a revoke has no exact
+  inverse.
+
 ## Session log
-- 2026-10-28 · spec written; M1 on `chore/agent-autonomy-m1`.
+- 2026-10-28 · spec written; M1 on `chore/agent-autonomy-m1`, M2 on
+  `chore/agent-autonomy-m2`, M3 on `db/agent-autonomy-m3` (stacked on M2). Not
+  verified: a real apply against production (needs Shane's token).
 
 ## Next brief
 **M2 — dependency bumps merge alone.** Implement M2's boxes above in a lane cut with
