@@ -30,9 +30,10 @@ const gitEnv = {
   GIT_COMMITTER_EMAIL: 'test@example.invalid',
 };
 
-// A gh that knows four calls: branch protection, the PR list, a PR's
-// metadata, and anything else (comment/merge) as a recorded no-op. Each
-// answer goes through jq with the --jq the script passed, as gh does.
+// A gh that knows four calls: branch protection (the fixture's, else strict
+// with nothing required), the PR list (fixture.prs, else the one fixture.pr),
+// a PR's metadata by number, and anything else (comment/merge) as a recorded
+// no-op. Each answer goes through jq with the --jq the script passed, as gh does.
 const GH_STUB = `#!/usr/bin/env node
 const { spawnSync } = require('node:child_process');
 const { appendFileSync, readFileSync } = require('node:fs');
@@ -41,9 +42,9 @@ const args = process.argv.slice(2);
 appendFileSync(process.env.GH_FIXTURE + '.calls', JSON.stringify(args) + '\\n');
 const jq = args[args.indexOf('--jq') + 1];
 let data;
-if (args[0] === 'api' && args[1].endsWith('/required_status_checks')) data = { strict: true, contexts: [] };
-else if (args[0] === 'pr' && args[1] === 'list') data = [fixture.pr];
-else if (args[0] === 'pr' && args[1] === 'view') data = fixture.pr;
+if (args[0] === 'api' && args[1].endsWith('/required_status_checks')) data = fixture.protection ?? { strict: true, contexts: [] };
+else if (args[0] === 'pr' && args[1] === 'list') data = fixture.prs ?? [fixture.pr];
+else if (args[0] === 'pr' && args[1] === 'view') data = (fixture.prs ?? [fixture.pr]).find((p) => String(p.number) === args[2]);
 else process.exit(0);
 if (!args.includes('--jq')) { process.stdout.write(JSON.stringify(data)); process.exit(0); }
 const out = spawnSync('jq', ['-r', jq], { input: JSON.stringify(data), encoding: 'utf8' });
@@ -135,6 +136,7 @@ describe('merge-babysit.sh: a migration PR merges only onto a production that al
         changedFiles: 1,
         files: [{ path: `supabase/migrations/${FIXTURE}` }],
         labels: labels.map((name) => ({ name })),
+        statusCheckRollup: [],
       },
     }));
     const gh = join(tmp, 'gh');
@@ -193,6 +195,32 @@ describe('merge-babysit.sh: a migration PR merges only onto a production that al
     expect(ghCalls).toContainEqual(['pr', 'merge', String(PR), '--squash', '--match-head-commit', headSha]);
   });
 
+  it('refuses --yes, before any gh merge, when the policy it would run is not main\'s', async () => {
+    ledger = [...onMain(), pullHead()];
+    const policy = join(work, 'scripts/merge-policy.mjs');
+    const original = readFileSync(policy, 'utf8');
+    writeFileSync(policy, 'process.exit(0);\n');
+    try {
+      const out = await babysit(['shipit'], { args: ['--yes', '--max-minutes=0'] }).catch((e) => String(e));
+      expect(ghCalls.some((c) => c[0] === 'pr' && c[1] === 'merge')).toBe(false);
+      expect(out).not.toContain(`MERGE #${PR}`);
+    } finally {
+      writeFileSync(policy, original);
+    }
+  });
+
+  it('refuses --yes when an untracked script sits beside the automation', async () => {
+    ledger = [...onMain(), pullHead()];
+    const extra = join(work, 'scripts/extra.mjs');
+    writeFileSync(extra, '');
+    try {
+      await babysit(['shipit'], { args: ['--yes', '--max-minutes=0'] });
+      expect(ghCalls.some((c) => c[0] === 'pr' && c[1] === 'merge')).toBe(false);
+    } finally {
+      rmSync(extra);
+    }
+  });
+
   it('waits, without merging or giving up on the PR, when the head GitHub reports is not the one fetched', async () => {
     ledger = [...onMain(), pullHead()];
     const out = await babysit(['shipit'], { headRefOid: '1'.repeat(40) });
@@ -217,5 +245,189 @@ describe('merge-babysit.sh: a migration PR merges only onto a production that al
     expect(out).toContain(`✗ migration ${FIXTURE} was applied as different SQL`);
     expect(out).toContain(`apply ${FIXTURE} to production before merging`);
     expect(out).not.toMatch(/WOULD MERGE/);
+  });
+});
+
+describe('merge-babysit.sh: a PR merges only once every check on its head has finished green', { timeout: 120_000 }, () => {
+  // ios is not a required check, so GitHub's floor does not wait for it — the
+  // babysitter must. In Oct 2026 fleet mode merged 12 of 16 iOS PRs while
+  // ios was still running, and 9 of those runs ended red.
+  const REQUIRED = ['check', 'e2e-mock', 'full', 'coach-gate'];
+  const IOS_PR = 11;
+  const BRANCH = 'fix/ios-fixture';
+  let tmp: string;
+  let work: string;
+  let headSha: string;
+  const git = (...args: string[]) => execFileSync('git', args, { cwd: work, encoding: 'utf8', env: gitEnv }).trim();
+
+  beforeAll(() => {
+    execFileSync('jq', ['--version']);
+    tmp = mkdtempSync(join(tmpdir(), 'apex-babysit-ios-'));
+    work = join(tmp, 'work');
+    execFileSync('git', ['init', '-q', '--bare', '-b', 'main', join(tmp, 'origin.git')]);
+    execFileSync('git', ['init', '-q', '-b', 'main', work]);
+    for (const path of ['scripts/merge-babysit.sh', 'scripts/merge-policy.mjs']) {
+      mkdirSync(dirname(join(work, path)), { recursive: true });
+      copyFileSync(join(repo, path), join(work, path));
+    }
+    git('add', '-A');
+    git('-c', 'commit.gpgsign=false', 'commit', '-q', '-m', 'main');
+    git('remote', 'add', 'origin', join(tmp, 'origin.git'));
+    git('push', '-q', 'origin', 'main');
+    // An iOS PR, on a branch of this repo: fleet mode folds origin/<head>.
+    git('checkout', '-q', '-b', BRANCH);
+    mkdirSync(join(work, 'ios/Packages/ApexCore/Sources'), { recursive: true });
+    writeFileSync(join(work, 'ios/Packages/ApexCore/Sources/Fixture.swift'), 'let fixture = 1\n');
+    git('add', '-A');
+    git('-c', 'commit.gpgsign=false', 'commit', '-q', '-m', 'an iOS change');
+    headSha = git('rev-parse', 'HEAD');
+    git('push', '-q', 'origin', BRANCH);
+    git('checkout', '-q', 'main');
+  });
+
+  afterAll(() => {
+    rmSync(tmp, { recursive: true, force: true });
+  });
+
+  const at = (minute: number) => new Date(Date.UTC(2026, 9, 28, 16, minute)).toISOString().replace('.000', '');
+  const NOT_DONE = '0001-01-01T00:00:00Z';
+  /** A CI job as gh's statusCheckRollup reports it; no conclusion means still running. */
+  const job = (name: string, conclusion: string | null, startedAt: string | null, completedAt = NOT_DONE) => ({
+    __typename: 'CheckRun',
+    name,
+    workflowName: 'CI',
+    status: conclusion ? 'COMPLETED' : 'IN_PROGRESS',
+    conclusion: conclusion ?? '',
+    startedAt,
+    completedAt,
+  });
+  const requiredGreen = REQUIRED.map((name) => job(name, 'SUCCESS', at(0), at(12)));
+  const vercel = { __typename: 'StatusContext', context: 'Vercel', state: 'SUCCESS', startedAt: at(0) };
+
+  const iosPr = (rollup: object[], { number = IOS_PR, state = 'UNSTABLE' } = {}) => ({
+    number,
+    title: `An iOS change (#${number})`,
+    baseRefName: 'main',
+    isDraft: false,
+    mergeStateStatus: state,
+    headRefName: BRANCH,
+    headRefOid: headSha,
+    changedFiles: 1,
+    files: [{ path: 'ios/Packages/ApexCore/Sources/Fixture.swift' }],
+    labels: [],
+    statusCheckRollup: rollup,
+  });
+
+  /** stdout and stderr of a run (a non-zero exit too) over these PRs, and every gh call it made. */
+  const babysitAll = async (prs: object[], { fleet = true, args = [] as string[] } = {}) => {
+    const fixture = join(tmp, `gh-${Math.random().toString(36).slice(2)}.json`);
+    writeFileSync(fixture, JSON.stringify({ protection: { strict: !fleet, contexts: REQUIRED }, prs }));
+    const gh = join(tmp, 'gh');
+    writeFileSync(gh, GH_STUB);
+    chmodSync(gh, 0o755);
+    let out: string;
+    let err: string;
+    try {
+      ({ stdout: out, stderr: err } = await run('bash', [join(work, 'scripts/merge-babysit.sh'), ...(fleet ? ['--fleet'] : []), ...args], {
+        cwd: work,
+        env: { ...gitEnv, GH: gh, GH_FIXTURE: fixture },
+      }));
+    } catch (e) {
+      ({ stdout: out, stderr: err } = e as { stdout: string; stderr: string });
+    }
+    const calls = readFileSync(`${fixture}.calls`, 'utf8').trim().split('\n').map((l) => JSON.parse(l) as string[]);
+    return { out, err, calls };
+  };
+  /** stdout of a dry run against one iOS PR with this rollup. */
+  const babysit = async (rollup: object[], { fleet = true, state = 'UNSTABLE' } = {}) =>
+    (await babysitAll([iosPr(rollup, { state })], { fleet })).out;
+
+  it('folds the PR once every check finished green — the fixture can go green at all', async () => {
+    const out = await babysit([...requiredGreen, job('ios', 'SUCCESS', at(0), at(35)), vercel]);
+    expect(out).toContain(`FLEET #${IOS_PR} — UNSTABLE, but every required check passed`);
+    expect(out).toContain('WOULD PROVE the union of 1 PR(s)');
+  });
+
+  it('waits while ios is still running, though every required check passed', async () => {
+    const out = await babysit([...requiredGreen, job('ios', null, at(0)), vercel]);
+    expect(out).toContain(`WAIT  #${IOS_PR}: UNSTABLE — CI still running — waiting on ios; next pass.`);
+    expect(out).not.toMatch(/FLEET #|WOULD PROVE/);
+  });
+
+  it('skips the PR when ios was cut off: a CANCELLED that is the newest run is red', async () => {
+    // timeout-minutes reports cancelled, not timed_out (#395, #438, #451).
+    const out = await babysit([...requiredGreen, job('ios', 'CANCELLED', at(0), at(41)), vercel]);
+    expect(out).toContain(`SKIP  #${IOS_PR} has failing check(s): ios=CANCELLED (cut off before it finished — re-run it)`);
+    expect(out).not.toMatch(/FLEET #|WOULD PROVE|WAIT/);
+  });
+
+  it("lets the newer run decide over a superseded run's CANCELLED, whichever the rollup lists first", async () => {
+    const out = await babysit([
+      job('full', 'CANCELLED', at(0), at(3)),
+      ...requiredGreen,
+      job('ios', 'CANCELLED', at(0), at(3)),
+      job('ios', 'SUCCESS', at(3), at(38)),
+      vercel,
+    ]);
+    expect(out).toContain(`FLEET #${IOS_PR}`);
+    expect(out).not.toMatch(/SKIP|WAIT/);
+  });
+
+  it('picks the newest run by time, not by its place in the rollup', async () => {
+    const green = await babysit([...requiredGreen, job('ios', 'SUCCESS', at(3), at(38)), job('ios', 'CANCELLED', at(0), at(3)), vercel]);
+    expect(green).toContain(`FLEET #${IOS_PR}`);
+    const red = await babysit([...requiredGreen, job('ios', 'FAILURE', at(3), at(38)), job('ios', 'SUCCESS', at(0), at(30)), vercel]);
+    expect(red).toContain(`SKIP  #${IOS_PR} has failing check(s): ios=FAILURE`);
+    expect(red).not.toMatch(/FLEET #/);
+  });
+
+  it('waits on a status that is still pending, and on a required check that has not reported', async () => {
+    const vercelPending = await babysit([...requiredGreen, job('ios', 'SUCCESS', at(0), at(35)), { ...vercel, state: 'PENDING' }]);
+    expect(vercelPending).toContain(`WAIT  #${IOS_PR}: UNSTABLE — CI still running — waiting on Vercel; next pass.`);
+    const checkMissing = await babysit([...requiredGreen.filter((j) => j.name !== 'check'), job('ios', 'SUCCESS', at(0), at(35)), vercel]);
+    expect(checkMissing).toContain(`WAIT  #${IOS_PR}: UNSTABLE — CI still running — waiting on check; next pass.`);
+  });
+
+  it('at the deadline, still runs the post-merge lifecycle for what it merged, and reads protection once', async () => {
+    const { out, err, calls } = await babysitAll(
+      [iosPr([...requiredGreen, job('ios', null, at(0)), vercel]), iosPr([...requiredGreen, job('ios', 'SUCCESS', at(0), at(35)), vercel], { number: IOS_PR + 1 })],
+      { args: ['--yes', '--no-check', '--max-minutes=0'] },
+    );
+    expect(out).toContain(`WAIT  #${IOS_PR}: UNSTABLE — CI still running — waiting on ios; next pass.`);
+    expect(out).toContain(`MERGE #${IOS_PR + 1}`);
+    expect(err).toContain('giving up after 0m');
+    expect(out).toContain('── post-merge: retiring merged branches and worktrees');
+    expect(calls).toContainEqual(['pr', 'merge', String(IOS_PR + 1), '--squash']);
+    expect(calls.some((c) => c[1] === 'merge' && c[2] === String(IOS_PR))).toBe(false);
+    // The strict check, then one load of the required contexts — not one per PR.
+    expect(calls.filter((c) => c[0] === 'api' && c[1].endsWith('/required_status_checks'))).toHaveLength(2);
+  });
+
+  it('waits, rather than calling it red, while the run that superseded a CANCELLED has not started', async () => {
+    const out = await babysit([
+      ...requiredGreen,
+      job('ios', 'CANCELLED', at(0), at(3)),
+      { ...job('ios', null, null), status: 'QUEUED' },
+      vercel,
+    ]);
+    expect(out).toContain(`WAIT  #${IOS_PR}: UNSTABLE — CI still running — waiting on ios; next pass.`);
+    expect(out).not.toMatch(/SKIP|FLEET #/);
+  });
+
+  it('serial loop: a cut-off ios is skipped with its reason, not waited on until the deadline', async () => {
+    const out = await babysit([...requiredGreen, job('ios', 'CANCELLED', at(0), at(41)), vercel], { fleet: false });
+    expect(out).toContain(`SKIP  #${IOS_PR} has failing check(s): ios=CANCELLED (cut off before it finished — re-run it)`);
+    expect(out).not.toMatch(/WOULD MERGE|WAIT/);
+  });
+
+  it('serial loop: a stale CLEAN with ios still running waits instead of merging', async () => {
+    const out = await babysit([...requiredGreen, job('ios', null, at(0)), vercel], { fleet: false, state: 'CLEAN' });
+    expect(out).toContain(`WAIT  #${IOS_PR}: CLEAN, but CI still running — waiting on ios; next pass.`);
+    expect(out).not.toMatch(/WOULD MERGE/);
+  });
+
+  it('serial loop: CLEAN with every check finished green would merge', async () => {
+    const out = await babysit([...requiredGreen, job('ios', 'SUCCESS', at(0), at(35)), vercel], { fleet: false, state: 'CLEAN' });
+    expect(out).toContain(`WOULD MERGE #${IOS_PR}`);
   });
 });

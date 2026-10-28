@@ -232,10 +232,12 @@ same fleet by hand and `main` has not moved since.
 
 `scripts/merge-babysit.sh --yes` is the only merge path: the guard hook blocks a
 direct `gh pr merge`, so every merge goes through the loop and its audit trail.
-Running it is still an ordinary permission prompt — **no session is allow-listed
-to run it unattended today.** Granting that means adding a `permissions.allow`
-entry to [.claude/settings.json](.claude/settings.json), and it is Shane's to
-add: the policy holds that file for exactly this reason.
+Two invocations are allow-listed in [.claude/settings.json](.claude/settings.json)
+and run without a prompt: `scripts/merge-babysit.sh --yes` and
+`scripts/merge-babysit.sh --fleet --yes`. The rules are exact strings, not
+prefixes, so any other flag — `--no-check` above all, which skips the union
+proof on the operator's word — still prompts. Widening the grant is Shane's:
+the policy holds that file for exactly this reason (`docs/specs/agent-autonomy.md`).
 
 Granted or not, what the loop may do is bounded on four sides — which is what
 makes granting it a small decision rather than a large one:
@@ -249,7 +251,9 @@ makes granting it a small decision rather than a large one:
 - **The merge policy is the boundary** ([scripts/merge-policy.mjs](scripts/merge-policy.mjs)):
   a PR touching `supabase/migrations/`, `.github/`, `scripts/ci-guards.sh`
   (where the floor's content lives — `ci.yml` delegates to it), `vercel.json`,
-  the dependency manifests, the iOS release surface (`ios/fastlane/` and
+  the dependency manifests (unless the change only bumps names already present,
+  from the npm registry, with no new install script — `manifestHold` and
+  `lockfileHold` in the policy), the iOS release surface (`ios/fastlane/` and
   `ios/scripts/` ship a build; `ios/project.yml`, `ios/Config/`, the
   entitlements, the `Info.plist`s and `PrivacyInfo.xcprivacy` decide what Apple
   receives), or any file of the automation itself — the policy,

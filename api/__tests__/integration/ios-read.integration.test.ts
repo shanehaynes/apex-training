@@ -39,6 +39,7 @@ import { emptyChartDraft } from '../../../src/lib/analytics/draft';
 import { buildChatContext } from '../../_lib/coach/context';
 import { getSupabaseAdmin } from '../../_lib/supabaseAdmin';
 import { getAnthropicKey } from '../../_lib/anthropicKey';
+import { RATE_LIMITS } from '../../_lib/rateLimit';
 
 // The chat handler needs a key and a model; both are mocked so the context
 // builder and the wire framing (labels!) run against REAL data while the
@@ -372,9 +373,14 @@ describe.skipIf(!RUN)('W0 read foundation against the local stack', () => {
     // several calls from the seeded users' `summary` bucket (10 per hour) and
     // dozens from `writes` and `providerSync`, so a third or fourth run inside
     // the same hour starts getting 429s — which surface as a handler that
-    // writes nothing, not as an error that names the cause. Costs CI nothing
-    // (it builds the database from scratch) and makes the suite re-runnable.
-    await admin.from('api_request_counts').delete().in('user_id', [agent.userId, agent2.userId]);
+    // writes nothing, not as an error that names the cause. This makes the
+    // suite re-runnable. Only the handlers' own buckets: other files run in
+    // parallel against the same users, and handlers.integration.test.ts
+    // counts a bucket of its own (`itest`) that a user-wide delete reset
+    // mid-sequence ([1, 2, 3, 4, 1] on PR #502's CI run).
+    await admin.from('api_request_counts').delete()
+      .in('user_id', [agent.userId, agent2.userId])
+      .in('bucket', Object.keys(RATE_LIMITS));
   }
 
   beforeAll(async () => {

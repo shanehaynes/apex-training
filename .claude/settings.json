@@ -4,6 +4,12 @@
     "pr": "",
     "sessionUrl": false
   },
+  "permissions": {
+    "allow": [
+      "Bash(scripts/merge-babysit.sh --yes)",
+      "Bash(scripts/merge-babysit.sh --fleet --yes)"
+    ]
+  },
   "hooks": {
     "PreToolUse": [
       {
