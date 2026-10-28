@@ -173,6 +173,7 @@ jobs:
       - name: Decide whether ios must run
         id: paths
         run: |
+          echo "PROBE (a): changes forced to fail"; exit 1
           # ios-paths:begin
           ios=true
           case "$GITHUB_EVENT_NAME" in
