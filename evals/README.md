@@ -130,7 +130,7 @@ Before this, a coach prompt edit could merge with no eval run at all: the `evals
 ```bash
 npm run eval:gate                              # local: run the suite on the subscription, decide, attest
 npm run eval:baseline -- evals/results/X.json  # promote an agent-sdk result to evals/baseline/<model>.json
-npm run eval:hash                              # print the two hashes an attestation pins
+npm run eval:hash                              # print the two hashes and the SDK version an attestation pins
 npm run eval:verify                            # token-free: does the committed attestation match this tree?
 ```
 
@@ -147,9 +147,13 @@ It pins two hashes, and needs both:
 - **`promptFileHash`** — the coach behavior surface (`prompt.ts`, `schemas.ts`, `tools.ts`, `model.ts`). What the coach *is*.
 - **`evalSurfaceHash`** — sha256 over every file under `evals/cases/`, `evals/src/` and `evals/taxonomy/` (the constraints checker resolves exercise names through the taxonomy, so an entry there changes what a constraints verdict means), path and content, in sorted order. What the *question* was.
 
-Without the second, the gate could be satisfied by making the test easier: loosen a rubric, delete a case, and a stale attestation would still verify. It also carries `PROMPT_VERSION`, the backend and model, the baseline path and its sha256, the result file, every case's per-dimension verdict, and the transcript hashes.
+Without the second, the gate could be satisfied by making the test easier: loosen a rubric, delete a case, and a stale attestation would still verify.
 
-`eval:verify` — the `coach-gate` CI job — re-derives both hashes from the tree and fails if either moved, if `PROMPT_VERSION` no longer matches, if the baseline's bytes changed, if any id in `evals/cases/` is missing from the attested verdicts (or vice versa), or if the attestation itself records a regression against the baseline. The job always starts and skips itself in seconds unless the PR touched `src/lib/coach/`, `api/_lib/coach/`, `api/chat.ts`, `evals/cases/`, `evals/src/`, `evals/baseline/` or `evals/gate/` — an `on.paths` filter would be the obvious way to do that, but path filters and required checks do not compose.
+It also pins **`anthropicSdkVersion`** — the `@anthropic-ai/sdk` version `package-lock.json` resolves. The SDK sets wire defaults on every production coach call (1.0 moved the default `anthropic-version` header), so a Dependabot bump that touches only `package.json` and the lockfile is a coach change. It is a separate field rather than part of `promptFileHash` because folding it in would demand a `PROMPT_VERSION` bump for a dependency bump. One limit: the gate runs on the `agent-sdk` backend, which reaches the model through Claude Code, not through `@anthropic-ai/sdk` — so re-attesting after a bump re-checks the coach and records that someone looked, but does not exercise the new SDK's request path. The nightly API run does.
+
+The attestation also carries `PROMPT_VERSION`, the backend and model, the baseline path and its sha256, the result file, every case's per-dimension verdict, and the transcript hashes.
+
+`eval:verify` — the `coach-gate` CI job — re-derives both hashes from the tree and fails if either moved, if `PROMPT_VERSION` or the lockfile's `@anthropic-ai/sdk` version no longer matches, if the baseline's bytes changed, if any id in `evals/cases/` is missing from the attested verdicts (or vice versa), or if the attestation itself records a regression against the baseline. The job always starts and skips itself in seconds unless the PR touched `src/lib/coach/`, `api/_lib/coach/`, `api/chat.ts`, `evals/gate.ts`, `evals/cases/`, `evals/src/`, `evals/baseline/` or `evals/gate/`, or changed the `@anthropic-ai/sdk` version `package-lock.json` resolves (any other dependency change still skips; a lockfile the step cannot read runs the gate) — an `on.paths` filter would be the obvious way to do that, but path filters and required checks do not compose.
 
 Editing `evals/src/` or `evals/cases/` therefore invalidates the attestation by design. That is the same rule stated from the other side: change the question, re-answer it.
 
