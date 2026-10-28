@@ -31,3 +31,6 @@ export function gatherSources(
   number: unknown,
   head: unknown,
 ): Record<string, { before: string | null; after: string | null }> | undefined;
+
+/** Why a migration change needs a human, or null for a new file the classifier proves additive. */
+export function migrationHold(path: string, source: { before: string | null; after: string | null } | undefined): string | null;

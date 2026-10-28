@@ -19,7 +19,12 @@
 //     entitlements, the Info.plists and PrivacyInfo.xcprivacy decide what
 //     Apple receives — none of it is provable by CI here.
 //   - supabase/migrations/: applied to production by hand — merging one
-//     creates an obligation only a human can discharge.
+//     creates an obligation only a human can discharge. Except a NEW file
+//     that scripts/migration-classify.mjs proves additive (adds without
+//     losing data or widening access to existing data, with a mechanical
+//     inverse): the babysitter applies that one itself before merging
+//     (scripts/migration-apply.mjs), and holds as before when it cannot.
+//     An edited or deleted migration is always held.
 //   - vercel.json: once blackholed every /api/ route (PR #25); CI cannot see
 //     production routing.
 //   - package.json / package-lock.json: a new dependency deserves a human
@@ -50,6 +55,7 @@
 
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
+import { classify } from './migration-classify.mjs';
 
 // Entries ending in `/` hold everything under the directory; others hold the
 // exact path. One rule per reason so the hold message says why, not just what.
@@ -65,6 +71,8 @@ export const HELD = [
   { path: 'scripts/supervisor-report.sh', reason: 'the supervisor sweep' },
   { path: 'scripts/prod-schema-check.mjs', reason: 'run by supervisor-report.sh holding the production service-role key' },
   { path: 'scripts/combine-check.sh', reason: 'the cross-branch gate' },
+  { path: 'scripts/migration-classify.mjs', reason: 'decides which migrations reach production without a human' },
+  { path: 'scripts/migration-apply.mjs', reason: 'applies DDL to production with the Management API token' },
   { path: '.github/', reason: 'CI is the merge floor' },
   { path: 'scripts/ci-guards.sh', reason: "the merge floor's content" },
   { path: 'ios/fastlane/', reason: 'the release lane' },
@@ -145,9 +153,24 @@ export function lockfileHold(before, after) {
   return null;
 }
 
-// A held path with a content check: the path is not held when `check`
+const MIGRATION = /^supabase\/migrations\/(phase\d+_[\w-]+\.sql)$/;
+
+/** Why this migration change needs a human, or null for a new, additive file. */
+export function migrationHold(path, source) {
+  const file = MIGRATION.exec(path)?.[1];
+  if (!file) return 'not a phaseN_name.sql migration';
+  if (!source) return 'contents were not provided';
+  if (source.before !== null) return source.after === null ? 'deletes a migration' : 'edits an existing migration';
+  if (source.after === null) return 'contents were not provided';
+  const v = classify(file, source.after);
+  return v.additive ? null : `not additive: ${v.reasons.join('; ')}`;
+}
+
+// A held path with a content check: the path is not held when its check
 // returns null for the PR's sources. Every check fails closed on missing
 // sources. Authority-chain paths never get one.
+const conditionalFor = (p) => (Object.hasOwn(CONDITIONAL, p) ? CONDITIONAL[p] : p.startsWith('supabase/migrations/') ? (src) => migrationHold(p, src?.[p]) : null);
+
 const CONDITIONAL = {
   'package.json': (src) => {
     const m = src?.['package.json'];
@@ -176,7 +199,7 @@ export function decide(paths, labels, changed = paths.length, sources = undefine
   for (const p of paths) {
     const rule = HELD.find((r) => (r.path.endsWith('/') ? p.startsWith(r.path) : p === r.path));
     if (!rule) continue;
-    const check = Object.hasOwn(CONDITIONAL, p) ? CONDITIONAL[p] : null;
+    const check = conditionalFor(p);
     const why = check ? check(sources) : null;
     if (check && why === null) continue;
     held.push(`${p} — ${rule.reason}${why ? ` (${why})` : ''}`);
@@ -203,7 +226,7 @@ function fetchHead(number, head) {
 
 /** `{ before, after }` for each conditional path, read at the merge base with origin/main and at the head; undefined when they cannot be read. */
 export function gatherSources(paths, number, head) {
-  const wanted = paths.filter((p) => Object.hasOwn(CONDITIONAL, p));
+  const wanted = paths.filter((p) => conditionalFor(p) !== null);
   if (wanted.length === 0) return undefined;
   const git = fetchHead(number, head);
   if (!git) return undefined;

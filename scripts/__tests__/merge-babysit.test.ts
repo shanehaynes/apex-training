@@ -72,7 +72,7 @@ describe('merge-babysit.sh: a migration PR merges only onto a production that al
       mkdirSync(dirname(join(work, path)), { recursive: true });
       copyFileSync(join(repo, path), join(work, path));
     };
-    for (const path of ['scripts/merge-babysit.sh', 'scripts/merge-policy.mjs', 'scripts/prod-schema-check.mjs', 'src/lib/db/database.types.ts']) copy(path);
+    for (const path of ['scripts/merge-babysit.sh', 'scripts/merge-policy.mjs', 'scripts/migration-classify.mjs', 'scripts/migration-apply.mjs', 'scripts/prod-schema-check.mjs', 'src/lib/db/database.types.ts']) copy(path);
     for (const file of readdirSync(join(repo, 'supabase/migrations'))) copy(`supabase/migrations/${file}`);
     git('add', '-A');
     git('-c', 'commit.gpgsign=false', 'commit', '-q', '-m', 'main');
@@ -121,7 +121,7 @@ describe('merge-babysit.sh: a migration PR merges only onto a production that al
   };
 
   /** stdout of a run (a non-zero exit too — a --yes run ends at the missing deploy-verify.sh), and every gh call it made. */
-  const babysit = async (labels: string[], { args = [] as string[], number = PR, headRefOid = headSha } = {}) => {
+  const babysit = async (labels: string[], { args = [] as string[], number = PR, headRefOid = headSha, home = process.env.HOME } = {}) => {
     const fixture = join(tmp, `gh-${Math.random().toString(36).slice(2)}.json`);
     writeFileSync(fixture, JSON.stringify({
       pr: {
@@ -151,6 +151,7 @@ describe('merge-babysit.sh: a migration PR merges only onto a production that al
           GH_FIXTURE: fixture,
           VITE_SUPABASE_URL: `http://127.0.0.1:${port}`,
           SUPABASE_SERVICE_ROLE_KEY: 'fake-key',
+          HOME: home,
         },
       })).stdout;
     } catch (err) {
@@ -168,6 +169,25 @@ describe('merge-babysit.sh: a migration PR merges only onto a production that al
     expect(out).toContain(`✗ migration ${FIXTURE} is not in production's migration_ledger`);
     expect(out).toContain(`apply ${FIXTURE} to production before merging`);
     expect(out).not.toMatch(/WOULD MERGE/);
+    expect(out).not.toMatch(/APPLY #/); // a dry run never applies
+  });
+
+  it('under --yes, offers the PR to the applier, and without a token holds exactly as before', async () => {
+    ledger = onMain();
+    const home = join(tmp, 'home-without-token');
+    mkdirSync(home, { recursive: true });
+    const out = await babysit(['shipit'], { args: ['--yes', '--max-minutes=0'], home });
+    expect(out).toContain(`APPLY #${PR} — ${FIXTURE} (scripts/migration-apply.mjs exit 3)`);
+    expect(out).toContain('not applying; apply by hand');
+    expect(out).toMatch(new RegExp(`HOLD  #${PR} — touches supabase/migrations/`));
+    expect(ghCalls.some((c) => c[0] === 'pr' && c[1] === 'merge')).toBe(false);
+  });
+
+  it('never offers a policy-held PR to the applier, even under --yes', async () => {
+    ledger = onMain();
+    const out = await babysit([], { args: ['--yes', '--max-minutes=0'] });
+    expect(out).toMatch(/held for a human/);
+    expect(out).not.toMatch(/APPLY #/);
   });
 
   it('says the same while the PR still waits for shipit, so the label does not go on blind', async () => {

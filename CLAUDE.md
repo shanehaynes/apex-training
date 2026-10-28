@@ -91,7 +91,9 @@ refactor — which is exactly what happened once (see CONTRIBUTING.md).
   not auto-migrated either: it has the schema of the last reset, which can lag
   `main` — `scripts/db-types.sh --check` tells you. Auto-mode sessions are
   refused the reset; ask rather than work from a stale schema.
-- **Production's schema.** Migrations reach production by hand, so a skipped
+- **Production's schema.** Migrations reach production by hand (except a new,
+  additive one, which the babysitter applies itself when `prod.env` holds
+  `SUPABASE_ACCESS_TOKEN`; CONTRIBUTING.md, "Autonomous merging"), so a skipped
   one is invisible until something 500s. `node scripts/prod-schema-check.mjs`
   runs before and after every production migration: before, anything missing
   that is not the migration being applied is an older gap, applied first in
@@ -203,7 +205,8 @@ The babysitter is the only merge path, and it merges only what
 `scripts/merge-policy.mjs` allows. It is **not** allow-listed today, so running
 it still prompts; granting an unattended run means adding a `permissions.allow`
 entry to `.claude/settings.json`, which the policy holds for exactly that
-reason. Migrations, `.github/`, `scripts/ci-guards.sh`, `vercel.json`,
+reason. Migrations (other than a new file `scripts/migration-classify.mjs` proves
+additive), `.github/`, `scripts/ci-guards.sh`, `vercel.json`,
 dependency manifests (unless the change only moves versions of names already
 present, every lockfile entry is a registry tarball with an integrity hash, and
 no package newly gains an install script), the iOS release surface (`ios/fastlane/`, `ios/scripts/`,

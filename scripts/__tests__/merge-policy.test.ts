@@ -4,7 +4,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { GRANT_LABEL, HELD, decide, gatherSources, lockfileHold, manifestHold } from '../merge-policy.mjs';
+import { GRANT_LABEL, HELD, decide, gatherSources, lockfileHold, manifestHold, migrationHold } from '../merge-policy.mjs';
+import { stampFor } from '../prod-schema-check.mjs';
 
 describe('auto-mergeable changes', () => {
   it('allows ordinary code, tests, and docs', () => {
@@ -36,6 +37,8 @@ describe('the authority chain can never merge itself', () => {
     'scripts/supervisor-report.sh',
     'scripts/prod-schema-check.mjs',
     'scripts/combine-check.sh',
+    'scripts/migration-classify.mjs',
+    'scripts/migration-apply.mjs',
     'scripts/hooks/bash-guard.mjs',
     '.claude/skills/parallel-agents/hooks/agent-guard.mjs',
     '.claude/settings.json',
@@ -293,5 +296,28 @@ describe('merge-policy.mjs end to end: it reads the manifest at the PR head itse
     const r = scenario({ dependencies: { react: '^19.0.0', leftpad: '^1.0.0' } });
     expect(r.code).toBe(10);
     expect(r.out).toMatch(/adds a new dependency: leftpad/);
+  });
+});
+
+describe('a new additive migration is not held; anything else under supabase/migrations/ is', () => {
+  const path = 'supabase/migrations/phase900_x.sql';
+  const body = 'alter table profiles add column if not exists tz text;';
+  const additive = `${body}\n${stampFor('phase900_x.sql', body)}\n`;
+
+  it('a new additive file passes', () => {
+    expect(decide([path], [], 1, { [path]: { before: null, after: additive } })).toBeNull();
+  });
+
+  it('holds edits, deletions, non-additive files, missing sources and odd names', () => {
+    expect(migrationHold(path, { before: additive, after: additive + '\n' })).toMatch(/edits an existing migration/);
+    expect(migrationHold(path, { before: additive, after: null })).toMatch(/deletes a migration/);
+    expect(migrationHold(path, { before: null, after: 'drop table profiles;' })).toMatch(/not additive/);
+    expect(migrationHold(path, undefined)).toMatch(/not provided/);
+    expect(migrationHold('supabase/migrations/README.md', { before: null, after: 'x' })).toMatch(/not a phaseN_name\.sql/);
+    expect(decide([path], [])).toMatch(/held for a human: supabase\/migrations\/phase900_x\.sql — applied to production by hand \(contents were not provided\)/);
+  });
+
+  it('an additive migration does not unhold the rest of the PR', () => {
+    expect(decide([path, '.github/workflows/ci.yml'], [], 2, { [path]: { before: null, after: additive } })).toMatch(/CI is the merge floor/);
   });
 });

@@ -247,7 +247,7 @@ makes granting it a small decision rather than a large one:
   with it off, the union proof stands in, and the script refuses to run in
   the mode that does not match the setting.
 - **The merge policy is the boundary** ([scripts/merge-policy.mjs](scripts/merge-policy.mjs)):
-  a PR touching `supabase/migrations/`, `.github/`, `scripts/ci-guards.sh`
+  a PR touching `supabase/migrations/` (other than a new additive file, below), `.github/`, `scripts/ci-guards.sh`
   (where the floor's content lives — `ci.yml` delegates to it), `vercel.json`,
   the dependency manifests (unless the change only bumps names already present,
   from the npm registry, with no new install script — `manifestHold` and
@@ -266,6 +266,22 @@ makes granting it a small decision rather than a large one:
   through the babysitter or a human, nothing else. (A review approval cannot
   be the token: `gh` acts as the repo owner, who cannot approve their own
   PRs.)
+- **An additive migration is applied by the babysitter, then merged.** A new
+  migration file that [scripts/migration-classify.mjs](scripts/migration-classify.mjs)
+  proves additive is not held by the policy. When production lacks only that
+  PR's own migrations, the serial loop under `--yes` runs
+  [scripts/migration-apply.mjs](scripts/migration-apply.mjs). It re-classifies,
+  refuses if any object it would create already exists, applies each file as one
+  transaction through the Supabase Management API, posts the inverse SQL on the PR
+  and keeps it in `.claude/state/migration-inverses/`. Then the head check below
+  decides the merge as usual. "Additive" is an allow-list: new tables with RLS (and
+  policies, grants and revokes on those new tables only), added columns, added or
+  CHECK-replaced constraints without cascading foreign keys on existing tables,
+  named non-concurrent indexes, comments, the PostgREST reload, the stamp.
+  Anything else holds. The opt-in is `SUPABASE_ACCESS_TOKEN=<personal access
+  token>` in `~/.config/apex-training/prod.env`, next to the URL the schema check
+  reads. Without it every migration holds exactly as before. Fleet runs never
+  apply.
 - **A migration merges only onto a current production.** Before a PR
   touching `supabase/migrations/` merges, the babysitter runs
   `scripts/prod-schema-check.mjs`; unless production has every object

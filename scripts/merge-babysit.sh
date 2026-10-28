@@ -203,6 +203,37 @@ run_head_check() {
   head_pending=${head_pending#, }
 }
 
+# Production lacks only this PR's own migrations: when they are additive
+# (scripts/migration-classify.mjs) and prod.env holds a Management API token,
+# apply them now — DDL first, merge second, the order this script already
+# demands of a human — then re-run the head check, whose verdict decides the
+# merge as before. Only under --yes, only in the serial loop for a PR the
+# policy passed (not from held_preflight, not in a fleet, where the union
+# proof and the one-migration rule come after the preflight), never with the
+# kill switch present. Any refusal leaves the HOLD exactly as it was; the
+# applier's output says why.
+apply_additive() {
+  local pr=$1 oid=$2 out code f files
+  [ "$schema_code" -eq 1 ] && [ -n "$head_pending" ] || return 0
+  [ "$apply" -eq 1 ] && [ "${preflight_may_apply:-0}" -eq 1 ] && [ ! -e "$kill_switch" ] || return 0
+  files=$(printf '%s' "$head_pending" | tr -d ',')
+  # shellcheck disable=SC2086 # phase file names: no spaces, one word each
+  out=$(node scripts/migration-apply.mjs --ref "$oid" $files 2>&1) && code=0 || code=$?
+  echo "APPLY #$pr — $head_pending (scripts/migration-apply.mjs exit $code)"
+  printf '%s\n' "$out" | sed 's/^/      /'
+  [ "$code" -eq 0 ] || return 0
+  mkdir -p "$(dirname "$merge_log")"
+  for f in $files; do
+    printf '%s applied %s for #%s at %s\n' "$(date -u +%FT%TZ)" "$f" "$pr" "$oid" >> "$merge_log"
+  done
+  "$GH" pr comment "$pr" --body "Applied to production by \`scripts/merge-babysit.sh --yes\` before merging (classified additive by \`scripts/migration-classify.mjs\`). To undo, run the inverse below in the Supabase SQL Editor; it is also kept in \`.claude/state/migration-inverses/\` in the primary checkout.
+
+\`\`\`
+$out
+\`\`\`" >/dev/null || true
+  run_head_check "$pr" "$oid"
+}
+
 schema_preflight() {
   local counts changed seen mig head_oid=""
   preflight_touched=0
@@ -232,6 +263,7 @@ schema_preflight() {
     return 1
   fi
   run_head_check "$1" "$head_oid"
+  apply_additive "$1" "$head_oid"
   preflight_head=$head_oid
   preflight_retry=$head_moved
   if [ "$schema_code" -eq 0 ]; then
@@ -279,7 +311,7 @@ trap 'report_migration_obligation || true' EXIT
 # up when Shane is deciding whether to grant the PR, not after he labels it
 # and the next run holds it again. Informational: the PR stays held either way.
 held_preflight() {
-  if schema_preflight "$1"; then
+  if preflight_may_apply=0 schema_preflight "$1"; then
     if [ "$preflight_touched" -eq 1 ]; then
       echo "      production is current, so shipit is all this one needs"
     fi
@@ -520,7 +552,7 @@ fleet_pass() {
       skipped="$skipped $number"
       continue
     fi
-    if ! schema_preflight "$number"; then
+    if ! preflight_may_apply=0 schema_preflight "$number"; then
       preflight_hold "$number" "$title"
       if [ "$preflight_retry" -eq 1 ]; then actionable=1; else skipped="$skipped $number"; fi
       continue
@@ -778,7 +810,7 @@ EOF
           skipped="$skipped $number"
           continue
         fi
-        if ! schema_preflight "$number"; then
+        if ! preflight_may_apply=1 schema_preflight "$number"; then
           preflight_hold "$number" "$title"
           if [ "$preflight_retry" -eq 1 ]; then actionable=1; else skipped="$skipped $number"; fi
           continue
