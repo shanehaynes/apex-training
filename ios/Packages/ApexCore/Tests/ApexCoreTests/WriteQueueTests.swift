@@ -1937,4 +1937,85 @@ final class WriteQueueStoreFailureTests: XCTestCase {
         XCTAssertEqual(ops.map(\.state), [.failed])
         XCTAssertEqual(ops.first?.gaveUp, true)
     }
+
+    func testTheCarriedAttemptGoesWithTheOpsNextSuccessfulWrite() async throws {
+        // Carried once, stored once: after the store recovers, each failure
+        // adds one attempt to the row, not one plus the old carry.
+        let transport = ScriptedTransport([.status(500), .status(500), .status(500), .ok()])
+        let store = FailingWritesStore()
+        let clock = HeldClock()
+        let queue = WriteQueue(store: store, client: makeClient(transport), clock: clock)
+        try await queue.enqueue(save(), for: session)
+        await store.setFailing(updates: true, deletes: false)
+        await queue.flush(session)                         // 500: the attempt is carried, not stored
+        await store.setFailing(updates: false, deletes: false)
+
+        while clock.heldSleeps == 0 { await Task.yield() }
+        clock.releaseHeld()                                // 500 again: stored with the carry
+        while clock.heldSleeps == 0 { await Task.yield() }
+        let afterFirst = await store.inner.all.first?.attempts
+        clock.releaseHeld()                                // and again: one more, the carry is spent
+        while clock.heldSleeps == 0 { await Task.yield() }
+        let afterSecond = await store.inner.all.first?.attempts
+
+        XCTAssertEqual(afterFirst, 2)
+        XCTAssertEqual(afterSecond, 3)
+        clock.open()
+        await queue.awaitRetries()
+    }
+
+    private let oats = MealOpPayload(kind: .create, id: "meal-oats", title: "Oats", day: "2026-09-08", columns: [:])
+
+    func testRetryAfterALetGoStartsTheLadderFresh() async throws {
+        // A carry from a failed store write must not outlive the user's
+        // reset: after Let go and Retry the next failure is the first one.
+        let transport = ScriptedTransport([.status(500), .status(500), .ok()])
+        let store = FailingWritesStore()
+        let clock = HeldClock()
+        let queue = WriteQueue(store: store, client: makeClient(transport), clock: clock)
+        var meal = try await queue.enqueue(.meal(oats), for: .outbox)
+        meal.giveUpCount = TrackerOp.letGoThreshold
+        _ = try await store.update(meal)
+        await store.setFailing(updates: true, deletes: false)
+        await queue.flush(.outbox)                         // 500: the attempt is carried
+        await store.setFailing(updates: false, deletes: false)
+
+        let letGo = await queue.letGo(meal.id, in: .outbox)
+        XCTAssertEqual(letGo, .meal(oats))
+        await queue.retryFailed(.outbox)
+        await queue.resume()                               // past the backoff the carry set: 500 again
+
+        let attempts = await store.inner.all.first?.attempts
+        XCTAssertEqual(attempts, 1)
+        XCTAssertEqual(clock.sleeps.last, 1, "the first rung's backoff")
+        clock.open()
+        await queue.awaitRetries()
+    }
+
+    func testAFailedUpdateOnABuilderRefusalDoesNotResendInALoop() async throws {
+        // 200 with ok:false: the refusal could not be recorded, so the draft
+        // still reads pending. The drain must stop, not send it again at once.
+        let transport = ScriptedTransport([.ok(#"{"ok":false,"problem":"Bad workout"}"#), .throwNetwork])
+        let store = FailingWritesStore()
+        let clock = HeldClock()
+        let queue = WriteQueue(store: store, client: makeClient(transport), clock: clock)
+        let draft = TrackerOpPayload.workoutDraft(WorkoutDraftOpPayload(
+            draft: .empty(date: "2026-09-10", title: "Leg day"), today: "2026-09-08", action: .create,
+            clientId: "ai-0b9f3c52-6a1e-4c47-9d3a-5f2e8b7c1a90"
+        ))
+        try await queue.enqueue(draft, for: .outbox)
+        await store.setFailing(updates: true, deletes: false)
+
+        await queue.flush(.outbox)
+
+        let sent = await transport.requests.count
+        XCTAssertEqual(sent, 1, "one send, then the backoff")
+        await store.setFailing(updates: false, deletes: false)
+        await transport.script([.ok(#"{"ok":false,"problem":"Bad workout"}"#)])
+        clock.open()
+        await queue.awaitRetries()
+        let kept = await store.inner.all
+        XCTAssertEqual(kept.map(\.state), [.failed])
+        XCTAssertEqual(kept.first?.lastError, "Bad workout")
+    }
 }

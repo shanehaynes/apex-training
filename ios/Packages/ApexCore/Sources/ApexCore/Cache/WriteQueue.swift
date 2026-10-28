@@ -87,7 +87,10 @@ public actor WriteQueue {
     /// be persisted (the write that failed was the one recording them), so
     /// they are carried here and added to the row's count: the backoff still
     /// grows and `RetryPolicy.maxAttempts` still arrives while the store is
-    /// down. Cleared by the op's next successful write.
+    /// down. Cleared by the op's next successful write, and wherever its
+    /// ladder starts again or it leaves the queue (put-back, Retry, Discard,
+    /// Let go, purge). Ids are never reused, so an entry a cancel's purge
+    /// leaves behind is never read.
     private var storeFailures: [Int64: Int] = [:]
     /// Lanes whose turn is taken, and who waits for it next (`takeTurn`).
     private var turnTaken: Set<SessionKey> = []
@@ -515,6 +518,7 @@ public actor WriteQueue {
         for var op in (try? await store.ops(for: session)) ?? [] where op.state == .failed && op.gaveUp {
             op.state = .pending
             op.attempts = 0
+            storeFailures[op.id] = nil
             op.lastError = nil
             op.gaveUp = false
             _ = try? await store.update(op)
@@ -543,6 +547,7 @@ public actor WriteQueue {
             for var op in (try? await store.ops(for: session)) ?? [] where op.state == .failed {
                 op.state = .pending
                 op.attempts = 0
+                storeFailures[op.id] = nil
                 op.lastError = nil
                 op.gaveUp = false
                 _ = try? await store.update(op)
@@ -557,6 +562,7 @@ public actor WriteQueue {
         defer { endTurn(session) }
         for op in (try? await store.ops(for: session)) ?? [] where op.state == .failed {
             try? await store.delete(id: op.id)
+            storeFailures[op.id] = nil
         }
         emit(.changed(session))
     }
@@ -579,6 +585,7 @@ public actor WriteQueue {
     /// Drops one op (a refused save the user fixed or dismissed).
     public func discard(_ id: Int64, in session: SessionKey) async {
         try? await store.delete(id: id)
+        storeFailures[id] = nil
         emit(.changed(session))
     }
 
@@ -604,6 +611,7 @@ public actor WriteQueue {
         }
         defer { endTurn(session) }
         guard let op = ((try? await store.ops(for: session)) ?? []).first(where: { $0.id == id }), op.canLetGo else { return nil }
+        storeFailures[op.id] = nil   // off the ladder: a later Retry starts it fresh
         switch op.payload {
         case .meal, .workoutDraft:
             var kept = op
@@ -748,6 +756,7 @@ public actor WriteQueue {
         for token in waitingRetry.values { retryTasks[token]?.cancel() }
         waitingRetry = [:]
         notBefore = [:]
+        storeFailures = [:]
         try? await store.purgeAll()
     }
 }

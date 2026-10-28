@@ -264,8 +264,8 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
   backoff. The attempt it could not record is carried in memory, so the backoff doubles and
   `maxAttempts` still arrives while the store is down. Before, a store that kept failing handed the
   same op straight back and re-sent it in a loop; two of the four new `WriteQueueStoreFailureTests`
-  hang the old code. ApexCore 553/553 on macOS and Linux. The app does not surface `storeFailed` yet (the pending-sync chip stays up); the
-  user-action paths still use `try?` (docs/improvements/04-clean-code/ios-core.md). Brought up to date with #495 on 2026-10-27: `record` runs inside the drain's settle turn.
+  hang the old code. The app does not surface `storeFailed` yet (the pending-sync chip stays up); the
+  user-action paths still use `try?` (docs/improvements/04-clean-code/ios-core.md). Brought up to date with #495 on 2026-10-27: `record` runs inside the drain's settle turn, and the carried count is dropped wherever the ladder restarts or the op leaves (put-back, Retry, Discard, Let go, purge); three more store-failure tests. ApexCore 673 (1 skipped) on macOS.
 - 2026-10-15 · Profile time zone · Mac. The app writes `TimeZone.current` to `profiles.timezone`
   (phase58, #449) after sign-in, on every foreground and after accepting updated terms, when it
   differs from what `GET /api/profile` reports (D-057). `ProfileResponse.timezone`,
