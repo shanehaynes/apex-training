@@ -36,6 +36,7 @@ describe('the authority chain can never merge itself', () => {
     'scripts/supervisor-report.sh',
     'scripts/prod-schema-check.mjs',
     'scripts/combine-check.sh',
+    'scripts/owner-preflight.sh',
     'scripts/hooks/bash-guard.mjs',
     '.claude/skills/parallel-agents/hooks/agent-guard.mjs',
     '.claude/settings.json',
