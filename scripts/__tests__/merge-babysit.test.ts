@@ -30,9 +30,10 @@ const gitEnv = {
   GIT_COMMITTER_EMAIL: 'test@example.invalid',
 };
 
-// A gh that knows four calls: branch protection, the PR list, a PR's
-// metadata, and anything else (comment/merge) as a recorded no-op. Each
-// answer goes through jq with the --jq the script passed, as gh does.
+// A gh that knows four calls: branch protection (the fixture's, else strict
+// with nothing required), the PR list (fixture.prs, else the one fixture.pr),
+// a PR's metadata by number, and anything else (comment/merge) as a recorded
+// no-op. Each answer goes through jq with the --jq the script passed, as gh does.
 const GH_STUB = `#!/usr/bin/env node
 const { spawnSync } = require('node:child_process');
 const { appendFileSync, readFileSync } = require('node:fs');
@@ -41,9 +42,9 @@ const args = process.argv.slice(2);
 appendFileSync(process.env.GH_FIXTURE + '.calls', JSON.stringify(args) + '\\n');
 const jq = args[args.indexOf('--jq') + 1];
 let data;
-if (args[0] === 'api' && args[1].endsWith('/required_status_checks')) data = { strict: true, contexts: [] };
-else if (args[0] === 'pr' && args[1] === 'list') data = [fixture.pr];
-else if (args[0] === 'pr' && args[1] === 'view') data = fixture.pr;
+if (args[0] === 'api' && args[1].endsWith('/required_status_checks')) data = fixture.protection ?? { strict: true, contexts: [] };
+else if (args[0] === 'pr' && args[1] === 'list') data = fixture.prs ?? [fixture.pr];
+else if (args[0] === 'pr' && args[1] === 'view') data = (fixture.prs ?? [fixture.pr]).find((p) => String(p.number) === args[2]);
 else process.exit(0);
 if (!args.includes('--jq')) { process.stdout.write(JSON.stringify(data)); process.exit(0); }
 const out = spawnSync('jq', ['-r', jq], { input: JSON.stringify(data), encoding: 'utf8' });
@@ -217,5 +218,151 @@ describe('merge-babysit.sh: a migration PR merges only onto a production that al
     expect(out).toContain(`✗ migration ${FIXTURE} was applied as different SQL`);
     expect(out).toContain(`apply ${FIXTURE} to production before merging`);
     expect(out).not.toMatch(/WOULD MERGE/);
+  });
+});
+
+describe('merge-babysit.sh --fleet: each PR is proven and merged at the head that was folded', { timeout: 120_000 }, () => {
+  // The union proof takes minutes. With branch names, combine-check refetched
+  // and proved whatever the branches held by then, and an unpinned merge took
+  // whatever head GitHub had after that: a push during the proof could land
+  // code the proof never saw, once its required checks passed.
+  const A = 21;
+  const B = 22;
+  let tmp: string;
+  let work: string;
+  let shaA: string;
+  let shaB: string;
+  let shaC: string;
+  const git = (...args: string[]) => execFileSync('git', args, { cwd: work, encoding: 'utf8', env: gitEnv }).trim();
+  const commit = (path: string, message: string) => {
+    mkdirSync(dirname(join(work, path)), { recursive: true });
+    writeFileSync(join(work, path), `export const x = ${JSON.stringify(message)};\n`);
+    git('add', '-A');
+    git('-c', 'commit.gpgsign=false', 'commit', '-q', '-m', message);
+    return git('rev-parse', 'HEAD');
+  };
+  const branch = (name: string, path: string) => {
+    git('checkout', '-q', '-b', name, 'main');
+    const sha = commit(path, name);
+    git('push', '-q', 'origin', name);
+    git('checkout', '-q', 'main');
+    return sha;
+  };
+
+  beforeAll(() => {
+    execFileSync('jq', ['--version']);
+    tmp = mkdtempSync(join(tmpdir(), 'apex-babysit-fleet-'));
+    work = join(tmp, 'work');
+    execFileSync('git', ['init', '-q', '--bare', '-b', 'main', join(tmp, 'origin.git')]);
+    execFileSync('git', ['init', '-q', '-b', 'main', work]);
+    for (const path of ['scripts/merge-babysit.sh', 'scripts/merge-policy.mjs']) {
+      mkdirSync(dirname(join(work, path)), { recursive: true });
+      copyFileSync(join(repo, path), join(work, path));
+    }
+    // The real combine-check, where the babysitter does not call it.
+    mkdirSync(join(work, 'bin'));
+    copyFileSync(join(repo, 'scripts/combine-check.sh'), join(work, 'bin/combine-check.sh'));
+    // The one the babysitter calls records its arguments: --check would run agent:check.
+    writeFileSync(join(work, 'scripts/combine-check.sh'), '#!/usr/bin/env bash\nprintf \'%s\\n\' "$@" > "$COMBINE_ARGS"\n');
+    chmodSync(join(work, 'scripts/combine-check.sh'), 0o755);
+    git('add', '-A');
+    git('-c', 'commit.gpgsign=false', 'commit', '-q', '-m', 'main');
+    git('remote', 'add', 'origin', join(tmp, 'origin.git'));
+    git('push', '-q', 'origin', 'main');
+    shaA = branch('fix/fleet-a', 'src/fleet-a.ts');
+    shaB = branch('fix/fleet-b', 'src/fleet-b.ts');
+    shaC = branch('fix/fleet-c', 'src/fleet-c.ts');
+  });
+
+  afterAll(() => {
+    rmSync(tmp, { recursive: true, force: true });
+  });
+
+  /** A green, policy-clean PR whose head GitHub reports as `headRefOid`. */
+  const pr = (number: number, headRefName: string, headRefOid: string) => ({
+    number,
+    title: `Fleet fixture (#${number})`,
+    baseRefName: 'main',
+    isDraft: false,
+    mergeStateStatus: 'CLEAN',
+    headRefName,
+    headRefOid,
+    changedFiles: 1,
+    files: [{ path: `src/${headRefName.slice(4)}.ts` }],
+    labels: [],
+    statusCheckRollup: [
+      { __typename: 'CheckRun', name: 'check', workflowName: 'CI', status: 'COMPLETED', conclusion: 'SUCCESS', startedAt: '2026-10-28T16:00:00Z', completedAt: '2026-10-28T16:12:00Z' },
+    ],
+  });
+
+  /** stdout of a --fleet --yes run over these PRs (newest first, as gh lists them), its gh calls, and what combine-check was given. */
+  const fleet = async (prs: object[], args: string[] = []) => {
+    const fixture = join(tmp, `gh-${Math.random().toString(36).slice(2)}.json`);
+    writeFileSync(fixture, JSON.stringify({ protection: { strict: false, contexts: ['check'] }, prs }));
+    const gh = join(tmp, 'gh');
+    writeFileSync(gh, GH_STUB);
+    chmodSync(gh, 0o755);
+    const combineArgs = `${fixture}.combine`;
+    let out: string;
+    try {
+      out = (await run('bash', [join(work, 'scripts/merge-babysit.sh'), '--fleet', '--yes', '--max-minutes=0', ...args], {
+        cwd: work,
+        env: { ...gitEnv, GH: gh, GH_FIXTURE: fixture, COMBINE_ARGS: combineArgs },
+      })).stdout;
+    } catch (err) {
+      out = (err as { stdout: string }).stdout;
+    }
+    const calls = readFileSync(`${fixture}.calls`, 'utf8').trim().split('\n').map((l) => JSON.parse(l) as string[]);
+    let combine: string[] | null = null;
+    try {
+      combine = readFileSync(combineArgs, 'utf8').trim().split('\n');
+    } catch {
+      // not called
+    }
+    return { out, calls, combine };
+  };
+
+  it('merges a non-migration PR pinned to the head it folded', async () => {
+    const { out, calls } = await fleet([pr(A, 'fix/fleet-a', shaA)], ['--no-check']);
+    expect(out).toContain(`FLEET #${A}`);
+    expect(out).toContain(`MERGE #${A}`);
+    expect(calls).toContainEqual(['pr', 'merge', String(A), '--squash', '--match-head-commit', shaA]);
+    expect(calls.filter((c) => c[1] === 'merge')).toHaveLength(1);
+  });
+
+  it('hands the proof the folded SHAs in merge order, then pins each merge to its own', async () => {
+    const { out, calls, combine } = await fleet([pr(B, 'fix/fleet-b', shaB), pr(A, 'fix/fleet-a', shaA)]);
+    expect(combine).toEqual(['--check', '--sequential', shaA, shaB]);
+    expect(out).toContain(`at the heads folded: #${A}@${shaA.slice(0, 7)} #${B}@${shaB.slice(0, 7)}`);
+    expect(calls.filter((c) => c[1] === 'merge')).toEqual([
+      ['pr', 'merge', String(A), '--squash', '--match-head-commit', shaA],
+      ['pr', 'merge', String(B), '--squash', '--match-head-commit', shaB],
+    ]);
+  });
+
+  it('merges nothing past a head that moved after the fold, and keeps that PR in the run', async () => {
+    const moved = '2'.repeat(40);
+    const { out, calls } = await fleet([pr(B, 'fix/fleet-b', shaB), pr(A, 'fix/fleet-a', moved)]);
+    expect(out).toContain(`WAIT  #${A} — its head moved after it was proven (${shaA.slice(0, 12)}, now ${moved.slice(0, 12)})`);
+    expect(out).toContain(`── fleet: #${A} did not merge — the rest of this fleet waits for a fresh fold and proof next pass`);
+    // Neither merged, no "Auto-merged" comment on a PR that did not merge, and not skipped for the run.
+    expect(calls.some((c) => c[1] === 'merge' || c[1] === 'comment')).toBe(false);
+    expect(out).not.toMatch(/SKIP/);
+  });
+
+  it('combine-check folds a SHA as given, behind its branch tip, and names one it does not have', async () => {
+    git('checkout', '-q', 'fix/fleet-c');
+    commit('src/fleet-c-2.ts', 'a push after the fold');
+    git('push', '-q', 'origin', 'fix/fleet-c');
+    git('checkout', '-q', 'main');
+    const folded = await run('bash', [join(work, 'bin/combine-check.sh'), '--sequential', shaA, shaC], { cwd: work, env: gitEnv });
+    expect(folded.stdout).toContain(`ok        ${shaA}`);
+    expect(folded.stdout).toContain(`ok        ${shaC}`);
+    expect(folded.stdout).not.toContain('origin/fix/fleet-c');
+    const missing = '3'.repeat(40);
+    const err = await run('bash', [join(work, 'bin/combine-check.sh'), '--sequential', missing], { cwd: work, env: gitEnv }).catch((e) => e as { code: number; stdout: string; stderr: string });
+    expect(err).toMatchObject({ code: 1 });
+    expect((err as { stderr: string }).stderr).toContain(`error: no such branch or commit '${missing}'`);
+    expect((err as { stdout: string }).stdout).not.toContain('CONFLICT');
   });
 });

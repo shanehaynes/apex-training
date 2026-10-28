@@ -29,7 +29,9 @@
 # Every ready PR is folded onto origin/main in merge order (git merge-tree —
 # one that will not fold is skipped, not the fleet), the folded tree runs
 # agent:check in a throwaway worktree (scripts/combine-check.sh --check
-# --sequential), and only then do the PRs merge, in that same order. The mode
+# --sequential, given the folded SHAs), and only then do the PRs merge, in that
+# same order, each pinned to the head that was folded: a push since then waits
+# for the next pass to fold and prove it. The mode
 # must match the rule and the script checks: --fleet --yes refuses while the
 # rule is on, and the serial loop refuses --yes while it is off — it would
 # merge every green PR back to back with no proof at all. Flipping the rule
@@ -336,11 +338,25 @@ protection_strict() {
 # main, and a merge that lands in that window can fail transiently, so try
 # three times before giving the PR up — and never let one failure end the
 # run: the post-merge lifecycle still has to happen for what did land.
+#
+# $4 pins the merge to a head SHA (gh --match-head-commit). Fleet mode passes
+# the head it folded: the union proof takes minutes, and unpinned, gh merges
+# whatever the head is by then — a push nobody proved, once its required
+# checks pass, and ios unwaited on. A migration PR is pinned to the head its
+# preflight checked production against (the fleet folds only that one).
 merge_pr() {
-  local number=$1 title=$2 mode=$3 attempt body suffix="" pinned
+  local number=$1 title=$2 mode=$3 pinned=${4:-} attempt body suffix="" now
   [ "$mode" = fleet ] && suffix=' [fleet]'
-  # A migration PR merges only the head its preflight proved production ready for.
-  pinned=$(printf '%s\n' $checked_heads | awk -F: -v n="$number" '$1 == n { sha = $2 } END { print sha }')
+  [ -n "$pinned" ] || pinned=$(printf '%s\n' $checked_heads | awk -F: -v n="$number" '$1 == n { sha = $2 } END { print sha }')
+  # A head that moved cannot merge under its pin. Say so, and keep the PR in
+  # the run for the next pass to check, fold and prove its new head, rather
+  # than fail three times and skip it as broken. Unreadable: the pin still holds.
+  if [ -n "$pinned" ] && now=$("$GH" pr view "$number" --json headRefOid --jq .headRefOid 2>/dev/null) \
+     && [ -n "$now" ] && [ "$now" != "$pinned" ]; then
+    echo "WAIT  #$number — its head moved after it was proven (${pinned:0:12}, now ${now:0:12}); the next pass checks and folds the new one. ($title)"
+    actionable=1
+    return 1
+  fi
   echo "MERGE #$number ($title)"
   if [ "$mode" = fleet ]; then
     if [ "$no_check" -eq 1 ]; then
@@ -416,8 +432,9 @@ required_green() {
 }
 
 fleet_pass() {
-  local number base draft state head title verdict tree head_sha base_sha cur i n before ready note reason rc fleet_migration=""
-  local -a numbers=() heads=() titles=()
+  local number base draft state head title verdict tree head_sha base_sha cur i n before ready note reason rc fleet_migration="" pins=""
+  # shas: the head each PR was folded at — what the proof sees and each merge is pinned to.
+  local -a numbers=() shas=() titles=()
 
   git fetch -q origin --prune
   base_sha=$(git rev-parse origin/main)
@@ -547,7 +564,8 @@ fleet_pass() {
       continue
     fi
     cur=$(git commit-tree "$tree" -p "$cur" -p "$head_sha" -m "throwaway fleet fold")
-    numbers+=("$number"); heads+=("$head"); titles+=("$title")
+    numbers+=("$number"); shas+=("$head_sha"); titles+=("$title")
+    pins="$pins #$number@${head_sha:0:7}"
     if [ "$preflight_touched" -eq 1 ]; then fleet_migration=$number; fi
     echo "FLEET #$number$note ($title)"
   done <<EOF
@@ -564,15 +582,17 @@ EOF
   fleet_base=${base_sha:0:12}
 
   if [ "$apply" -eq 0 ]; then
-    echo "WOULD PROVE the union of $n PR(s) on origin/main ${base_sha:0:7} (combine-check --check --sequential), then merge them in that order."
+    echo "WOULD PROVE the union of $n PR(s) on origin/main ${base_sha:0:7} (combine-check --check --sequential), then merge them in that order, each pinned to its folded head:$pins"
     return 0
   fi
 
   if [ "$no_check" -eq 1 ]; then
     echo "── --no-check: skipping the union proof on the operator's word"
   else
-    echo "── proving the union of $n PR(s) on origin/main ${base_sha:0:7}"
-    if ! scripts/combine-check.sh --check --sequential "${heads[@]}"; then
+    # The SHAs, not the branch names: combine-check fetches again, and a push
+    # since the fold would have it prove a head that is not the one merged.
+    echo "── proving the union of $n PR(s) on origin/main ${base_sha:0:7}, at the heads folded:$pins"
+    if ! scripts/combine-check.sh --check --sequential "${shas[@]}"; then
       echo "ACTION the union of this fleet fails combine-check — nothing merged. Bisect with: scripts/combine-check.sh --check --sequential <branches>" >&2
       exit 1
     fi
@@ -595,7 +615,7 @@ EOF
   # moved, say), the rest would land on a tree nobody proved — fold again instead.
   before=$merged_count
   for ((i = 0; i < n; i++)); do
-    if ! merge_pr "${numbers[i]}" "${titles[i]}" fleet; then
+    if ! merge_pr "${numbers[i]}" "${titles[i]}" fleet "${shas[i]}"; then
       echo "── fleet: #${numbers[i]} did not merge — the rest of this fleet waits for a fresh fold and proof next pass"
       actionable=1
       break

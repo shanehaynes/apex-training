@@ -19,6 +19,10 @@
 # --sequential skips the pairwise stage and folds in the order given, which
 # is what merge-babysit.sh --fleet needs: the order is the merge order, and
 # the first branch that will not fold is the answer.
+#
+# A commit SHA is folded as given. merge-babysit.sh --fleet passes the heads
+# it folded, not branch names, so the proof is of the exact commits it then
+# merges pinned — not of wherever the branches point after this fetch.
 set -euo pipefail
 
 # Anchor on the checkout this script lives in (so it runs from anywhere),
@@ -34,7 +38,7 @@ for arg in "$@"; do
     --check) check=1 ;;
     --sequential) sequential=1 ;;
     -*)
-      echo "usage: scripts/combine-check.sh [--check] [--sequential] [branch ...]" >&2
+      echo "usage: scripts/combine-check.sh [--check] [--sequential] [branch|sha ...]" >&2
       exit 64
       ;;
     *) branches+=("$arg") ;;
@@ -69,14 +73,16 @@ if [ "${#branches[@]}" -eq 0 ]; then
 fi
 
 # Resolve each name to a ref, preferring the remote (what the PR will merge).
+# ^{commit} makes it a lookup: --verify alone passes any 40-hex string, and a
+# SHA whose object is not here would fail the fold as a false CONFLICT.
 refs=()
 for b in "${branches[@]}"; do
   if git rev-parse --quiet --verify "refs/remotes/origin/$b" >/dev/null; then
     refs+=("origin/$b")
-  elif git rev-parse --quiet --verify "$b" >/dev/null; then
+  elif git rev-parse --quiet --verify "$b^{commit}" >/dev/null; then
     refs+=("$b")
   else
-    echo "error: no such branch '$b' (local or origin)" >&2
+    echo "error: no such branch or commit '$b' (local or origin)" >&2
     exit 1
   fi
 done
