@@ -16,7 +16,8 @@
 // A run counts when its `Build and test` step was not skipped (a PR that
 // changes no iOS path finishes the job in seconds) and its job took at least
 // cap − 15 minutes. A run the cap killed ends `cancelled` at or past the cap,
-// so it counts too. Every attempt of a re-run counts.
+// so it counts too. Every attempt of a re-run is looked at; the count is of
+// runs.
 //
 // Prints its own lines in the report's style (ACTION at column 0, status
 // indented). Exit codes follow scripts/signup-cap-check.mjs: 0 nothing near
@@ -51,17 +52,30 @@ export function jobFrom(text) {
   if (end < 0) end = lines.length;
   const body = lines.slice(start + 1, end);
 
-  // Job-level keys sit at four spaces; a step's own timeout-minutes is deeper.
-  const timeout = body.map((l) => l.match(/^ {4}timeout-minutes:\s*(.*?)\s*(?:#.*)?$/)).find(Boolean);
-  if (!timeout) throw new Error(`the \`${JOB}\` job in ${WORKFLOW} has no timeout-minutes`);
-  if (!/^\d+$/.test(timeout[1])) throw new Error(`the \`${JOB}\` job's timeout-minutes is not a number (${timeout[1]})`);
-  if (!body.some((l) => new RegExp(`^\\s+(- )?name:\\s*['"]?${STEP}['"]?\\s*(#.*)?$`).test(l))) {
+  // Job-level keys sit at four spaces; a step's own keys are deeper.
+  const key = (k) => {
+    const line = body.find((l) => l.startsWith(`    ${k}:`));
+    return line === undefined ? undefined : scalar(line.slice(`    ${k}:`.length));
+  };
+  const timeout = key('timeout-minutes');
+  if (timeout === undefined) throw new Error(`the \`${JOB}\` job in ${WORKFLOW} has no timeout-minutes`);
+  if (!/^\d+$/.test(timeout)) throw new Error(`the \`${JOB}\` job's timeout-minutes is not a number (${timeout})`);
+  if (!body.some((l) => /^\s+(- )?name:/.test(l) && scalar(l.replace(/^\s+(- )?name:/, '')) === STEP)) {
     throw new Error(`the \`${JOB}\` job in ${WORKFLOW} has no "${STEP}" step`);
   }
   // A job-level `name:` is what the jobs API reports instead of the key.
-  const named = body.map((l) => l.match(/^ {4}name:\s*['"]?(.+?)['"]?\s*$/)).find(Boolean);
-  return { cap: Number(timeout[1]), name: named ? named[1] : JOB };
+  const name = key('name') ?? JOB;
+  if (name.includes('${{')) throw new Error(`the \`${JOB}\` job's name is an expression (${name})`);
+  return { cap: Number(timeout), name };
 }
+
+/** A one-line YAML scalar: trailing comment and surrounding quotes dropped. */
+function scalar(raw) {
+  return raw.replace(/\s+#.*$/, '').trim().replace(/^(['"])(.*)\1$/, '$2');
+}
+
+/** The jobs API names a matrix job `<name> (<values>)`. */
+const isJob = (apiName, name) => apiName === name || apiName.startsWith(`${name} (`);
 
 /**
  * Runs whose jobs are worth fetching. A completed run's job cannot have taken
@@ -80,7 +94,7 @@ export function candidates(runs, cap) {
 export function nearCap(jobs, cap, name = JOB) {
   const floor = (cap - HEADROOM_MIN) * 60;
   return jobs
-    .filter((j) => j.name === name && j.status === 'completed' && j.started_at && j.completed_at)
+    .filter((j) => isJob(j.name, name) && j.status === 'completed' && j.started_at && j.completed_at)
     .filter((j) => (j.steps ?? []).some((s) => s.name === STEP && s.conclusion !== 'skipped'))
     .map((j) => ({
       run: j.run_id,
@@ -127,7 +141,12 @@ async function mapLimit(items, limit, fn) {
   return out;
 }
 
-const brief = (err) => String(err instanceof Error ? err.message : err).split('\n')[0].slice(0, 160);
+// An execFile error's message is "Command failed: <path> <args>"; what gh
+// said (HTTP 401, not logged in) is on its stderr.
+const brief = (err) =>
+  String((err && String(err.stderr ?? '').trim()) || (err instanceof Error ? err.message : err))
+    .split('\n')[0]
+    .slice(0, 160);
 
 export async function main({ gh = ghCli, now = Date.now(), workflow } = {}) {
   let job;
@@ -166,8 +185,12 @@ export async function main({ gh = ghCli, now = Date.now(), workflow } = {}) {
 
   if (hits.length) {
     const slowest = hits.reduce((a, b) => (b.seconds > a.seconds ? b : a));
+    // Runs, not attempts: re-running failed jobs copies the passed ones into
+    // the new attempt with the same timestamps, so one slow job can appear
+    // once per attempt.
+    const runCount = new Set(hits.map((h) => h.run)).size;
     console.log(
-      `ACTION ios CI: ${hits.length} run(s) within ${HEADROOM_MIN} min of the ${cap}-minute cap ` +
+      `ACTION ios CI: ${runCount} run(s) within ${HEADROOM_MIN} min of the ${cap}-minute cap ` +
         `(slowest ${Math.floor(slowest.seconds / 60)} min, run ${slowest.run}) — ` +
         'shorten the job rather than raise the cap (docs/ios/testing-and-ci.md)',
     );

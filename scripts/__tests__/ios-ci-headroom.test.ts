@@ -81,6 +81,8 @@ describe('jobFrom', () => {
 
   it('follows a job-level name:, which is what the jobs API reports', () => {
     expect(jobFrom(workflow('75', '    name: iOS build\n')).name).toBe('iOS build');
+    expect(jobFrom(workflow('75', '    name: "iOS build"  # shown in the checks list\n')).name).toBe('iOS build');
+    expect(jobFrom(workflow('"75"')).cap).toBe(75);
   });
 
   it('throws when the shape it depends on is gone, rather than reporting all-clear', () => {
@@ -88,6 +90,7 @@ describe('jobFrom', () => {
     expect(() => jobFrom(workflow().replace('    timeout-minutes: 75\n', ''))).toThrow(/no timeout-minutes/);
     expect(() => jobFrom(workflow('${{ inputs.cap }}'))).toThrow(/not a number/);
     expect(() => jobFrom(workflow().replace('Build and test', 'Test'))).toThrow(/no "Build and test" step/);
+    expect(() => jobFrom(workflow('75', '    name: ios-${{ matrix.os }}\n'))).toThrow(/name is an expression/);
   });
 
   // The guard that matters in CI: renaming the job or the step, or making the
@@ -123,8 +126,13 @@ describe('nearCap', () => {
       job(1, long, { build: 'skipped' }),
       job(2, long, { build: null }), // never reached a runner: no steps at all
       job(3, long, { name: 'e2e' }),
+      job(5, long, { name: 'ios-lint' }),
       { ...job(4, long), status: 'in_progress', completed_at: null },
     ], 75)).toEqual([]);
+  });
+
+  it('counts a matrix job, which the API names "ios (<values>)"', () => {
+    expect(nearCap([job(1, 70 * 60, { name: 'ios (iPhone 17, 26.5)' })], 75)).toHaveLength(1);
   });
 });
 
@@ -162,6 +170,23 @@ describe('main', () => {
     expect(log[0]).toContain('1 run(s) within 15 min of the 75-minute cap (slowest 75 min, run 7)');
   });
 
+  // "Re-run failed jobs" copies a passed job into the new attempt with the
+  // same timestamps; two slow attempts are still one run.
+  it('counts runs, not attempts', async () => {
+    const { gh } = fakeGh([run(8, 200), run(9, 200)], {
+      8: [job(8, 62 * 60, { attempt: 1 }), job(8, 62 * 60, { attempt: 2 })],
+      9: [job(9, 64 * 60, { attempt: 1 }), job(9, 66 * 60, { attempt: 2, at: T0 + 90 * 60_000 })],
+    });
+    expect(await main({ gh, now: NOW, workflow: workflow() })).toBe(1);
+    expect(log[0]).toContain('2 run(s) within 15 min of the 75-minute cap (slowest 66 min, run 9)');
+  });
+
+  it('a matrix job is still watched', async () => {
+    const { gh } = fakeGh([run(6, 90)], { 6: [job(6, 41 * 60, { conclusion: 'cancelled', name: 'ios (iPhone 17)' })] });
+    expect(await main({ gh, now: NOW, workflow: workflow('40') })).toBe(1);
+    expect(log[0]).toContain('1 run(s) within 15 min of the 40-minute cap (slowest 41 min, run 6)');
+  });
+
   it('reads against whatever cap the workflow has today', async () => {
     const { gh } = fakeGh([run(5, 45)], { 5: [job(5, 41 * 60, { conclusion: 'cancelled' })] });
     expect(await main({ gh, now: NOW, workflow: workflow('40') })).toBe(1);
@@ -174,10 +199,19 @@ describe('main', () => {
     expect(log).toEqual(['   no built ios run within 15 min of the 75-minute cap in 7 days (2 CI runs)']);
   });
 
-  it('cannot list runs: exit 2, a skipped status line, never an ACTION', async () => {
-    const { gh } = fakeGh(new Error('HTTP 401: Bad credentials\nmore'), {});
+  it("cannot list runs: exit 2, a skipped status line naming gh's own error, never an ACTION", async () => {
+    // The shape execFile rejects with: the command line in the message, what
+    // gh said on stderr.
+    const failed = Object.assign(new Error('Command failed: /opt/homebrew/bin/gh run list --workflow ci.yml'), {
+      stderr: 'HTTP 401: Bad credentials (https://api.github.com/graphql)\nTry authenticating with:  gh auth login\n',
+    });
+    const { gh } = fakeGh(failed, {});
     expect(await main({ gh, now: NOW, workflow: workflow() })).toBe(2);
-    expect(log).toEqual(['   could not list CI runs (HTTP 401: Bad credentials) — ios CI headroom skipped']);
+    expect(log).toEqual(['   could not list CI runs (HTTP 401: Bad credentials (https://api.github.com/graphql)) — ios CI headroom skipped']);
+
+    log.length = 0;
+    expect(await main({ gh: fakeGh(new Error('spawn gh ENOENT'), {}).gh, now: NOW, workflow: workflow() })).toBe(2);
+    expect(log).toEqual(['   could not list CI runs (spawn gh ENOENT) — ios CI headroom skipped']);
   });
 
   it('a run whose jobs cannot be read is reported, and the rest still count', async () => {
