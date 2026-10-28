@@ -163,7 +163,7 @@ jobs:
   # - anything else, a failed merge-base included: true.
   changes:
     runs-on: ubuntu-latest
-    timeout-minutes: 1
+    timeout-minutes: 5
     outputs:
       ios: ${{ steps.paths.outputs.ios }}
     steps:
@@ -173,7 +173,7 @@ jobs:
       - name: Decide whether ios must run
         id: paths
         run: |
-          echo "PROBE (b): changes times out"; sleep 120
+          echo "PROBE (d): the run is cancelled by hand while changes sleeps"; sleep 120
           # ios-paths:begin
           ios=true
           case "$GITHUB_EVENT_NAME" in
