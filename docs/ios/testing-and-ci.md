@@ -82,14 +82,14 @@ ios:
   # macos-15's default Xcode cannot build a tools-version 6.2 manifest or Swift 6.3
   # sources, which is what ApexKit is.
   runs-on: macos-26
-  timeout-minutes: 40
+  timeout-minutes: 60
   steps:
     - uses: actions/checkout@v7
       with: { fetch-depth: 0 }
     - name: Skip when no iOS paths changed
       run: |
         base=$(git merge-base origin/main HEAD)
-        if git diff --quiet "$base" HEAD -- ios/ ; then echo "no ios changes"; echo "skip=1" >> "$GITHUB_ENV"; fi
+        if git diff --quiet "$base" HEAD -- ios/ .github/workflows/ci.yml ; then echo "no ios changes"; echo "skip=1" >> "$GITHUB_ENV"; fi
     - run: brew install xcodegen
       if: env.skip != '1'
     - run: xcodegen generate --spec ios/project.yml
@@ -101,9 +101,22 @@ ios:
       with: { name: ios-results, path: ios/build/Apex.xcresult, retention-days: 7 }
 ```
 
+Why `timeout-minutes: 60`: a green run takes ~34 minutes (p50 over October) and up to ~40.
+Most of that is ApexUITests (17–21 min) and the build (5–8). The part that varies is the
+simulator's first boot and install, which take 2–12 minutes and show in the log only as
+silence between the last build line and the first test. Under a 40-minute cap, 5 of 106 runs
+that built were killed. None was hung: four had a normal build and a 9.5–12 minute boot, and
+needed 41–43 minutes; the fifth was a slow host (20-minute build) that would have needed ~57.
+The cap is there to stop hung jobs, so it sits above the slowest legitimate run, not at the
+typical one. The job has grown by one to two minutes a week as UI tests are added (21 cases in
+mid-October, 26 now). When the slowest green runs reach ~45 minutes, the next step is to boot
+the simulator during the build, or to shard ApexUITests across jobs. Raising the cap again is
+not the fix.
+
 Why the early-exit instead of `on.paths`: the merge queue's `merge_group` event and required
 status checks do not compose with path filters — a required check that never starts blocks the
-queue. The job always starts and finishes green in seconds for web-only PRs.
+queue. The job always starts and finishes green in seconds for web-only PRs. `ci.yml` itself
+counts as an iOS path, so a PR that edits this job is the one that proves it.
 
 Why `-retry-tests-on-failure -test-iterations 2`: a failed test is run once more and the job
 is green if the second run passes — and the `.xcresult` marks it "passed on retry", which is

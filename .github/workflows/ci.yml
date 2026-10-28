@@ -150,9 +150,18 @@ jobs:
   #
   # macos-26 rather than macos-15: ApexKit's manifest is swift-tools-version 6.2
   # and the sources are Swift 6.3, which an older runner's Xcode cannot build.
+  #
+  # 60 minutes, not 40. A green run is ~34 min (p50) and up to ~40: build 5–8,
+  # the simulator's first boot and install 2–12 (logged as silence between the
+  # last build line and the first test), ApexTests 0.5–2, ApexUITests 17–21. The
+  # boot is the variable part: 4 of the 5 runs killed at 40 in October had a
+  # normal build and a 9.5–12 minute boot, and needed 41–43 minutes. The fifth
+  # (#502) landed on a slow host that took 20 minutes to build and would have
+  # needed ~57. No killed run was hung — every one was mid-test and passing —
+  # so the cap was cutting off work, not catching a hang.
   ios:
     runs-on: macos-26
-    timeout-minutes: 40
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v7
         with:
@@ -165,12 +174,16 @@ jobs:
       # Only PRs skip. On push/schedule/dispatch the merge base *is* HEAD, so the
       # diff is empty and this would skip every time — the nightly run would then
       # never build the app at all, which is the one run that most needs to.
+      #
+      # This file counts as an iOS path: a PR that edits this job (its steps,
+      # its destination, its cap) is the PR that has to prove the job still
+      # passes, rather than leaving it for main's push run to find out.
       - name: Skip when a pull request changes no iOS paths
         if: github.event_name == 'pull_request' || github.event_name == 'merge_group'
         run: |
           base=$(git merge-base origin/main HEAD)
-          if git diff --quiet "$base" HEAD -- ios/ ; then
-            echo "no ios/ changes"
+          if git diff --quiet "$base" HEAD -- ios/ .github/workflows/ci.yml ; then
+            echo "no ios/ or ci.yml changes"
             echo "skip=1" >> "$GITHUB_ENV"
           fi
       # The macos-26 image carries seven Xcodes and rotates which one is the
