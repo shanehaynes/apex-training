@@ -315,11 +315,11 @@ is_skipped() {
   return 1
 }
 
-# Fleet mode needs the head branch too; the serial loop's field layout stays.
+# Fleet mode needs the head branch and SHA too; the serial loop's field layout stays.
 list_fleet_prs() {
   "$GH" pr list --state open --limit 200 \
-    --json number,title,baseRefName,isDraft,mergeStateStatus,headRefName \
-    --jq 'reverse | .[] | [.number, .baseRefName, (.isDraft|tostring), .mergeStateStatus, .headRefName, .title] | @tsv'
+    --json number,title,baseRefName,isDraft,mergeStateStatus,headRefName,headRefOid \
+    --jq 'reverse | .[] | [.number, .baseRefName, (.isDraft|tostring), .mergeStateStatus, .headRefName, .headRefOid, .title] | @tsv'
 }
 
 list_prs_for_mode() {
@@ -331,6 +331,19 @@ list_prs_for_mode() {
 protection_strict() {
   "$GH" api "repos/{owner}/{repo}/branches/main/protection/required_status_checks" \
     --jq '.strict' 2>/dev/null || true
+}
+
+# Has PR $1's head moved off $2, the SHA it was proven at? A moved head cannot
+# merge under its pin, so say so (WAIT, $3 is the title) and keep the PR in
+# the run: the next pass checks, folds and proves its new head, rather than
+# fail three merges and skip it as broken. Unreadable counts as not moved —
+# GitHub still refuses a pin that no longer matches.
+head_moved_off() {
+  local now
+  now=$("$GH" pr view "$1" --json headRefOid --jq .headRefOid 2>/dev/null) || return 1
+  [ -n "$now" ] && [ "$now" != "$2" ] || return 1
+  echo "WAIT  #$1 — its head moved after it was proven (${2:0:12}, now ${now:0:12}); the next pass checks and folds the new one. ($3)"
+  actionable=1
 }
 
 # Squash-merge one PR with the two audit records (a comment on the PR, a line
@@ -345,18 +358,10 @@ protection_strict() {
 # checks pass, and ios unwaited on. A migration PR is pinned to the head its
 # preflight checked production against (the fleet folds only that one).
 merge_pr() {
-  local number=$1 title=$2 mode=$3 pinned=${4:-} attempt body suffix="" now
+  local number=$1 title=$2 mode=$3 pinned=${4:-} attempt body suffix=""
   [ "$mode" = fleet ] && suffix=' [fleet]'
   [ -n "$pinned" ] || pinned=$(printf '%s\n' $checked_heads | awk -F: -v n="$number" '$1 == n { sha = $2 } END { print sha }')
-  # A head that moved cannot merge under its pin. Say so, and keep the PR in
-  # the run for the next pass to check, fold and prove its new head, rather
-  # than fail three times and skip it as broken. Unreadable: the pin still holds.
-  if [ -n "$pinned" ] && now=$("$GH" pr view "$number" --json headRefOid --jq .headRefOid 2>/dev/null) \
-     && [ -n "$now" ] && [ "$now" != "$pinned" ]; then
-    echo "WAIT  #$number — its head moved after it was proven (${pinned:0:12}, now ${now:0:12}); the next pass checks and folds the new one. ($title)"
-    actionable=1
-    return 1
-  fi
+  if [ -n "$pinned" ] && head_moved_off "$number" "$pinned" "$title"; then return 1; fi
   echo "MERGE #$number ($title)"
   if [ "$mode" = fleet ]; then
     if [ "$no_check" -eq 1 ]; then
@@ -432,7 +437,7 @@ required_green() {
 }
 
 fleet_pass() {
-  local number base draft state head title verdict tree head_sha base_sha cur i n before ready note reason rc fleet_migration="" pins=""
+  local number base draft state head oid title verdict tree head_sha base_sha cur i n before ready note reason rc fleet_migration="" pins=""
   # shas: the head each PR was folded at — what the proof sees and each merge is pinned to.
   local -a numbers=() shas=() titles=()
 
@@ -440,7 +445,7 @@ fleet_pass() {
   base_sha=$(git rev-parse origin/main)
   cur="$base_sha"
 
-  while IFS=$'\t' read -r number base draft state head title; do
+  while IFS=$'\t' read -r number base draft state head oid title; do
     [ -n "$number" ] || continue
     is_skipped "$number" && continue
 
@@ -452,6 +457,21 @@ fleet_pass() {
     if [ "$draft" = "true" ]; then
       echo "SKIP  #$number is a draft. ($title)"
       skipped="$skipped $number"
+      continue
+    fi
+    if ! head_sha=$(git rev-parse --quiet --verify "refs/remotes/origin/$head"); then
+      echo "SKIP  #$number — origin/$head is not a branch of this repo (a fork?). ($title)"
+      skipped="$skipped $number"
+      continue
+    fi
+    # The checks, the policy's file list and the migration test below are
+    # GitHub's account of the PR's head; the fold, the proof and the pinned
+    # merge are of the commit fetched above. GitHub's view can trail a push,
+    # so they must name one commit before anything is read — or a head whose
+    # checks, ios and paths nobody read is proven and merged under its own pin.
+    if [ "$oid" != "$head_sha" ]; then
+      echo "WAIT  #$number — GitHub reports head ${oid:0:12} but the fetch has ${head_sha:0:12} (a push in flight); next pass. ($title)"
+      actionable=1
       continue
     fi
 
@@ -547,11 +567,6 @@ fleet_pass() {
       skipped="$skipped $number"
       continue
     fi
-    if ! head_sha=$(git rev-parse --quiet --verify "refs/remotes/origin/$head"); then
-      echo "SKIP  #$number — origin/$head is not a branch of this repo (a fork?). ($title)"
-      skipped="$skipped $number"
-      continue
-    fi
     # The fold must be the head production was checked against — the merge is pinned to it.
     if [ "$preflight_touched" -eq 1 ] && [ "$head_sha" != "$preflight_head" ]; then
       echo "WAIT  #$number — its head moved between the fetch and the schema check ($head_sha vs $preflight_head); re-checked next pass. ($title)"
@@ -610,6 +625,14 @@ EOF
     echo "── origin/main moved during the proof — folding again next pass"
     return 0
   fi
+  # Likewise every head: one pushed during the proof merges none of the fleet,
+  # since the PRs ahead of it were proven with it, never without it.
+  for ((i = 0; i < n; i++)); do
+    if head_moved_off "${numbers[i]}" "${shas[i]}" "${titles[i]}"; then
+      echo "── fleet: #${numbers[i]} moved during the proof — nothing merged; folding again next pass"
+      return 0
+    fi
+  done
 
   # The proof was of the whole union: once one merge fails (a pinned head that
   # moved, say), the rest would land on a tree nobody proved — fold again instead.

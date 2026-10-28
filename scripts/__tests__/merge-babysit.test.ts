@@ -262,8 +262,19 @@ describe('merge-babysit.sh --fleet: each PR is proven and merged at the head tha
     // The real combine-check, where the babysitter does not call it.
     mkdirSync(join(work, 'bin'));
     copyFileSync(join(repo, 'scripts/combine-check.sh'), join(work, 'bin/combine-check.sh'));
-    // The one the babysitter calls records its arguments: --check would run agent:check.
-    writeFileSync(join(work, 'scripts/combine-check.sh'), '#!/usr/bin/env bash\nprintf \'%s\\n\' "$@" > "$COMBINE_ARGS"\n');
+    // The one the babysitter calls records its arguments (--check would run
+    // agent:check). With PUSH_DURING_PROOF=<n>:<sha>, GitHub reports that head
+    // for PR <n> from then on, as if it were pushed while the proof ran.
+    writeFileSync(join(work, 'scripts/combine-check.sh'), `#!/usr/bin/env bash
+printf '%s\\n' "$@" > "$COMBINE_ARGS"
+[ -z "\${PUSH_DURING_PROOF:-}" ] || node -e '
+  const fs = require("node:fs");
+  const [n, sha] = process.env.PUSH_DURING_PROOF.split(":");
+  const f = JSON.parse(fs.readFileSync(process.env.GH_FIXTURE, "utf8"));
+  f.prs.find((p) => String(p.number) === n).headRefOid = sha;
+  fs.writeFileSync(process.env.GH_FIXTURE, JSON.stringify(f));
+'
+`);
     chmodSync(join(work, 'scripts/combine-check.sh'), 0o755);
     git('add', '-A');
     git('-c', 'commit.gpgsign=false', 'commit', '-q', '-m', 'main');
@@ -296,7 +307,7 @@ describe('merge-babysit.sh --fleet: each PR is proven and merged at the head tha
   });
 
   /** stdout of a --fleet --yes run over these PRs (newest first, as gh lists them), its gh calls, and what combine-check was given. */
-  const fleet = async (prs: object[], args: string[] = []) => {
+  const fleet = async (prs: object[], args: string[] = [], env: Record<string, string> = {}) => {
     const fixture = join(tmp, `gh-${Math.random().toString(36).slice(2)}.json`);
     writeFileSync(fixture, JSON.stringify({ protection: { strict: false, contexts: ['check'] }, prs }));
     const gh = join(tmp, 'gh');
@@ -307,7 +318,7 @@ describe('merge-babysit.sh --fleet: each PR is proven and merged at the head tha
     try {
       out = (await run('bash', [join(work, 'scripts/merge-babysit.sh'), '--fleet', '--yes', '--max-minutes=0', ...args], {
         cwd: work,
-        env: { ...gitEnv, GH: gh, GH_FIXTURE: fixture, COMBINE_ARGS: combineArgs },
+        env: { ...gitEnv, GH: gh, GH_FIXTURE: fixture, COMBINE_ARGS: combineArgs, ...env },
       })).stdout;
     } catch (err) {
       out = (err as { stdout: string }).stdout;
@@ -340,14 +351,28 @@ describe('merge-babysit.sh --fleet: each PR is proven and merged at the head tha
     ]);
   });
 
-  it('merges nothing past a head that moved after the fold, and keeps that PR in the run', async () => {
+  it('merges none of the fleet when one head is pushed during the proof, and keeps that PR in the run', async () => {
+    // The last PR moves, so a merge-as-you-go would already have landed the first.
     const moved = '2'.repeat(40);
-    const { out, calls } = await fleet([pr(B, 'fix/fleet-b', shaB), pr(A, 'fix/fleet-a', moved)]);
-    expect(out).toContain(`WAIT  #${A} — its head moved after it was proven (${shaA.slice(0, 12)}, now ${moved.slice(0, 12)})`);
-    expect(out).toContain(`── fleet: #${A} did not merge — the rest of this fleet waits for a fresh fold and proof next pass`);
-    // Neither merged, no "Auto-merged" comment on a PR that did not merge, and not skipped for the run.
+    const { out, calls } = await fleet([pr(B, 'fix/fleet-b', shaB), pr(A, 'fix/fleet-a', shaA)], [], { PUSH_DURING_PROOF: `${B}:${moved}` });
+    expect(out).toContain(`FLEET #${B}`);
+    expect(out).toContain(`WAIT  #${B} — its head moved after it was proven (${shaB.slice(0, 12)}, now ${moved.slice(0, 12)})`);
+    expect(out).toContain(`── fleet: #${B} moved during the proof — nothing merged; folding again next pass`);
+    // Nothing merged, no "Auto-merged" comment on a PR that did not merge, and nothing skipped for the run.
     expect(calls.some((c) => c[1] === 'merge' || c[1] === 'comment')).toBe(false);
     expect(out).not.toMatch(/SKIP/);
+  });
+
+  it("waits, before reading anything about it, on a PR whose head GitHub reports is not the one fetched", async () => {
+    // GitHub's PR view trails a push: its checks and files would be another commit's.
+    const stale = '4'.repeat(40);
+    const { out, calls, combine } = await fleet([pr(B, 'fix/fleet-b', shaB), pr(A, 'fix/fleet-a', stale)]);
+    expect(out).toContain(`WAIT  #${A} — GitHub reports head ${stale.slice(0, 12)} but the fetch has ${shaA.slice(0, 12)} (a push in flight); next pass.`);
+    expect(out).not.toContain(`FLEET #${A}`);
+    expect(calls.some((c) => c[0] === 'pr' && c[2] === String(A))).toBe(false);
+    // The rest of the fleet goes ahead without it.
+    expect(combine).toEqual(['--check', '--sequential', shaB]);
+    expect(calls.filter((c) => c[1] === 'merge')).toEqual([['pr', 'merge', String(B), '--squash', '--match-head-commit', shaB]]);
   });
 
   it('combine-check folds a SHA as given, behind its branch tip, and names one it does not have', async () => {
