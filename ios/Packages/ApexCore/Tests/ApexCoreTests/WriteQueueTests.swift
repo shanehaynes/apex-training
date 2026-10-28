@@ -840,9 +840,10 @@ final class WriteQueueTests: XCTestCase {
         let saving = Task { [session] in try await queue.enqueue(edit, for: session) }
         while await store.tails < 2 { await Task.yield() }       // the second holds its tail read
         await sending.open()
-        // Main: the send lands and its row goes. Fixed: the settle waits for the save's turn.
-        var spins = 0
-        while await !store.all().isEmpty, spins < 200 { spins += 1; await Task.yield() }
+        // The send lands; its settle waits for the save's turn, so the row stays.
+        await waitForTurnWaiters(1, on: queue, in: session)
+        let rows = await store.all().count
+        XCTAssertEqual(rows, 1, "settled while the save held the lane")
         await reading.open()
         _ = try await saving.value
         await flush.value
@@ -1108,12 +1109,13 @@ final class WriteQueueTests: XCTestCase {
         let transport = ScriptedTransport([.throwNetwork, .throwNetwork, .ok()])
         let first = Gate()
         await transport.hold(with: first)
-        let store = MemoryWriteQueueStore()
+        let picking = Gate()
+        let store = HeldOpsStore(on: picking)
         let clock = HeldClock()
-        let queue = makeQueue(transport, store: store, clock: clock)
+        let queue = WriteQueue(store: store, client: makeClient(transport), clock: clock)
         var meal = try await queue.enqueue(.meal(oats), for: .outbox)
         meal.giveUpCount = TrackerOp.letGoThreshold
-        try await store.update(meal)
+        _ = try await store.update(meal)
         let flushing = Task { await queue.flush(.outbox) }
         while await transport.count == 0 { await Task.yield() }
 
@@ -1128,8 +1130,14 @@ final class WriteQueueTests: XCTestCase {
         let second = Gate()
         await transport.hold(with: second)
         await queue.resume()                                  // mid-send: the failure is re-sent at once
+        await store.arm()                                     // the next lane read is the drain's re-pick
         await first.open()
-        while await transport.count < 2 { await Task.yield() }
+        // The first send settles and wakes the let-go, but the drain has
+        // already taken the lane to pick the op again: the let-go waits for it.
+        await waitForTurnWaiters(1, on: queue, in: .outbox)
+        await picking.open()
+        // Picked again and in the air when the turn reaches the let-go: it
+        // waits out this send too.
         await waitFor(1, "let-go parked on the second send") { await queue.settleWaiterCount(for: id) }
         let early = await returned.isOpen
         XCTAssertFalse(early, "let go while the second send was in the air")
@@ -1138,7 +1146,7 @@ final class WriteQueueTests: XCTestCase {
         let letGo = await lettingGo.value
 
         XCTAssertEqual(letGo, .meal(oats))
-        let kept = await store.all.map(\.isRefused)
+        let kept = await queue.ops(for: .outbox).map(\.isRefused)
         XCTAssertEqual(kept, [true])
         let sent = await transport.count
         XCTAssertEqual(sent, 2)
