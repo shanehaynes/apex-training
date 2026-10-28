@@ -114,6 +114,7 @@ skipped=""
 in_flight_prs=""
 merged_any=0
 merged_count=0
+gave_up=0
 fleet_n=0
 fleet_base=""
 
@@ -381,7 +382,9 @@ merge_pr() {
 # folded tree, merge the PRs in that order. Sets actionable/merged_* like the
 # serial pass does, so end_of_pass decides whether to loop.
 
-# The contexts branch protection requires — the floor. Read once.
+# The contexts branch protection requires — the floor. Read once, in the
+# main shell before the loop: required_green runs inside $(...), where a load
+# would be lost with the subshell and repeated for every PR.
 required_contexts=""
 required_contexts_loaded=0
 load_required_contexts() {
@@ -391,29 +394,71 @@ load_required_contexts() {
   required_contexts_loaded=1
 }
 
-# Is this PR's head green where it matters? 0: every required check passed
-# and no check failed outright; 1 (reason on stdout): a required check is
-# red or cancelled, or a non-required job failed — advisory, but not
-# something to merge past blind; 2: still pending. mergeStateStatus alone
-# cannot say: UNSTABLE covers a superseded run's CANCELLED job and a failed
-# preview deploy alike, and neither is what the floor is about.
+# Is this PR's head green? 0: every required check passed and every other
+# check on the head finished without failing; 1 (reason on stdout): a check
+# is red; 2 (what it waits on, when known, on stdout): a check is still
+# running, or a required one has not reported. Both modes ask this, so a PR
+# is red or waiting by one definition. mergeStateStatus alone cannot say:
+# UNSTABLE covers a running job, a superseded run's CANCELLED job and a
+# failed preview deploy alike.
+#
+# Every check counts, not only the required ones. `ios` is not required
+# (branch protection is Shane's), yet it is the only proof that an iOS change
+# builds and passes its UI tests: the fleet's union proof runs agent:check,
+# which has neither. Counting only the required checks, fleet mode merged 12
+# of 16 iOS PRs (Oct 2026) while ios was still running, and 9 of those runs
+# ended red — #395 and #438 were cut off at the cap. A web-only PR waits only
+# for a macOS runner to start the skip: on the last 35 web-only PRs (Oct
+# 2026) ios finished before the last required check every time, but in the
+# saturated pool of the 2026-09-21 fleet #237's skip started 114 minutes
+# after its checks. That delays the waiting PR, not the others: each pass
+# merges whatever is ready. Copying CI's iOS-path rule here instead would
+# fail open the day the two drift.
+#
+# One verdict per check name, so a re-run decides and not the run it
+# replaced: a run still going makes the name pending, otherwise the newest
+# run is the verdict. A run the concurrency group superseded on this head has
+# a newer sibling, so its CANCELLED never decides. A CANCELLED that is the
+# newest run was cut off (timeout-minutes reports cancelled, not timed_out)
+# or cancelled by hand. Either way its tests never finished, so it is red.
+rollup_verdicts='
+  def verdict:
+    if .__typename == "CheckRun" and (.status // "COMPLETED") != "COMPLETED" then "PENDING"
+    else (.conclusion // .state // "PENDING") end;
+  [.statusCheckRollup[] | {name: (.name // .context), v: verdict, at: [(.startedAt // ""), (.completedAt // "")]}]
+  | group_by(.name) | .[]
+  | if any(.[]; .v == "PENDING" or .v == "EXPECTED" or .v == "") then "\(.[0].name)\tPENDING"
+    else (max_by(.at) | "\(.name)\t\(.v)") end'
 required_green() {
-  local rollup ctx st red
-  load_required_contexts || return 2
-  rollup=$("$GH" pr view "$1" --json statusCheckRollup \
-    --jq '.statusCheckRollup[] | "\(.name // .context)\t\(.conclusion // .state // "")"') || return 2
+  local rollup ctx st red="" pending=""
+  load_required_contexts || { echo "branch protection (could not read it)"; return 2; }
+  rollup=$("$GH" pr view "$1" --json statusCheckRollup --jq "$rollup_verdicts") || return 2
   for ctx in $required_contexts; do
     st=$(printf '%s\n' "$rollup" | awk -F'\t' -v c="$ctx" '$1 == c { print $2; exit }')
     case "$st" in
       SUCCESS) ;;
-      FAILURE|ERROR|TIMED_OUT|CANCELLED|ACTION_REQUIRED) echo "$ctx=$st (required)"; return 1 ;;
-      *) return 2 ;;
+      CANCELLED) red="$red $ctx=CANCELLED (required; cut off before it finished — re-run it)" ;;
+      FAILURE|ERROR|TIMED_OUT|ACTION_REQUIRED|STARTUP_FAILURE|STALE) red="$red $ctx=$st (required)" ;;
+      *) pending="$pending $ctx" ;;
     esac
   done
-  red=$(printf '%s\n' "$rollup" | awk -F'\t' '$2 == "FAILURE" || $2 == "ERROR" || $2 == "TIMED_OUT" { printf "%s=%s ", $1, $2 }')
+  while IFS=$'\t' read -r ctx st; do
+    [ -n "$ctx" ] || continue
+    case " $required_contexts " in *" $ctx "*) continue ;; esac
+    case "$st" in
+      SUCCESS|SKIPPED|NEUTRAL) ;;
+      PENDING) pending="$pending $ctx" ;;
+      CANCELLED) red="$red $ctx=CANCELLED (cut off before it finished — re-run it)" ;;
+      *) red="$red $ctx=$st" ;;
+    esac
+  done <<<"$rollup"
   if [ -n "$red" ]; then
-    echo "${red% }"
+    echo "${red# }"
     return 1
+  fi
+  if [ -n "$pending" ]; then
+    echo "${pending# }"
+    return 2
   fi
   return 0
 }
@@ -455,7 +500,7 @@ fleet_pass() {
             echo "SKIP  #$number has failing check(s): $reason ($title)"
             skipped="$skipped $number"
           else
-            echo "WAIT  #$number: CI still running on its head; next pass. ($title)"
+            echo "WAIT  #$number: CI still running on its head${reason:+ — waiting on $reason}; next pass. ($title)"
             actionable=1
           fi
           continue
@@ -479,7 +524,7 @@ fleet_pass() {
             echo "SKIP  #$number has failing check(s): $reason ($title)"
             skipped="$skipped $number"
           else
-            echo "WAIT  #$number: behind, CI still running. ($title)"
+            echo "WAIT  #$number: behind, CI still running${reason:+ — waiting on $reason}. ($title)"
             actionable=1
           fi
           continue
@@ -500,7 +545,7 @@ fleet_pass() {
             echo "SKIP  #$number has failing check(s): $reason ($title)"
             skipped="$skipped $number"
           else
-            echo "WAIT  #$number: $state — CI still running; next pass. ($title)"
+            echo "WAIT  #$number: $state — CI still running${reason:+ — waiting on $reason}; next pass. ($title)"
             actionable=1
           fi
           continue
@@ -625,9 +670,13 @@ end_of_pass() {
     fi
     return 1
   fi
+  # Giving up still runs the post-merge lifecycle for what this run already
+  # merged, then exits 1: a fleet waits on slow ios jobs, and a deadline that
+  # skipped deploy-verify would leave earlier merges unverified.
   if [ "$(date +%s)" -ge "$deadline" ]; then
     echo "── giving up after ${max_minutes}m — CI is slower than expected or something is wedged." >&2
-    exit 1
+    gave_up=1
+    return 1
   fi
   # After a merge GitHub recomputes every other PR's state; either way CI
   # needs real time. Poll, don't spin.
@@ -676,6 +725,8 @@ MSG
     echo "NOTE  could not read main's branch protection; --yes would refuse."
     ;;
 esac
+# A failure here is retried by each required_green call, which reports it.
+load_required_contexts || true
 
 # The files that decide what this run may do — this script, the policy and
 # everything else under scripts/, the settings that grant it, the guard hooks.
@@ -802,6 +853,20 @@ EOF
 
     case "$state" in
       CLEAN)
+        # CLEAN can be a moment stale — a head pushed seconds ago still reads
+        # CLEAN until its checks register — so read every check, as fleet
+        # mode does, before merging.
+        reason=$(required_green "$number") && rc=0 || rc=$?
+        if [ "$rc" -eq 1 ]; then
+          echo "SKIP  #$number has failing check(s): $reason ($title)"
+          skipped="$skipped $number"
+          continue
+        fi
+        if [ "$rc" -eq 2 ]; then
+          echo "WAIT  #$number: CLEAN, but CI still running${reason:+ — waiting on $reason}; next pass. ($title)"
+          actionable=1
+          continue
+        fi
         if ! verdict=$(policy_check "$number"); then
           echo "HOLD  #$number — ${verdict:-policy gave no verdict (fail closed)}"
           echo "      a human grants this one with: gh pr edit $number --add-label shipit  ($title)"
@@ -854,14 +919,20 @@ EOF
         skipped="$skipped $number"
         ;;
       BLOCKED|UNSTABLE|UNKNOWN)
-        # Checks still running, or GitHub hasn't computed mergeability yet.
-        # A failed required check also shows as BLOCKED — surface it.
-        failed=$("$GH" pr checks "$number" 2>/dev/null | grep -c $'\tfail' || true)
-        if [ "${failed:-0}" -gt 0 ]; then
-          echo "SKIP  #$number has $failed failing check(s) — fix before it can merge. ($title)"
+        # Checks still running, or GitHub hasn't computed mergeability yet. A
+        # red check shows as BLOCKED or UNSTABLE — surface it. A cut-off job
+        # is red here too: `gh pr checks` files it under "cancel", not
+        # "fail", so grepping for failures waited on it until the deadline.
+        # Only CLEAN merges in this loop, so all-green still waits.
+        reason=$(required_green "$number") && rc=0 || rc=$?
+        if [ "$rc" -eq 1 ]; then
+          echo "SKIP  #$number has failing check(s): $reason ($title)"
           skipped="$skipped $number"
+        elif [ "$rc" -eq 2 ]; then
+          echo "WAIT  #$number: $state — CI still running${reason:+ — waiting on $reason}. ($title)"
+          actionable=1
         else
-          echo "WAIT  #$number: $state — CI still running. ($title)"
+          echo "WAIT  #$number: $state, though every check finished green — GitHub has not called it CLEAN yet. ($title)"
           actionable=1
         fi
         ;;
@@ -881,7 +952,7 @@ done
 # Pressing the button is not the end of a merge: merged branches need
 # retiring, the primary checkout should read what main now says, and prod
 # must still route — a deploy follows every merge.
-[ "$apply" -eq 1 ] && [ "$merged_any" -eq 1 ] || exit 0
+[ "$apply" -eq 1 ] && [ "$merged_any" -eq 1 ] || exit "$gave_up"
 
 echo
 echo "── post-merge: retiring merged branches and worktrees"
@@ -915,3 +986,4 @@ scripts/deploy-verify.sh --max-minutes="$dv_minutes" || {
   echo "ACTION deploy verification failed — check production and the Vercel dashboard now." >&2
   exit 1
 }
+exit "$gave_up"
