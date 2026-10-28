@@ -200,10 +200,11 @@ once, prove they combine with `scripts/combine-check.sh` (pairwise
 on it).
 
 The babysitter is the only merge path, and it merges only what
-`scripts/merge-policy.mjs` allows. It is **not** allow-listed today, so running
-it still prompts; granting an unattended run means adding a `permissions.allow`
-entry to `.claude/settings.json`, which the policy holds for exactly that
-reason. Migrations, `.github/`, `scripts/ci-guards.sh`, `vercel.json`,
+`scripts/merge-policy.mjs` allows. Exactly two invocations are allow-listed
+in `.claude/settings.json` and run without a prompt: `scripts/merge-babysit.sh
+--yes` and `scripts/merge-babysit.sh --fleet --yes` (any other flag, e.g.
+`--no-check`, still prompts). The policy holds that file, so widening the grant
+is Shane's call. Migrations, `.github/`, `scripts/ci-guards.sh`, `vercel.json`,
 dependency manifests, the iOS release surface (`ios/fastlane/`, `ios/scripts/`,
 `ios/project.yml`, `ios/Config/`, the entitlements, the `Info.plist`s and
 `PrivacyInfo.xcprivacy`), and every file of the automation itself are HELD for

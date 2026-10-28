@@ -39,9 +39,12 @@
 # the stacked-PR trap that once merged #23 into its base and took production
 # down, so those are reported and skipped, never merged.
 #
-# --yes is NOT allow-listed in .claude/settings.json today, so every run still
-# prompts; a permissions.allow entry there is what would grant an unattended
-# run, and that is Shane's to add. The bounds hold either way: branch
+# `--yes` and `--fleet --yes` are allow-listed in .claude/settings.json, so
+# those exact invocations run without a prompt. A grant names a relative path,
+# so it would also cover a worktree's unreviewed copy of this script and of
+# the policy; under --yes the run therefore refuses, every pass, unless the
+# automation it is about to execute matches origin/main exactly
+# (automation_is_main below). The bounds hold either way: branch
 # protection means nothing red can land, and scripts/merge-policy.mjs HOLDs
 # any PR touching migrations, CI,
 # routing, dependencies, or the automation itself — a human grants those per
@@ -674,10 +677,40 @@ MSG
     ;;
 esac
 
+# The files that decide what this run may do — this script, the policy and
+# everything else under scripts/, the settings that grant it, the guard hooks.
+AUTOMATION_PATHS=(scripts .claude/settings.json .claude/skills/parallel-agents/hooks)
+
+# 0 when the checkout's automation is byte-for-byte origin/main's: no tracked
+# change (staged or not), no untracked file. Otherwise the reason on stdout.
+# The policy is what HOLDs a change to these files from merging; running a
+# modified copy directly would skip it, so --yes runs only main's.
+automation_is_main() {
+  local untracked
+  if ! git fetch -q origin main 2>/dev/null; then
+    echo "could not fetch origin/main to compare the automation against"
+    return 1
+  fi
+  if ! git diff --quiet origin/main -- "${AUTOMATION_PATHS[@]}" 2>/dev/null; then
+    echo "the automation in $(pwd -P) differs from origin/main: $(git diff --name-only origin/main -- "${AUTOMATION_PATHS[@]}" | tr '\n' ' ')— run --yes from a checkout at origin/main (git -C <primary> pull --ff-only)"
+    return 1
+  fi
+  untracked=$(git ls-files --others --exclude-standard -- "${AUTOMATION_PATHS[@]}")
+  if [ -n "$untracked" ]; then
+    echo "untracked automation files in $(pwd -P): $(printf '%s' "$untracked" | tr '\n' ' ')"
+    return 1
+  fi
+}
+
 while :; do
   # Checked every pass, not once: touching the file halts a loop mid-run too.
   if [ "$apply" -eq 1 ] && [ -e "$kill_switch" ]; then
     echo "── kill switch: $kill_switch exists — no autonomous merging until it is removed." >&2
+    exit 1
+  fi
+  # Every pass too: an edit to the policy mid-run would apply from the next call.
+  if [ "$apply" -eq 1 ] && ! not_main=$(automation_is_main); then
+    echo "── --yes refused: $not_main" >&2
     exit 1
   fi
 

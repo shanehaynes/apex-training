@@ -193,6 +193,32 @@ describe('merge-babysit.sh: a migration PR merges only onto a production that al
     expect(ghCalls).toContainEqual(['pr', 'merge', String(PR), '--squash', '--match-head-commit', headSha]);
   });
 
+  it('refuses --yes, before any gh merge, when the policy it would run is not main\'s', async () => {
+    ledger = [...onMain(), pullHead()];
+    const policy = join(work, 'scripts/merge-policy.mjs');
+    const original = readFileSync(policy, 'utf8');
+    writeFileSync(policy, 'process.exit(0);\n');
+    try {
+      const out = await babysit(['shipit'], { args: ['--yes', '--max-minutes=0'] }).catch((e) => String(e));
+      expect(ghCalls.some((c) => c[0] === 'pr' && c[1] === 'merge')).toBe(false);
+      expect(out).not.toContain(`MERGE #${PR}`);
+    } finally {
+      writeFileSync(policy, original);
+    }
+  });
+
+  it('refuses --yes when an untracked script sits beside the automation', async () => {
+    ledger = [...onMain(), pullHead()];
+    const extra = join(work, 'scripts/extra.mjs');
+    writeFileSync(extra, '');
+    try {
+      await babysit(['shipit'], { args: ['--yes', '--max-minutes=0'] });
+      expect(ghCalls.some((c) => c[0] === 'pr' && c[1] === 'merge')).toBe(false);
+    } finally {
+      rmSync(extra);
+    }
+  });
+
   it('waits, without merging or giving up on the PR, when the head GitHub reports is not the one fetched', async () => {
     ledger = [...onMain(), pullHead()];
     const out = await babysit(['shipit'], { headRefOid: '1'.repeat(40) });

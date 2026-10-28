@@ -232,10 +232,12 @@ same fleet by hand and `main` has not moved since.
 
 `scripts/merge-babysit.sh --yes` is the only merge path: the guard hook blocks a
 direct `gh pr merge`, so every merge goes through the loop and its audit trail.
-Running it is still an ordinary permission prompt — **no session is allow-listed
-to run it unattended today.** Granting that means adding a `permissions.allow`
-entry to [.claude/settings.json](.claude/settings.json), and it is Shane's to
-add: the policy holds that file for exactly this reason.
+Two invocations are allow-listed in [.claude/settings.json](.claude/settings.json)
+and run without a prompt: `scripts/merge-babysit.sh --yes` and
+`scripts/merge-babysit.sh --fleet --yes`. The rules are exact strings, not
+prefixes, so any other flag — `--no-check` above all, which skips the union
+proof on the operator's word — still prompts. Widening the grant is Shane's:
+the policy holds that file for exactly this reason (`docs/specs/agent-autonomy.md`).
 
 Granted or not, what the loop may do is bounded on four sides — which is what
 makes granting it a small decision rather than a large one:
