@@ -22,6 +22,19 @@ final class WriteQueueTests: XCTestCase {
         .save(SavePayload(setLogs: rows, removedSets: removed))
     }
 
+    /// Waits until `count` sleeps are held on `clock`. Each retry is a task of its
+    /// own, so it reaches the clock some time after the flush that scheduled it
+    /// returns, and two retries reach it in no promised order.
+    private func waitForHeldSleeps(
+        _ count: Int, on clock: HeldClock, file: StaticString = #filePath, line: UInt = #line
+    ) async {
+        let deadline = Date().addingTimeInterval(5)
+        while clock.heldSleeps < count, Date() < deadline {
+            try? await Task.sleep(nanoseconds: 1_000_000)
+        }
+        XCTAssertEqual(clock.heldSleeps, count, "sleeps held on the clock", file: file, line: line)
+    }
+
     // MARK: - Send
 
     func testASaveFlushesAsOnePostAndLeavesNoRow() async throws {
@@ -188,10 +201,12 @@ final class WriteQueueTests: XCTestCase {
         let queue = makeQueue(transport, clock: clock)
         try await queue.enqueue(save([setRow(1)]), for: session)
         await queue.flush(session)  // fails: a 1s retry waits on the clock
+        await waitForHeldSleeps(1, on: clock)
         // A trigger lands after that backoff but before its sleep ends; its send
         // fails too, and the 2s retry it schedules replaces the 1s one.
         clock.advance(by: 1)
         await queue.flush(session)
+        await waitForHeldSleeps(2, on: clock)  // the called-off 1s sleep stays held until open()
         await queue.purgeAll()  // calls off the 2s retry
         try await queue.enqueue(save([setRow(2)]), for: session)
 
