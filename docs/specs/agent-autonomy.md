@@ -86,7 +86,7 @@ Everything else — `do`, `create function`, `create view`, triggers, `update`,
 `insert` (other than the stamp), `drop`, `alter column`, `rename`, `alter policy`,
 `create extension`, `begin`/`commit` — is non-additive.
 - [ ] Every migration on `main` classifies without throwing; a test pins the
-  additive/non-additive verdict for each existing file (a snapshot of 59 verdicts).
+  additive/non-additive verdict for each existing file (a snapshot, one verdict per file).
 - [ ] Adversarial tests: a policy on an existing table, `grant … to anon`, a table
   without RLS, a `create table … as select`, a function hidden in a `do` block, a
   second statement after the stamp, an edited stamp, `concurrently` — each held,
