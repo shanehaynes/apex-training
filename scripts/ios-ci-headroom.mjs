@@ -14,10 +14,11 @@
 // for.
 //
 // A run counts when its `Build and test` step was not skipped (a PR that
-// changes no iOS path finishes the job in seconds) and its job took at least
-// cap − 15 minutes. A run the cap killed ends `cancelled` at or past the cap,
-// so it counts too. Every attempt of a re-run is looked at; the count is of
-// runs.
+// changes no iOS path skips `ios` at job level, so the job reports no steps;
+// one whose path decision failed stops at the first step) and its job took at
+// least cap − 15 minutes. A run the cap killed ends `cancelled` at or past the
+// cap, so it counts too. Every attempt of a re-run is looked at; the count is
+// of runs.
 //
 // Prints its own lines in the report's style (ACTION at column 0, status
 // indented). Exit codes follow scripts/signup-cap-check.mjs: 0 nothing near

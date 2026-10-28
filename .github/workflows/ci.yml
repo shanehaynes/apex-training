@@ -145,8 +145,63 @@ jobs:
           swift-version: "6.1"
       - run: swift test --package-path ios/Packages/ApexCore
 
+  # Whether `ios` must run, decided on ubuntu so that a web-only change never
+  # waits for a macOS runner only to learn it has nothing to do. When the skip
+  # ran inside `ios` on macos-26, #237's started 114 minutes after its other
+  # checks.
+  #
+  # scripts/__tests__/ci-ios-paths.test.ts runs the script between the
+  # ios-paths markers, so the whole decision stays inside them. It writes
+  # ios=true or ios=false on every path that finishes:
+  # - push, schedule and dispatch: true. There the merge base *is* HEAD, so the
+  #   diff is empty and would skip every time; the nightly run, the one that
+  #   most needs to build the app, would never build it.
+  # - a pull request or merge group: false only when its diff from the merge
+  #   base touches neither ios/ nor this file. The whole file counts, not just
+  #   the ios job, so a coach-gate edit runs ios too, and a broken step here
+  #   shows up on its PR rather than on main's push run.
+  # - anything else, a failed merge-base included: true.
+  changes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      ios: ${{ steps.paths.outputs.ios }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Decide whether ios must run
+        id: paths
+        run: |
+          # ios-paths:begin
+          ios=true
+          case "$GITHUB_EVENT_NAME" in
+            pull_request | merge_group)
+              if base=$(git merge-base origin/main HEAD) &&
+                git diff --quiet "$base" HEAD -- ios/ .github/workflows/ci.yml; then
+                ios=false
+              fi
+              ;;
+          esac
+          echo "ios=$ios"
+          echo "ios=$ios" >> "$GITHUB_OUTPUT"
+          # ios-paths:end
+
   # The iOS app: generate the project, build it, run the unit and UI tests on a
   # simulator.
+  #
+  # Skipped at job level when `changes` says the change touches no iOS path. A
+  # job skipped by its `if:` passes a required check, so a web-only PR gets its
+  # `ios` check without a macOS runner. An `on.paths` filter cannot do that:
+  # a required check that never starts blocks the merge forever.
+  #
+  # Because a skip passes, the skip fails closed. `ios` skips only when
+  # `changes` succeeded and said false:
+  # - `changes` failed, timed out or was cancelled: `ios` runs, and its first
+  #   step fails naming `changes`. `!cancelled()` replaces the implicit
+  #   success(), which would skip `ios` whenever `changes` failed.
+  # - `changes` succeeded without writing `ios=`: the output reads as '' and
+  #   `ios` builds. Hence `!= 'false'`; `== 'true'` would skip.
   #
   # macos-26 rather than macos-15: ApexKit's manifest is swift-tools-version 6.2
   # and the sources are Swift 6.3, which an older runner's Xcode cannot build.
@@ -166,34 +221,19 @@ jobs:
   # #502 (a 20-minute build and a 12-minute first launch) would have needed
   # ~57.
   ios:
+    needs: changes
+    if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.ios != 'false') }}
     runs-on: macos-26
     timeout-minutes: 75
     steps:
+      - name: Fail when the changes job did not decide
+        if: needs.changes.result != 'success'
+        run: |
+          echo "::error::The changes job ended '${{ needs.changes.result }}', so nothing decided whether this change touches iOS. ios fails rather than skip, because a skipped ios passes as green. Re-run the workflow."
+          exit 1
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-      # An `on.paths` filter would be the obvious way to skip web-only PRs, but
-      # path filters and required checks do not compose: a required check that
-      # never starts blocks the merge queue forever. The job always runs and
-      # finishes in seconds when no iOS file changed.
-      #
-      # Only PRs skip. On push/schedule/dispatch the merge base *is* HEAD, so the
-      # diff is empty and this would skip every time — the nightly run would then
-      # never build the app at all, which is the one run that most needs to.
-      #
-      # This file counts as an iOS path, so a PR that edits it runs this job
-      # instead of leaving main's push run to find a broken step. The whole
-      # file counts, not just this job, so a coach-gate edit runs it too.
-      # `ios` is not a required check and nothing waits for it, so before
-      # `shipit` on a ci.yml PR, check this job by hand.
-      - name: Skip when a pull request changes no iOS paths
-        if: github.event_name == 'pull_request' || github.event_name == 'merge_group'
-        run: |
-          base=$(git merge-base origin/main HEAD)
-          if git diff --quiet "$base" HEAD -- ios/ .github/workflows/ci.yml ; then
-            echo "no ios/ or ci.yml changes"
-            echo "skip=1" >> "$GITHUB_ENV"
-          fi
       # The macos-26 image carries seven Xcodes and rotates which one is the
       # default (it moved to 26.6 on 2026-07-21, and 27 is already on the image
       # as a preview). A default that changes under us changes the compiler, the
@@ -201,10 +241,8 @@ jobs:
       # version is a file in the repo. Bumping ios/.xcode-version is how the
       # toolchain moves — deliberately, in a PR this job then proves.
       #
-      # It must come after the checkout (it reads a repo file) and after the skip
-      # check, so a web-only PR still finishes in seconds.
+      # It must come after the checkout: it reads a repo file.
       - name: Select the pinned Xcode
-        if: env.skip != '1'
         run: |
           version=$(tr -d '[:space:]' < ios/.xcode-version)
           app="/Applications/Xcode_${version}.app"
@@ -216,7 +254,6 @@ jobs:
           sudo xcode-select -s "$app/Contents/Developer"
           xcodebuild -version
       - run: brew install xcodegen
-        if: env.skip != '1'
       # The SwiftPM graph, cached. supabase-swift and GRDB are clones from
       # github.com, and swift-syntax (pulled in by snapshot-testing and by
       # supabase's macros) is the expensive one: an unreachable host, or a
@@ -238,7 +275,6 @@ jobs:
       # hit. Saved from main it is one entry that every PR restores from.
       - uses: actions/cache/restore@v6
         id: swiftpm
-        if: env.skip != '1'
         with:
           path: |
             ~/Library/Caches/org.swift.swiftpm
@@ -247,11 +283,9 @@ jobs:
           restore-keys: |
             swiftpm-${{ runner.os }}-
       - run: xcodegen generate --spec ios/project.yml
-        if: env.skip != '1'
       # The committed transitive resolution, in place before xcodebuild resolves
       # the package graph. A no-op while ios/Package.resolved is absent.
       - run: ios/scripts/sync-package-resolved.sh
-        if: env.skip != '1'
       # CODE_SIGNING_ALLOWED=NO: a simulator build needs no identity, and the
       # runner has none. Local is the only configuration whose Supabase values
       # are committed, so it is the only one CI can build.
@@ -277,7 +311,6 @@ jobs:
       # .xcresult marks the test "passed on retry", and that is the only place
       # the real flake rate is visible.
       - name: Build and test
-        if: env.skip != '1'
         run: |
           xcodebuild \
             -project ios/Apex.xcodeproj \
@@ -294,7 +327,7 @@ jobs:
       # not already there: a prefix restore is a warm start, not a reason to
       # write 803 MB back.
       - uses: actions/cache/save@v6
-        if: env.skip != '1' && github.ref == 'refs/heads/main' && steps.swiftpm.outputs.cache-hit != 'true'
+        if: github.ref == 'refs/heads/main' && steps.swiftpm.outputs.cache-hit != 'true'
         with:
           path: |
             ~/Library/Caches/org.swift.swiftpm
@@ -305,7 +338,7 @@ jobs:
       # so it skips itself there; the .xcresult is what a Linux session reads
       # with `gh run download` when it needs to see what happened.
       - uses: actions/upload-artifact@v7
-        if: always() && env.skip != '1'
+        if: always()
         with:
           name: ios-results
           path: ios/build/Apex.xcresult
@@ -404,10 +437,12 @@ jobs:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-      # Same reasoning as the ios job above: an `on.paths` filter and a
-      # required check do not compose — a required check that never starts
-      # blocks the merge queue forever. So the job always starts and skips
-      # itself in seconds when the PR touches nothing the coach gate covers.
+      # An `on.paths` filter and a required check do not compose: a required
+      # check that never starts blocks the merge queue forever. So the job
+      # always starts and skips itself in seconds when the PR touches nothing
+      # the coach gate covers. That costs only an ubuntu runner, which is never
+      # the wait; `ios` above decides in a separate job instead because its
+      # own runner is a scarce macOS one.
       # A change to the @anthropic-ai/sdk version the lockfile resolves is a
       # coach change too (SDK defaults ride on every coach call), so it runs
       # the gate even when no coach file moved. Other dependency bumps skip.

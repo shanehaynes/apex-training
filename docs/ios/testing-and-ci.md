@@ -78,27 +78,43 @@ apexcore-linux:
       with: { swift-version: "6.1" }          # ApexCore is tools-version 6.0; no Apple SDK needed
     - run: swift test --package-path ios/Packages/ApexCore
 
+changes:
+  # Decides on ubuntu whether ios must run. In ci.yml the script sits between
+  # ios-paths markers, and scripts/__tests__/ci-ios-paths.test.ts runs it from there.
+  runs-on: ubuntu-latest
+  timeout-minutes: 5
+  outputs: { ios: "${{ steps.paths.outputs.ios }}" }
+  steps:
+    - uses: actions/checkout@v7
+      with: { fetch-depth: 0 }
+    - id: paths
+      run: |
+        ios=true
+        case "$GITHUB_EVENT_NAME" in
+          pull_request | merge_group)
+            if base=$(git merge-base origin/main HEAD) &&
+              git diff --quiet "$base" HEAD -- ios/ .github/workflows/ci.yml; then ios=false; fi ;;
+        esac
+        echo "ios=$ios" >> "$GITHUB_OUTPUT"
+
 ios:
+  needs: changes
+  if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.ios != 'false') }}
   # macos-15's default Xcode cannot build a tools-version 6.2 manifest or Swift 6.3
   # sources, which is what ApexKit is.
   runs-on: macos-26
   timeout-minutes: 75
   steps:
+    - name: Fail when the changes job did not decide
+      if: needs.changes.result != 'success'
+      run: echo "::error::The changes job ended '${{ needs.changes.result }}' …"; exit 1
     - uses: actions/checkout@v7
       with: { fetch-depth: 0 }
-    - name: Skip when no iOS paths changed
-      if: github.event_name == 'pull_request' || github.event_name == 'merge_group'
-      run: |
-        base=$(git merge-base origin/main HEAD)
-        if git diff --quiet "$base" HEAD -- ios/ .github/workflows/ci.yml ; then echo "no ios/ or ci.yml changes"; echo "skip=1" >> "$GITHUB_ENV"; fi
     - run: brew install xcodegen
-      if: env.skip != '1'
     - run: xcodegen generate --spec ios/project.yml
-      if: env.skip != '1'
     - run: xcodebuild -project ios/Apex.xcodeproj -scheme Apex -configuration Local -destination 'platform=iOS Simulator,name=iPhone 17,OS=26.5' -derivedDataPath ios/build/dd -resultBundlePath ios/build/Apex.xcresult -retry-tests-on-failure -test-iterations 2 CODE_SIGNING_ALLOWED=NO test
-      if: env.skip != '1'
     - uses: actions/upload-artifact@v7
-      if: always() && env.skip != '1'
+      if: always()
       with: { name: ios-results, path: ios/build/Apex.xcresult, retention-days: 7 }
 ```
 
@@ -122,15 +138,29 @@ the cap again. First find out whether the first launch is the simulator still bo
 `xcrun simctl boot` plus `xcrun simctl bootstatus -b` step before the build for a few runs. If
 it is, boot it during the build; if not, shard ApexUITests across jobs.
 
-A run the cap kills ends `cancelled`, with an `.xcresult` that cannot be read, and
-`merge-babysit.sh` does not count `cancelled` as red. So the cap frees the runner, but a hang
-still shows up as no test result at all.
+A run the cap kills ends `cancelled`, with an `.xcresult` that cannot be read. So the cap frees
+the runner, but a hang still shows up as no test result at all.
 
-Why the early-exit instead of `on.paths`: the merge queue's `merge_group` event and required
-status checks do not compose with path filters — a required check that never starts blocks the
-queue. The job always starts and finishes green in seconds for web-only PRs. `ci.yml` counts
-as an iOS path (the whole file), so a PR that edits it runs this job. `ios` is not a required
-check and nothing waits for it, so before `shipit` on a `ci.yml` PR, check it by hand.
+Why a job-level skip decided on ubuntu, instead of `on.paths` or a skip inside the job:
+- A path filter does not compose with required status checks (or the merge queue's
+  `merge_group` event): a required check that never starts blocks the merge forever.
+- A skip step inside `ios` needs a macOS runner just to exit, so every web-only PR waits for
+  one. In the 2026-09-21 fleet, #237's skip started 114 minutes after its other checks, and a
+  macOS outage would hold every web-only PR whose `ios` is required.
+- So the `changes` job decides on ubuntu, and `ios` is skipped at job level. GitHub counts a
+  job skipped by its `if:` as passing a required check.
+
+Because a skip passes, the skip fails closed: `ios` skips only when `changes` succeeded and
+said `false`.
+- A `changes` that failed, timed out or was cancelled makes `ios` run, and its first step fails
+  with an `::error::` naming `changes`. `!cancelled()` replaces the implicit `success()`, which
+  would skip `ios` whenever `changes` failed.
+- A `changes` that succeeded without writing `ios=` leaves the output `''`, and `ios` builds.
+  That is why the condition is `!= 'false'`: `== 'true'` would skip.
+
+Push, schedule and dispatch always build: there the merge base is HEAD, so the diff is empty
+and would skip the nightly run, the one that most needs to build the app. `ci.yml` counts as
+an iOS path (the whole file, so a `coach-gate` edit too), and a PR that edits it runs this job.
 
 Why `-retry-tests-on-failure -test-iterations 2`: a failed test is run once more and the job
 is green if the second run passes — and the `.xcresult` marks it "passed on retry", which is
