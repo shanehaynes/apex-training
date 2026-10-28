@@ -82,6 +82,16 @@ export const HELD = [
   { path: 'evals/baseline/', reason: 'redefines what correct coach behavior is' },
 ];
 
+// Files npm reads wherever they sit: a nested manifest, an .npmrc (which can
+// point every registry URL at another host), a shrinkwrap (which npm ci
+// prefers over package-lock.json), other package managers' lockfiles.
+export const HELD_PATTERNS = [
+  { re: /(^|\/)\.npmrc$/, reason: 'npm configuration (registry, scripts) — dependency changes deserve a human eye' },
+  { re: /(^|\/)npm-shrinkwrap\.json$/, reason: 'npm ci prefers it over package-lock.json' },
+  { re: /(^|\/)(?:yarn\.lock|\.yarnrc(?:\.yml)?|pnpm-lock\.yaml|pnpm-workspace\.yaml|bun\.lockb?)$/, reason: 'another package manager\'s manifest' },
+  { re: /^.+\/package\.json$/, reason: 'a nested package manifest' },
+];
+
 export const GRANT_LABEL = 'shipit';
 
 const SEMVER_RANGE = /^(?:[~^]|[<>]=?|=)?\s*v?\d+(?:\.(?:\d+|x|\*)){0,2}(?:-[0-9A-Za-z.-]+)?(?:\s*(?:\|\||-)?\s*(?:[~^]|[<>]=?|=)?\s*v?\d+(?:\.(?:\d+|x|\*)){0,2}(?:-[0-9A-Za-z.-]+)?)*$/;
@@ -120,7 +130,18 @@ export function manifestHold(before, after) {
   return null;
 }
 
-/** Why this package-lock.json needs a human, or null when every package comes from the registry and none newly runs an install script. */
+const LOCK_KEY = /^(?:node_modules\/(?:@[^/.][^/]*\/)?[^/.][^/]*\/)*node_modules\/(?:@[^/.][^/]*\/)?[^/.][^/]*$/;
+const TARBALL = /^https:\/\/registry\.npmjs\.org\/((?:@[^/]+\/)?[^/]+)\/-\//;
+const keyName = (path) => path.replace(/^.*node_modules\//, '');
+
+/**
+ * Why this package-lock.json needs a human, or null when every entry is the
+ * registry tarball of the package its key installs, with an integrity hash,
+ * and none newly runs an install script. The name check is what makes "the
+ * registry" mean "this publisher": an entry's key is the name it installs as,
+ * so a tarball of any other name is a swap (or an npm: alias, which is held
+ * in package.json too unless the lockfile already had it).
+ */
 export function lockfileHold(before, after) {
   if (after == null) return 'package-lock.json is deleted';
   const a = parse(after);
@@ -128,19 +149,33 @@ export function lockfileHold(before, after) {
   const b = before == null ? null : parse(before);
   if (before != null && !b) return 'package-lock.json (before) does not parse';
   const scripted = new Set();
+  const aliases = new Set();
   for (const [path, entry] of Object.entries(b?.packages ?? {})) {
-    if (entry?.hasInstallScript) scripted.add(`${path.replace(/^.*node_modules\//, '')}`);
+    if (entry?.hasInstallScript) scripted.add(`${keyName(path)}=${entry.name ?? keyName(path)}`);
+    if (entry?.name && entry.name !== keyName(path)) aliases.add(`${keyName(path)}=${entry.name}`);
   }
   for (const [path, entry] of Object.entries(a.packages)) {
-    if (path === '' || entry?.link) continue;
+    if (path === '') continue;
     if (!entry || typeof entry !== 'object') return `package-lock.json entry ${path} is malformed`;
-    if (entry.inBundle && entry.resolved === undefined) continue;
-    if (typeof entry.resolved !== 'string' || !entry.resolved.startsWith(REGISTRY)) {
-      return `${path} resolves outside the npm registry (${entry.resolved ?? 'no resolved URL'})`;
+    if (!LOCK_KEY.test(path)) return `package-lock.json has an entry outside node_modules: ${path}`;
+    if (entry.link) return `${path} is a link`;
+    const name = keyName(path);
+    const real = typeof entry.name === 'string' ? entry.name : name;
+    if (real !== name && !aliases.has(`${name}=${real}`)) return `${path} is a new alias for ${real}`;
+    if (entry.inBundle) {
+      const parent = path.slice(0, path.lastIndexOf('/node_modules/'));
+      const bundled = a.packages[parent]?.bundleDependencies ?? a.packages[parent]?.bundledDependencies;
+      if (!parent || !Array.isArray(bundled) || !bundled.includes(name)) return `${path} claims to be bundled but its parent does not bundle it`;
+      if (entry.resolved === undefined) continue;
+    }
+    const m = typeof entry.resolved === 'string' ? TARBALL.exec(entry.resolved) : null;
+    if (!m) return `${path} resolves outside the npm registry (${entry.resolved ?? 'no resolved URL'})`;
+    if (m[1] !== real) return `${path} resolves to a different package (${m[1]})`;
+    if (entry.resolved !== `${REGISTRY}${real}/-/${real.split('/').pop()}-${entry.version}.tgz`) {
+      return `${path} resolves to ${entry.resolved}, not ${real}@${entry.version}`;
     }
     if (typeof entry.integrity !== 'string' || !/^sha(?:256|384|512)-/.test(entry.integrity)) return `${path} has no integrity hash`;
-    const name = path.replace(/^.*node_modules\//, '');
-    if (entry.hasInstallScript && !scripted.has(name)) return `${name} newly runs an install script`;
+    if (entry.hasInstallScript && !scripted.has(`${name}=${real}`)) return `${name} newly runs an install script`;
   }
   return null;
 }
@@ -174,7 +209,8 @@ export function decide(paths, labels, changed = paths.length, sources = undefine
   }
   const held = [];
   for (const p of paths) {
-    const rule = HELD.find((r) => (r.path.endsWith('/') ? p.startsWith(r.path) : p === r.path));
+    const rule = HELD.find((r) => (r.path.endsWith('/') ? p.startsWith(r.path) : p === r.path))
+      ?? HELD_PATTERNS.find((r) => r.re.test(p));
     if (!rule) continue;
     const check = Object.hasOwn(CONDITIONAL, p) ? CONDITIONAL[p] : null;
     const why = check ? check(sources) : null;
@@ -214,15 +250,22 @@ export function gatherSources(paths, number, head) {
   } catch {
     return undefined;
   }
+  // null only when the file is absent at `rev`; a read that fails for any
+  // other reason (maxBuffer, a git error) makes the whole read fail closed.
   const show = (rev, p) => {
     try {
-      return execFileSync('git', ['show', `${rev}:${p}`], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, stdio: ['ignore', 'pipe', 'ignore'] });
+      execFileSync('git', ['cat-file', '-e', `${rev}:${p}`], { stdio: 'ignore' });
     } catch {
       return null;
     }
+    return execFileSync('git', ['show', `${rev}:${p}`], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, stdio: ['ignore', 'pipe', 'ignore'] });
   };
   const out = {};
-  for (const p of wanted) out[p] = { before: show(base, p), after: show(head, p) };
+  try {
+    for (const p of wanted) out[p] = { before: show(base, p), after: show(head, p) };
+  } catch {
+    return undefined;
+  }
   return out;
 }
 

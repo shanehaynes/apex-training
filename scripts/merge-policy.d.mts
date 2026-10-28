@@ -4,6 +4,9 @@
 /** A held path rule: `path` ending in `/` holds the whole directory. */
 export const HELD: ReadonlyArray<{ path: string; reason: string }>;
 
+/** Held by pattern: files npm or other package managers read wherever they sit. */
+export const HELD_PATTERNS: ReadonlyArray<{ re: RegExp; reason: string }>;
+
 /** The label a human applies to a PR to override a hold. */
 export const GRANT_LABEL: string;
 
