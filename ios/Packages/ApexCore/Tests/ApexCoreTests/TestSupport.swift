@@ -83,6 +83,9 @@ final class HeldClock: ApexClock, @unchecked Sendable {
     /// Sleeps waiting for `open()`.
     var heldSleeps: Int { withLock { held.count } }
 
+    /// Held sleeps whose task was cancelled: called-off retries not yet ended.
+    var cancelledHeldSleeps: Int { withLock { held.values.filter(\.cancelled).count } }
+
     func sleep(seconds: Double) async throws {
         let id = UUID()
         try await withTaskCancellationHandler {
@@ -103,6 +106,34 @@ final class HeldClock: ApexClock, @unchecked Sendable {
     func open() {
         let ended = withLock {
             isOpen = true
+            let ended = Array(held.values)
+            held = [:]
+            return ended
+        }
+        for sleep in ended {
+            if sleep.cancelled {
+                sleep.continuation.resume(throwing: CancellationError())
+            } else {
+                sleep.continuation.resume()
+            }
+        }
+    }
+
+    /// Ends only the cancelled held sleeps, as `Task.sleep` ends one at once,
+    /// and keeps the rest held: a called-off retry winds down while the retry
+    /// that replaced it still waits.
+    func endCancelled() {
+        let ended = withLock {
+            let ended = held.filter { $0.value.cancelled }
+            for id in ended.keys { held[id] = nil }
+            return Array(ended.values)
+        }
+        for sleep in ended { sleep.continuation.resume(throwing: CancellationError()) }
+    }
+
+    /// Lets every sleep held right now finish, and stays closed for the next.
+    func releaseHeld() {
+        let ended = withLock {
             let ended = Array(held.values)
             held = [:]
             return ended
