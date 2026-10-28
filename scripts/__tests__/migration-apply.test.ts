@@ -67,11 +67,19 @@ describe('applyMigrations', () => {
   });
 
   it('fills a replaced CHECK from production before applying', async () => {
-    const api = fakeApi({ previous: [{ tbl: 'coach_runs', name: 'coach_runs_mode_check', def: "CHECK ((mode = 'a'::text))" }] });
+    const api = fakeApi({ previous: [{ tbl: 'coach_runs', name: 'coach_runs_mode_check', contype: 'c', def: "CHECK ((mode = 'a'::text))" }] });
     const r = await run([REPLACE_CHECK], api);
     expect(r.code).toBe(0);
     expect(r.saved['phase61_mode.sql']).toContain("alter table public.coach_runs add constraint coach_runs_mode_check CHECK ((mode = 'a'::text));");
     expect(r.saved['phase61_mode.sql']).not.toContain('{previous:');
+  });
+
+  it.each(['p', 'u', 'f', 'x'])('refuses to replace a constraint whose contype is %s', async (contype) => {
+    const api = fakeApi({ previous: [{ tbl: 'coach_runs', name: 'coach_runs_mode_check', contype, def: 'PRIMARY KEY (id)' }] });
+    const r = await run([REPLACE_CHECK], api);
+    expect(r.code).toBe(4);
+    expect(r.out).toContain('which is not a CHECK');
+    expect(api.queries.some((q) => q === REPLACE_CHECK.sql)).toBe(false);
   });
 
   it('a failed file names what already applied, and stops', async () => {

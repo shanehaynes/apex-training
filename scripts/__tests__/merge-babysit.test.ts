@@ -19,6 +19,8 @@ const repo = fileURLToPath(new URL('../../', import.meta.url));
 const run = promisify(execFile);
 const PR = 7;
 const FIXTURE = 'phase999_babysit_fixture.sql';
+const ADDITIVE = 'phase998_babysit_additive.sql';
+const ADDITIVE_PR = 9;
 
 const gitEnv = {
   ...process.env,
@@ -56,6 +58,7 @@ describe('merge-babysit.sh: a migration PR merges only onto a production that al
   let tmp: string;
   let work: string;
   let headSha: string;
+  let additiveSha: string;
   let server: Server;
   let ledger: { name: string; fingerprint: string }[] = [];
   const git = (...args: string[]) => execFileSync('git', args, { cwd: work, encoding: 'utf8', env: gitEnv }).trim();
@@ -89,6 +92,16 @@ describe('merge-babysit.sh: a migration PR merges only onto a production that al
     git('push', '-q', 'origin', `HEAD:refs/pull/${PR}/head`);
     git('checkout', '-q', 'main');
 
+    // PR 9: an additive migration the policy passes without shipit.
+    git('checkout', '-q', '-b', 'db/additive');
+    const add = 'alter table profiles add column if not exists babysit_x text;\n';
+    writeFileSync(join(work, 'supabase/migrations', ADDITIVE), `${add}\n${stampFor(ADDITIVE, add)}\n`);
+    git('add', '-A');
+    git('-c', 'commit.gpgsign=false', 'commit', '-q', '-m', 'add an additive migration');
+    additiveSha = git('rev-parse', 'HEAD');
+    git('push', '-q', 'origin', `HEAD:refs/pull/${ADDITIVE_PR}/head`);
+    git('checkout', '-q', 'main');
+
     // Production: every object main's types name, and whatever `ledger` holds.
     const functions = parseDatabaseTypes(readFileSync(join(repo, 'src/lib/db/database.types.ts'), 'utf8')).functions;
     server = createServer((req, res) => {
@@ -98,6 +111,11 @@ describe('merge-babysit.sh: a migration PR merges only onto a production that al
       } else if (u.pathname === '/rest/v1/migration_ledger' && u.searchParams.has('offset')) {
         res.setHeader('content-range', `0-${ledger.length - 1}/${ledger.length}`);
         res.end(JSON.stringify(ledger));
+      } else if (u.pathname === '/__apply' && req.method === 'POST') {
+        // The stub applier's stand-in for DDL reaching production.
+        let body = '';
+        req.on('data', (c) => { body += c; });
+        req.on('end', () => { ledger.push(JSON.parse(body)); res.end('{}'); });
       } else {
         res.end('[]');
       }
@@ -121,7 +139,7 @@ describe('merge-babysit.sh: a migration PR merges only onto a production that al
   };
 
   /** stdout of a run (a non-zero exit too — a --yes run ends at the missing deploy-verify.sh), and every gh call it made. */
-  const babysit = async (labels: string[], { args = [] as string[], number = PR, headRefOid = headSha, home = process.env.HOME } = {}) => {
+  const babysit = async (labels: string[], { args = [] as string[], number = PR, headRefOid = headSha, home = process.env.HOME, file = FIXTURE, headRefName = 'db/fixture' } = {}) => {
     const fixture = join(tmp, `gh-${Math.random().toString(36).slice(2)}.json`);
     writeFileSync(fixture, JSON.stringify({
       pr: {
@@ -130,10 +148,10 @@ describe('merge-babysit.sh: a migration PR merges only onto a production that al
         baseRefName: 'main',
         isDraft: false,
         mergeStateStatus: 'CLEAN',
-        headRefName: 'db/fixture',
+        headRefName,
         headRefOid,
         changedFiles: 1,
-        files: [{ path: `supabase/migrations/${FIXTURE}` }],
+        files: [{ path: `supabase/migrations/${file}` }],
         labels: labels.map((name) => ({ name })),
       },
     }));
@@ -172,15 +190,85 @@ describe('merge-babysit.sh: a migration PR merges only onto a production that al
     expect(out).not.toMatch(/APPLY #/); // a dry run never applies
   });
 
-  it('under --yes, offers the PR to the applier, and without a token holds exactly as before', async () => {
+  it('under --yes, a shipit PR whose migration is not additive never reaches the applier', async () => {
+    ledger = onMain();
+    const out = await babysit(['shipit'], { args: ['--yes', '--max-minutes=0'] });
+    expect(out).toMatch(/not applying: at [0-9a-f]{40} the policy says held for a human/);
+    expect(out).not.toMatch(/APPLY #/);
+    expect(out).toMatch(new RegExp(`HOLD  #${PR} — touches supabase/migrations/`));
+    expect(ghCalls.some((c) => c[0] === 'pr' && c[1] === 'merge')).toBe(false);
+  });
+
+  it('under --yes, an additive PR without a token holds exactly as before', async () => {
     ledger = onMain();
     const home = join(tmp, 'home-without-token');
     mkdirSync(home, { recursive: true });
-    const out = await babysit(['shipit'], { args: ['--yes', '--max-minutes=0'], home });
-    expect(out).toContain(`APPLY #${PR} — ${FIXTURE} (scripts/migration-apply.mjs exit 3)`);
+    const out = await babysit([], { args: ['--yes', '--max-minutes=0'], home, number: ADDITIVE_PR, headRefOid: additiveSha, file: ADDITIVE, headRefName: 'db/additive' });
+    expect(out).toContain(`APPLY #${ADDITIVE_PR} — ${ADDITIVE} (scripts/migration-apply.mjs exit 3)`);
     expect(out).toContain('not applying; apply by hand');
-    expect(out).toMatch(new RegExp(`HOLD  #${PR} — touches supabase/migrations/`));
+    expect(out).toMatch(new RegExp(`HOLD  #${ADDITIVE_PR} — touches supabase/migrations/`));
     expect(ghCalls.some((c) => c[0] === 'pr' && c[1] === 'merge')).toBe(false);
+  });
+
+  // Swap scripts/migration-apply.mjs on main for a stub that "applies" by
+  // adding the files to the fake ledger, then put the real one back.
+  const withStubApplier = async (fn: () => Promise<void>) => {
+    const real = join(work, 'scripts/migration-apply.mjs');
+    const original = readFileSync(real, 'utf8');
+    const commit = (msg: string) => {
+      git('add', '-A');
+      git('-c', 'commit.gpgsign=false', 'commit', '-q', '-m', msg);
+      git('push', '-q', 'origin', 'main');
+    };
+    writeFileSync(real, `import { fingerprint } from './prod-schema-check.mjs';
+import { execFileSync } from 'node:child_process';
+const ref = process.argv[process.argv.indexOf('--ref') + 1];
+const files = process.argv.slice(2).filter((a) => a.endsWith('.sql'));
+for (const f of files) {
+  const sql = execFileSync('git', ['show', ref + ':supabase/migrations/' + f], { encoding: 'utf8' });
+  await fetch(process.env.VITE_SUPABASE_URL + '/__apply', { method: 'POST', body: JSON.stringify({ name: f.replace(/\\.sql$/, ''), fingerprint: fingerprint(sql) }) });
+  console.log('APPLIED ' + f);
+  console.log('  inverse (run it to undo):');
+}
+`);
+    commit('stub applier');
+    try {
+      await fn();
+    } finally {
+      writeFileSync(real, original);
+      commit('real applier');
+    }
+  };
+
+  it('applies an additive migration the policy passed, then merges only that head', async () => {
+    await withStubApplier(async () => {
+      ledger = onMain();
+      const out = await babysit([], { args: ['--yes', '--max-minutes=0'], number: ADDITIVE_PR, headRefOid: additiveSha, file: ADDITIVE, headRefName: 'db/additive' });
+      expect(out).toContain(`APPLY #${ADDITIVE_PR} — ${ADDITIVE} (scripts/migration-apply.mjs exit 0)`);
+      expect(out).toContain(`MERGE #${ADDITIVE_PR}`);
+      const comment = ghCalls.find((c) => c[0] === 'pr' && c[1] === 'comment' && c[3] === '--body' && c[4].startsWith('Applied to production'));
+      expect(comment?.[4]).toContain(ADDITIVE);
+      expect(ghCalls).toContainEqual(['pr', 'merge', String(ADDITIVE_PR), '--squash', '--match-head-commit', additiveSha]);
+      expect(readFileSync(join(work, '.claude/state/merge-log'), 'utf8')).toContain(`applied ${ADDITIVE} for #${ADDITIVE_PR}`);
+    });
+  });
+
+  it('never applies with the kill switch present', async () => {
+    ledger = onMain();
+    mkdirSync(join(work, '.claude'), { recursive: true });
+    writeFileSync(join(work, '.claude/AUTOMERGE_OFF'), '');
+    try {
+      const out = await babysit([], { args: ['--yes', '--max-minutes=0'], number: ADDITIVE_PR, headRefOid: additiveSha, file: ADDITIVE, headRefName: 'db/additive' });
+      expect(out).not.toMatch(/APPLY #/);
+    } finally {
+      rmSync(join(work, '.claude/AUTOMERGE_OFF'));
+    }
+  });
+
+  it('never applies in a fleet run', async () => {
+    ledger = onMain();
+    const out = await babysit([], { args: ['--fleet'], number: ADDITIVE_PR, headRefOid: additiveSha, file: ADDITIVE, headRefName: 'db/additive' });
+    expect(out).not.toMatch(/APPLY #/);
   });
 
   it('never offers a policy-held PR to the applier, even under --yes', async () => {

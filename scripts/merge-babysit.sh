@@ -213,24 +213,46 @@ run_head_check() {
 # kill switch present. Any refusal leaves the HOLD exactly as it was; the
 # applier's output says why.
 apply_additive() {
-  local pr=$1 oid=$2 out code f files
+  local pr=$1 oid=$2 out code f files added paths applied
   [ "$schema_code" -eq 1 ] && [ -n "$head_pending" ] || return 0
   [ "$apply" -eq 1 ] && [ "${preflight_may_apply:-0}" -eq 1 ] && [ ! -e "$kill_switch" ] || return 0
   files=$(printf '%s' "$head_pending" | tr -d ',')
+  # Only files this PR adds: an edited migration is held by the policy, and
+  # run_head_check's pending list also names modified ones.
+  added=$(git diff --name-only --diff-filter=A "$schema_main_sha...$oid" -- supabase/migrations/ 2>/dev/null) || return 0
+  for f in $files; do
+    case $'\n'"$added"$'\n' in *$'\n'"supabase/migrations/$f"$'\n'*) ;; *)
+      echo "      not applying: $f is not a file this PR adds"
+      return 0
+      ;;
+    esac
+  done
+  # The policy passed whatever head its own gh call saw; re-ask it about
+  # exactly $oid, without labels, so the SQL applied is the SQL it judged.
+  paths=$(git diff --name-only "$schema_main_sha...$oid" 2>/dev/null) || return 0
+  if ! out=$(jq -n --argjson n "$pr" --arg h "$oid" --arg p "$paths" \
+      '{number: $n, head: $h, paths: ($p | split("\n") | map(select(length > 0))), labels: []}' \
+      | node scripts/merge-policy.mjs); then
+    echo "      not applying: at $oid the policy says ${out:-nothing (fail closed)}"
+    return 0
+  fi
   # shellcheck disable=SC2086 # phase file names: no spaces, one word each
   out=$(node scripts/migration-apply.mjs --ref "$oid" $files 2>&1) && code=0 || code=$?
   echo "APPLY #$pr — $head_pending (scripts/migration-apply.mjs exit $code)"
   printf '%s\n' "$out" | sed 's/^/      /'
-  [ "$code" -eq 0 ] || return 0
+  # Record whatever reached production, a partial apply (exit 1) included.
+  applied=$(printf '%s\n' "$out" | sed -n 's/^APPLIED //p')
+  [ -n "$applied" ] || return 0
   mkdir -p "$(dirname "$merge_log")"
-  for f in $files; do
+  for f in $applied; do
     printf '%s applied %s for #%s at %s\n' "$(date -u +%FT%TZ)" "$f" "$pr" "$oid" >> "$merge_log"
   done
-  "$GH" pr comment "$pr" --body "Applied to production by \`scripts/merge-babysit.sh --yes\` before merging (classified additive by \`scripts/migration-classify.mjs\`). To undo, run the inverse below in the Supabase SQL Editor; it is also kept in \`.claude/state/migration-inverses/\` in the primary checkout.
+  "$GH" pr comment "$pr" --body "Applied to production by \`scripts/merge-babysit.sh --yes\` (classified additive by \`scripts/migration-classify.mjs\`): $(echo $applied). To undo, run the inverse below in the Supabase SQL Editor; it is also kept in \`.claude/state/migration-inverses/\` in the primary checkout.
 
 \`\`\`
 $out
-\`\`\`" >/dev/null || true
+\`\`\`" >/dev/null || echo "      WARNING: could not comment on #$pr — the applied files and inverses are in $merge_log and .claude/state/migration-inverses/"
+  [ "$code" -eq 0 ] || return 0
   run_head_check "$pr" "$oid"
 }
 

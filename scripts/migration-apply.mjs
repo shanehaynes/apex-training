@@ -104,7 +104,7 @@ export function previousChecksSql(replaced) {
   if (replaced.length === 0) return null;
   return replaced
     .map(
-      (c) => `select ${lit(c.table)} as tbl, ${lit(c.name)} as name, pg_get_constraintdef(oid) as def from pg_constraint where conname = ${lit(c.name)} and conrelid = to_regclass(${lit(`public."${c.table}"`)})`,
+      (c) => `select ${lit(c.table)} as tbl, ${lit(c.name)} as name, contype::text as contype, pg_get_constraintdef(oid) as def from pg_constraint where conname = ${lit(c.name)} and conrelid = to_regclass(${lit(`public."${c.table}"`)})`,
     )
     .join('\nunion all\n');
 }
@@ -145,7 +145,16 @@ export async function applyMigrations({ files, creds, fetch = globalThis.fetch, 
         return 4;
       }
       const prev = previousChecksSql(p.creates.replacedChecks);
-      p.inverse = fillInverse(p.inverse, prev ? await query(api, prev) : []);
+      const previous = prev ? await query(api, prev) : [];
+      // Replace-a-CHECK is additive only when what it drops is a CHECK: a
+      // primary key, unique or foreign key dropped this way loses integrity
+      // the inverse cannot restore once bad rows are in.
+      const notCheck = previous.filter((r) => r.contype !== 'c');
+      if (notCheck.length) {
+        log(`REFUSE ${p.file} — drops ${notCheck.map((r) => `${r.tbl}.${r.name} (contype ${r.contype})`).join(', ')}, which is not a CHECK`);
+        return 4;
+      }
+      p.inverse = fillInverse(p.inverse, previous);
     }
   } catch (e) {
     log(`could not probe production: ${e.message}`);

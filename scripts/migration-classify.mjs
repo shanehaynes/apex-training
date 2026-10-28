@@ -19,7 +19,12 @@
 //     pg_constraint before applying, so the inverse can restore it
 //   alter table <new t> enable row level security
 //   create [unique] index <name> on <t> …   — not concurrently (one transaction)
-//   comment on …
+//
+// On an existing table, DEFAULT, CHECK, generated and index expressions may
+// call only a short list of side-effect-free built-ins (SAFE_CALLS): Postgres
+// evaluates them over every existing row as the statement runs. And the file
+// must lex the same way in Postgres as in statements() (lexicalHold).
+//   comment on table|column|index <an object this file creates> is '…'
 //   [drop policy if exists] / create policy / grant / revoke
 //                                           — only on tables this file creates;
 //                                             grants only to authenticated or
@@ -117,6 +122,71 @@ const RE = {
 const GRANT_ROLES = new Set(['authenticated', 'service_role']);
 
 /**
+ * Why this file's text could split differently in Postgres than in
+ * statements(), or null. Postgres lets `$` sit inside an identifier (a$q$ is
+ * one name) and nests block comments; the splitter does neither. No allowed
+ * shape needs a `$` or an escape string, so any `$` outside a plain string
+ * literal, any E'' string and any nested comment holds the file.
+ */
+export function lexicalHold(sql) {
+  for (let i = 0; i < sql.length; i++) {
+    const c = sql[i];
+    if (c === '-' && sql[i + 1] === '-') {
+      const nl = sql.indexOf('\n', i);
+      i = nl < 0 ? sql.length : nl;
+    } else if (c === '/' && sql[i + 1] === '*') {
+      const end = sql.indexOf('*/', i + 2);
+      const body = sql.slice(i + 2, end < 0 ? sql.length : end);
+      if (end < 0) return 'an unterminated block comment';
+      if (body.includes('/*')) return 'a nested block comment';
+      i = end + 1;
+    } else if (c === "'") {
+      if (/[eE]/.test(sql[i - 1] ?? '') && !/[\w$]/.test(sql[i - 2] ?? '')) return "an E'' escape string";
+      let j = i + 1;
+      while (j < sql.length && !(sql[j] === "'" && sql[j + 1] !== "'")) j += sql[j] === "'" ? 2 : 1;
+      if (j >= sql.length) return 'an unterminated string literal';
+      i = j;
+    } else if (c === '"') {
+      const end = sql.indexOf('"', i + 1);
+      if (end < 0) return 'an unterminated quoted identifier';
+      if (sql.slice(i + 1, end).includes('$')) return 'a $ in an identifier';
+      i = end;
+    } else if (c === '$') {
+      return 'a $ outside a string literal (dollar quotes and $ in identifiers split differently in Postgres)';
+    }
+  }
+  return null;
+}
+
+// Functions an expression on an existing table may call. A CHECK runs on every
+// existing row when added, a DEFAULT once per existing row, an index
+// expression on every row: anything else could write, read across rows, or
+// copy server-side values into rows users can already read.
+const SAFE_CALLS = new Set([
+  'now', 'gen_random_uuid', 'coalesce', 'nullif', 'greatest', 'least', 'lower', 'upper', 'length', 'char_length',
+  'octet_length', 'btrim', 'trim', 'jsonb_typeof', 'json_typeof', 'jsonb_array_length', 'array_length', 'cardinality',
+]);
+// Words followed by `(` that are syntax or type modifiers, not calls.
+const NOT_CALLS = new Set([
+  'check', 'in', 'key', 'unique', 'primary', 'foreign', 'using', 'include', 'where', 'and', 'or', 'not', 'is', 'as',
+  'default', 'stored', 'array', 'varchar', 'char', 'character', 'varying', 'numeric', 'decimal', 'timestamp',
+  'timestamptz', 'time', 'timetz', 'interval', 'bit', 'varbit', 'float', 'with', 'zone', 'any', 'all', 'collate', 'references',
+]);
+
+/** The first function call in `expr` that is not on the safe list, or null. */
+function unsafeCall(expr) {
+  const bare = unliteral(expr).replace(/\breferences\s+(?:"(?:[^"]|"")+"|[a-z_][\w]*)(?:\s*\.\s*(?:"(?:[^"]|"")+"|[a-z_][\w]*))?\s*\(/gi, 'references (');
+  if (/"\s*\(/.test(bare)) return 'a quoted name called as a function';
+  if (/\(\s*select\b/i.test(bare) || /\bselect\b/i.test(bare)) return 'a subquery';
+  for (const m of bare.matchAll(/([a-z_][\w]*)\s*(\.\s*[a-z_][\w]*\s*)?\(/gi)) {
+    if (m[2]) return `${m[1]}${m[2].replace(/\s+/g, '')}()`;
+    const name = m[1].toLowerCase();
+    if (!SAFE_CALLS.has(name) && !NOT_CALLS.has(name)) return `${name}()`;
+  }
+  return null;
+}
+
+/**
  * `{ additive: true, creates, inverse }` or `{ additive: false, reasons }`.
  * `file` is the migration's basename (phaseN_x.sql); `sql` its contents.
  * `creates` names what the apply must find absent first: `if not exists`
@@ -125,6 +195,8 @@ const GRANT_ROLES = new Set(['authenticated', 'service_role']);
  */
 export function classify(file, sql) {
   const reasons = [];
+  const lexical = lexicalHold(sql);
+  if (lexical) return { additive: false, reasons: [`cannot be split safely: ${lexical}`] };
   let stmts;
   try {
     stmts = statements(sql.replace(/^﻿/, '').replace(/\r\n?/g, '\n'));
@@ -152,8 +224,10 @@ export function classify(file, sql) {
     }
   }
 
-  const creates = { tables: [], columns: [], indexes: [], constraints: [], replacedChecks: [] };
+  const creates = { tables: [], columns: [], indexes: [], constraints: [], replacedChecks: [], newColumns: [] };
   const dropped = new Map(); // "table.constraint" -> waiting for its re-add
+  const newIndexes = new Set();
+  const comments = [];
   const rls = new Set();
   const isNew = (q) => {
     const n = publicName(q);
@@ -184,9 +258,13 @@ export function classify(file, sql) {
       for (const action of splitTopLevel(m[2])) {
         let a;
         const actionBare = unliteral(action);
-        if ((a = RE.addColumn.exec(action))) {
+        const call = !fresh && (RE.addColumn.test(action) || RE.addConstraint.test(action)) ? unsafeCall(action) : null;
+        if (call) {
+          reasons.push(`${short(action)} on existing table ${table} calls ${call}, which runs on every existing row`);
+        } else if ((a = RE.addColumn.exec(action))) {
           if (!fresh && DESTRUCTIVE_FK.test(actionBare)) reasons.push(`adds a cascading foreign key to existing table ${table}`);
           else if (!fresh) creates.columns.push({ table, column: publicName(a[1]) });
+          if (fresh) creates.newColumns.push(`${table}.${publicName(a[1])}`);
         } else if ((a = RE.dropConstraint.exec(action))) {
           dropped.set(`${table}.${publicName(a[1])}`, { table, name: publicName(a[1]) });
         } else if ((a = RE.addConstraint.exec(action))) {
@@ -207,10 +285,16 @@ export function classify(file, sql) {
       }
     } else if ((m = RE.createIndex.exec(st))) {
       const table = publicName(m[2]);
+      const call = table && !newTables.has(table) ? unsafeCall(st.slice(m[0].length - 1)) : null;
       if (!table) reasons.push(`indexes a table outside public: ${short(st)}`);
-      else if (!newTables.has(table)) creates.indexes.push(publicName(m[1]));
+      else if (call) reasons.push(`index on existing table ${table} calls ${call}`);
+      else {
+        if (!newTables.has(table)) creates.indexes.push(publicName(m[1]));
+        newIndexes.add(publicName(m[1]));
+      }
     } else if (RE.comment.test(st)) {
-      // Metadata only.
+      // Checked after the pass: it may name a column or index created later in the file.
+      comments.push(st);
     } else if ((m = RE.dropPolicy.exec(st))) {
       if (!isNew(m[1])) reasons.push(`drops a policy on existing table ${publicName(m[1]) ?? m[1]}`);
     } else if ((m = RE.createPolicy.exec(st))) {
@@ -233,6 +317,22 @@ export function classify(file, sql) {
     }
   }
 
+  // A comment overwrites the object's previous one, which the inverse cannot
+  // restore, so only objects this file creates may get one — in exactly the
+  // `comment on table|column|index <name> is '<text>'` shape.
+  const added = new Set([...creates.columns.map((c) => `${c.table}.${c.column}`), ...creates.newColumns]);
+  for (const st of comments) {
+    const c = new RegExp(String.raw`^comment\s+on\s+(table|column|index)\s+(${QNAME}(?:\s*\.\s*${IDENT})?)\s+is\s+'(?:[^']|'')*'$`, 'i').exec(st);
+    const parts = c ? [...c[2].matchAll(new RegExp(IDENT, 'gi'))].map((x) => publicName(x[0]) ?? '') : [];
+    if (c && parts[0] === 'public' && parts.length > (c[1].toLowerCase() === 'column' ? 2 : 1)) parts.shift();
+    const target = parts.join('.');
+    const ok = c && (
+      (c[1].toLowerCase() === 'table' && parts.length === 1 && newTables.has(target)) ||
+      (c[1].toLowerCase() === 'index' && parts.length === 1 && newIndexes.has(target)) ||
+      (c[1].toLowerCase() === 'column' && parts.length === 2 && (newTables.has(parts[0]) || added.has(target)))
+    );
+    if (!ok) reasons.push(`comments on something this file does not create: ${short(st)}`);
+  }
   for (const t of creates.tables) if (!rls.has(t)) reasons.push(`creates table ${t} without enabling row level security`);
   for (const { table, name } of dropped.values()) reasons.push(`drops constraint ${name} on ${table} without re-adding it`);
   if (reasons.length) return { additive: false, reasons };
