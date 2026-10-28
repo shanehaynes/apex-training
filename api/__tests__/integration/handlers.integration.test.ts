@@ -148,6 +148,8 @@ describe.skipIf(!RUN)('api handlers against the local stack', () => {
   });
 
   it('bump_rate_limit counts atomically within one window', async () => {
+    // `itest` is no handler's bucket (RATE_LIMITS), so no other file in this
+    // parallel suite touches it; ios-read's cleanup deletes only those.
     const counts: number[] = [];
     for (let i = 0; i < 5; i++) {
       const { data, error } = await admin.rpc('bump_rate_limit', {
