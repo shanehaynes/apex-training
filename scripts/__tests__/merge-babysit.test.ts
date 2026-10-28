@@ -375,6 +375,15 @@ printf '%s\\n' "$@" > "$COMBINE_ARGS"
     expect(calls.filter((c) => c[1] === 'merge')).toEqual([['pr', 'merge', String(B), '--squash', '--match-head-commit', shaB]]);
   });
 
+  it("skips a fork's PR, even one whose head branch shares a name with a branch here", async () => {
+    const fork = { ...pr(A, 'main', '6'.repeat(40)), isCrossRepository: true };
+    const { out, calls } = await fleet([fork]);
+    expect(out).toContain(`SKIP  #${A} comes from a fork — fleet folds only this repo's branches.`);
+    expect(out).toMatch(new RegExp(`needs a human/worktree: PR\\(s\\) #${A}`));
+    expect(out).not.toMatch(/WAIT|FLEET #/);
+    expect(calls.some((c) => c[1] === 'merge')).toBe(false);
+  });
+
   it('combine-check folds a SHA as given, behind its branch tip, and names one it does not have', async () => {
     git('checkout', '-q', 'fix/fleet-c');
     commit('src/fleet-c-2.ts', 'a push after the fold');

@@ -315,11 +315,12 @@ is_skipped() {
   return 1
 }
 
-# Fleet mode needs the head branch and SHA too; the serial loop's field layout stays.
+# Fleet mode needs the head branch, its SHA and whether it is a fork's; the
+# serial loop's field layout stays.
 list_fleet_prs() {
   "$GH" pr list --state open --limit 200 \
-    --json number,title,baseRefName,isDraft,mergeStateStatus,headRefName,headRefOid \
-    --jq 'reverse | .[] | [.number, .baseRefName, (.isDraft|tostring), .mergeStateStatus, .headRefName, .headRefOid, .title] | @tsv'
+    --json number,title,baseRefName,isDraft,mergeStateStatus,headRefName,headRefOid,isCrossRepository \
+    --jq 'reverse | .[] | [.number, .baseRefName, (.isDraft|tostring), .mergeStateStatus, .headRefName, .headRefOid, (.isCrossRepository|tostring), .title] | @tsv'
 }
 
 list_prs_for_mode() {
@@ -437,7 +438,7 @@ required_green() {
 }
 
 fleet_pass() {
-  local number base draft state head oid title verdict tree head_sha base_sha cur i n before ready note reason rc fleet_migration="" pins=""
+  local number base draft state head oid fork title verdict tree head_sha base_sha cur i n before ready note reason rc fleet_migration="" pins=""
   # shas: the head each PR was folded at — what the proof sees and each merge is pinned to.
   local -a numbers=() shas=() titles=()
 
@@ -445,7 +446,7 @@ fleet_pass() {
   base_sha=$(git rev-parse origin/main)
   cur="$base_sha"
 
-  while IFS=$'\t' read -r number base draft state head oid title; do
+  while IFS=$'\t' read -r number base draft state head oid fork title; do
     [ -n "$number" ] || continue
     is_skipped "$number" && continue
 
@@ -456,6 +457,13 @@ fleet_pass() {
     fi
     if [ "$draft" = "true" ]; then
       echo "SKIP  #$number is a draft. ($title)"
+      skipped="$skipped $number"
+      continue
+    fi
+    # A fork's head is not origin/<head>, even when a branch of that name
+    # exists here (someone:main) — it would wait below on every pass.
+    if [ "$fork" = "true" ]; then
+      echo "SKIP  #$number comes from a fork — fleet folds only this repo's branches. ($title)"
       skipped="$skipped $number"
       continue
     fi
