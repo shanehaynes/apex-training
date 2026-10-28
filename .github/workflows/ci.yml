@@ -151,17 +151,23 @@ jobs:
   # macos-26 rather than macos-15: ApexKit's manifest is swift-tools-version 6.2
   # and the sources are Swift 6.3, which an older runner's Xcode cannot build.
   #
-  # 60 minutes, not 40. A green run is ~34 min (p50) and up to ~40: build 5–8,
-  # the simulator's first boot and install 2–12 (logged as silence between the
-  # last build line and the first test), ApexTests 0.5–2, ApexUITests 17–21. The
-  # boot is the variable part: 4 of the 5 runs killed at 40 in October had a
-  # normal build and a 9.5–12 minute boot, and needed 41–43 minutes. The fifth
-  # (#502) landed on a slow host that took 20 minutes to build and would have
-  # needed ~57. No killed run was hung — every one was mid-test and passing —
-  # so the cap was cutting off work, not catching a hang.
+  # 75 minutes: the slowest legitimate run seen, plus 15. The cap is there to
+  # stop a hung job. At 40 it killed 7 of October's 201 built runs and none
+  # was hung: five had passed every test and died writing or uploading the
+  # results, two were partway through ApexUITests and passing.
+  #
+  # Where a run goes: build 4–10 min; the test host's first launch on the
+  # simulator 2–12 (the log is silent from the last build line to the first
+  # test; the install itself is instant); ApexTests under 2; ApexUITests 16–21
+  # for 26 cases. Green runs were 34 min at p50 over October and 37 in its
+  # last week. Every run past 40 was killed, so their spread above 40 is
+  # unknown. The killed runs had the longest first launches (9–12 min) and
+  # builds at or past the top of the green range (8–20), and needed 41–48.
+  # #502 (a 20-minute build and a 12-minute first launch) would have needed
+  # ~57.
   ios:
     runs-on: macos-26
-    timeout-minutes: 60
+    timeout-minutes: 75
     steps:
       - uses: actions/checkout@v7
         with:
@@ -175,9 +181,11 @@ jobs:
       # diff is empty and this would skip every time — the nightly run would then
       # never build the app at all, which is the one run that most needs to.
       #
-      # This file counts as an iOS path: a PR that edits this job (its steps,
-      # its destination, its cap) is the PR that has to prove the job still
-      # passes, rather than leaving it for main's push run to find out.
+      # This file counts as an iOS path, so a PR that edits it runs this job
+      # instead of leaving main's push run to find a broken step. The whole
+      # file counts, not just this job, so a coach-gate edit runs it too.
+      # `ios` is not a required check and nothing waits for it, so before
+      # `shipit` on a ci.yml PR, check this job by hand.
       - name: Skip when a pull request changes no iOS paths
         if: github.event_name == 'pull_request' || github.event_name == 'merge_group'
         run: |

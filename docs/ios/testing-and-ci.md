@@ -82,14 +82,15 @@ ios:
   # macos-15's default Xcode cannot build a tools-version 6.2 manifest or Swift 6.3
   # sources, which is what ApexKit is.
   runs-on: macos-26
-  timeout-minutes: 60
+  timeout-minutes: 75
   steps:
     - uses: actions/checkout@v7
       with: { fetch-depth: 0 }
     - name: Skip when no iOS paths changed
+      if: github.event_name == 'pull_request' || github.event_name == 'merge_group'
       run: |
         base=$(git merge-base origin/main HEAD)
-        if git diff --quiet "$base" HEAD -- ios/ .github/workflows/ci.yml ; then echo "no ios changes"; echo "skip=1" >> "$GITHUB_ENV"; fi
+        if git diff --quiet "$base" HEAD -- ios/ .github/workflows/ci.yml ; then echo "no ios/ or ci.yml changes"; echo "skip=1" >> "$GITHUB_ENV"; fi
     - run: brew install xcodegen
       if: env.skip != '1'
     - run: xcodegen generate --spec ios/project.yml
@@ -101,22 +102,35 @@ ios:
       with: { name: ios-results, path: ios/build/Apex.xcresult, retention-days: 7 }
 ```
 
-Why `timeout-minutes: 60`: a green run takes ~34 minutes (p50 over October) and up to ~40.
-Most of that is ApexUITests (17–21 min) and the build (5–8). The part that varies is the
-simulator's first boot and install, which take 2–12 minutes and show in the log only as
-silence between the last build line and the first test. Under a 40-minute cap, 5 of 106 runs
-that built were killed. None was hung: four had a normal build and a 9.5–12 minute boot, and
-needed 41–43 minutes; the fifth was a slow host (20-minute build) that would have needed ~57.
-The cap is there to stop hung jobs, so it sits above the slowest legitimate run, not at the
-typical one. The job has grown by one to two minutes a week as UI tests are added (21 cases in
-mid-October, 26 now). When the slowest green runs reach ~45 minutes, the next step is to boot
-the simulator during the build, or to shard ApexUITests across jobs. Raising the cap again is
-not the fix.
+Why `timeout-minutes: 75`: the cap is there to stop a hung job, so it sits 15 minutes above
+the slowest legitimate run seen, not at the typical one. Under the old 40-minute cap, 7 of
+October's 201 built runs were killed and none was hung. Five had passed every test and died
+writing or uploading the results; two were partway through ApexUITests and passing.
+
+Where a run goes: the build takes 4–10 minutes. The test host's first launch on the simulator
+takes 2–12, and shows in the log only as silence between the last build line (`Touch
+…ApexUITests.xctest`) and the first test; the `.xcresult` puts the install at under a second,
+so the cost is the launch. ApexTests takes under 2 minutes and ApexUITests 16–21 (26 cases).
+Green runs were 34 minutes at p50 over October and 37 in its last week, but that distribution
+stops at 40 because every longer run was killed. The killed runs had the longest first
+launches (9–12 minutes) and builds at or past the top of the green range (8–20), and needed
+41–48 minutes. #502, with a 20-minute build and a 12-minute first launch, would have needed ~57.
+The job's p50 has grown by 1–2 minutes a week as UI cases are added (21 in mid-October, 26 now).
+
+When any run gets within 15 minutes of the cap (past 60), shorten the job rather than raise
+the cap again. First find out whether the first launch is the simulator still booting: time a
+`xcrun simctl boot` plus `xcrun simctl bootstatus -b` step before the build for a few runs. If
+it is, boot it during the build; if not, shard ApexUITests across jobs.
+
+A run the cap kills ends `cancelled`, with an `.xcresult` that cannot be read, and
+`merge-babysit.sh` does not count `cancelled` as red. So the cap frees the runner, but a hang
+still shows up as no test result at all.
 
 Why the early-exit instead of `on.paths`: the merge queue's `merge_group` event and required
 status checks do not compose with path filters — a required check that never starts blocks the
-queue. The job always starts and finishes green in seconds for web-only PRs. `ci.yml` itself
-counts as an iOS path, so a PR that edits this job is the one that proves it.
+queue. The job always starts and finishes green in seconds for web-only PRs. `ci.yml` counts
+as an iOS path (the whole file), so a PR that edits it runs this job. `ios` is not a required
+check and nothing waits for it, so before `shipit` on a `ci.yml` PR, check it by hand.
 
 Why `-retry-tests-on-failure -test-iterations 2`: a failed test is run once more and the job
 is green if the second run passes — and the `.xcresult` marks it "passed on retry", which is
