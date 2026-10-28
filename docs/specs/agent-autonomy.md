@@ -169,6 +169,15 @@ Every box above checked, every PR merged (each is HELD by design and needs
   main's code, so it is harmless. A primary behind origin/main is refused until
   pulled.
 
+- 2026-10-28 · Lockfile entries must be the exact registry tarball of the name their
+  key installs (`<name>/-/<base>-<version>.tgz`), with new npm aliases held. Registry
+  plus integrity alone let a key point at another publisher's tarball. `.npmrc`,
+  `npm-shrinkwrap.json`, other managers' lockfiles and nested `package.json` are
+  held by pattern.
+- 2026-10-28 · Not fixed here: a content-checked PR's merge is pinned to the checked head
+  only for migration PRs. #510 pins fleet merges to the head the union proof saw, and
+  the serial window between policy and merge is seconds. Revisit once #510 lands.
+
 ## Session log
 - 2026-10-28 · spec written; M1 on `chore/agent-autonomy-m1`, M2 on
   `chore/agent-autonomy-m2`, M3 on `db/agent-autonomy-m3` (stacked on M2). Not
