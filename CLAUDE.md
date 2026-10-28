@@ -204,12 +204,13 @@ The babysitter is the only merge path, and it merges only what
 it still prompts; granting an unattended run means adding a `permissions.allow`
 entry to `.claude/settings.json`, which the policy holds for exactly that
 reason. Migrations, `.github/`, `scripts/ci-guards.sh`, `vercel.json`,
-dependency manifests (unless the change only moves versions of names already
-present, every lockfile entry is a registry tarball with an integrity hash, and
-no package newly gains an install script), the iOS release surface (`ios/fastlane/`, `ios/scripts/`,
+dependency manifests, the iOS release surface (`ios/fastlane/`, `ios/scripts/`,
 `ios/project.yml`, `ios/Config/`, the entitlements, the `Info.plist`s and
 `PrivacyInfo.xcprivacy`), and every file of the automation itself are HELD for
 Shane, who grants one PR with the `shipit` label; the guard hook blocks
 `gh pr merge` and self-applied `shipit`, so the babysitter is the only merge
 path. Kill switch: `touch .claude/AUTOMERGE_OFF` in the primary checkout.
 Full rules: CONTRIBUTING.md, "Autonomous merging".
+Dependency bumps of names already present are not held: every lockfile entry
+must be the registry tarball of the name it installs, and no package may newly
+gain an install script (`manifestHold`, `lockfileHold`).
