@@ -1,10 +1,13 @@
 # Agent autonomy: fewer holds where CI or a classifier can prove safety — spec
 
-**Owns:** `.claude/settings.json` (`permissions` only), `scripts/merge-policy.mjs`,
+**Owns:** `.claude/settings.json` (`permissions` only), a new
+`scripts/__tests__/settings-grant.test.ts`, the header and the `--yes`
+self-check (`automation_is_main`) of `scripts/merge-babysit.sh`, `scripts/merge-policy.mjs`,
 `scripts/merge-policy.d.mts`, `scripts/__tests__/merge-policy.test.ts`, new
 `scripts/migration-classify.mjs` and `scripts/migration-apply.mjs` with their tests,
 the `policy_check` and `schema_preflight` functions of `scripts/merge-babysit.sh`,
-and the "Autonomous merging" sections of CLAUDE.md and CONTRIBUTING.md.
+the "Autonomous merging" sections of CLAUDE.md and CONTRIBUTING.md, and
+CLAUDE.md's "Production's schema" bullet.
 **Forbidden:** `.github/`, `scripts/ci-guards.sh`, the guard hooks, the iOS release
 surface, `evals/baseline/`, and any removal from `HELD` — exceptions are carved out
 by content checks inside `decide`, never by shrinking the list.
@@ -45,7 +48,15 @@ Out:
 - [ ] `.claude/settings.json` allows exactly `Bash(scripts/merge-babysit.sh --yes)`
   and `Bash(scripts/merge-babysit.sh --fleet --yes)`; no wildcard, so
   `--no-check` and every other flag still prompt.
-- [ ] CLAUDE.md and CONTRIBUTING.md say what is allow-listed and why the rule is exact.
+- [ ] CLAUDE.md, CONTRIBUTING.md and the babysitter's header say what is
+  allow-listed and why the rule is exact.
+- [ ] A test pins `permissions.allow` to exactly those two strings, with no wildcard.
+- [ ] Under `--yes`, every pass, the babysitter refuses unless `scripts/`,
+  `.claude/settings.json` and the agent-guard hooks in its checkout match
+  `origin/main` exactly (no tracked diff, no untracked file). The grant names a
+  relative path, so without this a session in a worktree would run its own
+  unreviewed policy unattended. Tested with a modified policy and an untracked
+  script: no `gh pr merge` call.
 
 ### M2 — dependency bumps of packages already present merge alone
 `decide` gets the PR's `package.json` before and after (the babysitter reads both
@@ -148,6 +159,15 @@ Every box above checked, every PR merged (each is HELD by design and needs
 - 2026-10-28 · Access-control statements (RLS toggle, policies, grants, revokes) only
   on tables the same file creates: on existing tables even a revoke has no exact
   inverse.
+
+- 2026-10-28 · The `--yes` grant also covers M3's production apply, with no second
+  permission entry. That is deliberate: Shane asked for migrations to be autonomous.
+  The separate, revocable opt-in is the token in `prod.env`: delete the line and
+  every migration holds again.
+- 2026-10-28 · The `--yes` self-check compares against origin/main rather than
+  requiring the primary checkout. A worktree whose automation equals main's runs
+  main's code, so it is harmless. A primary behind origin/main is refused until
+  pulled.
 
 ## Session log
 - 2026-10-28 · spec written; M1 on `chore/agent-autonomy-m1`, M2 on
