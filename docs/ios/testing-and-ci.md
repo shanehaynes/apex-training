@@ -152,9 +152,11 @@ Why a job-level skip decided on ubuntu, instead of `on.paths` or a skip inside t
 
 Because a skip passes, the skip fails closed: `ios` skips only when `changes` succeeded and
 said `false`.
-- A `changes` that failed, timed out or was cancelled makes `ios` run, and its first step fails
-  with an `::error::` naming `changes`. `!cancelled()` replaces the implicit `success()`, which
-  would skip `ios` whenever `changes` failed.
+- A `changes` that failed or timed out (GitHub reports a timeout as `cancelled`) makes `ios`
+  run, and its first step fails with an `::error::` naming `changes`. `!cancelled()` replaces
+  the implicit `success()`, which would skip `ios` whenever `changes` failed.
+- When the whole run is cancelled, by hand or by a newer push, `ios` ends `cancelled` without
+  ever getting a runner. That fails a required check too.
 - A `changes` that succeeded without writing `ios=` leaves the output `''`, and `ios` builds.
   That is why the condition is `!= 'false'`: `== 'true'` would skip.
 

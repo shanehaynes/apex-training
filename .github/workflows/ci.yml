@@ -197,9 +197,12 @@ jobs:
   #
   # Because a skip passes, the skip fails closed. `ios` skips only when
   # `changes` succeeded and said false:
-  # - `changes` failed, timed out or was cancelled: `ios` runs, and its first
-  #   step fails naming `changes`. `!cancelled()` replaces the implicit
-  #   success(), which would skip `ios` whenever `changes` failed.
+  # - `changes` failed or timed out (a timeout reads as cancelled): `ios`
+  #   runs, and its first step fails naming `changes`. `!cancelled()`
+  #   replaces the implicit success(), which would skip `ios` whenever
+  #   `changes` failed.
+  # - the whole run was cancelled, by hand or by a newer push: `ios` ends
+  #   cancelled without a runner, which fails a required check too.
   # - `changes` succeeded without writing `ios=`: the output reads as '' and
   #   `ios` builds. Hence `!= 'false'`; `== 'true'` would skip.
   #
