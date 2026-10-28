@@ -744,6 +744,23 @@ public actor WriteQueue {
         for continuation in subscribers.values { continuation.yield(event) }
     }
 
+    // MARK: - For tests
+
+    // A test that starts a call in a task of its own cannot tell from the
+    // task when the call has reached the queue; these say when it has.
+
+    /// Calls parked on the lane's turn (`takeTurn`).
+    func turnWaiterCount(for session: SessionKey) -> Int { turnWaiters[session]?.count ?? 0 }
+
+    /// `letGo` calls parked until the op in the air settles.
+    func settleWaiterCount(for id: Int64) -> Int { settleWaiters[id]?.count ?? 0 }
+
+    /// `untilIdle` calls parked until the lane's flush is over.
+    func idleWaiterCount(for session: SessionKey) -> Int { idleWaiters[session]?.count ?? 0 }
+
+    /// Retry tasks still running, called-off ones winding down included.
+    var retryTaskCount: Int { retryTasks.count }
+
     // MARK: - Teardown
 
     /// Everything, every session. Sign-out does *not* call this — unsynced

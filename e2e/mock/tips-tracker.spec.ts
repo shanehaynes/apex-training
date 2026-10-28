@@ -135,7 +135,14 @@ test.describe('phone', () => {
     await page.getByRole('button', { name: 'Start Workout' }).click();
     const card = tip(page, 'tracker-shadow');
     await expect(card).toBeVisible({ timeout: 15000 });
-    await page.waitForTimeout(400);
+    // Measure the card at rest. Mid-entrance (translateY(10px) scale(0.94) →
+    // none, 250 ms) it sits lower, which flatters this check, and on a loaded
+    // CPU the entrance can outlast a fixed sleep. Wait for an identity
+    // transform, not a polled position: one measurement at rest.
+    await expect.poll(() => card.evaluate((el) => {
+      const transform = getComputedStyle(el).transform;
+      return transform === 'none' || new DOMMatrixReadOnly(transform).isIdentity ? 'at rest' : transform;
+    }), { message: 'the tip has finished its entrance' }).toBe('at rest');
 
     const cardBox = (await card.boundingBox())!;
     const finishBox = (await page.locator('.tracker-header__finish').boundingBox())!;
