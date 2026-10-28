@@ -169,8 +169,44 @@ describe('dependency bumps of names already present merge alone', () => {
     })).toBeNull();
   });
 
-  it('a lockfile-only change is not held', () => {
-    expect(decide(['package-lock.json'], [], 1, { 'package-lock.json': { before: goodLock, after: goodLock } })).toBeNull();
+  it('a lockfile-only change (a bump, a new transitive name) is not held', () => {
+    const after = lock({
+      'node_modules/react': entry('react', { version: '1.0.1', resolved: 'https://registry.npmjs.org/react/-/react-1.0.1.tgz' }),
+      'node_modules/@scope/dep': entry('@scope/dep', { resolved: 'https://registry.npmjs.org/@scope/dep/-/dep-1.0.0.tgz' }),
+    });
+    expect(decide(['package-lock.json'], [], 1, { 'package-lock.json': { before: goodLock, after } })).toBeNull();
+  });
+
+  it.each([
+    ['a tarball of another publisher under an existing key', lock({ 'node_modules/react': entry('react', { name: 'evil', resolved: 'https://registry.npmjs.org/evil/-/evil-1.0.0.tgz' }) }), /new alias for evil/],
+    ['a tarball of another name with no alias', lock({ 'node_modules/react': entry('react', { resolved: 'https://registry.npmjs.org/evil/-/evil-1.0.0.tgz' }) }), /resolves to a different package \(evil\)/],
+    ['a tarball version that is not the entry version', lock({ 'node_modules/react': entry('react', { resolved: 'https://registry.npmjs.org/react/-/react-9.9.9.tgz' }) }), /not react@1\.0\.0/],
+    ['a key outside node_modules', lock({ 'scripts/hooks': entry('hooks') }), /outside node_modules/],
+    ['a traversal key', lock({ 'node_modules/../../x': entry('x') }), /outside node_modules/],
+    ['a link', lock({ 'node_modules/x': { link: true, resolved: 'evil' } }), /is a link/],
+    ['a bundled entry nothing bundles', lock({ 'node_modules/ghost': { version: '1.0.0', inBundle: true } }), /parent does not bundle it/],
+  ])('holds a lockfile with %s', (_label, after, reason) => {
+    expect(lockfileHold(goodLock, after)).toMatch(reason);
+  });
+
+  it('an alias the lockfile already had is not new', () => {
+    const aliased = lock({ 'node_modules/p2r-updated': entry('path-to-regexp', { name: 'path-to-regexp' }) });
+    expect(lockfileHold(aliased, aliased)).toBeNull();
+  });
+
+  it.each(['.npmrc', 'web/.npmrc', 'npm-shrinkwrap.json', 'yarn.lock', 'pnpm-lock.yaml', '.yarnrc.yml', 'bun.lockb', 'packages/x/package.json'])(
+    'holds %s by pattern',
+    (path) => {
+      expect(decide([path], [])).toMatch(/held for a human/);
+    },
+  );
+
+  it.each(['resolutions', 'workspaces', 'bin', 'type', 'main', 'exports'])('holds a change to "%s"', (key) => {
+    expect(manifestHold(json(base), with_({ [key]: key === 'type' ? 'commonjs' : { x: 'y' } }))).toMatch(new RegExp(`changes "${key}"`));
+  });
+
+  it.each(['workspace:*', 'link:../x', 'https://example.com/x.tgz', 'github:x/y', '^1 || file:../x'])('holds the version spec %s', (spec) => {
+    expect(manifestHold(json(base), with_({ dependencies: { react: spec } }))).toMatch(/not a registry semver range/);
   });
 
   it('removing a dependency, or moving one to devDependencies, is not held', () => {
@@ -217,8 +253,11 @@ describe('dependency bumps of names already present merge alone', () => {
     expect(lockfileHold(scripted, scripted)).toBeNull();
   });
 
-  it('bundled entries without a resolved URL are fine; links are skipped', () => {
-    expect(lockfileHold(goodLock, lock({ 'node_modules/a/node_modules/b': { version: '1.0.0', inBundle: true }, 'packages/x': { link: true } }))).toBeNull();
+  it('bundled entries without a resolved URL are fine when their parent bundles them', () => {
+    expect(lockfileHold(goodLock, lock({
+      'node_modules/a': entry('a', { bundleDependencies: ['b'] }),
+      'node_modules/a/node_modules/b': { version: '1.0.0', inBundle: true },
+    }))).toBeNull();
   });
 
   it('fails closed: missing sources, a new or deleted manifest, unparseable JSON', () => {
