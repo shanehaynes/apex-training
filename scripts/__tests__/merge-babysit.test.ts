@@ -735,10 +735,16 @@ describe('merge-babysit.sh, ios required: a skipped or neutral required check pa
     expect(out).not.toMatch(/WAIT|SKIP {2}#/);
   });
 
-  it('a required check that ended NEUTRAL passes too', async () => {
-    const out = await babysit('web', [...othersGreen, job('ios', 'NEUTRAL', at(1), at(2))]);
+  it('a required check that ended NEUTRAL passes too, whichever check it is', async () => {
+    const out = await babysit('web', [...othersGreen.filter((j) => j.name !== 'full'), job('full', 'NEUTRAL', at(0), at(12)), iosSkipped]);
     expect(out).toContain(`FLEET #${WEB_PR}`);
     expect(out).not.toMatch(/WAIT|SKIP {2}#/);
+  });
+
+  it('a required check that failed is SKIP, not a pass', async () => {
+    const out = await babysit('ios', [...othersGreen, job('ios', 'FAILURE', at(1), at(38))], { state: 'BLOCKED' });
+    expect(out).toContain(`SKIP  #${IOS_PR} has failing check(s): ios=FAILURE (required)`);
+    expect(out).not.toMatch(/FLEET #|WOULD PROVE|WAIT/);
   });
 
   it('an iOS PR waits while its required ios is still running', async () => {

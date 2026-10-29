@@ -247,6 +247,13 @@ and the Next brief section below filled in.
   although only the deleted skip step needed full history. Nothing in the CI build reads it
   (`testflight.sh`'s `git rev-list --count` runs locally). Dropping it would save a full-history
   fetch on macOS: a one-line follow-up, and a `ci.yml` PR that runs `ios` in full.
+- 2026-10-29 · M2: a required SKIPPED or NEUTRAL passes for every required check, and the newest
+  run of a name decides, as before. So a newer SKIPPED replaces an older red run of the same
+  check. That is needed: a `changes` flake fails `ios` closed, and once the re-run decides
+  `false`, its SKIPPED must clear the PR. The cost (found in review) is that a CI run
+  dispatched by hand on a PR branch skips the event-only `coach-gate`, and that SKIPPED would
+  then replace a failed `coach-gate`. Accepted: one dispatch ever, on `main`, and branch
+  protection is believed to read the newest run the same way (not probed).
 
 ## Session log
 - 2026-10-28 · Spec drafted from the #507 investigation. Reviewed once (two major findings:
@@ -275,9 +282,13 @@ and the Next brief section below filled in.
   `fix/babysit-skipped-required`, from a `main` with both.
   - `required_green`'s required loop passes `SUCCESS|SKIPPED|NEUTRAL`. Its comment now says what
     waiting only on required checks did, and why a required skip is trusted (CI fails it closed).
-  - A new describe block has six cases. On the pre-M2 script three fail: fleet web-only with
-    `ios` SKIPPED, serial CLEAN web-only with `ios` SKIPPED, and NEUTRAL. "SKIPPED but not
-    NEUTRAL" fails the NEUTRAL case, and "an unknown verdict passes" fails the unknown case.
+  - A new describe block has seven cases. On the pre-M2 script three fail: fleet web-only with
+    `ios` SKIPPED, serial CLEAN web-only with `ios` SKIPPED, and NEUTRAL on `full`. Four
+    near-miss mutants each fail exactly their own case: SKIPPED but not NEUTRAL, an unknown
+    verdict passes, a skip passes only for `ios`, and a required FAILURE passes.
+  - Reviewer (spec plus diff only): four minor findings. Two were test gaps, closed by the
+    `full` NEUTRAL case and a required-FAILURE case. One was comment wording, fixed. The
+    fourth, a newer SKIPPED replacing an older red run, is kept on purpose (Decisions).
   - M1 close-out, partly read:
     - main push: #515's merge commit 07aea30f got run 40868312181, which `main`'s concurrency
       group cancelled while it was still pending (no jobs). The first `main` run with M1 in it

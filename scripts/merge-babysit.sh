@@ -435,11 +435,13 @@ load_required_contexts() {
 # protection names it.
 #
 # A required check passes as branch protection passes it: on SUCCESS, or on
-# SKIPPED or NEUTRAL. A job skipped by its `if:` is CI saying the check does
-# not apply (a web-only PR's `ios`, which the `changes` job skips at job
-# level), and waiting on it would hold that PR forever. CI fails that skip
-# closed, so this trusts the verdict; copying CI's iOS-path rule here instead
-# would fail open the day the two drift.
+# SKIPPED or NEUTRAL, with the newest run of each name deciding. A web-only
+# PR's `ios` is skipped by its own `if:` on the `changes` job's answer, and
+# waiting on it would hold that PR forever. CI fails that skip closed, so
+# this trusts it; copying CI's iOS-path rule here instead would fail open the
+# day the two drift. Other skips are not vetted here: a CI run dispatched by
+# hand on a PR branch skips the event-only `coach-gate`, and that SKIPPED
+# decides over an older red run of it, here as in protection.
 #
 # One verdict per check name, so a re-run decides and not the run it
 # replaced: a run still going makes the name pending, otherwise the newest
