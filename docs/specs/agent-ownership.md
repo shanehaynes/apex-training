@@ -63,19 +63,20 @@ The loop runs on Shane's Claude subscription. Every run:
 - never runs `npm run e2e:live` or another path that calls a deployed coach endpoint.
 
 `agent:check` is mock-only and stays allowed. `scripts/owner-preflight.sh` enforces
-the first rule and greps the run's own command log for the second (M1).
+the first rule. The second is prose in the prompt of record (see Decisions).
 
 ## Each run (the prompt of record encodes this)
 1. **Preflight** (`scripts/owner-preflight.sh`). Exit unless all of these hold:
    - no `.claude/OWNER_OFF` and no `.claude/AUTOMERGE_OFF` in the primary checkout;
-   - no other owner run holds the lock (`flock`, the `with-stack-lock.sh` pattern);
+   - no other owner run holds the lock (an atomic symlink with a token, stale after 3h45m);
    - no `ANTHROPIC_API_KEY`;
    - the primary is clean and on `main`.
 
-   It also takes `caffeinate -i -s` for the run.
+   The run then holds a background `caffeinate` for its 3h30m budget.
 2. **Sweep.** Run `scripts/supervisor-report.sh` and keep its ACTION lines.
 3. **Land.** Run `scripts/merge-babysit.sh --fleet --yes` or `--yes`, whichever
-   matches the up-to-date rule, with `--max-minutes=60`.
+   matches the up-to-date rule: exactly those strings, the allow-listed ones, so the
+   babysitter's own deadline bounds it.
 4. **Repair.** For each open PR that is red, DIRTY, or HELD only for something
    fixable, run a subagent in that PR's lane (its worktree, or a new one checked out
    from its branch). It merges `origin/main`, fixes, runs `agent:check`, and pushes
@@ -165,6 +166,21 @@ item caused by the loop itself, and the Next brief filled in.
   caps, and nothing would count it.
 - 2026-10-28 · Three-strike rule per PR per day. An unattended loop that retries a
   failing fix forever burns the subscription's rate limit for every other session.
+
+- 2026-10-28 · From the M1 review. The no-API rule for commands inside the run (evals,
+  e2e:live) is prose only. Evals read the key from `.env.local`, so an env check
+  cannot see it. A mechanical guard would need bash-guard to know which session is
+  the owner run; revisit if a run ever breaks the rule.
+- 2026-10-28 · CLAUDE.md, CONTRIBUTING.md, `.claude/agents/` and `.claude/skills/` steer the
+  loop but are not HELD: holding them would hold most doc PRs. The loop never edits
+  them or repairs PRs that touch them. A PR from another session can still change
+  them; that is today's state for every session, not new with the loop.
+- 2026-10-28 · Repairs that touch a test file get a `reviewer` pass before the push. A
+  green repair otherwise lands within one cadence with no human, and "fix the test by
+  loosening it" is the failure mode to stop.
+- 2026-10-28 · Repairs skip a lane with uncommitted work, a live dev server, or another
+  session's claim under 6 hours old. They are limited to `shanehaynes`-authored,
+  same-repo PRs. BEHIND is left to the babysitter.
 
 ## Session log
 - 2026-10-28 · spec written.
