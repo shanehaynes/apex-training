@@ -4,7 +4,7 @@ import Foundation
 /// composer's live "derived kcal" placeholder cannot round-trip to the server
 /// on every keystroke. Four constants, pinned against vectors the web repo
 /// emits from its own `derivedCalories` (`ios/Fixtures/nutrition-derived.json`).
-/// Nothing else — sums, display rounding, the fat-split rule — is ported:
+/// Nothing else (sums, display rounding, the fat-split rule) is ported:
 /// the server owns those and refuses with the composer's own words.
 public enum Nutrition {
     /// Atwater 4/4/9/7; nil when no macro is set at all.
