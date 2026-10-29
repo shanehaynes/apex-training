@@ -25,9 +25,9 @@
   starts from a `main` that has it.
 - #507 (`required_green` waits for every check), which M2 edits.
 
-**Status:** M1 merged 2026-10-29 as #515; the after-merge run ids are partly read (Session log).
-M2 is in review on `fix/babysit-skipped-required` (HELD for `shipit`). M3 waits for M2 and for
-a green `main` push run with M1 in it.
+**Status:** M1 merged 2026-10-29 as #515, and all of its boxes are checked.
+M2 is in review as #517 (HELD for `shipit`). M3 waits only for M2: `main`'s push run with M1
+in it (40868335083) is green.
 
 ## Goal
 
@@ -154,7 +154,7 @@ M2 touch different files and can run in parallel. M3 waits for both.
   Neither the web-only `false` path nor the `ios/` path can be proven on a PR before M1 merges.
   Any such PR carries M1's `ci.yml` change, which is itself an iOS path. The test above proves
   the script; the boxes below prove the wiring.
-- [ ] After merge, check three runs: the first `main` push run containing M1's merge commit, the
+- [x] After merge, check three runs: the first `main` push run containing M1's merge commit, the
   first web-only PR, and the first PR touching only `ios/`. Record each run id in the session
   log. Read each `ios` job with
   `gh api repos/shanehaynes/apex-training/actions/runs/<id>/jobs --jq '.jobs[]|select(.name=="ios")|{conclusion,runner_name,steps:(.steps|length)}'`.
@@ -298,7 +298,24 @@ and the Next brief section below filled in.
     - web-only PR: M2's own PR #517, run **40874065535** (head dc6aab9b). `changes` logged
       `ios=false`, and `ios` read `{"conclusion":"skipped","runner_name":null,"steps":0}`. Every
       other check is green, and the rollup shows `ios=SKIPPED`.
-    - `ios/`-only PR: none has run since the merge. The M3 brief carries it.
+    - `ios/`-only PR: none had run since the merge, so Shane OK'd a throwaway draft, #518
+      (`throwaway/ios-only` off 47f4696e). It changed one doc-comment line in
+      `ApexCore/Nutrition/Nutrition.swift`. Run **40888121776**: `changes` logged `ios=true`.
+      - Attempt 1 ran on image macos-26-arm64 20261021.0445. "Build and test" failed after 2
+        minutes: `xcodebuild` saw no simulator devices at all, only placeholders, so the pinned
+        `iPhone 17, OS=26.5` destination failed (exit 70). That was one bad machine, not M1
+        or the image: #515's own run and probe (c) both found the destination on that same
+        image the day before.
+      - `gh run rerun --failed` gave attempt 2 (image 20261013.0424). The jobs-API command read
+        `{"conclusion":"success","runner_name":"GitHub Actions 1000008090","steps":13}`, with
+        `** TEST SUCCEEDED **` in 41 minutes.
+      - Afterwards #518 was closed, the branch deleted on origin and locally (only the one
+        THROWAWAY commit was its own), and the worktree removed without force.
+    - All three rows match M1's table, so its last box is ticked.
+  - Not M1's, but worth knowing for M3: once `ios` is required, a runner that comes up with no
+    simulators makes `ios` red until it is re-run, and M3's "a red `ios` blocks its PR" includes
+    that. If it recurs, give the destination step one retry after
+    `xcrun simctl list devices available`.
 
 ## Next brief
 **M3 — require `ios`.** Shane runs the flip; a session checks before it and verifies and logs
@@ -307,11 +324,7 @@ after it. It starts once M2's PR has merged.
   like the other four. Then `gh pr merge` and the web UI refuse an iOS PR whose `ios` has not
   passed, while a web-only PR, whose `ios` is a job-level SKIPPED, merges without waiting.
 - **Before the flip (session, read-only):**
-  - Finish M1's last box. The `main` push and web-only rows are read (Session log, 2026-10-29).
-    Read the first `ios/`-only PR's run with the jobs-API command, log it, and tick the box.
-  - If no `ios/`-only PR has run, wait for the next natural one. Or, with Shane's OK, use a
-    throwaway draft that touches only an `ios/` comment, closed and cleaned up as M1's probes
-    were.
+  - M1 is closed: all three after-merge rows are read (Session log, 2026-10-29).
   - Confirm `main`'s newest push run is green on `changes` and `ios`, and log the current
     protection read-back (`strict` and the four checks).
   - If anything reads differently from M1's table, stop and report.
