@@ -20,16 +20,14 @@
 #   5  the primary checkout is dirty or not on main
 #   6  another owner run holds the lock
 #
-# The lock is a symlink whose target is "<since>.<token>": `ln -s` creates it
-# atomically WITH its content, so there is no half-made lock to misread. It
-# outlives any one process (the run is a Claude session that calls this, then
-# many other commands, then `release`), so it records the time it was taken, and a
-# lock older than OWNER_LOCK_MAX_SECS (default 3h45m: under the 4-hour cadence,
-# so a dead run costs one cycle, and above the run's 3h30m budget) is stale.
-# The token makes release safe: a run whose lock was reaped cannot release the
-# next run's. A stale lock is reaped by renaming it aside and checking that
-# what was moved is still the stale value read a moment before; if another run
-# already replaced it, the rename is undone and this run refuses.
+# The lock is the kernel's: acquire starts one background process that holds
+# `flock` on .claude/state/owner.lock and, while it lives, keeps the Mac awake
+# (caffeinate; plain sleep where there is none). It lives at most
+# OWNER_LOCK_MAX_SECS (default 3h45m: under the 4-hour cadence, so a dead run
+# costs one cycle, and above the run's 3h30m budget), so a run that dies
+# without releasing frees the lock by itself. The token is the holder's pid;
+# release kills it only if it is still the holder of this lock, so a run that
+# overstayed cannot free the next run's lock.
 set -euo pipefail
 
 cmd=${1:-}
@@ -43,9 +41,16 @@ root=$(cd "$(dirname "$0")/.." && pwd -P)
 primary=$(cd "$root" && cd "$(git rev-parse --git-common-dir)/.." && pwd -P)
 state="$primary/.claude/state"
 lock="$state/owner.lock"
+holder="$state/owner.lock.pid"
 max=${OWNER_LOCK_MAX_SECS:-13500}
 
-stamp() { date -r "$1" '+%F %T' 2>/dev/null || date -d "@$1" '+%F %T'; }
+FLOCK=$(command -v flock || echo /opt/homebrew/bin/flock)
+if command -v caffeinate >/dev/null 2>&1; then hold=(caffeinate -i -s -t "$max"); else hold=(sleep "$max"); fi
+
+# Is pid $1 the flock holding our lock file?
+is_holder() {
+  [ -n "$1" ] && ps -p "$1" -o command= 2>/dev/null | grep -qF -- "$lock"
+}
 
 kill_switch() {
   local f
@@ -65,12 +70,13 @@ fi
 
 if [ "$cmd" = release ]; then
   token=${2:-}
-  held=$(readlink "$lock" 2>/dev/null || true)
-  if [ -z "$token" ] || [ "${held#*.}" != "$token" ]; then
-    echo "owner-preflight: not released — the lock is not this run's (it may have been reaped as stale)"
+  if [ -z "$token" ] || ! is_holder "$token"; then
+    echo "owner-preflight: not released — $token is not this lock's holder (it may have expired)"
     exit 7
   fi
-  rm -f "$lock"
+  kids=$(pgrep -P "$token" || true)
+  # shellcheck disable=SC2086 # pids
+  kill "$token" $kids 2>/dev/null || true
   echo "owner-preflight: released"
   exit 0
 fi
@@ -97,32 +103,18 @@ if [ -n "$dirty" ]; then
 fi
 
 mkdir -p "$state"
-now=$(date +%s)
-token="$now-$$-$RANDOM"
-if ! ln -s "$now.$token" "$lock" 2>/dev/null; then
-  seen=$(readlink "$lock" 2>/dev/null || true)
-  since=${seen%%.*}
-  case "$since" in ''|*[!0-9]*) since=0 ;; esac
-  if [ -n "$seen" ] && [ $(( now - since )) -lt "$max" ]; then
-    echo "owner-preflight: refused — another owner run holds the lock since $(stamp "$since")"
-    exit 6
-  fi
-  aside="$lock.reap.$$"
-  if ! mv "$lock" "$aside" 2>/dev/null; then
-    echo "owner-preflight: refused — another owner run reaped the stale lock first"
-    exit 6
-  fi
-  if [ "$(readlink "$aside" 2>/dev/null || true)" != "$seen" ]; then
-    mv "$aside" "$lock" 2>/dev/null || true
-    echo "owner-preflight: refused — another owner run reaped the stale lock first"
-    exit 6
-  fi
-  rm -f "$aside"
-  if ! ln -s "$now.$token" "$lock" 2>/dev/null; then
-    echo "owner-preflight: refused — another owner run took the lock first"
-    exit 6
-  fi
-  echo "owner-preflight: cleared a stale lock"
+# flock -n exits at once when another process holds the lock; otherwise it
+# runs the holder. -o keeps the lock on flock itself rather than on the
+# holder it runs, so killing flock frees it. Started detached, so it outlives
+# this script.
+nohup "$FLOCK" -n -o "$lock" "${hold[@]}" >/dev/null 2>&1 &
+pid=$!
+sleep 1
+if ! kill -0 "$pid" 2>/dev/null; then
+  other=$(cat "$holder" 2>/dev/null || true)
+  echo "owner-preflight: refused — another owner run holds the lock${other:+ (holder pid $other)}"
+  exit 6
 fi
+echo "$pid" > "$holder"
 echo "owner-preflight: ok — primary $primary, lock taken"
-echo "token=$token"
+echo "token=$pid"
