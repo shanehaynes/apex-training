@@ -289,13 +289,16 @@ and the Next brief section below filled in.
   - Reviewer (spec plus diff only): four minor findings. Two were test gaps, closed by the
     `full` NEUTRAL case and a required-FAILURE case. One was comment wording, fixed. The
     fourth, a newer SKIPPED replacing an older red run, is kept on purpose (Decisions).
-  - M1 close-out, partly read:
+  - M1 close-out (two of three read with the jobs-API command; both match the table):
     - main push: #515's merge commit 07aea30f got run 40868312181, which `main`'s concurrency
       group cancelled while it was still pending (no jobs). The first `main` run with M1 in it
-      is #516's 40868335083, queued behind #510's run.
-    - web-only PR: none had run since the merge. M2's own PR is web-only, and its run is the
-      first.
-    - `ios/`-only PR: none yet.
+      is #516's **40868335083** (head 47f4696e). `changes` logged `ios=true`, and `ios` read
+      `{"conclusion":"success","runner_name":"GitHub Actions 1000008069","steps":13}`: built and
+      tested in 29m26s. The whole run is green.
+    - web-only PR: M2's own PR #517, run **40874065535** (head dc6aab9b). `changes` logged
+      `ios=false`, and `ios` read `{"conclusion":"skipped","runner_name":null,"steps":0}`. Every
+      other check is green, and the rollup shows `ios=SKIPPED`.
+    - `ios/`-only PR: none has run since the merge. The M3 brief carries it.
 
 ## Next brief
 **M3 — require `ios`.** Shane runs the flip; a session checks before it and verifies and logs
@@ -304,9 +307,8 @@ after it. It starts once M2's PR has merged.
   like the other four. Then `gh pr merge` and the web UI refuse an iOS PR whose `ios` has not
   passed, while a web-only PR, whose `ios` is a job-level SKIPPED, merges without waiting.
 - **Before the flip (session, read-only):**
-  - Finish M1's last box. Read the newest `main` push run with M1 in it (40868335083 or later),
-    the first web-only PR's run (M2's own) and the first `ios/`-only PR's run with the
-    jobs-API command, and log them.
+  - Finish M1's last box. The `main` push and web-only rows are read (Session log, 2026-10-29).
+    Read the first `ios/`-only PR's run with the jobs-API command, log it, and tick the box.
   - If no `ios/`-only PR has run, wait for the next natural one. Or, with Shane's OK, use a
     throwaway draft that touches only an `ios/` comment, closed and cleaned up as M1's probes
     were.
