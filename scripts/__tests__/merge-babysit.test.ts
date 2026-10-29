@@ -611,3 +611,157 @@ printf '%s\\n' "$@" > "$COMBINE_ARGS"
     expect((err as { stdout: string }).stdout).not.toContain('CONFLICT');
   });
 });
+
+describe('merge-babysit.sh, ios required: a skipped or neutral required check passes, as branch protection passes it', { timeout: 120_000 }, () => {
+  // Once ios is required (docs/specs/ios-required-check.md, M3), a web-only
+  // PR's ios is a job-level SKIPPED: the `changes` job decided it does not
+  // apply. Branch protection counts that as passed; the babysitter must too,
+  // or every web-only PR waits forever. An iOS PR still waits for ios to pass.
+  const REQUIRED = ['check', 'e2e-mock', 'full', 'coach-gate', 'ios'];
+  const WEB_PR = 21;
+  const IOS_PR = 22;
+  const WEB_BRANCH = 'fix/web-fixture';
+  const IOS_BRANCH = 'fix/ios-fixture';
+  let tmp: string;
+  let work: string;
+  const heads: Record<string, string> = {};
+  const git = (...args: string[]) => execFileSync('git', args, { cwd: work, encoding: 'utf8', env: gitEnv }).trim();
+
+  beforeAll(() => {
+    execFileSync('jq', ['--version']);
+    tmp = mkdtempSync(join(tmpdir(), 'apex-babysit-skipped-'));
+    work = join(tmp, 'work');
+    execFileSync('git', ['init', '-q', '--bare', '-b', 'main', join(tmp, 'origin.git')]);
+    execFileSync('git', ['init', '-q', '-b', 'main', work]);
+    for (const path of ['scripts/merge-babysit.sh', 'scripts/merge-policy.mjs']) {
+      mkdirSync(dirname(join(work, path)), { recursive: true });
+      copyFileSync(join(repo, path), join(work, path));
+    }
+    git('add', '-A');
+    git('-c', 'commit.gpgsign=false', 'commit', '-q', '-m', 'main');
+    git('remote', 'add', 'origin', join(tmp, 'origin.git'));
+    git('push', '-q', 'origin', 'main');
+    // One web-only PR and one iOS PR, on branches of this repo: fleet mode folds origin/<head>.
+    for (const [branch, path] of [
+      [WEB_BRANCH, 'src/fixture.ts'],
+      [IOS_BRANCH, 'ios/Packages/ApexCore/Sources/Fixture.swift'],
+    ]) {
+      git('checkout', '-q', '-b', branch, 'main');
+      mkdirSync(dirname(join(work, path)), { recursive: true });
+      writeFileSync(join(work, path), 'export const fixture = 1;\n');
+      git('add', '-A');
+      git('-c', 'commit.gpgsign=false', 'commit', '-q', '-m', `change ${path}`);
+      heads[branch] = git('rev-parse', 'HEAD');
+      git('push', '-q', 'origin', branch);
+    }
+    git('checkout', '-q', 'main');
+  });
+
+  afterAll(() => {
+    rmSync(tmp, { recursive: true, force: true });
+  });
+
+  const at = (minute: number) => new Date(Date.UTC(2026, 9, 29, 12, minute)).toISOString().replace('.000', '');
+  const NOT_DONE = '0001-01-01T00:00:00Z';
+  /** A CI job as gh's statusCheckRollup reports it; no conclusion means still running. */
+  const job = (name: string, conclusion: string | null, startedAt: string | null, completedAt = NOT_DONE) => ({
+    __typename: 'CheckRun',
+    name,
+    workflowName: 'CI',
+    status: conclusion ? 'COMPLETED' : 'IN_PROGRESS',
+    conclusion: conclusion ?? '',
+    startedAt,
+    completedAt,
+  });
+  // Every required check but ios, green; plus the jobs that are never required.
+  const othersGreen = [
+    ...['check', 'e2e-mock', 'full', 'coach-gate', 'changes', 'apexcore-linux'].map((name) => job(name, 'SUCCESS', at(0), at(12))),
+    job('prod-checks', 'SKIPPED', at(0), at(0)),
+    job('evals', 'SKIPPED', at(0), at(0)),
+    { __typename: 'StatusContext', context: 'Vercel', state: 'SUCCESS', startedAt: at(0) },
+  ];
+  // A job skipped by its `if:` completes the moment it is created, with no steps.
+  const iosSkipped = job('ios', 'SKIPPED', at(1), at(1));
+
+  const pr = (kind: 'web' | 'ios', rollup: object[], state: string) => {
+    const web = kind === 'web';
+    const branch = web ? WEB_BRANCH : IOS_BRANCH;
+    const number = web ? WEB_PR : IOS_PR;
+    return {
+      number,
+      title: `A ${kind} change (#${number})`,
+      baseRefName: 'main',
+      isDraft: false,
+      mergeStateStatus: state,
+      headRefName: branch,
+      headRefOid: heads[branch],
+      isCrossRepository: false,
+      changedFiles: 1,
+      files: [{ path: web ? 'src/fixture.ts' : 'ios/Packages/ApexCore/Sources/Fixture.swift' }],
+      labels: [],
+      statusCheckRollup: rollup,
+    };
+  };
+
+  /** stdout of a dry run over one PR, with `ios` among the required contexts. */
+  const babysit = async (kind: 'web' | 'ios', rollup: object[], { fleet = true, state = 'CLEAN' } = {}) => {
+    const fixture = join(tmp, `gh-${Math.random().toString(36).slice(2)}.json`);
+    writeFileSync(fixture, JSON.stringify({ protection: { strict: !fleet, contexts: REQUIRED }, prs: [pr(kind, rollup, state)] }));
+    const gh = join(tmp, 'gh');
+    writeFileSync(gh, GH_STUB);
+    chmodSync(gh, 0o755);
+    try {
+      return (
+        await run('bash', [join(work, 'scripts/merge-babysit.sh'), ...(fleet ? ['--fleet'] : [])], {
+          cwd: work,
+          env: { ...gitEnv, GH: gh, GH_FIXTURE: fixture },
+        })
+      ).stdout;
+    } catch (e) {
+      return (e as { stdout: string }).stdout;
+    }
+  };
+
+  it('fleet: a web-only PR whose required ios was skipped at job level folds', async () => {
+    const out = await babysit('web', [...othersGreen, iosSkipped]);
+    expect(out).toContain(`FLEET #${WEB_PR}`);
+    expect(out).toContain('WOULD PROVE the union of 1 PR(s)');
+    expect(out).not.toMatch(/WAIT|SKIP {2}#/);
+  });
+
+  it('serial: a CLEAN web-only PR whose required ios was skipped would merge', async () => {
+    const out = await babysit('web', [...othersGreen, iosSkipped], { fleet: false });
+    expect(out).toContain(`WOULD MERGE #${WEB_PR}`);
+    expect(out).not.toMatch(/WAIT|SKIP {2}#/);
+  });
+
+  it('a required check that ended NEUTRAL passes too, whichever check it is', async () => {
+    const out = await babysit('web', [...othersGreen.filter((j) => j.name !== 'full'), job('full', 'NEUTRAL', at(0), at(12)), iosSkipped]);
+    expect(out).toContain(`FLEET #${WEB_PR}`);
+    expect(out).not.toMatch(/WAIT|SKIP {2}#/);
+  });
+
+  it('a required check that failed is SKIP, not a pass', async () => {
+    const out = await babysit('ios', [...othersGreen, job('ios', 'FAILURE', at(1), at(38))], { state: 'BLOCKED' });
+    expect(out).toContain(`SKIP  #${IOS_PR} has failing check(s): ios=FAILURE (required)`);
+    expect(out).not.toMatch(/FLEET #|WOULD PROVE|WAIT/);
+  });
+
+  it('an iOS PR waits while its required ios is still running', async () => {
+    const out = await babysit('ios', [...othersGreen, job('ios', null, at(1))], { state: 'BLOCKED' });
+    expect(out).toContain(`WAIT  #${IOS_PR}: BLOCKED — CI still running — waiting on ios; next pass.`);
+    expect(out).not.toMatch(/FLEET #|WOULD PROVE/);
+  });
+
+  it('a newest required ios that was cut off is SKIP, even over an older SKIPPED', async () => {
+    const out = await babysit('ios', [...othersGreen, iosSkipped, job('ios', 'CANCELLED', at(2), at(77))], { state: 'BLOCKED' });
+    expect(out).toContain(`SKIP  #${IOS_PR} has failing check(s): ios=CANCELLED (required; cut off before it finished — re-run it)`);
+    expect(out).not.toMatch(/FLEET #|WOULD PROVE|WAIT/);
+  });
+
+  it('a verdict it does not know on a required check stays pending', async () => {
+    const out = await babysit('ios', [...othersGreen, job('ios', 'SOMETHING_NEW', at(1), at(40))], { state: 'BLOCKED' });
+    expect(out).toContain(`WAIT  #${IOS_PR}: BLOCKED — CI still running — waiting on ios; next pass.`);
+    expect(out).not.toMatch(/FLEET #|WOULD PROVE/);
+  });
+});

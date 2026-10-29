@@ -426,18 +426,22 @@ load_required_contexts() {
 # UNSTABLE covers a running job, a superseded run's CANCELLED job and a
 # failed preview deploy alike.
 #
-# Every check counts, not only the required ones. `ios` is not required
-# (branch protection is Shane's), yet it is the only proof that an iOS change
-# builds and passes its UI tests: the fleet's union proof runs agent:check,
-# which has neither. Counting only the required checks, fleet mode merged 12
-# of 16 iOS PRs (Oct 2026) while ios was still running, and 9 of those runs
-# ended red — #395 and #438 were cut off at the cap. A web-only PR waits only
-# for a macOS runner to start the skip: on the last 35 web-only PRs (Oct
-# 2026) ios finished before the last required check every time, but in the
-# saturated pool of the 2026-09-21 fleet #237's skip started 114 minutes
-# after its checks. That delays the waiting PR, not the others: each pass
-# merges whatever is ready. Copying CI's iOS-path rule here instead would
-# fail open the day the two drift.
+# Every check counts, not only the required ones. When this waited only on
+# what branch protection required, and `ios` was not on that list, fleet mode
+# merged 12 of 16 iOS PRs (Oct 2026) while ios was still running, and 9 of
+# those runs ended red — #395 and #438 were cut off at the cap. The fleet's
+# union proof runs agent:check, which neither builds the iOS app nor runs its
+# UI tests, so a check that is running or red holds its PR whether or not
+# protection names it.
+#
+# A required check passes as branch protection passes it: on SUCCESS, or on
+# SKIPPED or NEUTRAL, with the newest run of each name deciding. A web-only
+# PR's `ios` is skipped by its own `if:` on the `changes` job's answer, and
+# waiting on it would hold that PR forever. CI fails that skip closed, so
+# this trusts it; copying CI's iOS-path rule here instead would fail open the
+# day the two drift. Other skips are not vetted here: a CI run dispatched by
+# hand on a PR branch skips the event-only `coach-gate`, and that SKIPPED
+# decides over an older red run of it, here as in protection.
 #
 # One verdict per check name, so a re-run decides and not the run it
 # replaced: a run still going makes the name pending, otherwise the newest
@@ -460,7 +464,7 @@ required_green() {
   for ctx in $required_contexts; do
     st=$(printf '%s\n' "$rollup" | awk -F'\t' -v c="$ctx" '$1 == c { print $2; exit }')
     case "$st" in
-      SUCCESS) ;;
+      SUCCESS|SKIPPED|NEUTRAL) ;;
       CANCELLED) red="$red $ctx=CANCELLED (required; cut off before it finished — re-run it)" ;;
       FAILURE|ERROR|TIMED_OUT|ACTION_REQUIRED|STARTUP_FAILURE|STALE) red="$red $ctx=$st (required)" ;;
       *) pending="$pending $ctx" ;;

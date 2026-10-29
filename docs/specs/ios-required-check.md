@@ -25,9 +25,9 @@
   starts from a `main` that has it.
 - #507 (`required_green` waits for every check), which M2 edits.
 
-**Status:** M1 in review as #515 (HELD for `shipit`). Its pre-merge proof is done except its own
-green run, which goes in its PR body; the after-merge run ids are still to come. #507 merged
-2026-10-28, so M2 can start. M3 waits for both.
+**Status:** M1 merged 2026-10-29 as #515, and all of its boxes are checked.
+M2 is in review as #517 (HELD for `shipit`). M3 waits only for M2: `main`'s push run with M1
+in it (40868335083) is green.
 
 ## Goal
 
@@ -128,8 +128,8 @@ M2 touch different files and can run in parallel. M3 waits for both.
     deleted step.
   - `coach-gate`'s "Same reasoning as the ios job above" stops pointing at a job that no longer
     skips internally. It states its own reason.
-- [ ] Before merge, evidence by run id in the PR body (2 is done, run ids in the Session log; 1
-  goes in #515's body when its run finishes, and is ticked here after merge):
+- [x] Before merge, evidence by run id in the PR body (#515: its own run 40790077183; the probe
+  run ids are in the Session log):
   1. This PR's own run. It edits `ci.yml`, so `changes` says `ios=true` and `ios` builds and
      passes.
   2. Three pushes to one throwaway draft PR. In none of them may `ios` come out SKIPPED:
@@ -154,7 +154,7 @@ M2 touch different files and can run in parallel. M3 waits for both.
   Neither the web-only `false` path nor the `ios/` path can be proven on a PR before M1 merges.
   Any such PR carries M1's `ci.yml` change, which is itself an iOS path. The test above proves
   the script; the boxes below prove the wiring.
-- [ ] After merge, check three runs: the first `main` push run containing M1's merge commit, the
+- [x] After merge, check three runs: the first `main` push run containing M1's merge commit, the
   first web-only PR, and the first PR touching only `ios/`. Record each run id in the session
   log. Read each `ios` job with
   `gh api repos/shanehaynes/apex-training/actions/runs/<id>/jobs --jq '.jobs[]|select(.name=="ios")|{conclusion,runner_name,steps:(.steps|length)}'`.
@@ -176,17 +176,17 @@ M2 touch different files and can run in parallel. M3 waits for both.
   `ios` is skipped at job level.
 
 ### M2 — the babysitter counts a skipped required check as passed
-- [ ] In `required_green` (`scripts/merge-babysit.sh`), a required context whose verdict is
+- [x] In `required_green` (`scripts/merge-babysit.sh`), a required context whose verdict is
   SKIPPED or NEUTRAL passes, like SUCCESS. An unknown verdict stays pending.
-- [ ] A new describe block in `scripts/__tests__/merge-babysit.test.ts`. It gets its own
+- [x] A new describe block in `scripts/__tests__/merge-babysit.test.ts`. It gets its own
   required list, `check e2e-mock full coach-gate ios`, and leaves #507's block and its
   `REQUIRED` alone. Cases:
   - a web-only PR whose `ios` is COMPLETED/SKIPPED folds in fleet mode and reads WOULD MERGE
     from a serial CLEAN;
   - an iOS PR whose required `ios` is IN_PROGRESS waits;
   - a newest required `ios` that is CANCELLED is SKIP "(required; cut off …)".
-- [ ] Run against the pre-M2 script, the skipped-required cases fail (named in the PR body).
-- [ ] The `required_green` comment reads true before and after M3: say what waiting only on
+- [x] Run against the pre-M2 script, the skipped-required cases fail (named in the PR body).
+- [x] The `required_green` comment reads true before and after M3: say what waiting only on
   required checks did, not that `ios` is not required.
 
 ### M3 — require `ios` (Shane runs it; the session verifies and logs)
@@ -247,6 +247,13 @@ and the Next brief section below filled in.
   although only the deleted skip step needed full history. Nothing in the CI build reads it
   (`testflight.sh`'s `git rev-list --count` runs locally). Dropping it would save a full-history
   fetch on macOS: a one-line follow-up, and a `ci.yml` PR that runs `ios` in full.
+- 2026-10-29 · M2: a required SKIPPED or NEUTRAL passes for every required check, and the newest
+  run of a name decides, as before. So a newer SKIPPED replaces an older red run of the same
+  check. That is needed: a `changes` flake fails `ios` closed, and once the re-run decides
+  `false`, its SKIPPED must clear the PR. The cost (found in review) is that a CI run
+  dispatched by hand on a PR branch skips the event-only `coach-gate`, and that SKIPPED would
+  then replace a failed `coach-gate`. Accepted: one dispatch ever, on `main`, and branch
+  protection is believed to read the newest run the same way (not probed).
 
 ## Session log
 - 2026-10-28 · Spec drafted from the #507 investigation. Reviewed once (two major findings:
@@ -271,39 +278,65 @@ and the Next brief section below filled in.
   - Not yet: #515's own green run (its PR body), and the three after-merge run ids (main push,
     first web-only PR, first `ios/`-only PR). Their box stays open until someone reads them
     after the merge.
+- 2026-10-29 · #510 and #515 merged (11:48–11:49Z). M2 implemented on
+  `fix/babysit-skipped-required`, from a `main` with both.
+  - `required_green`'s required loop passes `SUCCESS|SKIPPED|NEUTRAL`. Its comment now says what
+    waiting only on required checks did, and why a required skip is trusted (CI fails it closed).
+  - A new describe block has seven cases. On the pre-M2 script three fail: fleet web-only with
+    `ios` SKIPPED, serial CLEAN web-only with `ios` SKIPPED, and NEUTRAL on `full`. Four
+    near-miss mutants each fail exactly their own case: SKIPPED but not NEUTRAL, an unknown
+    verdict passes, a skip passes only for `ios`, and a required FAILURE passes.
+  - Reviewer (spec plus diff only): four minor findings. Two were test gaps, closed by the
+    `full` NEUTRAL case and a required-FAILURE case. One was comment wording, fixed. The
+    fourth, a newer SKIPPED replacing an older red run, is kept on purpose (Decisions).
+  - M1 close-out (two of three read with the jobs-API command; both match the table):
+    - main push: #515's merge commit 07aea30f got run 40868312181, which `main`'s concurrency
+      group cancelled while it was still pending (no jobs). The first `main` run with M1 in it
+      is #516's **40868335083** (head 47f4696e). `changes` logged `ios=true`, and `ios` read
+      `{"conclusion":"success","runner_name":"GitHub Actions 1000008069","steps":13}`: built and
+      tested in 29m26s. The whole run is green.
+    - web-only PR: M2's own PR #517, run **40874065535** (head dc6aab9b). `changes` logged
+      `ios=false`, and `ios` read `{"conclusion":"skipped","runner_name":null,"steps":0}`. Every
+      other check is green, and the rollup shows `ios=SKIPPED`.
+    - `ios/`-only PR: none had run since the merge, so Shane OK'd a throwaway draft, #518
+      (`throwaway/ios-only` off 47f4696e). It changed one doc-comment line in
+      `ApexCore/Nutrition/Nutrition.swift`. Run **40888121776**: `changes` logged `ios=true`.
+      - Attempt 1 ran on image macos-26-arm64 20261021.0445. "Build and test" failed after 2
+        minutes: `xcodebuild` saw no simulator devices at all, only placeholders, so the pinned
+        `iPhone 17, OS=26.5` destination failed (exit 70). That was one bad machine, not M1
+        or the image: #515's own run and probe (c) both found the destination on that same
+        image the day before.
+      - `gh run rerun --failed` gave attempt 2 (image 20261013.0424). The jobs-API command read
+        `{"conclusion":"success","runner_name":"GitHub Actions 1000008090","steps":13}`, with
+        `** TEST SUCCEEDED **` in 41 minutes.
+      - Afterwards #518 was closed, the branch deleted on origin and locally (only the one
+        THROWAWAY commit was its own), and the worktree removed without force.
+    - All three rows match M1's table, so its last box is ticked.
+  - Not M1's, but worth knowing for M3: once `ios` is required, a runner that comes up with no
+    simulators makes `ios` red until it is re-run, and M3's "a red `ios` blocks its PR" includes
+    that. If it recurs, give the destination step one retry after
+    `xcrun simctl list devices available`.
 
 ## Next brief
-**M2 — the babysitter counts a skipped required check as passed.** It can start now: #507
-merged on 2026-10-28, and M2 does not wait for #515. Today `required_green` in
-`scripts/merge-babysit.sh` passes a required context only on SUCCESS. Anything it does not
-name, SKIPPED and NEUTRAL included, falls through to `*) pending`. So once M3 makes `ios`
-required, every web-only PR (whose `ios` is a job-level SKIPPED after M1) would WAIT forever.
-- **Goal:** a required context whose newest verdict is SKIPPED or NEUTRAL passes, like
-  SUCCESS. GitHub's branch protection treats it that way, and the babysitter must agree. An
-  unknown verdict stays pending, and CANCELLED stays red with #507's "cut off" reason.
-- **Scope:** the required-context `case` in `required_green` and the comment above that
-  function. Nothing else in the babysitter. The non-required loop already passes
-  SKIPPED|NEUTRAL; leave it alone.
-- **Acceptance:** the M2 boxes. A new describe block in `merge-babysit.test.ts` gets its own
-  required list (`check e2e-mock full coach-gate ios`) and leaves #507's block and its
-  `REQUIRED` untouched. It covers:
-  - a web-only PR with `ios` COMPLETED/SKIPPED folds in fleet mode and reads WOULD MERGE from a
-    serial CLEAN;
-  - an iOS PR with a required `ios` IN_PROGRESS waits;
-  - a newest required `ios` CANCELLED is SKIP "(required; cut off …)".
-
-  Run against the pre-M2 script, the skipped-required cases fail (name them in the PR body).
-  Done also needs `agent:check` green and the `reviewer` agent before `gh pr create`.
-- **Coordinate with #510** (fleet head pinning, open). It edits the same script and appends its
-  own describe block at the end of the same test file. Before cutting the lane, check whether
-  #510 has merged, and if it has, start from that `main`. Otherwise expect an end-of-file
-  conflict in the test file on whichever lands second: keep both blocks.
-- **Start:** `scripts/git-new.sh fix/babysit-skipped-required "scripts/merge-babysit.sh required_green required-context case + comment, new describe in scripts/__tests__/merge-babysit.test.ts"`.
-  The PR is HELD for `shipit` (the merge actor).
-- **M1 close-out, for whichever session comes first after #515 merges** (it can be this one's
-  first step):
-  - read the three runs with the jobs-API command in M1's last box, record each run id and
-    result in the Session log, and tick that box and the pre-merge evidence box;
-  - #515's own run id is in its PR body.
-
-  If any of the three reads differently from the table, stop and report: M3 must not go ahead.
+**M3 — require `ios`.** Shane runs the flip; a session checks before it and verifies and logs
+after it. It starts once M2's PR has merged.
+- **Goal:** `ios` is a required status check on `main`, pinned to GitHub Actions (app 15368)
+  like the other four. Then `gh pr merge` and the web UI refuse an iOS PR whose `ios` has not
+  passed, while a web-only PR, whose `ios` is a job-level SKIPPED, merges without waiting.
+- **Before the flip (session, read-only):**
+  - M1 is closed: all three after-merge rows are read (Session log, 2026-10-29).
+  - Confirm `main`'s newest push run is green on `changes` and `ios`, and log the current
+    protection read-back (`strict` and the four checks).
+  - If anything reads differently from M1's table, stop and report.
+- **The flip (Shane):** the PATCH in M3's second box. It is reversible by re-sending the list
+  without `ios`. Remind him what he accepts, from the Goal section: a red `ios` blocks its PR,
+  and a `ci.yml` PR waits on a full `ios` run.
+- **After the flip (session):** the read-back shows five checks at 15368 and `strict`
+  unchanged. Then read `mergeStateStatus` twice: BLOCKED on an iOS PR with `ios` IN_PROGRESS
+  and the other required checks green, and CLEAN on a web-only PR with `ios` SKIPPED. One
+  web-only PR and one iOS PR merge through `scripts/merge-babysit.sh --yes`, and the web one
+  never WAITs on `ios`. Log lines go in the Session log. Update memory `apex-ios-ci-timing` to
+  say `ios` is required, set Status to done, and run `scripts/git-tidy.sh --yes`.
+- **Lane:** docs only.
+  `scripts/git-new.sh chore/ios-required-m3 "docs/specs/ios-required-check.md M3 + M1 close-out log"`.
+  The `reviewer` agent runs before `gh pr create`. Never touch branch protection yourself.
