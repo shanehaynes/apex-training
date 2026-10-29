@@ -65,6 +65,7 @@ export const HELD = [
   { path: 'scripts/supervisor-report.sh', reason: 'the supervisor sweep' },
   { path: 'scripts/prod-schema-check.mjs', reason: 'run by supervisor-report.sh holding the production service-role key' },
   { path: 'scripts/combine-check.sh', reason: 'the cross-branch gate' },
+  { path: 'scripts/owner-preflight.sh', reason: "the owner loop's kill switch and no-API rule" },
   { path: '.github/', reason: 'CI is the merge floor' },
   { path: 'scripts/ci-guards.sh', reason: "the merge floor's content" },
   { path: 'ios/fastlane/', reason: 'the release lane' },
