@@ -68,11 +68,11 @@ the first rule. The second is prose in the prompt of record (see Decisions).
 ## Each run (the prompt of record encodes this)
 1. **Preflight** (`scripts/owner-preflight.sh`). Exit unless all of these hold:
    - no `.claude/OWNER_OFF` and no `.claude/AUTOMERGE_OFF` in the primary checkout;
-   - no other owner run holds the lock (an atomic symlink with a token, stale after 3h45m);
+   - no other owner run holds the lock (a `flock` held by one background process that also keeps the Mac awake, and expires after 3h45m);
    - no `ANTHROPIC_API_KEY`;
    - the primary is clean and on `main`.
 
-   The run then holds a background `caffeinate` for its 3h30m budget.
+   Release kills that process. A run that dies frees the lock when the holder expires.
 2. **Sweep.** Run `scripts/supervisor-report.sh` and keep its ACTION lines.
 3. **Land.** Run `scripts/merge-babysit.sh --fleet --yes` or `--yes`, whichever
    matches the up-to-date rule: exactly those strings, the allow-listed ones, so the
