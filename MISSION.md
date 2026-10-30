@@ -1,8 +1,11 @@
-# The Apex Constitution
+# Mission
 
-What Apex is, whom it serves, and what it will not do. Every spec, feature and
-session answers to this document; where a request conflicts with it, the
-document wins and the conflict is raised, not resolved quietly.
+What Apex is, whom it serves, and what it will not do. It is the first of the
+three documents that make up the Apex constitution, with `TECHSTACK.md` (what
+Apex is built on) and `ROADMAP.md` (what comes next). Every spec, feature and
+session answers to it. Where a request, or either of the other two documents,
+conflicts with it, this document wins and the conflict is raised, not resolved
+quietly.
 
 ## What we believe
 

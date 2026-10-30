@@ -1,13 +1,14 @@
 # Tech stack
 
 What Apex is built on, why, and what would make us revisit each choice. Loaded
-into every session beside the constitution. Changing a row here (a new layer, a
-new runtime dependency, a ruled-out choice coming back) is proposed in a PR of
+into every session as part of the constitution, beside `MISSION.md` and
+`ROADMAP.md`. Changing a row here (a new layer, a
+new runtime dependency, a ruled-out choice coming back) is proposed in a replan or a PR of
 its own with the reason; dependency manifests are already held for Shane.
 
 ## Principles
 
-- **Code computes, the model narrates** (Constitution VI). Every number comes
+- **Code computes, the model narrates** (Mission VI). Every number comes
   from pure TypeScript in `src/lib/`. The web imports that module; iOS gets the
   same results from the API. Every client shows the same number.
 - **One backend, thin clients.** Web and iOS read through RLS and write through
@@ -32,7 +33,7 @@ its own with the reason; dependency manifests are already held for Shane.
 
 ## Integrations
 
-Constitution IV promises the athlete's kit. This is how Apex gets there.
+Mission IV promises the athlete's kit. This is how Apex gets there.
 
 1. **Aggregator first.** Most wearables (Garmin, Whoop, Oura, Wahoo and others)
    already write to Apple Health, so HealthKit on iOS reaches all of them

@@ -2,7 +2,7 @@
 
 How work lands in Apex Training: React + Vite front end, Vercel serverless API
 under `api/`, Supabase (Postgres + RLS) for data. Loaded into every session by
-`CLAUDE.md`, beside [CONSTITUTION.md](../CONSTITUTION.md), which says what Apex
+`CLAUDE.md`, beside [MISSION.md](../MISSION.md), which says what Apex
 is and will not do. These are the rules that are easy and expensive to get
 wrong; the procedures and the history behind them are in
 [CONTRIBUTING.md](../CONTRIBUTING.md).
@@ -187,6 +187,32 @@ even when the shell's cwd is the primary — which is every subagent's cwd.
   ships; landing or shepherding PRs, repo health → `merge-shepherd` agent;
   any fan-out → parallel-agents (the `agent-guard` hook injects it).
 
+## Replanning
+
+Every discrete feature that ships is followed by a replan, before the next
+feature starts. A discrete feature is a spec whose last milestone has merged,
+a board workstream that has landed, or a user-visible feature PR outside
+either. Bug fixes and chores do not trigger one.
+
+The session that shipped the feature runs the replan and opens one PR,
+`Replan after <feature>`, with whatever the work taught:
+
+1. **Roadmap.** Mark the feature shipped, reorder Now / Next / Later from what
+   shipping it revealed, and draft the next brief.
+2. **Tech stack.** Propose a row change if a choice proved wrong, a dependency
+   arrived, or an exit was reached (for example, 30 active iOS users).
+3. **Mission.** Never edited in a replan. If the work exposed a conflict with
+   an article, the PR names the article and the conflict for Shane.
+4. **Workflow.** Propose a change to this file or `CONTRIBUTING.md` for any
+   rule that was missing, cost time without catching anything, or was
+   followed only by luck.
+5. **Lessons.** Record anything else learned in the PR body under
+   `## Learned`, one line each, so the next replan can see the trend.
+
+The constitution files are held, so a replan PR waits for Shane's `shipit`.
+A replan that finds nothing to change says so in one line on the feature's
+PR instead of opening an empty one.
+
 ## Commits and merging
 
 Commits and PRs land as Shane alone — no co-author trailers, no attribution; the
@@ -209,7 +235,7 @@ in `.claude/settings.json` and run without a prompt: `scripts/merge-babysit.sh
 is Shane's call. Migrations, `.github/`, `scripts/ci-guards.sh`, `vercel.json`,
 dependency manifests, the iOS release surface (`ios/fastlane/`, `ios/scripts/`,
 `ios/project.yml`, `ios/Config/`, the entitlements, the `Info.plist`s and
-`PrivacyInfo.xcprivacy`), every file of the automation itself, and `CONSTITUTION.md` and `TECHSTACK.md` with the files that load them (`CLAUDE.md`, `.claude/CLAUDE.md`, `CLAUDE.local.md`, `.claude/rules/`) are HELD for
+`PrivacyInfo.xcprivacy`), every file of the automation itself, and the constitution (`MISSION.md`, `TECHSTACK.md`, `ROADMAP.md`) with the files that load it (`CLAUDE.md`, `.claude/CLAUDE.md`, `CLAUDE.local.md`, `.claude/rules/`) are HELD for
 Shane, who grants one PR with the `shipit` label; the guard hook blocks
 `gh pr merge` and self-applied `shipit`, so the babysitter is the only merge
 path. Kill switch: `touch .claude/AUTOMERGE_OFF` in the primary checkout.

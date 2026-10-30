@@ -74,10 +74,11 @@ describe('held paths outside the authority chain', () => {
     expect(decide(['evals/gate/attestation.json', 'evals/cases/refusal.ts'], [])).toBeNull();
   });
 
-  it('holds the constitution and the file that loads it, not the workflow essentials', () => {
-    expect(decide(['CONSTITUTION.md'], [])).toMatch(/only Shane amends it/);
+  it('holds the mission and the file that loads the constitution, not the workflow essentials', () => {
+    expect(decide(['MISSION.md'], [])).toMatch(/only Shane amends it/);
     expect(decide(['CLAUDE.md'], [])).toMatch(/loads the constitution/);
     expect(decide(['TECHSTACK.md'], [])).toMatch(/stack decisions/);
+    expect(decide(['ROADMAP.md'], [])).toMatch(/replan Shane approves/);
     for (const p of ['.claude/CLAUDE.md', 'CLAUDE.local.md', '.claude/rules/a.md']) {
       expect(decide([p], [])).toMatch(/constitution's standing/);
     }

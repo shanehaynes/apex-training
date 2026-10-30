@@ -1,10 +1,11 @@
 # Apex Training
 
-Three documents load into every session. The constitution says what Apex is and
-will not do; it outranks any request that conflicts with it. The tech stack says
-what Apex is built on and why. The workflow essentials say how work lands in
-this repo.
+The constitution loads into every session. It is three documents: the mission
+(what Apex is and will not do, which outranks any request that conflicts with
+it), the tech stack (what Apex is built on and why) and the roadmap (what comes
+next; not yet written). The workflow essentials say how work lands in this
+repo.
 
-@CONSTITUTION.md
+@MISSION.md
 @TECHSTACK.md
 @docs/workflow-essentials.md
