@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -314,6 +314,8 @@ describe('merge-policy.mjs end to end: it reads the manifest at the PR head itse
     writeFileSync(join(work, 'package.json'), JSON.stringify({ name: 'x', dependencies: { react: '^19.0.0' } }));
     writeFileSync(join(work, 'vercel.json'), '{}\n');
     writeFileSync(join(work, 'old.ts'), 'export const old = 1;\n');
+    mkdirSync(join(work, 'scripts/hooks'), { recursive: true });
+    writeFileSync(join(work, 'scripts/hooks/guard.mjs'), 'export {};\n');
     git('add', '-A'); git('-c', 'commit.gpgsign=false', 'commit', '-qm', 'main');
     git('remote', 'add', 'origin', join(tmp, 'origin.git')); git('push', '-q', 'origin', 'main');
     git('checkout', '-qb', 'pr');
@@ -354,6 +356,36 @@ describe('merge-policy.mjs end to end: it reads the manifest at the PR head itse
     });
     expect(r.code).toBe(10);
     expect(r.out).toMatch(/package\.json — .*package\.json is deleted/);
+  });
+
+  it('a rename out of a held directory exits 10', () => {
+    const r = pr((_work, git) => {
+      git('mv', 'scripts/hooks/guard.mjs', 'guard.mjs');
+      return ['guard.mjs'];
+    });
+    expect(r.code).toBe(10);
+    expect(r.out).toMatch(/scripts\/hooks\/guard\.mjs — the guard layer/);
+  });
+
+  it('a held path renamed to a name with a newline, a quote or non-ASCII exits 10', () => {
+    for (const name of ['a\nb.json', 'a"b.json', 'vërcel.json']) {
+      const r = pr((_work, git) => {
+        git('mv', 'vercel.json', name);
+        return [name];
+      });
+      expect(r.code, JSON.stringify(name)).toBe(10);
+      expect(r.out).toMatch(/vercel\.json — production routing/);
+    }
+  });
+
+  it('a held path turned into a symlink exits 10', () => {
+    const r = pr((work, git) => {
+      git('rm', '-q', 'vercel.json');
+      symlinkSync('old.ts', join(work, 'vercel.json'));
+      git('add', 'vercel.json');
+      return ['vercel.json'];
+    });
+    expect(r.code).toBe(10);
   });
 
   it('an ordinary rename exits 0', () => {
