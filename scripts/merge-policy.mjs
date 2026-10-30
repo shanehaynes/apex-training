@@ -202,14 +202,17 @@ const CONDITIONAL = {
  * so a count mismatch means unseen paths — hold rather than guess.
  * `sources` carries `{ before, after }` file contents (null for a side where
  * the file does not exist) for paths with a content check (CONDITIONAL).
+ * `diffPaths` is git's own list of the change (diffPaths below): gh names
+ * only a rename's new path, so `git mv vercel.json x.json` would otherwise
+ * read as adding x.json, and a held exact path could leave by renaming.
  */
-export function decide(paths, labels, changed = paths.length, sources = undefined) {
+export function decide(paths, labels, changed = paths.length, sources = undefined, diffPaths = []) {
   if (labels.includes(GRANT_LABEL)) return null;
   if (changed !== paths.length) {
     return `file list is truncated (${paths.length} of ${changed} seen) — cannot prove no held path changed`;
   }
   const held = [];
-  for (const p of paths) {
+  for (const p of new Set([...paths, ...diffPaths])) {
     const rule = HELD.find((r) => (r.path.endsWith('/') ? p.startsWith(r.path) : p === r.path))
       ?? HELD_PATTERNS.find((r) => r.re.test(p));
     if (!rule) continue;
@@ -233,6 +236,21 @@ function fetchHead(number, head) {
   }
   try {
     return git('rev-parse', '--verify', '-q', `${head}^{commit}`) === head ? git : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Every path the PR changes, both sides of a rename, from git between its
+ * merge base with origin/main and its head; null when git cannot say.
+ */
+export function diffPaths(number, head) {
+  const git = fetchHead(number, head);
+  if (!git) return null;
+  try {
+    git('fetch', '-q', 'origin', 'main');
+    return git('diff', '--name-only', '--no-renames', '-z', `origin/main...${head}`).split('\0').filter(Boolean);
   } catch {
     return null;
   }
@@ -288,8 +306,17 @@ function main() {
     return 10;
   }
   const changed = typeof input.changed === 'number' ? input.changed : paths.length;
-  const sources = labels.includes(GRANT_LABEL) ? undefined : gatherSources(paths, input.number, input.head);
-  const verdict = decide(paths, labels, changed, sources);
+  let sources;
+  let diff = [];
+  if (!labels.includes(GRANT_LABEL)) {
+    diff = diffPaths(input.number, input.head);
+    if (diff === null) {
+      process.stdout.write('could not list the change with git at the PR head — cannot see what a rename moved away from\n');
+      return 10;
+    }
+    sources = gatherSources([...new Set([...paths, ...diff])], input.number, input.head);
+  }
+  const verdict = decide(paths, labels, changed, sources, diff);
   if (verdict) {
     process.stdout.write(verdict + '\n');
     return 10;
