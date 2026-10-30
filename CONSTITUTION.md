@@ -81,7 +81,9 @@ sentence. It cannot corrupt a PR.
 ### VII. Nothing changes without the athlete.
 
 The coach proposes; the athlete decides. No change to a plan, log or record
-takes effect without their confirmation.
+takes effect without their confirmation, or a standing grant they made and can
+revoke: a write-scoped connection, a watch sync they switched on. Apex never
+widens a grant on the athlete's behalf.
 
 ## When articles conflict
 

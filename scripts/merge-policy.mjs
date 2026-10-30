@@ -83,6 +83,9 @@ export const HELD = [
   { path: 'evals/baseline/', reason: 'redefines what correct coach behavior is' },
   { path: 'CONSTITUTION.md', reason: 'the product constitution; only Shane amends it' },
   { path: 'CLAUDE.md', reason: 'loads the constitution into every session' },
+  { path: '.claude/CLAUDE.md', reason: 'session instructions with the constitution\'s standing' },
+  { path: 'CLAUDE.local.md', reason: 'session instructions with the constitution\'s standing' },
+  { path: '.claude/rules/', reason: 'session instructions with the constitution\'s standing' },
 ];
 
 // Files npm reads wherever they sit: a nested manifest, an .npmrc (which can
