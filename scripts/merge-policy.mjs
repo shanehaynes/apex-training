@@ -81,6 +81,8 @@ export const HELD = [
   { path: 'package.json', reason: 'dependency changes deserve a human eye' },
   { path: 'package-lock.json', reason: 'dependency changes deserve a human eye' },
   { path: 'evals/baseline/', reason: 'redefines what correct coach behavior is' },
+  { path: 'CONSTITUTION.md', reason: 'the product constitution; only Shane amends it' },
+  { path: 'CLAUDE.md', reason: 'loads the constitution into every session' },
 ];
 
 // Files npm reads wherever they sit: a nested manifest, an .npmrc (which can

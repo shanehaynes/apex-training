@@ -257,7 +257,7 @@ fi
 if [ "$local_sections" = 1 ]; then
 echo
 echo "── primary checkout"
-# CLAUDE.md: ~/projects/apex-training "stays on main, clean, always". Nothing
+# docs/workflow-essentials.md: ~/projects/apex-training "stays on main, clean, always". Nothing
 # watched it, so twelve untracked eval runs — $25.70 of API spend, held nowhere
 # else — sat in its git status for five weeks (#145). A standing ?? line is how
 # a reader learns to skim past that status, and skimming it is what eventually
@@ -272,9 +272,9 @@ primary_branch=$(git branch --show-current 2>/dev/null)
 dirty=$(git status --porcelain 2>/dev/null)
 
 if [ -z "$primary_branch" ]; then
-  echo "ACTION $primary is on a detached HEAD at $(git rev-parse --short HEAD 2>/dev/null) — the primary checkout stays on main; work belongs in a worktree (CLAUDE.md)"
+  echo "ACTION $primary is on a detached HEAD at $(git rev-parse --short HEAD 2>/dev/null) — the primary checkout stays on main; work belongs in a worktree (docs/workflow-essentials.md)"
 elif [ "$primary_branch" != main ]; then
-  echo "ACTION $primary is on '$primary_branch', not main — the primary checkout stays on main; work belongs in a worktree (CLAUDE.md)"
+  echo "ACTION $primary is on '$primary_branch', not main — the primary checkout stays on main; work belongs in a worktree (docs/workflow-essentials.md)"
 fi
 
 if [ -n "$dirty" ]; then

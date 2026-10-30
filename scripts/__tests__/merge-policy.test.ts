@@ -74,6 +74,12 @@ describe('held paths outside the authority chain', () => {
     expect(decide(['evals/gate/attestation.json', 'evals/cases/refusal.ts'], [])).toBeNull();
   });
 
+  it('holds the constitution and the file that loads it, not the workflow essentials', () => {
+    expect(decide(['CONSTITUTION.md'], [])).toMatch(/only Shane amends it/);
+    expect(decide(['CLAUDE.md'], [])).toMatch(/loads the constitution/);
+    expect(decide(['docs/workflow-essentials.md', 'ios/CLAUDE.md'], [])).toBeNull();
+  });
+
   it('holds the iOS release lane', () => {
     for (const path of ['ios/fastlane/Fastfile', 'ios/scripts/testflight.sh']) {
       expect(decide([path], []), path).toMatch(/the release lane/);

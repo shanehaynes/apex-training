@@ -362,7 +362,7 @@ describe('#180: kill by pgrep/pidof of vite', () => {
     expect(inTree('pgrep -f vite | xargs kill -9')).toMatch(/every session/);
   });
 
-  it('allows the lookup itself and the per-worktree port form CLAUDE.md teaches', () => {
+  it('allows the lookup itself and the per-worktree port form the workflow essentials teach', () => {
     expect(inTree('pgrep -f vite')).toBeNull();
     expect(inTree('lsof -i :$(npm run -s port)')).toBeNull();
     expect(inTree('lsof -ti :$(npm run -s port) | xargs kill')).toBeNull();
