@@ -13,7 +13,7 @@ export function primaryRootOf(projectDir: string): string | null;
 /** cwd plus any literal `cd`/`pushd` target the shell would run; unexpanded variables are skipped. */
 export function effectiveDirs(command: string, cwd: string): string[];
 
-/** The block message when the command breaks a CLAUDE.md rule, else null to allow. */
+/** The block message when the command breaks a workflow-essentials rule, else null to allow. */
 export function decide(command: string, cwd: string, projectDir: string): string | null;
 
 /** The pre-parser regex rules, kept as the fallback when a command will not tokenize. */
