@@ -20,7 +20,11 @@ export function decide(
   labels: string[],
   changed?: number,
   sources?: Record<string, { before: string | null; after: string | null }>,
+  diffPaths?: string[],
 ): string | null;
+
+/** Every path the PR changes, both sides of a rename, from git at its merge base and head; null when git cannot say. */
+export function diffPaths(number: unknown, head: unknown): string[] | null;
 
 /** Why a package.json change needs a human, or null when it only moves versions of names already present. */
 export function manifestHold(before: string | null, after: string | null): string | null;
