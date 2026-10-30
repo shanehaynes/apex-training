@@ -167,17 +167,25 @@ even when the shell's cwd is the primary — which is every subagent's cwd.
 
 ## Specs, skills and review
 
-- **Work larger than one PR starts as a spec**: copy `docs/specs/TEMPLATE.md`
-  to `docs/specs/<slug>.md` (the iOS brief format — Goal, Scope, Milestones
-  with acceptance boxes, Owns). The session instruction is then "implement
-  until every box is checked and the gate is green", one PR per milestone,
-  `scripts/merge-babysit.sh --yes` between milestones. Board work
-  (`docs/ios/`, `docs/onboarding/`) already has briefs; use those.
+- **Every feature gets three documents.** Before any code, a discrete
+  feature (defined under Replanning below) gets a folder `docs/specs/<slug>/`
+  copied from `docs/specs/_template/`:
+  - `requirements.md`: what ships and why; numbered requirements R1, R2…
+  - `plan.md`: how, in milestones, each naming the requirements it delivers.
+  - `validation.md`: the proof for every requirement, decided before the code.
+
+  The session instruction is then "implement until every milestone box is
+  checked and every requirement is proven", one PR per milestone,
+  `scripts/merge-babysit.sh --yes` between milestones. A one-PR feature still
+  gets all three; they can be short. Board work (`docs/ios/`,
+  `docs/onboarding/`) puts the three in the board's workstreams folder. Specs
+  written before this rule (the single-file ones in `docs/specs/`) are not
+  converted.
 - **Every lane report and every board session ends with a drafted next
   brief** (NEXT BRIEF in the report; "Next up" on a board as a paragraph, not
   a one-liner). Shane edits a draft; he does not write one from blank.
-- **Before `gh pr create`, launch the `reviewer` agent** on the spec plus
-  `git diff origin/main...HEAD` — never your own explanation — and paste its
+- **Before `gh pr create`, launch the `reviewer` agent** on the feature's
+  three documents plus `git diff origin/main...HEAD` — never your own explanation — and paste its
   report into the PR body under `## Review` with one line per finding (fixed
   in <sha> | not fixed because). Shane reads the review, then skims the diff.
 - **Skills and agents by task**, so none depends on description matching:
@@ -190,9 +198,10 @@ even when the shell's cwd is the primary — which is every subagent's cwd.
 ## Replanning
 
 Every discrete feature that ships is followed by a replan, before the next
-feature starts. A discrete feature is a spec whose last milestone has merged,
-a board workstream that has landed, or a user-visible feature PR outside
-either. Bug fixes and chores do not trigger one.
+feature starts. A discrete feature is a user-visible capability (a screen, a
+flow, an integration, a coach ability), whether it takes one PR or ten; a
+board workstream counts. It has shipped when its last milestone has merged.
+Bug fixes and chores are not features: no three documents, no replan.
 
 The session that shipped the feature runs the replan and opens one PR,
 `Replan after <feature>`, with whatever the work taught:
