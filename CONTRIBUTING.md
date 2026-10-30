@@ -8,7 +8,7 @@ them can see each other's uncommitted work.**
 Ignoring that is not a style violation, it is how work gets destroyed. The
 incident that produced this document is written up at the end.
 
-What Apex is for, and what it will not do, is in [CONSTITUTION.md](CONSTITUTION.md).
+What Apex is for, and what it will not do, is in [MISSION.md](MISSION.md).
 The rules every session loads are in
 [docs/workflow-essentials.md](docs/workflow-essentials.md); this document holds
 the procedures and the reasons behind them.

@@ -2,7 +2,7 @@
 
 How work lands in Apex Training: React + Vite front end, Vercel serverless API
 under `api/`, Supabase (Postgres + RLS) for data. Loaded into every session by
-`CLAUDE.md`, beside [CONSTITUTION.md](../CONSTITUTION.md), which says what Apex
+`CLAUDE.md`, beside [MISSION.md](../MISSION.md), which says what Apex
 is and will not do. These are the rules that are easy and expensive to get
 wrong; the procedures and the history behind them are in
 [CONTRIBUTING.md](../CONTRIBUTING.md).
@@ -209,7 +209,7 @@ in `.claude/settings.json` and run without a prompt: `scripts/merge-babysit.sh
 is Shane's call. Migrations, `.github/`, `scripts/ci-guards.sh`, `vercel.json`,
 dependency manifests, the iOS release surface (`ios/fastlane/`, `ios/scripts/`,
 `ios/project.yml`, `ios/Config/`, the entitlements, the `Info.plist`s and
-`PrivacyInfo.xcprivacy`), every file of the automation itself, and `CONSTITUTION.md` with the files that load it (`CLAUDE.md`, `.claude/CLAUDE.md`, `CLAUDE.local.md`, `.claude/rules/`) are HELD for
+`PrivacyInfo.xcprivacy`), every file of the automation itself, and `MISSION.md` with the files that load it (`CLAUDE.md`, `.claude/CLAUDE.md`, `CLAUDE.local.md`, `.claude/rules/`) are HELD for
 Shane, who grants one PR with the `shipit` label; the guard hook blocks
 `gh pr merge` and self-applied `shipit`, so the babysitter is the only merge
 path. Kill switch: `touch .claude/AUTOMERGE_OFF` in the primary checkout.

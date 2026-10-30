@@ -81,7 +81,7 @@ export const HELD = [
   { path: 'package.json', reason: 'dependency changes deserve a human eye' },
   { path: 'package-lock.json', reason: 'dependency changes deserve a human eye' },
   { path: 'evals/baseline/', reason: 'redefines what correct coach behavior is' },
-  { path: 'CONSTITUTION.md', reason: 'the product constitution; only Shane amends it' },
+  { path: 'MISSION.md', reason: 'the mission; only Shane amends it' },
   { path: 'CLAUDE.md', reason: 'loads the constitution into every session' },
   { path: '.claude/CLAUDE.md', reason: 'session instructions with the constitution\'s standing' },
   { path: 'CLAUDE.local.md', reason: 'session instructions with the constitution\'s standing' },
