@@ -77,6 +77,7 @@ describe('held paths outside the authority chain', () => {
   it('holds the constitution and the file that loads it, not the workflow essentials', () => {
     expect(decide(['CONSTITUTION.md'], [])).toMatch(/only Shane amends it/);
     expect(decide(['CLAUDE.md'], [])).toMatch(/loads the constitution/);
+    expect(decide(['TECHSTACK.md'], [])).toMatch(/stack decisions/);
     for (const p of ['.claude/CLAUDE.md', 'CLAUDE.local.md', '.claude/rules/a.md']) {
       expect(decide([p], [])).toMatch(/constitution's standing/);
     }
