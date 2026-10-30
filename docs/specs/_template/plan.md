@@ -2,7 +2,7 @@
 
 How `requirements.md` gets built, in what order, and by whom. A session's
 instruction is **implement until every milestone box is checked and every
-`validation.md` row is proven**, one PR per milestone, the babysitter between
+`validation.md` row is proven and the gate is green**, one PR per milestone, the babysitter between
 milestones.
 
 **Owns:** <the files and directories this feature may change; a file in two
@@ -30,10 +30,14 @@ Delivers: R3
 
 ## Decisions
 <Judgment calls made where the requirements left room, one line each, newest
-last.>
+last. A board workstream keeps them in the board's decisions file instead.>
 
 ## Session log
 - <YYYY-MM-DD> · <what landed, PR #, what was not verified, what was decided>
+
+## Learned
+<Written at the replan: what this feature taught about the product, the stack
+or the workflow, one line each.>
 
 ## Next brief
 <Required last output of every session on this feature: the draft of the next

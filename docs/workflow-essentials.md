@@ -168,19 +168,20 @@ even when the shell's cwd is the primary — which is every subagent's cwd.
 ## Specs, skills and review
 
 - **Every feature gets three documents.** Before any code, a discrete
-  feature (defined under Replanning below) gets a folder `docs/specs/<slug>/`
-  copied from `docs/specs/_template/`:
+  feature (defined under Replanning below), and any other work larger than one
+  PR, gets a folder `docs/specs/<slug>/` copied from `docs/specs/_template/`:
   - `requirements.md`: what ships and why; numbered requirements R1, R2…
   - `plan.md`: how, in milestones, each naming the requirements it delivers.
   - `validation.md`: the proof for every requirement, decided before the code.
 
   The session instruction is then "implement until every milestone box is
-  checked and every requirement is proven", one PR per milestone,
+  checked, every requirement is proven and the gate is green", one PR per milestone,
   `scripts/merge-babysit.sh --yes` between milestones. A one-PR feature still
-  gets all three; they can be short. Board work (`docs/ios/`,
-  `docs/onboarding/`) puts the three in the board's workstreams folder. Specs
-  written before this rule (the single-file ones in `docs/specs/`) are not
-  converted.
+  gets all three; they can be short. Specs written before this rule (the
+  single-file ones in `docs/specs/`) are not converted. The two boards that
+  predate it (`docs/ios/`, `docs/onboarding/`) keep their one-brief-per-
+  workstream format and their own decisions files; a new board puts each
+  workstream's three documents in `workstreams/<id>/`.
 - **Every lane report and every board session ends with a drafted next
   brief** (NEXT BRIEF in the report; "Next up" on a board as a paragraph, not
   a one-liner). Shane edits a draft; he does not write one from blank.
@@ -201,13 +202,16 @@ Every discrete feature that ships is followed by a replan, before the next
 feature starts. A discrete feature is a user-visible capability (a screen, a
 flow, an integration, a coach ability), whether it takes one PR or ten; a
 board workstream counts. It has shipped when its last milestone has merged.
-Bug fixes and chores are not features: no three documents, no replan.
+Bug fixes and chores are not features and trigger no replan.
 
-The session that shipped the feature runs the replan and opens one PR,
-`Replan after <feature>`, with whatever the work taught:
+Whoever sees the last milestone merge opens the replan: the session running
+the babysitter, the owner loop, or the board's orchestrator (board lanes cannot
+open PRs). It is one PR, `Replan after <feature>`, with whatever the work
+taught:
 
-1. **Roadmap.** Mark the feature shipped, reorder Now / Next / Later from what
-   shipping it revealed, and draft the next brief.
+1. **Roadmap.** Mark the feature shipped and reorder Now / Next / Later from
+   what shipping it revealed. The roadmap only orders; the next feature's
+   brief is drafted in the shipped feature's `plan.md`, "Next brief".
 2. **Tech stack.** Propose a row change if a choice proved wrong, a dependency
    arrived, or an exit was reached (for example, 30 active iOS users).
 3. **Mission.** Never edited in a replan. If the work exposed a conflict with
@@ -215,12 +219,13 @@ The session that shipped the feature runs the replan and opens one PR,
 4. **Workflow.** Propose a change to this file or `CONTRIBUTING.md` for any
    rule that was missing, cost time without catching anything, or was
    followed only by luck.
-5. **Lessons.** Record anything else learned in the PR body under
-   `## Learned`, one line each, so the next replan can see the trend.
+5. **Lessons.** Record anything else learned under `## Learned` in the
+   shipped feature's `plan.md`, one line each, so the next replan can read
+   the trend in the repo.
 
 The constitution files are held, so a replan PR waits for Shane's `shipit`.
-A replan that finds nothing to change says so in one line on the feature's
-PR instead of opening an empty one.
+While a `Replan after` PR is open, no new feature folder is started; features
+already in flight continue.
 
 ## Commits and merging
 
