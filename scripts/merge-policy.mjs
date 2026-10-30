@@ -83,6 +83,8 @@ export const HELD = [
   { path: 'evals/baseline/', reason: 'redefines what correct coach behavior is' },
   { path: 'MISSION.md', reason: 'the mission; only Shane amends it' },
   { path: 'CLAUDE.md', reason: 'loads the constitution into every session' },
+  { path: 'TECHSTACK.md', reason: 'stack decisions loaded into every session' },
+  { path: 'ROADMAP.md', reason: 'the roadmap; changes land through a replan Shane approves' },
   { path: '.claude/CLAUDE.md', reason: 'session instructions with the constitution\'s standing' },
   { path: 'CLAUDE.local.md', reason: 'session instructions with the constitution\'s standing' },
   { path: '.claude/rules/', reason: 'session instructions with the constitution\'s standing' },

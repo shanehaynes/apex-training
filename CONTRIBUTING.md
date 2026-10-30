@@ -130,7 +130,8 @@ before this document: 7 worktrees, 15 merged-but-undeleted local branches, and
 ### A review before Shane reads the diff
 
 Between the gate and `gh pr create`, launch the `reviewer` agent
-(`.claude/agents/reviewer.md`) with the spec or brief and the diff
+(`.claude/agents/reviewer.md`) with the feature's three documents (or the
+board brief) and the diff
 (`git diff origin/main...HEAD`) — not your reasoning: a reviewer that has read
 the author's story checks the story. Fix or answer each finding, then paste
 the report into the PR body under `## Review` (the PR template has the

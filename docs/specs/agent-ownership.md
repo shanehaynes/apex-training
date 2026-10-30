@@ -93,8 +93,9 @@ the first rule. The second is prose in the prompt of record (see Decisions).
    3. the "Next up" or "Next brief" of a board (`docs/ios/MASTER.md`,
       `docs/onboarding/MASTER.md`) or spec, whichever has waited longest.
 
-   Each lane follows the repo's rules: `git-new.sh` with a claim, the spec format for
-   anything over one PR, the `reviewer` before `gh pr create`, and a NEXT BRIEF.
+   While a `Replan after` PR is open, no candidate starts a new feature. Each lane
+   follows the repo's rules: `git-new.sh` with a claim, the three feature
+   documents for anything over one PR, the `reviewer` before `gh pr create`, and a NEXT BRIEF.
 7. **Tidy.** Run `scripts/git-tidy.sh --yes`.
 8. **Note.** Append one section to `<vault>/AI/Projects/Apex Owner/Log/YYYY-MM-DD.md`,
    headed by the run's start time:

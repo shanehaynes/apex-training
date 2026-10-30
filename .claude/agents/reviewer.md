@@ -14,7 +14,8 @@ author's story checks the story, not the code.
 
 The brief names a worktree, a base and a head. The change is
 `git -C <worktree> diff <base>...<head>`; read any code in the worktree you
-need to judge it. If the brief names a spec or a brief file, every clause in
+need to judge it. If the brief names a spec, a feature folder (`requirements.md`, `plan.md`,
+`validation.md`) or a brief file, every clause in
 it is an attack-surface item. If it names none, the PR title and the diff are
 the spec, and say so under SPEC GAPS.
 
