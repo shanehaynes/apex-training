@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -136,6 +136,12 @@ describe('fail closed on partial information', () => {
 
   it('a truncated listing still yields to the grant label', () => {
     expect(decide(['src/App.tsx'], [GRANT_LABEL], 120)).toBeNull();
+  });
+
+  it("holds a rename away from a held path: gh lists only the new path, git's diff has the old", () => {
+    // `git mv vercel.json docs/vercel.json`: gh reports one changed file.
+    expect(decide(['docs/vercel.json'], [], 1)).toBeNull();
+    expect(decide(['docs/vercel.json'], [], 1, undefined, ['docs/vercel.json', 'vercel.json'])).toMatch(/vercel\.json — production routing/);
   });
 });
 
@@ -307,24 +313,29 @@ describe('merge-policy.mjs end to end: it reads the manifest at the PR head itse
   };
   const policy = fileURLToPath(new URL('../merge-policy.mjs', import.meta.url));
 
-  const scenario = (after: Record<string, unknown>) => {
+  /** Run the policy on a PR whose commit `change` makes; `change` returns the paths gh would list. */
+  const pr = (change: (work: string, git: (...a: string[]) => string) => string[], { head: reported = '' } = {}) => {
     const tmp = mkdtempSync(join(tmpdir(), 'apex-policy-'));
     const work = join(tmp, 'work');
     const git = (...a: string[]) => execFileSync('git', a, { cwd: work, env, encoding: 'utf8' }).trim();
     execFileSync('git', ['init', '-q', '--bare', '-b', 'main', join(tmp, 'origin.git')], { env });
     execFileSync('git', ['init', '-q', '-b', 'main', work], { env });
     writeFileSync(join(work, 'package.json'), JSON.stringify({ name: 'x', dependencies: { react: '^19.0.0' } }));
+    writeFileSync(join(work, 'vercel.json'), '{}\n');
+    writeFileSync(join(work, 'old.ts'), 'export const old = 1;\n');
+    mkdirSync(join(work, 'scripts/hooks'), { recursive: true });
+    writeFileSync(join(work, 'scripts/hooks/guard.mjs'), 'export {};\n');
     git('add', '-A'); git('-c', 'commit.gpgsign=false', 'commit', '-qm', 'main');
     git('remote', 'add', 'origin', join(tmp, 'origin.git')); git('push', '-q', 'origin', 'main');
     git('checkout', '-qb', 'pr');
-    writeFileSync(join(work, 'package.json'), JSON.stringify({ name: 'x', ...after }));
-    git('-c', 'commit.gpgsign=false', 'commit', '-qam', 'bump');
-    const head = git('rev-parse', 'HEAD');
+    const paths = change(work, git);
+    git('-c', 'commit.gpgsign=false', 'commit', '-qam', 'change');
+    const head = reported || git('rev-parse', 'HEAD');
     git('push', '-q', 'origin', 'HEAD:refs/pull/3/head');
     git('checkout', '-q', 'main'); git('branch', '-qD', 'pr');
     const run = () => {
       try {
-        execFileSync('node', [policy], { cwd: work, env, encoding: 'utf8', input: JSON.stringify({ number: 3, head, paths: ['package.json'], labels: [], changed: 1 }) });
+        execFileSync('node', [policy], { cwd: work, env, encoding: 'utf8', input: JSON.stringify({ number: 3, head, paths, labels: [], changed: paths.length }) });
         return { code: 0, out: '' };
       } catch (e) {
         const err = e as { status: number; stdout: string };
@@ -333,6 +344,76 @@ describe('merge-policy.mjs end to end: it reads the manifest at the PR head itse
     };
     try { return run(); } finally { rmSync(tmp, { recursive: true, force: true }); }
   };
+  const scenario = (after: Record<string, unknown>) => pr((work) => {
+    writeFileSync(join(work, 'package.json'), JSON.stringify({ name: 'x', ...after }));
+    return ['package.json'];
+  });
+
+  it('a rename away from a held exact path exits 10, though gh lists only the new path', () => {
+    const r = pr((_work, git) => {
+      git('mv', 'vercel.json', 'docs-vercel.json');
+      return ['docs-vercel.json'];
+    });
+    expect(r.code).toBe(10);
+    expect(r.out).toMatch(/vercel\.json — production routing/);
+  });
+
+  it('a rename away from package.json exits 10: its content check sees it deleted', () => {
+    const r = pr((_work, git) => {
+      git('mv', 'package.json', 'manifest.json');
+      return ['manifest.json'];
+    });
+    expect(r.code).toBe(10);
+    expect(r.out).toMatch(/package\.json — .*package\.json is deleted/);
+  });
+
+  it('a rename out of a held directory exits 10', () => {
+    const r = pr((_work, git) => {
+      git('mv', 'scripts/hooks/guard.mjs', 'guard.mjs');
+      return ['guard.mjs'];
+    });
+    expect(r.code).toBe(10);
+    expect(r.out).toMatch(/scripts\/hooks\/guard\.mjs — the guard layer/);
+  });
+
+  it('a held path renamed to a name with a newline, a quote or non-ASCII exits 10', () => {
+    for (const name of ['a\nb.json', 'a"b.json', 'vërcel.json']) {
+      const r = pr((_work, git) => {
+        git('mv', 'vercel.json', name);
+        return [name];
+      });
+      expect(r.code, JSON.stringify(name)).toBe(10);
+      expect(r.out).toMatch(/vercel\.json — production routing/);
+    }
+  });
+
+  it('a held path turned into a symlink exits 10', () => {
+    const r = pr((work, git) => {
+      git('rm', '-q', 'vercel.json');
+      symlinkSync('old.ts', join(work, 'vercel.json'));
+      git('add', 'vercel.json');
+      return ['vercel.json'];
+    });
+    expect(r.code).toBe(10);
+  });
+
+  it('an ordinary rename exits 0', () => {
+    const r = pr((_work, git) => {
+      git('mv', 'old.ts', 'new.ts');
+      return ['new.ts'];
+    });
+    expect(r).toEqual({ code: 0, out: '' });
+  });
+
+  it('fails closed when git cannot read the head it is given', () => {
+    const r = pr((work, git) => {
+      writeFileSync(join(work, 'a.ts'), 'export {};\n');
+      git('add', 'a.ts');
+      return ['a.ts'];
+    }, { head: '5'.repeat(40) });
+    expect(r.code).toBe(10);
+    expect(r.out).toMatch(/could not list the change with git/);
+  });
 
   it('a bump of an existing dependency exits 0', () => {
     expect(scenario({ dependencies: { react: '^19.2.0' } })).toEqual({ code: 0, out: '' });
