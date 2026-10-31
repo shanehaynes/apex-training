@@ -23,7 +23,7 @@ its own with the reason; dependency manifests are already held for Shane.
 |---|---|---|---|
 | Web | React 19, TypeScript strict, Vite, Tailwind, Recharts | A signed-in SPA; no SEO or server rendering need | — |
 | Client state | React context for distribution only; logic lives in `src/lib/` | Domain logic stays testable without React | No store library |
-| API | Vercel functions on Node 24; one catch-all into a Hono router | Hobby plan caps a deployment at 12 functions | Four root functions, enforced by `ci:guards`; new handlers go in `api/_lib/handlers/`. **Exit:** Vercel Pro at 30+ active iOS users, or when Apex charges (Hobby terms exclude commercial use), whichever comes first |
+| API | Vercel functions on Node 24; one catch-all into a Hono router | Hobby plan caps a deployment at 12 functions | Four root functions, enforced by `ci:guards`; new handlers go in `api/_lib/handlers/`. **Exit:** Vercel Pro at 30+ active iOS users (active as `ROADMAP.md` defines it), or when Apex charges (Hobby terms exclude commercial use), whichever comes first |
 | Data | Supabase Postgres, RLS on every table, `supabase-js` typed by generated types | Clients read PostgREST directly, so RLS is the authorization layer | No ORM. Migrations are append-only `phaseN` files, applied to production by hand |
 | AI | Claude via `@anthropic-ai/sdk`; the athlete's own key and model; NDJSON streaming | Apex pays no inference while it earns nothing | Every coach change passes the eval gate. **Exit:** bring-your-own-key is a bootstrap phase; a managed tier replaces it when Apex charges |
 | iOS | SwiftUI, iOS 17+, GRDB read cache and write queue, XcodeGen | `docs/ios/decisions.md` D-000, D-001, D-003, D-004, D-005, D-007 | Android is deferred and planned, not ruled out |

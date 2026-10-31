@@ -20,7 +20,7 @@ hour:
 - lands what is ready;
 - repairs what is red or conflicting;
 - grants the provability holds it can justify;
-- starts the next piece of work, from a brief or from what it found;
+- starts the next piece of work, from `ROADMAP.md` or from what it found;
 - writes an Obsidian note saying what it did.
 
 Shane reads the note, not the PRs. The one thing that stays his is any change to the
@@ -44,7 +44,7 @@ In:
 - M1: the loop, its preflight, its note. It uses only the grants that exist today
   (`--yes`, `--fleet --yes`) and opens PRs; it does not label.
 - M2: the `agent-shipit` tier (policy and guard changes; HELD, needs Shane's `shipit`).
-- M3: starting new work. The next brief from a board or spec, and found work
+- M3: starting new work. The first workable Now item in `ROADMAP.md`, and found work
   (flaky tests, supervisor findings, failing nightly checks), under caps.
 Out:
 - TestFlight / App Store submission, the release lane, anything Apple receives at
@@ -90,8 +90,13 @@ the first rule. The second is prose in the prompt of record (see Decisions).
    lanes. Candidates, in priority order:
    1. a red nightly or supervisor finding;
    2. a flaky test seen in the last day's CI runs;
-   3. the "Next up" or "Next brief" of a board (`docs/ios/MASTER.md`,
-      `docs/onboarding/MASTER.md`) or spec, whichever has waited longest.
+   3. the first workable item in `ROADMAP.md`'s Now: one with an open milestone
+      in its feature folder or board brief that no lane has claimed. The lane
+      takes that milestone. An item that is Shane's (out of scope above, a
+      device run, a protection flip, a decision the roadmap names as his) goes
+      under "Needs Shane" and is skipped. The roadmap's automation cap holds,
+      and nothing outside Now starts; with no workable item, step 6 starts
+      nothing.
 
    While a `Replan after` PR is open, no candidate starts a new feature. Each lane
    follows the repo's rules: `git-new.sh` with a claim, the three feature

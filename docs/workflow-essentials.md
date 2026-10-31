@@ -209,7 +209,7 @@ the babysitter, the owner loop, or the board's orchestrator (board lanes cannot
 open PRs). It is one PR, `Replan after <feature>`, with whatever the work
 taught:
 
-1. **Roadmap.** Mark the feature shipped and reorder Now / Next / Later from
+1. **Roadmap.** Strike the shipped feature and reorder Now / Next / Later from
    what shipping it revealed. The roadmap only orders; the next feature's
    brief is drafted in the shipped feature's `plan.md`, "Next brief".
 2. **Tech stack.** Propose a row change if a choice proved wrong, a dependency
