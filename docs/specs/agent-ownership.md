@@ -90,8 +90,9 @@ the first rule. The second is prose in the prompt of record (see Decisions).
    lanes. Candidates, in priority order:
    1. a red nightly or supervisor finding;
    2. a flaky test seen in the last day's CI runs;
-   3. the "Next up" or "Next brief" of a board (`docs/ios/MASTER.md`,
-      `docs/onboarding/MASTER.md`) or spec, whichever has waited longest.
+   3. the first item in `ROADMAP.md`'s Now with no open lane: its board's "Next
+      up" or its feature's "Next brief". The roadmap's automation cap holds, and
+      nothing outside Now starts.
 
    While a `Replan after` PR is open, no candidate starts a new feature. Each lane
    follows the repo's rules: `git-new.sh` with a claim, the three feature
