@@ -224,7 +224,13 @@ run_head_check() {
 }
 
 schema_preflight() {
-  local counts changed seen mig head_oid=""
+  local counts changed seen mig head_oid="" entry kept=""
+  # A head checked on an earlier pass says nothing about this one (a push
+  # may have dropped the migration); merge_pr would wait on it forever.
+  for entry in $checked_heads; do
+    [ "${entry%%:*}" = "$1" ] || kept="$kept $entry"
+  done
+  checked_heads=$kept
   preflight_touched=0
   preflight_head=""
   preflight_retry=0
@@ -942,7 +948,10 @@ EOF
       CLEAN)
         # CLEAN can be a moment stale — a head pushed seconds ago still reads
         # CLEAN until its checks register — so read every check, as fleet
-        # mode does, before merging.
+        # mode does, before merging. The rollup names no commit, so read the
+        # head first: if the policy then judges that same head, the checks
+        # read between the two were its own.
+        checks_head=$("$GH" pr view "$number" --json headRefOid --jq .headRefOid 2>/dev/null) || checks_head=""
         reason=$(required_green "$number") && rc=0 || rc=$?
         if [ "$rc" -eq 1 ]; then
           echo "SKIP  #$number has failing check(s): $reason ($title)"
@@ -959,6 +968,11 @@ EOF
           echo "      a human grants this one with: gh pr edit $number --add-label shipit  ($title)"
           held_preflight "$number"
           skipped="$skipped $number"
+          continue
+        fi
+        if [ "$policy_head" != "$checks_head" ]; then
+          echo "WAIT  #$number — its head moved after its checks were read (${checks_head:0:12}, now ${policy_head:0:12}); next pass. ($title)"
+          actionable=1
           continue
         fi
         if ! schema_preflight "$number"; then

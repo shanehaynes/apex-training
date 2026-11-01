@@ -48,11 +48,13 @@ else if (args[0] === 'pr' && args[1] === 'view') data = (fixture.prs ?? [fixture
 else process.exit(0);
 if (!args.includes('--jq')) { process.stdout.write(JSON.stringify(data)); process.exit(0); }
 const out = spawnSync('jq', ['-r', jq], { input: JSON.stringify(data), encoding: 'utf8' });
-// fixture.pushAfterPolicy: once the policy has read a PR (its view asks for
-// labels), GitHub reports this head for it — a push between verdict and merge.
-if (fixture.pushAfterPolicy && args[1] === 'view' && /labels/.test(args[args.indexOf('--json') + 1] ?? '')) {
-  data.headRefOid = fixture.pushAfterPolicy;
-  delete fixture.pushAfterPolicy;
+// fixture.push = { after, head }: once a PR view asks for the field \`after\`
+// (labels: the policy's read; statusCheckRollup: the checks'), GitHub reports
+// \`head\` for that PR from then on — a push landing right after that read.
+const push = fixture.push;
+if (push && args[1] === 'view' && (args[args.indexOf('--json') + 1] ?? '').split(',').includes(push.after)) {
+  data.headRefOid = push.head;
+  delete fixture.push;
   require('node:fs').writeFileSync(process.env.GH_FIXTURE, JSON.stringify(fixture));
 }
 process.stdout.write(out.stdout);
@@ -64,6 +66,7 @@ describe('merge-babysit.sh: a migration PR merges only onto a production that al
   let tmp: string;
   let work: string;
   let headSha: string;
+  let laterSha: string;
   let server: Server;
   let ledger: { name: string; fingerprint: string }[] = [];
   const git = (...args: string[]) => execFileSync('git', args, { cwd: work, encoding: 'utf8', env: gitEnv }).trim();
@@ -95,6 +98,12 @@ describe('merge-babysit.sh: a migration PR merges only onto a production that al
     git('-c', 'commit.gpgsign=false', 'commit', '-q', '-m', 'add a migration');
     headSha = git('rev-parse', 'HEAD');
     git('push', '-q', 'origin', `HEAD:refs/pull/${PR}/head`);
+    // PR + 2: the same migration, one push later (a commit on top of headSha).
+    writeFileSync(join(work, 'later.ts'), 'export const later = 1;\n');
+    git('add', '-A');
+    git('-c', 'commit.gpgsign=false', 'commit', '-q', '-m', 'a later push');
+    laterSha = git('rev-parse', 'HEAD');
+    git('push', '-q', 'origin', `HEAD:refs/pull/${PR + 2}/head`);
     git('checkout', '-q', 'main');
 
     // Production: every object main's types name, and whatever `ledger` holds.
@@ -129,7 +138,7 @@ describe('merge-babysit.sh: a migration PR merges only onto a production that al
   };
 
   /** stdout of a run (a non-zero exit too — a --yes run ends at the missing deploy-verify.sh), and every gh call it made. */
-  const babysit = async (labels: string[], { args = [] as string[], number = PR, headRefOid = headSha } = {}) => {
+  const babysit = async (labels: string[], { args = [] as string[], number = PR, headRefOid = headSha, push = undefined as object | undefined } = {}) => {
     const fixture = join(tmp, `gh-${Math.random().toString(36).slice(2)}.json`);
     writeFileSync(fixture, JSON.stringify({
       pr: {
@@ -145,6 +154,7 @@ describe('merge-babysit.sh: a migration PR merges only onto a production that al
         labels: labels.map((name) => ({ name })),
         statusCheckRollup: [],
       },
+      push,
     }));
     const gh = join(tmp, 'gh');
     writeFileSync(gh, GH_STUB);
@@ -235,6 +245,15 @@ describe('merge-babysit.sh: a migration PR merges only onto a production that al
     expect(out).toContain("the PR's head moved while it was being checked");
     expect(out).not.toMatch(/WOULD MERGE|HOLD/);
     // A push mid-check is transient: the PR stays in the run for the next pass.
+    expect(out).not.toMatch(/needs a human\/worktree/);
+  });
+
+  it('waits when production was checked against a later head than the policy judged', async () => {
+    // The merge pins the policy's head, so production must have been checked against that one.
+    ledger = [...onMain(), pullHead()];
+    const out = await babysit(['shipit'], { number: PR + 2, push: { after: 'labels', head: laterSha } });
+    expect(out).toContain(`WAIT  #${PR + 2} — its head moved between the policy check and the schema check (${headSha} vs ${laterSha})`);
+    expect(out).not.toMatch(/WOULD MERGE|HOLD/);
     expect(out).not.toMatch(/needs a human\/worktree/);
   });
 
@@ -525,9 +544,9 @@ printf '%s\\n' "$@" > "$COMBINE_ARGS"
   });
 
   /** stdout of a --fleet --yes run over these PRs (newest first, as gh lists them), its gh calls, and what combine-check was given. */
-  const fleet = async (prs: object[], args: string[] = [], env: Record<string, string> = {}) => {
+  const fleet = async (prs: object[], args: string[] = [], env: Record<string, string> = {}, push?: object) => {
     const fixture = join(tmp, `gh-${Math.random().toString(36).slice(2)}.json`);
-    writeFileSync(fixture, JSON.stringify({ protection: { strict: false, contexts: ['check'] }, prs }));
+    writeFileSync(fixture, JSON.stringify({ protection: { strict: false, contexts: ['check'] }, prs, push }));
     const gh = join(tmp, 'gh');
     writeFileSync(gh, GH_STUB);
     chmodSync(gh, 0o755);
@@ -593,6 +612,15 @@ printf '%s\\n' "$@" > "$COMBINE_ARGS"
     expect(calls.filter((c) => c[1] === 'merge')).toEqual([['pr', 'merge', String(B), '--squash', '--match-head-commit', shaB]]);
   });
 
+  it('waits, folding nothing for it, when the policy judged a head other than the one fetched', async () => {
+    // A push after its checks were read: the policy sees the newer head (shaB, a real commit it can read).
+    const { out, calls, combine } = await fleet([pr(A, 'fix/fleet-a', shaA)], [], {}, { after: 'statusCheckRollup', head: shaB });
+    expect(out).toContain(`WAIT  #${A} — its head moved between the fetch and the policy check (${shaA} vs ${shaB})`);
+    expect(out).not.toContain(`FLEET #${A}`);
+    expect(combine).toBeNull();
+    expect(calls.some((c) => c[1] === 'merge')).toBe(false);
+  });
+
   it("skips a fork's PR, even one whose head branch shares a name with a branch here", async () => {
     const fork = { ...pr(A, 'main', '6'.repeat(40)), isCrossRepository: true };
     const { out, calls } = await fleet([fork]);
@@ -627,6 +655,7 @@ describe('merge-babysit.sh, serial: a merge is pinned to the head the policy jud
   let tmp: string;
   let work: string;
   let sha: string;
+  let laterSha: string;
   const git = (...args: string[]) => execFileSync('git', args, { cwd: work, encoding: 'utf8', env: gitEnv }).trim();
 
   beforeAll(() => {
@@ -650,6 +679,12 @@ describe('merge-babysit.sh, serial: a merge is pinned to the head the policy jud
     git('-c', 'commit.gpgsign=false', 'commit', '-q', '-m', 'serial');
     sha = git('rev-parse', 'HEAD');
     git('push', '-q', 'origin', 'fix/serial');
+    // A later push, which the policy can read.
+    writeFileSync(join(work, 'src/serial-2.ts'), 'export const y = 1;\n');
+    git('add', '-A');
+    git('-c', 'commit.gpgsign=false', 'commit', '-q', '-m', 'serial, later');
+    laterSha = git('rev-parse', 'HEAD');
+    git('push', '-q', 'origin', `HEAD:refs/pull/${N}/head`);
     git('checkout', '-q', 'main');
   });
 
@@ -703,10 +738,18 @@ describe('merge-babysit.sh, serial: a merge is pinned to the head the policy jud
 
   it('merges nothing, and keeps the PR in the run, when the head moves after the verdict', async () => {
     const pushed = '9'.repeat(40);
-    const { out, calls } = await serial({ pushAfterPolicy: pushed });
+    const { out, calls } = await serial({ push: { after: 'labels', head: pushed } });
     expect(out).toContain(`WAIT  #${N} — its head moved after it was proven (${sha.slice(0, 12)}, now ${pushed.slice(0, 12)})`);
     expect(calls.some((c) => c[1] === 'merge' || c[1] === 'comment')).toBe(false);
     expect(out).not.toMatch(/needs a human\/worktree/);
+  });
+
+  it('waits, without a comment or a merge, when the head moves after its checks were read', async () => {
+    // The checks read were the old head's; the policy judges the new one.
+    const { out, calls } = await serial({ push: { after: 'statusCheckRollup', head: laterSha } });
+    expect(out).toContain(`WAIT  #${N} — its head moved after its checks were read (${sha.slice(0, 12)}, now ${laterSha.slice(0, 12)})`);
+    expect(calls.some((c) => c[1] === 'merge' || c[1] === 'comment')).toBe(false);
+    expect(out).not.toMatch(/needs a human\/worktree|SKIP/);
   });
 });
 
