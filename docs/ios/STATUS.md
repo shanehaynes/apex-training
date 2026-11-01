@@ -25,16 +25,18 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
 | W13 | Release + polish | done (#190, #191, #193, #194) · **App Store: 1.0 (509) rejected 2026-10-09 — 2.1 Information Needed; Shane chose 2026-11-01 to resubmit a 1.1.0 build with Create account, not 509 (app-store.md §7, "The resubmission, in order")** | Mac | 2026-10-09: build 10 = 1.0.0 (509) from `testflight.yml` run 37964880205 carries W15, #383–#388; phase52 in prod; Push Notifications enabled on the App ID; version 1.0 at *Prepare for Submission*, manual release set |
 | W14 | UX review implementation | done (#283–#292, #296, #297) | Mac | ux-review.md §7; decisions D-037…D-044; **TestFlight build 8 (0.9.0/424) uploaded 2026-09-22 by the first `testflight.yml` run**; snapshots re-recorded on the iPhone 17 (#300); Shane's device run on build 8 is next |
 | W15 | Connector access level (look-only / full tokens) | done (#379) | Mac | after #371/#376 gave `/api/mcp` write access; brief [W15](workstreams/W15-connector-access.md) |
-| W16 | Apple Health (write, read workouts, daily metrics, body weight, meals) | M1 (#430) + MT (#438) shipped in TestFlight 1.1.0 (561); M0 landed (phase59, #469); M2b landed (#472); M3b in review; privacy bump, then M2i next | both | D-056 supersedes D-018; M1 (write, no migration) merges after 1.0 is approved and ships as 1.1; MT (in-app terms re-acceptance) gates the privacy bump; brief [W16](workstreams/W16-apple-health.md) |
+| W16 | Apple Health (write, read workouts, daily metrics, body weight, meals) | M1 (#430) + MT (#438) shipped in TestFlight 1.1.0 (561); M0 landed (phase59, #469); M2b landed (#472); M3b in review; privacy bump, then M2i next | both | D-056 supersedes D-018; M1 (write, no migration) reaches the App Store with the 1.1.0 resubmission; MT (in-app terms re-acceptance) gates the privacy bump; brief [W16](workstreams/W16-apple-health.md) |
 | W17 | Voice set logging (on-device Speech, no LLM) | PR-H #480, M1 #483, M2 #484 merged; TestFlight 1.1.0 (604), toggle off by default; M3 dogfood next | both | D-059; Swift parser on a JSON fixture (112 cases, ratchet), Undo, ships dark behind `apex.tracker.voice`; 604 uploaded 2026-10-22 from main at 75096526 (#486); next: Shane's device run on 604 (toggle on, the scorecard, #480's pins — all NOT VERIFIED), then one `fix/w17-voice-cases-<date>` ApexCore PR per gym session; brief [W17](workstreams/W17-voice-set-logging.md) |
 
 ## Next up
 0. **App Store resubmission — 1.1.0 with Create account (ROADMAP Now 1).** 509 is not going back.
-   The order is [app-store.md](app-store.md) §7, "The resubmission, in order": a TestFlight build
-   from `main` (the first carrying #493), then Shane's steps — the legal text (in place, or one
-   `terms-v2` + `privacy-v2` bump with W16's), the Turnstile App Privacy answer, Apple's
-   2026-10-13 agreement, the version number, the recording, the reply. The build is the only step
-   an agent can take; everything after it is Shane's.
+   The order is [app-store.md](app-store.md) §7, "The resubmission, in order". First the legal
+   text, already overdue: web sign-up has been open since 2026-10-17 while Terms §2 says
+   invitation-only and privacy-v1 says no third-party scripts (Turnstile is one). Then the
+   Turnstile App Privacy answer, a TestFlight build from `main` on Shane's go (the first carrying
+   #493), one real sign-up on it, Apple's 2026-10-13 agreement, the version number, the recording
+   and the reply. An agent can draft the legal text and cut the build when Shane says so; every
+   other step is his. The APNs key (D-051) is still listed as his, below.
 0. **W17 M3 — the device run on TestFlight 1.1.0 (604), then ApexCore PRs.** All three lanes are on
    `main` (PR-H #480 and M1 #483 on 2026-10-20, M2 #484 on 2026-10-21) and build 604, uploaded
    2026-10-22 from `main` at 75096526 (#486), carries them with the toggle off. First, Shane:
@@ -100,7 +102,8 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
 0. **Tracker scroll fix (D-054) is PR #398** — carries no migration; next
    `testflight.yml` run after merge ships it, and Shane's phone run is the real verdict. If the
    120 Hz device still hitches, the fallback is D-054's option (b): unfocused inputs as `Text`.
-0. **Answer App Review: 2.1 *Information Needed* (rejected 2026-10-09 11:54 PM, submission
+0. **Superseded 2026-11-01 by the resubmission item at the top: 509 is not going back.** Kept for
+   the history. **Answer App Review: 2.1 *Information Needed* (rejected 2026-10-09 11:54 PM, submission
    `9a4347ed`).** No defect named — Apple's standard request for a new developer account: a
    physical-device recording from launch (login, the flow, account deletion, any UGC/paid
    content) plus six written answers, also pasted into the Notes field. The answers and the shot
@@ -109,7 +112,7 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
    Availability (decided 2026-10-12: generative-AI permit, no Anthropic API there); paste the
    Notes; reply with the recording; **Resubmit to App Review**. prod-schema-check exit 0 on
    2026-10-12.
-0. **Submitted 1.0 on build 509 (2026-10-09).** The console is complete (demo account verified, review
+0. **Superseded 2026-11-01 (509 is not going back), except (c), the APNs key.** **Submitted 1.0 on build 509 (2026-10-09).** The console is complete (demo account verified, review
    contact and notes filled, manual release set). Left: (a) Shane's device run on 1.0.0 (509) from
    TestFlight, including You → Data → Delete account on a throwaway account; (b) **Add for Review**
    on the version page; (c) the APNs key — Shane mints it at developer.apple.com → Keys, sets
@@ -167,7 +170,8 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
 - 2026-11-01 · App Store build decision · docs only. Shane chose a 1.1.0 build with Create account
   over 509 and App Store Connect's Active Devices as the objective's measure; ROADMAP Now 1 and the
   Objective record both, Now 3 (measurement) is struck, and app-store.md §7 gains the remaining
-  replacements and the resubmission order.
+  replacements and the resubmission order. The review found the legal text overdue on the web
+  since open sign-up (2026-10-17), so it is step 1; the two 509 items below are marked superseded.
 - 2026-10-27 · Write-queue ordering fix · Mac. A Finish or Swap tapped as the autosave queued its
   save could take the lower id and be sent first (`WriteQueue` is a reentrant actor; the save waited
   on its GRDB tail read). Same root found two save-loss races (a merge into a row the drain was

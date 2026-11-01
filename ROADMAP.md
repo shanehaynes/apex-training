@@ -13,11 +13,12 @@ Shane's `shipit`; git keeps what shipped.
 
 ## Objective
 
-**30 weekly-active athletes on iOS, as App Store Connect counts them:** App
-Analytics' Active Devices over the trailing seven days (Shane, 2026-11-01).
-TestFlight testers do not count. The figure counts devices that opened the app,
-not workouts, and only those of users who share usage data with developers, so
-the real number is higher; Apex adds no analytics of its own
+**30 weekly-active athletes on iOS**, counted in App Store Connect (Shane,
+2026-11-01): App Analytics' Active Devices, the devices with at least one
+session in the last seven days. TestFlight testers do not count. The count is
+both the proxy and the target. It sees devices, not people or workouts (an
+athlete on two devices counts twice; an open with no workout counts), and only
+users who share usage data with developers. Apex adds no analytics of its own
 (`legal/privacy-v1.md`). Thirty is where Apex stops being
 one athlete's log and becomes a product, and where `TECHSTACK.md` moves the API
 to Vercel Pro. Every Now item but the automation slot answers one question: does
