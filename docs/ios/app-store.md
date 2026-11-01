@@ -6,10 +6,11 @@ M3, in-app Create account); everything below is
 filled in by hand in [App Store Connect](https://appstoreconnect.apple.com) by Shane, because
 the console has no API for most of it and the demo account needs a real key.
 
-> **Two builds, two sets of notes.** Everything below up to §7 describes build 1.0.0 (509),
-> the one in review, which is invite-only. Builds with in-app Create account
-> (docs/specs/open-signup.md M3) use the replacements in
-> [§7](#7-builds-with-create-account) instead. Never paste a §7 line into a reply about 509.
+> **Which build goes back.** 1.0.0 (509), invite-only, was rejected on 2026-10-09 and will not
+> be resubmitted: Shane chose (2026-11-01) a 1.1.0 build with in-app Create account
+> (docs/specs/open-signup.md M3). Everything below up to §7 was written for 509; for the
+> resubmission use it with the replacements in [§7](#7-builds-with-create-account), in the
+> order §7's checklist gives.
 
 > Who can mint an App Store Connect API key, where each secret is escrowed, and how to recover
 > the Apple Account without the release machine: [ops-runbook.md](../ops-runbook.md).
@@ -368,3 +369,30 @@ sign-up is by invitation: the Create account screen links to them.
 - **Order**: production must be running PR #477 (the server's 18+ check and stamp) before any
   build with M3 goes to TestFlight. Main's handler before #477 ignores `ageConfirmed`, so an app
   sign-up would go through with nothing recorded.
+- **Build line** (review notes item 1 and the recording): "build 1.1.0 (<build>)" in place of
+  "build 1.0.0 (509)".
+- **External services** (review notes item 4): "Resend: delivers account emails (sign-up links
+  and password resets)" and "Cloudflare: DNS, support email routing, and the bot check on
+  Create account (Turnstile)".
+- **Item 6** (review notes): drop "From 1.1"; the build is 1.1. It still reads nothing from
+  HealthKit (`HKHealthStoreAdapter` asks for `read: []`) until W16 M2i ships.
+
+### The resubmission, in order
+
+1. **A TestFlight build from `main`**: the first 1.1.0 build carrying #493 (604 predates it).
+   #477 has been on `main`, and so in production, since 2026-10-20, so the order rule above holds.
+2. **The legal text, before submitting** (Shane decides how): Terms §2 must stop saying sign-up
+   is by invitation, and the privacy policy must name the Turnstile check. Both pages are served
+   from the web (`/terms`, `/privacy`), so the build does not wait for them; the submission does.
+   Either edit in place, or fold both into W16's approved privacy bump as one `terms-v2` +
+   `privacy-v2` that existing users re-accept in the app (MT, since 561). `privacy-v1.md`'s
+   LEGAL REVIEW note justified earlier in-place edits because the whole v1 audience was invited
+   testers; open sign-up ends that.
+3. **App Privacy (§1):** Shane's answer on Turnstile (the bullet above).
+4. **Apple's agreement:** Shane accepts the agreement update Apple sent on 2026-10-13; App Store
+   Connect blocks submission until then.
+5. **App Store Connect:** the version's number matches the build (1.1.0), and the new build is
+   selected.
+6. **The demo account and the recording** (§3, with the replacements above) on the new build.
+7. **Reply and submit:** answer the 2.1 request in the Resolution Center with §3's notes and the
+   replacements above, paste the same text into Notes, and submit. Manual release stays set (§6).
