@@ -48,6 +48,13 @@ else if (args[0] === 'pr' && args[1] === 'view') data = (fixture.prs ?? [fixture
 else process.exit(0);
 if (!args.includes('--jq')) { process.stdout.write(JSON.stringify(data)); process.exit(0); }
 const out = spawnSync('jq', ['-r', jq], { input: JSON.stringify(data), encoding: 'utf8' });
+// fixture.pushAfterPolicy: once the policy has read a PR (its view asks for
+// labels), GitHub reports this head for it — a push between verdict and merge.
+if (fixture.pushAfterPolicy && args[1] === 'view' && /labels/.test(args[args.indexOf('--json') + 1] ?? '')) {
+  data.headRefOid = fixture.pushAfterPolicy;
+  delete fixture.pushAfterPolicy;
+  require('node:fs').writeFileSync(process.env.GH_FIXTURE, JSON.stringify(fixture));
+}
 process.stdout.write(out.stdout);
 process.stderr.write(out.stderr);
 process.exit(out.status ?? 1);
@@ -609,6 +616,97 @@ printf '%s\\n' "$@" > "$COMBINE_ARGS"
     expect(err).toMatchObject({ code: 1 });
     expect((err as { stderr: string }).stderr).toContain(`error: no such branch or commit '${missing}'`);
     expect((err as { stdout: string }).stdout).not.toContain('CONFLICT');
+  });
+});
+
+describe('merge-babysit.sh, serial: a merge is pinned to the head the policy judged', { timeout: 120_000 }, () => {
+  // Fleet merges were pinned and migration PRs were pinned; a serial merge of
+  // anything else was not, so a push between the verdict and `gh pr merge`
+  // (a `git mv` of a held path, say) merged a head the policy never saw.
+  const N = 31;
+  let tmp: string;
+  let work: string;
+  let sha: string;
+  const git = (...args: string[]) => execFileSync('git', args, { cwd: work, encoding: 'utf8', env: gitEnv }).trim();
+
+  beforeAll(() => {
+    execFileSync('jq', ['--version']);
+    tmp = mkdtempSync(join(tmpdir(), 'apex-babysit-serial-'));
+    work = join(tmp, 'work');
+    execFileSync('git', ['init', '-q', '--bare', '-b', 'main', join(tmp, 'origin.git')]);
+    execFileSync('git', ['init', '-q', '-b', 'main', work]);
+    for (const path of ['scripts/merge-babysit.sh', 'scripts/merge-policy.mjs']) {
+      mkdirSync(dirname(join(work, path)), { recursive: true });
+      copyFileSync(join(repo, path), join(work, path));
+    }
+    git('add', '-A');
+    git('-c', 'commit.gpgsign=false', 'commit', '-q', '-m', 'main');
+    git('remote', 'add', 'origin', join(tmp, 'origin.git'));
+    git('push', '-q', 'origin', 'main');
+    git('checkout', '-q', '-b', 'fix/serial');
+    mkdirSync(join(work, 'src'));
+    writeFileSync(join(work, 'src/serial.ts'), 'export const x = 1;\n');
+    git('add', '-A');
+    git('-c', 'commit.gpgsign=false', 'commit', '-q', '-m', 'serial');
+    sha = git('rev-parse', 'HEAD');
+    git('push', '-q', 'origin', 'fix/serial');
+    git('checkout', '-q', 'main');
+  });
+
+  afterAll(() => {
+    rmSync(tmp, { recursive: true, force: true });
+  });
+
+  /** stdout of a serial --yes run over one CLEAN, green, policy-clean PR, and its gh calls. */
+  const serial = async (extra: Record<string, unknown> = {}) => {
+    const fixture = join(tmp, `gh-${Math.random().toString(36).slice(2)}.json`);
+    writeFileSync(fixture, JSON.stringify({
+      protection: { strict: true, contexts: ['check'] },
+      prs: [{
+        number: N,
+        title: `Serial fixture (#${N})`,
+        baseRefName: 'main',
+        isDraft: false,
+        mergeStateStatus: 'CLEAN',
+        headRefName: 'fix/serial',
+        headRefOid: sha,
+        changedFiles: 1,
+        files: [{ path: 'src/serial.ts' }],
+        labels: [],
+        statusCheckRollup: [
+          { __typename: 'CheckRun', name: 'check', workflowName: 'CI', status: 'COMPLETED', conclusion: 'SUCCESS', startedAt: '2026-10-28T16:00:00Z', completedAt: '2026-10-28T16:12:00Z' },
+        ],
+      }],
+      ...extra,
+    }));
+    const gh = join(tmp, 'gh');
+    writeFileSync(gh, GH_STUB);
+    chmodSync(gh, 0o755);
+    let out: string;
+    try {
+      out = (await run('bash', [join(work, 'scripts/merge-babysit.sh'), '--yes', '--max-minutes=0'], {
+        cwd: work,
+        env: { ...gitEnv, GH: gh, GH_FIXTURE: fixture },
+      })).stdout;
+    } catch (err) {
+      out = (err as { stdout: string }).stdout;
+    }
+    const calls = readFileSync(`${fixture}.calls`, 'utf8').trim().split('\n').map((l) => JSON.parse(l) as string[]);
+    return { out, calls };
+  };
+
+  it('merges a non-migration PR with --match-head-commit set to the head the policy judged', async () => {
+    const { out, calls } = await serial();
+    expect(out).toContain(`MERGE #${N}`);
+    expect(calls.filter((c) => c[1] === 'merge')).toEqual([['pr', 'merge', String(N), '--squash', '--match-head-commit', sha]]);
+  });
+
+  it('merges nothing, and keeps the PR in the run, when the head moves after the verdict', async () => {
+    const pushed = '9'.repeat(40);
+    const { out, calls } = await serial({ pushAfterPolicy: pushed });
+    expect(out).toContain(`WAIT  #${N} — its head moved after it was proven (${sha.slice(0, 12)}, now ${pushed.slice(0, 12)})`);
+    expect(calls.some((c) => c[1] === 'merge' || c[1] === 'comment')).toBe(false);
+    expect(out).not.toMatch(/needs a human\/worktree/);
   });
 });
 
