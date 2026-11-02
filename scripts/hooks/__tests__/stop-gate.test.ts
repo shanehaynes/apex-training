@@ -1,11 +1,11 @@
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 // @ts-expect-error — plain JS hook, run with bare node; no .d.mts on purpose (builtins only, like bash-guard)
-import { decide, lanePaths, lanesFor, sessionPaths } from '../stop-gate.mjs';
+import { decide, gateArgv, lanePaths, lanesFor, runGate, sessionPaths } from '../stop-gate.mjs';
 
 const hook = fileURLToPath(new URL('../stop-gate.mjs', import.meta.url));
 const cli = fileURLToPath(new URL('../../stop-gate.sh', import.meta.url));
@@ -231,6 +231,55 @@ describe('the gate, in order', () => {
   });
 });
 
+describe('the gate command: held awake on a Mac', () => {
+  // A fake caffeinate on an injected PATH, so the platform choice is tested
+  // on any OS. It says it ran, drops -i -s, and execs the gate.
+  const bin = join(base, 'bin');
+  const noExec = join(base, 'bin-noexec');
+  const empty = join(base, 'bin-empty');
+  const cmd = 'npm run agent:check';
+  const plain = { argv: ['sh', '-c', `(${cmd}) 2>&1`], shown: cmd };
+  beforeAll(() => {
+    for (const d of [bin, noExec, empty]) mkdirSync(d, { recursive: true });
+    writeFileSync(join(bin, 'caffeinate'), '#!/bin/sh\necho "held $1 $2"\nshift 2\nexec "$@"\n', { mode: 0o755 });
+    writeFileSync(join(noExec, 'caffeinate'), '', { mode: 0o644 });
+  });
+
+  it('darwin: the gate runs under the caffeinate found on PATH, holding idle and AC sleep off', () => {
+    expect(gateArgv(cmd, { platform: 'darwin', PATH: `${empty}:${bin}` })).toEqual({
+      argv: [join(bin, 'caffeinate'), '-i', '-s', 'sh', '-c', `(${cmd}) 2>&1`],
+      shown: `caffeinate -i -s ${cmd}`,
+    });
+  });
+
+  it('any other platform runs sh as before, even with caffeinate on PATH', () => {
+    for (const platform of ['linux', 'win32', 'freebsd']) expect(gateArgv(cmd, { platform, PATH: bin })).toEqual(plain);
+  });
+
+  it('darwin without an executable caffeinate on PATH runs sh as before', () => {
+    expect(gateArgv(cmd, { platform: 'darwin', PATH: empty })).toEqual(plain);
+    expect(gateArgv(cmd, { platform: 'darwin', PATH: noExec })).toEqual(plain);
+    expect(gateArgv(cmd, { platform: 'darwin', PATH: '' })).toEqual(plain);
+  });
+
+  it('a relative PATH entry or a directory named caffeinate is passed over', () => {
+    // Relative to the test's cwd it finds the fake; spawn would resolve it
+    // against the lane instead, so it must not count.
+    expect(gateArgv(cmd, { platform: 'darwin', PATH: relative(process.cwd(), bin) })).toEqual(plain);
+    mkdirSync(join(empty, 'caffeinate'), { recursive: true });
+    expect(gateArgv(cmd, { platform: 'darwin', PATH: `${empty}:${bin}` }).argv[0]).toBe(join(bin, 'caffeinate'));
+  });
+
+  it('runGate spawns what gateArgv returns and reports the wrapped command', async () => {
+    const g = await runGate(lane, { cmd: 'echo gate-ran; exit 3', platform: 'darwin', PATH: bin, timeoutMs: 10_000 });
+    expect(g.ok).toBe(false); // the gate's status comes back through the wrapper
+    expect(g.tail).toBe('held -i -s\ngate-ran');
+    expect(g.cmd).toBe('caffeinate -i -s echo gate-ran; exit 3');
+    const off = await runGate(lane, { cmd: 'echo gate-ran', platform: 'linux', PATH: bin, timeoutMs: 10_000 });
+    expect(off).toMatchObject({ ok: true, tail: 'gate-ran', cmd: 'echo gate-ran' });
+  });
+});
+
 describe('the deliberate exit', () => {
   it('`blocked` lets exactly one stop through and consumes the marker', async () => {
     writeFileSync(join(lane, 'new.txt'), 'x\n'); // dirty again, would block
@@ -276,19 +325,42 @@ describe('as a hook process', () => {
     expect(readFileSync(lp.log, 'utf8')).toContain('err1');
   });
 
-  it('a timed-out gate leaves no processes behind', () => {
+  it('a timed-out gate leaves no processes behind, caffeinate included on a Mac', () => {
     freshCommit('p2.txt');
-    const marker = `STOPGATE_${process.pid}_${Date.now()}`;
+    // Each leaf carries the marker in argv, which ps shows on Linux and macOS
+    // alike (macOS has no /proc and hides other processes' env), and touches a
+    // file once running, so the check cannot pass because nothing started. The
+    // marker is in the gate command too, so caffeinate and sh carry it as well.
+    const marker = join(base, `STOPGATE_${process.pid}_${Date.now()}`);
+    const leaf = (n: number) => `node -e "require('fs').writeFileSync(process.argv[1], ''); setTimeout(() => {}, 30000)" ${marker}.${n}`;
     const r = runHook(
       { session_id: sid, cwd: primary },
-      { APEX_STOP_GATE_CMD: `${marker}=1 sleep 30 & ${marker}=1 sleep 30`, STOP_GATE_TIMEOUT_MS: '500' },
+      { APEX_STOP_GATE_CMD: `${leaf(1)} & ${leaf(2)}`, STOP_GATE_TIMEOUT_MS: '3000' },
     );
     expect(r.status).toBe(2);
     expect(r.stderr).toContain('timed out');
-    // The marker is an env var on the sleeps; /proc shows it for any survivor.
-    const ps = spawnSync('sh', ['-c', `grep -lz '^${marker}=1' /proc/[0-9]*/environ 2>/dev/null || true`], { encoding: 'utf8' });
-    expect(ps.stdout.trim()).toBe('');
-  });
+    expect([existsSync(`${marker}.1`), existsSync(`${marker}.2`)]).toEqual([true, true]);
+    const ps = spawnSync('ps', ['-A', '-ww', '-o', 'pid=,args='], { encoding: 'utf8' });
+    expect(ps.stdout.split('\n').filter((l) => l.includes(marker))).toEqual([]);
+  }, 20_000); // runs inside the Stop hook's own gate, often beside other sessions' gates
+
+  // The hook's real gate, on a real Mac: caffeinate's idle-sleep assertion
+  // names the gate shell's pid. caffeinate takes it a moment after the shell
+  // starts, so the gate polls for up to 2s. The guard does not ask gateArgv,
+  // so a broken gateArgv fails here instead of skipping.
+  const mac = process.platform === 'darwin' && spawnSync('sh', ['-c', 'command -v caffeinate']).status === 0;
+  it.runIf(mac)('on a Mac the gate runs holding an idle-sleep assertion', () => {
+    freshCommit('p3.txt');
+    const held = `pmset -g assertions | grep -B1 "(pid $$)" | grep -c PreventUserIdleSystemSleep`;
+    const r = runHook(
+      { session_id: sid, cwd: primary },
+      { APEX_STOP_GATE_CMD: `for i in 1 2 3 4 5 6 7 8 9 10; do n=$(${held}); [ "$n" -gt 0 ] && break; sleep 0.2; done; echo "idle-held=$n"; exit 1` },
+    );
+    expect(r.status).toBe(2);
+    expect(r.stderr).toContain('idle-held=1');
+    expect(r.stderr).toContain('(`caffeinate -i -s for i in');
+    expect(readFileSync(lp.log, 'utf8')).toMatch(/^\$ caffeinate -i -s for i in/);
+  }, 20_000);
 
   it('exit 0 for a session that never cut a lane', () => {
     const r = runHook({ session_id: 'nobody', cwd: primary });
