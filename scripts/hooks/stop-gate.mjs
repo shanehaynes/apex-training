@@ -34,14 +34,16 @@
 //     it stands aside with a note, so an unfixable red (stale stack, a flake,
 //     no network for npm audit) cannot loop a session forever. The dirty and
 //     unpushed checks never stand aside: they are one command to satisfy.
-//   - a red run the Mac slept through is not charged. A sleep freezes the
-//     gate part-way and its in-flight tests time out on wake, which says
-//     nothing about the commit. Up to STOP_GATE_MAX_SLEPT_RUNS (3) such runs
-//     per commit go uncharged and the block reason says the Mac slept; past
-//     that they count like any red, so a closed lid cannot loop a session
-//     forever either.
 //   - a session that cannot fix a red is still expected to commit and push
 //     it: a red branch on origin is visible; uncommitted work is not.
+//
+// A red run the Mac slept through is not charged. A sleep freezes the gate
+// part-way and its in-flight tests time out on wake, which says nothing about
+// the commit. runGate reads kern.sleeptime before and after the run; if it
+// changed, the run crossed a sleep. Up to STOP_GATE_MAX_SLEPT_RUNS (3) such
+// runs per commit and STOP_GATE_MAX_SLEPT_TOTAL (5) per session go uncharged,
+// and the block reason says the Mac slept. Past either cap they count like
+// any red, so a closed lid cannot loop a session forever either.
 //
 // Everything lives in this one file on purpose, like bash-guard.mjs: bare
 // `node`, builtins only, and internal errors allow (fail open) — a broken
@@ -51,7 +53,7 @@
 // Knobs are read from the environment Claude Code itself was launched with
 // (a hook does not see the Bash tool's shell): APEX_STOP_GATE=off,
 // APEX_STOP_GATE_CMD, STOP_GATE_MAX_RED_RUNS, STOP_GATE_MAX_RED_TOTAL,
-// STOP_GATE_MAX_SLEPT_RUNS, STOP_GATE_TIMEOUT_MS.
+// STOP_GATE_MAX_SLEPT_RUNS, STOP_GATE_MAX_SLEPT_TOTAL, STOP_GATE_TIMEOUT_MS.
 
 import { spawn, spawnSync } from 'node:child_process';
 import { accessSync, constants, existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
@@ -61,6 +63,7 @@ export const DEFAULT_GATE = 'npm run agent:check';
 export const MAX_RED_RUNS = Number(process.env.STOP_GATE_MAX_RED_RUNS) || 3;
 export const MAX_RED_TOTAL = Number(process.env.STOP_GATE_MAX_RED_TOTAL) || 10;
 export const MAX_SLEPT_RUNS = Number(process.env.STOP_GATE_MAX_SLEPT_RUNS) || 3;
+export const MAX_SLEPT_TOTAL = Number(process.env.STOP_GATE_MAX_SLEPT_TOTAL) || 5;
 const GATE_TIMEOUT_MS = Number(process.env.STOP_GATE_TIMEOUT_MS) || 1_740_000; // under the 1800s hook timeout; a cloud container's e2e leg alone takes ~15 min
 const TAIL_LINES = 60;
 
@@ -107,7 +110,7 @@ export function worktreeContaining(dir) {
 //   <primary>/.claude/state/sessions/<id>                     one lane path per line
 //   <primary>/.claude/state/stop-gate/<id>/blocked            the one-stop pass
 //   <primary>/.claude/state/stop-gate/<id>/<lane>.green       SHA of the last green run
-//   <primary>/.claude/state/stop-gate/<id>/<lane>.count       "<sha> <red runs at sha> <red runs total> <uncharged slept runs at sha>"
+//   <primary>/.claude/state/stop-gate/<id>/<lane>.count       "<sha> <red runs at sha> <red runs total> <uncharged slept runs at sha> <uncharged total>"
 //   <primary>/.claude/state/stop-gate/<id>/<lane>.gate.log    full output of the last run
 // ---------------------------------------------------------------------------
 
@@ -238,21 +241,20 @@ export function gateArgv(cmd, { platform = process.platform, PATH = process.env.
 }
 
 // `sysctl -n kern.sleeptime` prints `{ sec = 1793624521, usec = 923212 } Mon
-// Nov  2 08:02:01 2026`; never slept reads as sec = 0. Epoch ms, or null.
+// Nov  2 08:02:01 2026`, and sec = 0 if the Mac has not slept since boot.
+// Epoch ms (0 for never), or null for anything else.
 export function parseSleepTime(text) {
   const m = /\bsec = (\d+), usec = (\d+)/.exec(text ?? '');
-  if (!m) return null;
-  const ms = Number(m[1]) * 1000 + Math.floor(Number(m[2]) / 1000);
-  return ms > 0 ? ms : null;
+  return m ? Number(m[1]) * 1000 + Math.floor(Number(m[2]) / 1000) : null;
 }
 
 // When the Mac last went to sleep, from the kernel: idle sleep, a closed lid
 // and each maintenance sleep between dark wakes all stamp it. Off darwin, or
-// if sysctl fails, null, and the run is judged as before. Node's monotonic
-// clock keeps counting through sleep on darwin, so it cannot tell.
-export function lastSleepMs({ platform = process.platform } = {}) {
+// if sysctl fails, null. Node's monotonic clock keeps counting through sleep
+// on darwin, so it cannot tell.
+export function lastSleepMs({ platform = process.platform, sysctl = '/usr/sbin/sysctl' } = {}) {
   if (platform !== 'darwin') return null;
-  const r = spawnSync('/usr/sbin/sysctl', ['-n', 'kern.sleeptime'], { encoding: 'utf8', timeout: 5000 });
+  const r = spawnSync(sysctl, ['-n', 'kern.sleeptime'], { encoding: 'utf8', timeout: 5000 });
   return r.status === 0 ? parseSleepTime(r.stdout) : null;
 }
 
@@ -260,16 +262,34 @@ const clock = (ms) => new Date(ms).toTimeString().slice(0, 8);
 
 // Run the gate in its own process group so a timeout kills vite, vitest and
 // playwright too, not just the `sh` that started them. stderr is folded into
-// stdout so the tail reads in order. `sleptAt` is when the Mac went to sleep
-// during the run, or null if it stayed awake.
+// stdout so the tail reads in order. `sleptAt` is the Mac's last sleep if the
+// kernel's stamp changed while the gate ran, else null. Comparing two kernel
+// readings, not a stamp against our own clock, keeps a clock step from
+// reading as a sleep; a failed read at either end reads as awake.
 export function runGate(
   wt,
-  { cmd = process.env.APEX_STOP_GATE_CMD || DEFAULT_GATE, logPath, timeoutMs = GATE_TIMEOUT_MS, platform, PATH, lastSleep = () => lastSleepMs({ platform }) } = {},
+  {
+    cmd = process.env.APEX_STOP_GATE_CMD || DEFAULT_GATE,
+    logPath,
+    timeoutMs = GATE_TIMEOUT_MS,
+    platform,
+    PATH,
+    sysctl,
+    lastSleep = () => lastSleepMs({ platform, sysctl }),
+  } = {},
 ) {
+  const readSleep = () => {
+    try {
+      return lastSleep();
+    } catch {
+      return null;
+    }
+  };
   return new Promise((done) => {
     const chunks = [];
     let size = 0;
     const startedAt = Date.now();
+    const sleptBefore = readSleep();
     const { argv, shown } = gateArgv(cmd, { platform, PATH });
     const child = spawn(argv[0], argv.slice(1), {
       cwd: wt,
@@ -301,19 +321,14 @@ export function runGate(
     child.on('close', (status) => {
       clearTimeout(timer);
       const out = Buffer.concat(chunks).toString('utf8');
-      let sleptAt = null;
-      try {
-        const s = lastSleep();
-        if (s !== null && s >= startedAt) sleptAt = s;
-      } catch {
-        /* unknown reads as awake: the run is judged as before */
-      }
+      const sleptAfter = readSleep();
+      const sleptAt = sleptBefore !== null && sleptAfter !== null && sleptAfter !== sleptBefore ? sleptAfter : null;
       if (logPath) {
         try {
           writeText(
             logPath,
             `$ ${shown}\n(cwd ${wt})\n\n${out}${timedOut ? '\n[stop-gate: timed out, process group killed]\n' : ''}` +
-              (sleptAt !== null ? `\n[stop-gate: the Mac went to sleep at ${clock(sleptAt)}, after the gate started at ${clock(startedAt)}]\n` : ''),
+              (sleptAt !== null ? `\n[stop-gate: the Mac slept during the gate (started ${clock(startedAt)}, last sleep ${clock(sleptAt)})]\n` : ''),
           );
         } catch {
           /* the log is a convenience */
@@ -330,13 +345,20 @@ export function runGate(
 // ---------------------------------------------------------------------------
 
 function readCount(p) {
-  const [sha = '', at = '0', total = '0', slept = '0'] = (readText(p) || '').trim().split(/\s+/);
-  return { sha, at: Number(at) || 0, total: Number(total) || 0, slept: Number(slept) || 0 };
+  const [sha = '', at = '0', total = '0', slept = '0', sleptTotal = '0'] = (readText(p) || '').trim().split(/\s+/);
+  return { sha, at: Number(at) || 0, total: Number(total) || 0, slept: Number(slept) || 0, sleptTotal: Number(sleptTotal) || 0 };
 }
 
 export async function decide(
   input,
-  { primary, run = runGate, maxRedRuns = MAX_RED_RUNS, maxRedTotal = MAX_RED_TOTAL, maxSleptRuns = MAX_SLEPT_RUNS } = {},
+  {
+    primary,
+    run = runGate,
+    maxRedRuns = MAX_RED_RUNS,
+    maxRedTotal = MAX_RED_TOTAL,
+    maxSleptRuns = MAX_SLEPT_RUNS,
+    maxSleptTotal = MAX_SLEPT_TOTAL,
+  } = {},
 ) {
   const sessionId = input.session_id ?? 'unknown';
   const cwd = input.cwd || process.cwd();
@@ -409,28 +431,29 @@ export async function decide(
           const what = `${g.timedOut ? 'the gate timed out' : 'the gate is red'} at ${sha.slice(0, 7)} (\`${g.cmd}\``;
           const asleep = g.sleptAt != null;
           const tail = `Last ${TAIL_LINES} lines:\n${g.tail}\nFull output: ${lp.log}\n`;
-          if (asleep && slept < maxSleptRuns) {
+          if (asleep && slept < maxSleptRuns && c.sleptTotal < maxSleptTotal) {
             try {
-              writeText(lp.count, `${sha} ${at} ${c.total} ${slept + 1}`);
+              writeText(lp.count, `${sha} ${at} ${c.total} ${slept + 1} ${c.sleptTotal + 1}`);
             } catch {
               /* the budget is a convenience */
             }
             return block(
-              `${what}), but the Mac went to sleep during the run (at ${clock(g.sleptAt)}), so this run is not charged to the red budget ` +
-                `(uncharged run ${slept + 1}/${maxSleptRuns} for this commit; red runs still ${at}/${maxRedRuns}). ` +
+              `${what}), but the Mac went to sleep during the run (last at ${clock(g.sleptAt)}), so this run is not charged to the red budget ` +
+                `(uncharged run ${slept + 1}/${maxSleptRuns} for this commit, ${c.sleptTotal + 1}/${maxSleptTotal} this session; red runs still ${at}/${maxRedRuns}). ` +
                 `A sleep freezes the gate and its in-flight tests time out on wake; a closed lid can sleep the Mac even under caffeinate. ` +
                 tail +
                 `If the failures are only timeouts, stop again to re-run the gate; if they are real, fix them, commit, and stop again.`,
             );
           }
           try {
-            writeText(lp.count, `${sha} ${at + 1} ${c.total + 1} ${slept}`);
+            writeText(lp.count, `${sha} ${at + 1} ${c.total + 1} ${slept} ${c.sleptTotal}`);
           } catch {
             /* the budget is a convenience */
           }
+          const spent = slept >= maxSleptRuns ? `this commit has had its ${maxSleptRuns}` : `this session has had its ${maxSleptTotal}`;
           return block(
             `${what}, run ${at + 1}/${maxRedRuns} for this commit). ` +
-              (asleep ? `The Mac went to sleep during this run too (at ${clock(g.sleptAt)}), but this commit has had its ${maxSleptRuns} uncharged runs, so this one counts. ` : '') +
+              (asleep ? `The Mac went to sleep during this run too (last at ${clock(g.sleptAt)}), but ${spent} uncharged runs, so this one counts. ` : '') +
               tail +
               `Fix it, commit, and stop again.`,
           );
