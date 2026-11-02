@@ -99,6 +99,12 @@ on the record:
   stack, a flake, no network for `npm audit`) cannot loop a session forever.
   Commit and push anyway — a red branch on origin is visible, uncommitted
   work is not — and say what was red.
+- A red run the Mac slept through is not charged (up to 3 per commit). The
+  hook asks the kernel when the Mac last went to sleep (`kern.sleeptime`);
+  a sleep after the gate started froze it part-way, and its tests timed out
+  on wake. The block reason says so. If the tail is only timeouts, stop again;
+  a closed lid sleeps the Mac even under the gate's `caffeinate`, so keep it
+  open. Past 3, a slept run counts like any red.
 
 A lane whose work already landed in `origin/main` (squash-merged, remote
 branch gone) is done and never blocks. A stop taken while background tasks
