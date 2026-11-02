@@ -5,10 +5,10 @@ run (`.claude/workflows/coach-prompt-evolution.js`): every variant proposed,
 its per-dimension eval results, its diff, and whether it was kept — the
 search's persistent memory, the same way `results/` is the suite's.
 
-Lineage results are scored on the `agent-sdk` backend (a Claude subscription)
-unless the run says `backend: "api"`: a regression-detector measurement, not
-comparable numerically to API-backend runs (evals/README.md, "Evolving the
-prompt against the suite").
+Every lineage entry names its `backend`. The default, `agent-sdk` (a Claude
+subscription), is a regression-detector measurement, not comparable
+numerically to API-backend runs (evals/README.md, "Evolving the prompt
+against the suite"); `api` entries are the production-shaped path.
 
 Commit the lineage JSON, named `<date>__<model>.json`, in the PR of the run
 that produced a winning variant, with the champion's diff and dimension table
