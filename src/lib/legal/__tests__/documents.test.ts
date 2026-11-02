@@ -152,9 +152,10 @@ describe('the documents make the disclosures the audit requires', () => {
     // since phase46 (#303), then memory, calendar notes and reflections.
     // The export (account.ts) lists every table it reads, so it is the pin.
     const account = readFileSync(join(ROOT, 'api/_lib/handlers/account.ts'), 'utf8');
-    for (const table of ['coach_messages', 'coach_memory', 'coach_annotations', 'coach_reflections']) {
-      if (account.includes(`'${table}'`)) expect(shown(privacy), table).toContain(table);
-    }
+    const list = account.match(/export const USER_DATA_TABLES = \[([\s\S]*?)\]/)?.[1] ?? '';
+    const coachTables = [...list.matchAll(/['"`](\w+)['"`]/g)].map(m => m[1]).filter(t => t.startsWith('coach_'));
+    expect(coachTables.length, 'USER_DATA_TABLES not found or holds no coach table').toBeGreaterThan(0);
+    for (const table of coachTables) expect(shown(privacy), table).toContain(table);
     expect(shown(privacy)).not.toMatch(/not\s+stored\s+on\s+our\s+servers/);
   });
 

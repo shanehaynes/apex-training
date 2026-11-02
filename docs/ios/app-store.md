@@ -393,8 +393,10 @@ account screen links to the Terms.
    bump on 2026-11-02: `terms-v2` and `privacy-v2`, #527.** Both versions move together, so every
    user re-accepts once. The web and builds from 561 on (W16 MT) prompt in place. Builds 509 and
    earlier cannot: every signed-in call fails with "Accept the updated terms to continue." until
-   the user accepts on the web, and each queued write that failed meanwhile waits on the tracker
-   bar for a manual Retry (Discard deletes it). Whether #527 merges before most testers run 561 or later (W16
+   the user accepts on the web. Queued writes refused meanwhile are not resent on their own: a
+   tracker op waits on the tracker bar for a manual Retry (Discard deletes it), an offline Builder
+   save is toasted ("Open its day to fix it"), and an offline new library exercise is discarded
+   with a toast. Whether #527 merges before most testers run 561 or later (W16
    MT's last box) is Shane's call when he marks it ready. W16's Health text, approved as
    `privacy-v2`, is now `privacy-v3` and still flips §1 Health to Yes when it ships. The pages
    are served from the web (`/terms`, `/privacy`), so no build waits on them.
