@@ -13,9 +13,13 @@ Shane's `shipit`; git keeps what shipped.
 
 ## Objective
 
-**30 weekly-active athletes on iOS.** Active means at least one completed
-workout dated in the trailing seven days and logged through the iOS app:
-tracked, spoken or imported from Apple Health. Thirty is where Apex stops being
+**30 weekly-active athletes on iOS**, counted in App Store Connect (Shane,
+2026-11-01): App Analytics' Active Devices, the devices with at least one
+session in the last seven days. TestFlight testers do not count. The count is
+both the proxy and the target. It sees devices, not people or workouts (an
+athlete on two devices counts twice; an open with no workout counts), and only
+users who share usage data with developers. Apex adds no analytics of its own
+(`legal/privacy-v1.md`). Thirty is where Apex stops being
 one athlete's log and becomes a product, and where `TECHSTACK.md` moves the API
 to Vercel Pro. Every Now item but the automation slot answers one question: does
 it bring Apex closer to thirty?
@@ -36,19 +40,17 @@ it bring Apex closer to thirty?
 
 ## Now
 
-1. **App Store 1.0.** Strangers cannot reach a TestFlight build. Rejected
-   2026-10-09 and not resubmitted; which build goes back is Shane's call
-   ([STATUS](docs/ios/STATUS.md), [app-store.md](docs/ios/app-store.md) §3, §7).
+1. **App Store, with Create account.** Strangers cannot reach a TestFlight
+   build. 1.0 (509, invite-only) was rejected 2026-10-09; Shane chose
+   (2026-11-01) to resubmit a 1.1.0 build with in-app Create account instead.
+   The steps, in order: [app-store.md](docs/ios/app-store.md) §7.
 2. **Apple Health, the rest of W16.** Every run and ride from any watch, and the
    last 30 days on connect. The privacy bump (Shane), then M2i, M3i, M4
    ([W16](docs/ios/workstreams/W16-apple-health.md)).
-3. **Measure the objective.** Nothing counts weekly-active athletes, and
-   `legal/privacy-v1.md` promises no analytics. Shane decides how to count
-   before any code.
-4. **Endurance on par with lifting.** Runs and rides have distance and elevation
+3. **Endurance on par with lifting.** Runs and rides have distance and elevation
    PRs but no performance measure (pace, speed, fastest efforts at standard
    distances), structured intervals or progression. Feature folder to write.
-5. **Voice logging, finished.** W17 M3, Shane's device run, then default-on
+4. **Voice logging, finished.** W17 M3, Shane's device run, then default-on
    ([W17](docs/ios/workstreams/W17-voice-set-logging.md)).
 
 **Automation slot:** ios-required M3, Shane's protection flip
