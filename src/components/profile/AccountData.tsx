@@ -15,10 +15,13 @@ import { COROS_DELETE_NOTICE } from '../../lib/sync/corosRevocation';
 // address is a deliberate act, and it also proves they know which account
 // they are standing in — which matters on a shared machine.
 
-export default function AccountData() {
+// `inlineErrors` is for the terms gate (TermsGate.tsx), which renders in place
+// of AppShell and so has no toast host: a failed export says so here instead.
+export default function AccountData({ inlineErrors = false }: { inlineErrors?: boolean } = {}) {
   const { session, termsStatus, signOut } = useAuth();
   const email = session?.user.email ?? '';
   const [isExporting, setIsExporting] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [typed, setTyped] = useState('');
@@ -26,10 +29,12 @@ export default function AccountData() {
 
   const runExport = async () => {
     setIsExporting(true);
+    setExportError(null);
     try {
       await downloadAccountExport();
     } catch {
-      /* downloadAccountExport already toasted */
+      // downloadAccountExport already toasted, where a toast host exists.
+      if (inlineErrors) setExportError('Export failed. Try again, or get in touch.');
     }
     setIsExporting(false);
   };
@@ -70,6 +75,7 @@ export default function AccountData() {
         <Download size={14} strokeWidth={1.5} />
         {isExporting ? 'Preparing…' : 'Export my data (JSON)'}
       </button>
+      {exportError && <p className="auth-error">{exportError}</p>}
 
       <p className="profile-hint account-data__danger-note">
         Deleting your account removes your schedule, logs, meals, imported watch
