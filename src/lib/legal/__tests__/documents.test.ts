@@ -102,6 +102,18 @@ describe('the documents make the disclosures the audit requires', () => {
     expect(privacy).toMatch(/expire\s+after\s+one\s+year/);
     expect(terms).toMatch(/one\s+year/);
   });
+
+  it('the documents describe open sign-up: no invitation-only claim, the bot check, the 18+ box', () => {
+    // Sign-up opened 2026-10-17 (#452) with Cloudflare Turnstile on the form
+    // (TurnstileWidget.tsx) and, from #477, an 18+ box stamped as
+    // age_confirmed_at. Checked on the rendered text: the LEGAL REVIEW notes
+    // quote the old wording on purpose.
+    const shown = (source: string) => JSON.stringify(parseLegalMarkdown(source));
+    expect(shown(terms)).not.toMatch(/created\s+by\s+invitation/);
+    expect(shown(privacy)).not.toMatch(/third-party\s+scripts\s+of\s+any\s+kind/);
+    expect(shown(privacy)).toContain('Turnstile');
+    expect(shown(privacy)).toMatch(/18\s+or\s+older/);
+  });
 });
 
 describe('needsAcceptance', () => {

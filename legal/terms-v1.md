@@ -93,14 +93,13 @@ for injury or loss arising from your physical activity.
 ## 2. Who may use Apex
 
 You must be at least 18 years old, or the age of majority where you live, and
-able to form a binding contract. Apex is not directed to children. Accounts are
-currently created by invitation.
+able to form a binding contract. Apex is not directed to children.
 
 You are responsible for your account credentials and for everything done under
 your account. Tell us promptly if you believe your account or any access token
 has been compromised.
 
-<!-- LEGAL REVIEW: The application has NO age gate anywhere — no date-of-birth field, no age attestation, no verification at signup or invitation. This section is a bare contractual representation with nothing enforcing it. Please advise whether that is acceptable given COPPA and the state minor-privacy statutes, particularly since the Service collects health and precise-location data. -->
+<!-- LEGAL REVIEW: Open sign-up replaced invitation-only accounts on 2026-10-17 (PR #452), and this section was edited in place to drop "Accounts are currently created by invitation" (see the privacy policy's section 4.2 note on in-place edits). Since 2026-10-20 (PR #477) the sign-up form, on the web and in the iPhone app, has its own unticked box, "I am 18 or older (or the age of majority where I live)"; the server refuses a sign-up without it and records the time (`age_confirmed_at`, in account metadata only the server can write) before any email goes out. It is an attestation, not verification: there is no date-of-birth field and nothing checks the claim. Accounts created between 2026-10-17 and 2026-10-20 carry no such record, and accounts the operator invites directly skip the box. Please advise whether a self-attestation is acceptable given COPPA and the state minor-privacy statutes, particularly since the Service collects health and precise-location data. -->
 
 ---
 
