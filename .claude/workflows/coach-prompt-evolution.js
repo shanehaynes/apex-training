@@ -58,10 +58,14 @@ if (typeof lane !== 'string' || !lane.startsWith('/')) {
 //     it cannot reach a key line in .env.local, and does not need to.
 //   api — the pre-existing path: the Messages API on ANTHROPIC_API_KEY, the
 //     production-shaped measurement. Opt in explicitly.
+// `npx tsx evals/run.ts` is exactly what package.json's "eval" script runs.
+// It is spelled out because the Workflow runtime's worktree-isolation guard
+// reads `npm run eval` as a shell eval and refuses it (observed 2026-11-02,
+// run wf_cbe0dc1e-0e9: both variants were refused and had to work around it).
 const modelFlag = model ? ` --model ${model}` : ''
 const evalCommand = backend === 'agent-sdk'
-  ? `env -u ANTHROPIC_API_KEY -u ANTHROPIC_AUTH_TOKEN npm run eval -- --backend agent-sdk --judge-backend agent-sdk --concurrency ${concurrency}${modelFlag}`
-  : `npm run eval -- --backend api --concurrency ${concurrency}${modelFlag}`
+  ? `env -u ANTHROPIC_API_KEY -u ANTHROPIC_AUTH_TOKEN npx tsx evals/run.ts --backend agent-sdk --judge-backend agent-sdk --concurrency ${concurrency}${modelFlag}`
+  : `npx tsx evals/run.ts --backend api --concurrency ${concurrency}${modelFlag}`
 const credentialNote = backend === 'agent-sdk'
   ? `This spends a Claude subscription, not an API key. The eval runner reads CLAUDE_CODE_OAUTH_TOKEN ` +
     `from the primary checkout's .env.local on its own (a worktree has none and must not get one): ` +
@@ -141,8 +145,9 @@ function dominates(candidate, incumbent) {
 }
 
 const scoreInstructions =
-  `Then run exactly this command from the checkout root and let it finish (it takes many minutes; ` +
-  `wait, do not re-run it):\n\n    ${evalCommand}\n\n${credentialNote}\n\n` +
+  `Then run exactly this command from the checkout root, in the FOREGROUND with a long timeout ` +
+  `(it takes 20–60 minutes; never background it, never poll or sleep on it, never re-run it, and ` +
+  `do not rewrite it as \`npm run eval\`, which the isolation guard refuses):\n\n    ${evalCommand}\n\n${credentialNote}\n\n` +
   `Read the NEWEST evals/results/*.json it wrote (the path is printed on its last line). Report ` +
   `dims as that file's aggregate.passRateByDimension, verbatim; erroredCases as the number of ` +
   `entries in cases[] that have an "error" field; backend as its backend field; caseCount as ` +
