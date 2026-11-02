@@ -10,7 +10,8 @@ effective: 2026-11-02
 
 **What changed from terms-v1:** section 2 no longer says accounts are created
 by invitation, because sign-up is now open to anyone that section allows.
-Nothing else in these Terms changed.
+Section 3 no longer calls what you can grant AI clients "read access", since
+section 6 lets you grant write access too. Nothing else in these Terms changed.
 
 These Terms are a contract between you and [LEGAL_ENTITY] ("we", "us"), who
 operates the Apex Training web application at apex-training.app
@@ -112,8 +113,8 @@ has been compromised.
 Apex is a personal training calendar. It lets you schedule and log workouts,
 record sets, reps, weights, durations, and meals, connect a COROS watch to
 import activities, receive AI-generated coaching and periodic reviews, subscribe
-to your schedule as a calendar feed, and grant read access to third-party AI
-clients over a documented API.
+to your schedule as a calendar feed, and grant third-party AI clients access
+over a documented API.
 
 **Apex is provided free of charge.** There is no paid tier, no service-level
 commitment, and no guarantee that any feature will continue to exist. We may

@@ -32,7 +32,8 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
 0. **App Store resubmission — 1.1.0 with Create account (ROADMAP Now 1).** 509 is not going back.
    The order is [app-store.md](app-store.md) §7, "The resubmission, in order". First the legal
    text, already overdue: web sign-up has been open since 2026-10-17 while Terms §2 says
-   invitation-only and privacy-v1 says no third-party scripts (Turnstile is one). Then the
+   invitation-only and privacy-v1 says no third-party scripts (Turnstile is one). Shane chose a
+   version bump on 2026-11-02: `terms-v2` / `privacy-v2`, draft #527, his to mark ready. Then the
    Turnstile App Privacy answer, a TestFlight build from `main` on Shane's go (the first carrying
    #493), one real sign-up on it, Apple's 2026-10-13 agreement, the version number, the recording
    and the reply. An agent can draft the legal text and cut the build when Shane says so; every

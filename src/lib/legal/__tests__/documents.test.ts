@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, it, expect } from 'vitest';
-import { legalMarkdownViolations, parseLegalMarkdown, splitFrontmatter } from '../markdown';
+import { legalMarkdownViolations, parseLegalMarkdown, splitFrontmatter, type Block, type Inline } from '../markdown';
 import { LEGAL_DOCUMENTS, LEGAL_EFFECTIVE_DATE, PRIVACY_VERSION, TERMS_VERSION, needsAcceptance } from '../versions';
 
 // The documents in /legal are the thing users actually agree to, and
@@ -17,6 +17,23 @@ const DOCS = [
   { label: 'terms', version: TERMS_VERSION, source: read(TERMS_VERSION) },
   { label: 'privacy', version: PRIVACY_VERSION, source: read(PRIVACY_VERSION) },
 ];
+
+/** The text a reader sees, one line per paragraph, list item or table cell.
+ *  Inline runs are joined without separators, so bold or code in the middle
+ *  of a sentence cannot split a phrase the pins below look for. */
+function shown(source: string): string {
+  const line = (inlines: Inline[]) => inlines.map(i => i.text).join('');
+  const lines = (b: Block): string[] => {
+    switch (b.type) {
+      case 'heading': case 'paragraph': return [line(b.inlines)];
+      case 'list': return b.items.map(line);
+      case 'table': return [...b.head, ...b.rows.flat()].map(line);
+      case 'image': return [b.alt];
+      case 'rule': return [];
+    }
+  };
+  return parseLegalMarkdown(source).blocks.flatMap(lines).join('\n');
+}
 
 describe.each(DOCS)('legal/$version.md', ({ version, source }) => {
   it('has frontmatter matching its filename and versions.ts', () => {
@@ -36,7 +53,7 @@ describe.each(DOCS)('legal/$version.md', ({ version, source }) => {
     const n = Number(version.match(/-v(\d+)$/)![1]);
     if (n > 1) {
       const previous = version.replace(/\d+$/, String(n - 1));
-      expect(JSON.stringify(parseLegalMarkdown(source))).toContain(`What changed from ${previous}`);
+      expect(shown(source)).toContain(`What changed from ${previous}`);
     }
   });
 
@@ -123,7 +140,6 @@ describe('the documents make the disclosures the audit requires', () => {
     // (TurnstileWidget.tsx) and, from #477, an 18+ box stamped as
     // age_confirmed_at. Checked on the rendered text: the LEGAL REVIEW notes
     // quote the old wording on purpose.
-    const shown = (source: string) => JSON.stringify(parseLegalMarkdown(source));
     expect(shown(terms)).not.toMatch(/Accounts\s+are\s+currently\s+created\s+by\s+invitation/);
     expect(shown(privacy)).not.toMatch(/third-party\s+scripts\s+of\s+any\s+kind/);
     expect(shown(privacy)).not.toMatch(/sell\s+or\s+share\s+your\s+data/);
@@ -136,7 +152,7 @@ describe('the documents make the disclosures the audit requires', () => {
     // receives every visitor's IP address. Self-hosting the fonts retires both.
     const tokens = readFileSync(join(ROOT, 'src/styles/tokens.css'), 'utf8');
     if (tokens.includes('fonts.googleapis.com')) {
-      expect(JSON.stringify(parseLegalMarkdown(privacy))).toContain('fonts.googleapis.com');
+      expect(shown(privacy)).toContain('fonts.googleapis.com');
     }
   });
 });
@@ -186,7 +202,10 @@ describe('LEGAL_DOCUMENTS', () => {
     // Static ?raw imports cannot be built from the constants, so a bump edits
     // them by hand; this is what catches one that forgets.
     const page = readFileSync(join(ROOT, 'src/components/legal/LegalPage.tsx'), 'utf8');
-    for (const doc of LEGAL_DOCUMENTS) expect(page).toContain(`legal/${doc.version}.md?raw`);
+    for (const doc of LEGAL_DOCUMENTS) {
+      const bound = page.match(new RegExp(`^import ${doc.slug}Source from '[^']*/legal/([\\w-]+)\\.md\\?raw';$`, 'm'));
+      expect(bound?.[1], `${doc.slug}Source must import legal/${doc.version}.md`).toBe(doc.version);
+    }
   });
 });
 

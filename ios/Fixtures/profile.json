@@ -60,8 +60,8 @@
     }
   ],
   "termsAccepted": {
-    "termsVersion": "terms-v1",
-    "privacyVersion": "privacy-v1",
+    "termsVersion": "terms-v2",
+    "privacyVersion": "privacy-v2",
     "acceptedAt": "<timestamp>"
   },
   "termsCurrent": true,

@@ -173,7 +173,9 @@ describe.skipIf(!RUN)('terms acceptance against the local stack', () => {
 
     const after = makeRes();
     await eventsHandler(makeReq({ method: 'GET', token: prior.token }), after.res);
-    expect(after.statusCode, 'past the gate').not.toBe(403);
+    // Past the gate and answered by the handler itself (its own validation
+    // 400s a bare GET), not a 403 or a 503 from the gate.
+    expect([200, 400], 'past the gate').toContain(after.statusCode);
 
     // The v1 row stands beside the new one as the record of what was agreed when.
     const { data } = await admin
