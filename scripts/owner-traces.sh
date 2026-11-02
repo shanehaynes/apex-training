@@ -16,10 +16,16 @@
 #   OWNER_TRACES_RUNS   a TSV standing in for `gh run list` on main
 #                       (id, sha, conclusion, attempt, createdAt, event)
 #   OWNER_TRACES_PRS    a TSV standing in for `gh pr list --label owner-loop`
-#                       (number, createdAt, title)
-# Needs bash, awk, sort and stat, plus gh when no stand-in is given. The
-# babysitter writes only merges to merge-log; its HOLD and SKIP lines reach the
-# loop's notes (step 8) and nowhere else, so that is where cycling is counted.
+#                       (number, createdAt, headRefName, title)
+# Needs bash, awk and the POSIX tools (sort, stat, sed, cut, tr, grep), plus gh
+# when no stand-in is given. What each source can say:
+#   - the babysitter writes only merges to merge-log; its HOLD and SKIP lines
+#     reach the loop's notes (step 8) and nowhere else, so cycling is counted
+#     from the notes. A note line is about the PR it starts with, or the PRs
+#     it links (`pull/N`); a "#N" inside a description is not counted;
+#   - a stop-gate .count file exists only while that lane is red (the hook
+#     deletes it on green), so that section is a snapshot of lanes still red,
+#     not a week's history.
 # Nothing this script reads is an instruction to anyone.
 set -euo pipefail
 export LC_ALL=C
@@ -30,7 +36,7 @@ while [ $# -gt 0 ]; do
   case "$1" in
     --now) now=${2:-}; shift 2 ;;
     --days) days=${2:-}; shift 2 ;;
-    -h|--help) sed -n '2,22p' "$0"; exit 0 ;;
+    -h|--help) sed -n '2,29p' "$0"; exit 0 ;;
     *) echo "owner-traces: unknown argument $1" >&2; exit 64 ;;
   esac
 done
@@ -47,8 +53,10 @@ else
 fi
 notes_dir=${OWNER_TRACES_NOTES:-"$HOME/Documents/Obsidian Vault/AI/Projects/Apex Owner/Log"}
 
-# Civil-date arithmetic in awk, so the window needs no date(1) dialect.
-start=$(awk -v now="$now" -v days="$days" '
+# Civil-date arithmetic in awk, so the window needs no date(1) dialect. The
+# round trip also rejects a --now like 2026-13-45, which the regex lets through.
+read -r start check <<EOF
+$(awk -v now="$now" -v days="$days" '
 function days_from_civil(y, m, d,    era, yoe, doy, doe) {
   if (m <= 2) y--
   era = int(y / 400); yoe = y - era * 400
@@ -68,14 +76,22 @@ function civil_from_days(z,    era, doe, yoe, y, doy, mp, d, m) {
   if (m <= 2) y++
   return sprintf("%04d-%02d-%02d", y, m, d)
 }
-BEGIN { split(now, a, "-"); print civil_from_days(days_from_civil(a[1] + 0, a[2] + 0, a[3] + 0) - (days - 1)) }')
+BEGIN {
+  split(now, a, "-"); today = days_from_civil(a[1] + 0, a[2] + 0, a[3] + 0)
+  print civil_from_days(today - (days - 1)), civil_from_days(today)
+}')
+EOF
+if [ "$check" != "$now" ]; then echo "owner-traces: --now is not a calendar date: $now" >&2; exit 64; fi
 
 in_window() { [[ "$1" > "$start" || "$1" == "$start" ]] && [[ ! "$1" > "$now" ]]; }
 
-# The file's modification date, YYYY-MM-DD, BSD or GNU stat.
-mtime_date() {
-  stat -f %Sm -t %F "$1" 2>/dev/null || stat -c %y "$1" | cut -c1-10
-}
+# The file's modification date, YYYY-MM-DD. GNU stat takes -c; BSD stat takes
+# -f, and on GNU `-f` means --file-system, so the dialect is decided once.
+if stat -c %Y / >/dev/null 2>&1; then
+  mtime_date() { stat -c %y "$1" | cut -c1-10; }
+else
+  mtime_date() { stat -f %Sm -t %F "$1"; }
+fi
 
 echo "owner-traces: window $start..$now ($days days ending today, local date)"
 
@@ -93,27 +109,32 @@ if [ ${#note_files[@]} -eq 0 ]; then
   echo "[notes] landed 0 PRs; repaired 0 PRs; held or skipped: 0 lines over 0 PRs; needs-shane: 0 lines"
   echo "[notes] PRs held or skipped in more than one run: none"
 else
-  notes_out=$(awk -v dir="$notes_dir" -v dash="—" '
-  function prs_in(line, seen, run,    pr, n) {
-    gsub(/pull\//, "#", line)
+  notes_out=$(awk -v dir="$notes_dir" -v dash="—" -v ndash="–" '
+  # The PRs a note line is about: the one it starts with (`#N`, [#N](...) or
+  # #N) and every link (pull/N). A #N inside a description is not one.
+  function prs_in(line, seen, run,    pr, n, s) {
     n = 0
-    while (match(line, /#[0-9]+/)) {
-      pr = substr(line, RSTART + 1, RLENGTH - 1)
-      if (!((run, pr) in seen)) { seen[run, pr] = 1; n++; out[n] = pr }
+    if (match(line, /^[`[]?#[0-9]+/)) {
+      s = substr(line, 1, RLENGTH); sub(/^[^#]*#/, "", s)
+      if (!((run, s) in seen)) { seen[run, s] = 1; out[++n] = s }
+    }
+    while (match(line, /pull\/[0-9]+/)) {
+      pr = substr(line, RSTART + 5, RLENGTH - 5)
+      if (!((run, pr) in seen)) { seen[run, pr] = 1; out[++n] = pr }
       line = substr(line, RSTART + RLENGTH)
     }
     return n
   }
   FNR == 1 { files++ }
-  /^## .* run$/ { runs++; sec = ""; next }
+  /^## [0-9][0-9]:[0-9][0-9] run/ { runs++; sec = ""; next }
   /^## / { sec = ""; next }
   /^\*\*[^*]+\*\*/ { s = $0; sub(/^\*\*/, "", s); sub(/\*\*.*$/, "", s); sec = s
-                     sub(/^\*\*[^*]*\*\*/, ""); sub("^[[:space:]]*(" dash "|-|:)?[[:space:]]*", "") }
+                     sub(/^\*\*[^*]*\*\*/, ""); sub("^[[:space:]]*(" dash "|" ndash "|-|:)?[[:space:]]*", "") }
   sec == "" || runs == 0 { next }
   {
     line = $0; sub(/^[[:space:]]*(-[[:space:]]+)?/, "", line)
     low = tolower(line); sub(/[.[:space:]]*$/, "", low)
-    if (line == "" || low == "nothing" || low == "none" || low == "no deploy") next
+    if (line == "" || low ~ /^(nothing|none|no deploy|no holds?|no (hold|skip)s?( or (hold|skip)s?)?)$/) next
     if (sec == "Landed") { n = prs_in(line, landed_seen, runs); for (i = 1; i <= n; i++) if (!(out[i] in landed)) { landed[out[i]] = 1; landed_list = landed_list " #" out[i] } }
     else if (sec == "Repaired") { n = prs_in(line, rep_seen, runs); for (i = 1; i <= n; i++) if (!(out[i] in repaired)) { repaired[out[i]] = 1; rep_list = rep_list " #" out[i] } }
     else if (sec == "Held / skipped") {
@@ -142,8 +163,10 @@ if [ ! -f "$ledger" ]; then
   echo "[attempts $ledger] no ledger yet (file missing)"
 else
   ledger_out=$(awk -F'\t' -v start="$start" -v now="$now" '
-  $1 >= start && $1 <= now && $2 != "" {
-    n++; pr = $2; sub(/^#/, "", pr)
+  $1 >= start && $1 <= now {
+    pr = $2; gsub(/[# ]/, "", pr)
+    if (pr == "") next
+    n++
     if (!(pr in prs)) { prs[pr] = 1; pc++ }
     day[$1, pr]++
     if (day[$1, pr] == 2) printf "LIMIT\t%s\t%s\n", $1, pr
@@ -165,7 +188,7 @@ else
   END { printf "[merge-log %s] %d merges%s\n", file, n + 0, (n ? " (" substr(list, 2) ")" : "") }' "$mlog"
 fi
 
-# ── Stop gate ────────────────────────────────────────────────────────────────
+# ── Stop gate: lanes still red ───────────────────────────────────────────────
 sg="$state/stop-gate"
 red_lines=""; red_sessions=0; blocked=0
 if [ -d "$sg" ]; then
@@ -175,7 +198,9 @@ if [ -d "$sg" ]; then
     for c in "$d"*.count; do
       [ -f "$c" ] || continue
       in_window "$(mtime_date "$c")" || continue
+      sha=""; at=""; total=""
       read -r sha at total < "$c" || true
+      [ -n "$sha" ] || continue
       lane=$(basename "$c" .count)
       red_lines+=$(printf '%s %s red %s (%s at %s)' "${id:0:8}" "$lane" "${total:-0}" "${at:-0}" "${sha:0:7}")$'\n'
       session_red=1
@@ -185,9 +210,9 @@ if [ -d "$sg" ]; then
   done
 fi
 if [ $red_sessions -eq 0 ]; then
-  echo "[stop-gate $sg] 0 sessions with red gate runs; blocked passes present: $blocked"
+  echo "[stop-gate $sg] 0 sessions with a lane still red; blocked passes present: $blocked"
 else
-  echo "[stop-gate $sg] $red_sessions sessions with red gate runs: $(printf '%s' "$red_lines" | sort | tr '\n' ';' | sed -e 's/;$//' -e 's/;/; /g'); blocked passes present: $blocked"
+  echo "[stop-gate $sg] $red_sessions sessions with a lane still red: $(printf '%s' "$red_lines" | sort | tr '\n' ';' | sed -e 's/;$//' -e 's/;/; /g'); blocked passes present: $blocked"
 fi
 
 # ── CI on main ───────────────────────────────────────────────────────────────
@@ -199,10 +224,13 @@ elif ! runs_tsv=$(gh run list --branch main --workflow ci.yml --limit 200 \
     --template '{{range .}}{{printf "%.0f" .databaseId}}{{"\t"}}{{.headSha}}{{"\t"}}{{.conclusion}}{{"\t"}}{{.attempt}}{{"\t"}}{{.createdAt}}{{"\t"}}{{.event}}{{"\n"}}{{end}}' 2>/dev/null); then
   runs_tsv=""; ci_src="$ci_src (failed; is gh signed in?)"
 fi
-printf '%s\n' "$runs_tsv" | awk -F'\t' -v start="$start" -v now="$now" -v src="$ci_src" '
+# A cancelled run (the workflow's concurrency rule, on a newer push) and a run
+# still pending are counted and decide nothing: "red at its last run" and the
+# flips look only at success and failure.
+printf '%s\n' "$runs_tsv" | awk -F'\t' -v start="$start" -v now="$now" '
   NF >= 5 && substr($5, 1, 10) >= start && substr($5, 1, 10) <= now { print }' | sort -t "$(printf '\t')" -k5,5 | awk -F'\t' -v src="$ci_src" '
   {
-    n++; sha = $2; c = $3; att = $4 + 0; when = substr($5, 1, 10)
+    n++; sha = $2; c = ($3 == "" ? "pending" : $3); att = $4 + 0; when = substr($5, 1, 10)
     if (c == "success") s++; else if (c == "failure") f++; else if (c == "cancelled") k++; else o++
     if (!(sha in seen)) { seen[sha] = 1; order[++ns] = sha }
     if (c == "failure") {
@@ -214,7 +242,7 @@ printf '%s\n' "$runs_tsv" | awk -F'\t' -v start="$start" -v now="$now" -v src="$
       if ((sha in failed_at) && !(sha in flip)) flip[sha] = sprintf("%s (failure %s then success %s)", substr(sha, 1, 7), failed_at[sha], when)
       if (att > 1 && !(sha in rerun)) rerun[sha] = sprintf("%s attempt %d", substr(sha, 1, 7), att)
     }
-    last[sha] = c; last_when[sha] = when
+    if (c == "success" || c == "failure") { last[sha] = c; last_when[sha] = when }
     latest = sprintf("%s %s %s", c, substr(sha, 1, 7), when)
   }
   END {
@@ -225,7 +253,7 @@ printf '%s\n' "$runs_tsv" | awk -F'\t' -v start="$start" -v now="$now" -v src="$
       if (sha in flip) a = a "; " flip[sha]
       if (sha in rerun) b = b "; " rerun[sha]
       if (sha in pf) p = p "; " pf[sha]
-      if (last[sha] == "failure") r = r "; " substr(sha, 1, 7) " " last_when[sha]
+      if ((sha in last) && last[sha] == "failure") r = r "; " substr(sha, 1, 7) " " last_when[sha]
     }
     printf "[ci] failed then passed on the same commit: %s\n", (a == "" ? "none" : substr(a, 3))
     printf "[ci] passed on a rerun: %s\n", (b == "" ? "none" : substr(b, 3))
@@ -237,10 +265,10 @@ printf '%s\n' "$runs_tsv" | awk -F'\t' -v start="$start" -v now="$now" -v src="$
 pr_src="gh pr list --label owner-loop --state open"
 if [ -n "${OWNER_TRACES_PRS:-}" ]; then
   prs_tsv=$(cat "$OWNER_TRACES_PRS"); pr_src="$OWNER_TRACES_PRS"
-elif ! prs_tsv=$(gh pr list --label owner-loop --state open --json number,createdAt,title \
-    --template '{{range .}}{{.number}}{{"\t"}}{{.createdAt}}{{"\t"}}{{.title}}{{"\n"}}{{end}}' 2>/dev/null); then
+elif ! prs_tsv=$(gh pr list --label owner-loop --state open --json number,createdAt,headRefName,title \
+    --template '{{range .}}{{.number}}{{"\t"}}{{.createdAt}}{{"\t"}}{{.headRefName}}{{"\t"}}{{.title}}{{"\n"}}{{end}}' 2>/dev/null); then
   prs_tsv=""; pr_src="$pr_src (failed; is gh signed in?)"
 fi
 printf '%s\n' "$prs_tsv" | awk -F'\t' -v src="$pr_src" '
-  NF >= 2 && $1 != "" { n++; list = list "; #" $1 " (opened " substr($2, 1, 10) ") " $3 }
+  NF >= 3 && $1 != "" { n++; list = list "; #" $1 " (opened " substr($2, 1, 10) ", " $3 ") " $4 }
   END { printf "[prs %s] %d open%s\n", src, n + 0, (n ? ":" substr(list, 2) : "") }'

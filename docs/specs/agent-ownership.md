@@ -169,24 +169,27 @@ the stop-gate red counts, CI's history on `main`. Until now only a human read th
 at each replan (`docs/workflow-essentials.md`, Replanning step 4). M4 has the loop
 read them once a week and say what it would change. The script produces every
 count; the run only interprets, and nothing it reads is an instruction to it.
-- [x] `scripts/owner-traces.sh`: read-only, deterministic, bash and awk plus `gh`.
-  It prints a digest of the last 7 days, each line naming its source: what the loop
-  landed, repaired and held (the notes); repair attempts and PRs at the daily limit
-  (`.claude/state/owner-attempts.tsv`); merges (`.claude/state/merge-log`); PRs held
-  or skipped in more than one run (the notes: the babysitter logs only merges);
-  stop-gate red counts per session and lane (`.claude/state/stop-gate/`); CI runs on
-  `main` that failed then passed on the same commit, passed on a rerun, passed then
-  failed (the nightly re-prove), or are still red (`gh run list`); and the open
-  `owner-loop` PRs. `scripts/__tests__/owner-traces.test.ts` runs it against fixture
-  files with a fixed `--now`.
+- [x] `scripts/owner-traces.sh`: read-only, deterministic, bash, awk and the POSIX
+  tools, plus `gh`. It prints a digest of the last 7 days, each line naming its
+  source: what the loop landed, repaired and held (the notes); repair attempts and
+  PRs at the daily limit (`.claude/state/owner-attempts.tsv`); merges
+  (`.claude/state/merge-log`); PRs held or skipped in more than one run (the notes:
+  the babysitter logs only merges); lanes still red per session
+  (`.claude/state/stop-gate/`, a snapshot: the hook deletes a count file on green);
+  CI runs on `main` that failed then passed on the same commit, passed on a rerun,
+  passed then failed (the nightly re-prove), or are still red (`gh run list`); and
+  the open `owner-loop` PRs with their branches. `scripts/__tests__/owner-traces.test.ts`
+  runs it against fixture files in the step-8 note format with a fixed `--now`; it
+  was also run under Ubuntu (GNU stat, mawk), which CI uses.
 - [x] Step 7b in the prompt of record, between TIDY and NOTE, enabled only on the
   first run of each Sunday (local date: today's note has no Reflection yet): run the
   script; write a **Reflection** block of at most three proposals, each naming the
   digest line it rests on and the rule or script it would change; open at most one
   PR, labelled `owner-loop`, for the strongest proposal whose files are all outside
   constraint 2 (a script or `docs/improvements/` can be a PR; CLAUDE.md,
-  CONTRIBUTING.md and this spec stay proposals under Needs Shane). The loop never
-  edits the digest script or its test.
+  `docs/workflow-essentials.md`, CONTRIBUTING.md and this spec stay proposals under
+  Needs Shane), and none while an earlier `chore/reflect-` PR is still open. The
+  loop never edits the digest script or its test (both now in constraint 2).
 - [x] The `owner-loop` label exists on the repository (created 2026-11-02; steps 4
   and 7b apply it, and the M3 cap counts it).
 - [ ] The first Sunday run (2026-11-08) writes a Reflection whose every number is a
@@ -241,11 +244,24 @@ item caused by the loop itself, and the Next brief filled in.
 - 2026-11-02 · Sunday, first run of the day: the per-day note file is the dedupe (no
   `**Reflection**` line yet). A Sunday with no run gets no reflection that week;
   Monday does not catch up. One week of traces is the unit, not a sliding window.
+- 2026-11-02 · From the M4 review. The prompt of record (2026-10-29) predates #519,
+  which moved CLAUDE.md's workflow rules to `docs/workflow-essentials.md`; that file
+  is loaded into every session but is not HELD, so the loop could have changed a
+  rule and auto-merged it at its next run. Constraint 2 now names it, with the
+  digest script and its test. The two boards' `MASTER.md` files stay editable: a
+  repair may legitimately move a status line.
+- 2026-11-02 · A note line is about the PR it starts with or links. A `#N` inside a
+  description (the babysitter's own SKIP wording names other PRs) is not counted.
+  Step 8 now says the PR number comes first and gives "nothing" as the empty word.
+- 2026-11-02 · The stop-gate section is a snapshot of lanes still red, not a week's
+  history: the hook deletes a lane's count file when its gate goes green. History
+  would need the gate logs' dates; not worth it until a proposal asks for it.
 - 2026-11-02 · CI history is read per commit on `main` from `gh run list` (workflow
   `ci.yml`): a failure followed by a success on the same sha, a success on attempt
   two or later, a success followed by a failure (the nightly re-prove), and a sha
-  whose last run failed. Cancelled runs are counted and otherwise ignored: the
-  workflow's concurrency rule cancels a run whenever a newer push lands.
+  whose last success-or-failure run failed. Cancelled and pending runs are counted
+  and decide nothing: the workflow's concurrency rule cancels a run whenever a
+  newer push lands, so a cancelled run after a failure leaves the commit red.
 
 ## Session log
 - 2026-10-28 · spec written.
@@ -266,8 +282,9 @@ observe, in this order, and to record here as Session log lines:
   `.claude/state/owner-attempts.tsv` holds one line per repair attempt. Tick M1's
   last box when all three hold; otherwise name what was wrong in the log.
 - Sunday 2026-11-08, first run: the note gets a **Reflection** block. Check that
-  every number in it appears verbatim in `scripts/owner-traces.sh` run for that
-  day, that there are at most three proposals, each with a digest line and a
-  target, and that at most one PR carries the `owner-loop` label and touches no
-  constraint-2 path. Tick M4's last box when all hold. Then M2 (the `agent-shipit`
+  every measurement in it is a digest line quoted as `scripts/owner-traces.sh`
+  printed it that day (a value a proposal would set, such as a new cap, is the
+  proposal's own and is named as such), that there are at most three proposals,
+  each with a digest line and a target, and that at most one PR carries the
+  `owner-loop` label and touches no constraint-2 path. Tick M4's last box when all hold. Then M2 (the `agent-shipit`
   tier) follows, after #512 and agent-autonomy M3.
