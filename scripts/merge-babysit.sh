@@ -121,19 +121,33 @@ fleet_n=0
 fleet_base=""
 
 # Ask scripts/merge-policy.mjs whether this PR may land without a human.
-# Prints the hold reason (if any); non-zero means hold. gh caps the file
-# listing, so changedFiles rides along and the policy holds on a mismatch.
-# The number and head let the policy read content-checked files (package.json)
-# at the PR's head itself; one it cannot read holds.
+# Sets verdict (the hold reason, if any) and policy_head (the head SHA the
+# verdict is about); non-zero means hold. gh caps the file listing, so
+# changedFiles rides along and the policy holds on a mismatch. The number and
+# head let the policy read content-checked files (package.json) and git's own
+# file list at the PR's head itself; one it cannot read holds.
+# A serial merge is pinned to policy_head: a verdict is about one commit, and
+# unpinned, gh merges whatever the head is by then — a push the policy never
+# saw (`git mv` of a held path, say), once its required checks pass.
+# Runs in the caller's shell, not $(…), so policy_head survives the call.
 # Unlike the guard hooks (fail open), this fails CLOSED: no verdict, no merge.
 policy_check() {
-  local meta
-  meta=$("$GH" pr view "$1" --json number,headRefOid,files,labels,changedFiles \
-    --jq '{number: .number, head: .headRefOid, paths: [.files[].path], labels: [.labels[].name], changed: .changedFiles}') || {
-    echo "could not read the PR's files and labels"
+  local line meta
+  verdict=""
+  policy_head=""
+  line=$("$GH" pr view "$1" --json number,headRefOid,files,labels,changedFiles \
+    --jq '"\(.headRefOid // "")\t\({number: .number, head: .headRefOid, paths: [.files[].path], labels: [.labels[].name], changed: .changedFiles} | tojson)"') || {
+    verdict="could not read the PR's files and labels"
     return 1
   }
-  printf '%s' "$meta" | node scripts/merge-policy.mjs
+  policy_head=${line%%$'\t'*}
+  meta=${line#*$'\t'}
+  if ! [[ "$policy_head" =~ ^[0-9a-f]{40}$ ]]; then
+    verdict="could not read the PR's head commit — a verdict must name the commit it is about"
+    policy_head=""
+    return 1
+  fi
+  verdict=$(printf '%s' "$meta" | node scripts/merge-policy.mjs)
 }
 
 # A migration lands only on a production that already has everything main
@@ -210,7 +224,13 @@ run_head_check() {
 }
 
 schema_preflight() {
-  local counts changed seen mig head_oid=""
+  local counts changed seen mig head_oid="" entry kept=""
+  # A head checked on an earlier pass says nothing about this one (a push
+  # may have dropped the migration); merge_pr would wait on it forever.
+  for entry in $checked_heads; do
+    [ "${entry%%:*}" = "$1" ] || kept="$kept $entry"
+  done
+  checked_heads=$kept
   preflight_touched=0
   preflight_head=""
   preflight_retry=0
@@ -359,16 +379,26 @@ head_moved_off() {
 # three times before giving the PR up — and never let one failure end the
 # run: the post-merge lifecycle still has to happen for what did land.
 #
-# $4 pins the merge to a head SHA (gh --match-head-commit). Fleet mode passes
-# the head it folded: the union proof takes minutes, and unpinned, gh merges
-# whatever the head is by then — a push nobody proved, once its required
-# checks pass, and ios unwaited on. A migration PR is pinned to the head its
-# preflight checked production against (the fleet folds only that one).
+# $4 pins the merge to a head SHA (gh --match-head-commit), and is required:
+# unpinned, gh merges whatever the head is by then — a push nobody judged,
+# once its required checks pass, and ios unwaited on. Fleet mode passes the
+# head it folded (the union proof takes minutes); serial mode the head the
+# policy judged, which a migration PR's preflight must also have checked
+# production against. A pin that disagrees with checked_heads waits.
 merge_pr() {
-  local number=$1 title=$2 mode=$3 pinned=${4:-} attempt body suffix=""
+  local number=$1 title=$2 mode=$3 pinned=${4:-} checked attempt body suffix=""
   [ "$mode" = fleet ] && suffix=' [fleet]'
-  [ -n "$pinned" ] || pinned=$(printf '%s\n' $checked_heads | awk -F: -v n="$number" '$1 == n { sha = $2 } END { print sha }')
-  if [ -n "$pinned" ] && head_moved_off "$number" "$pinned" "$title"; then return 1; fi
+  if ! [[ "$pinned" =~ ^[0-9a-f]{40}$ ]]; then
+    echo "HOLD  #$number — no head commit to pin the merge to (fail closed). ($title)"
+    return 1
+  fi
+  checked=$(printf '%s\n' $checked_heads | awk -F: -v n="$number" '$1 == n { sha = $2 } END { print sha }')
+  if [ -n "$checked" ] && [ "$checked" != "$pinned" ]; then
+    echo "WAIT  #$number — production was checked against ${checked:0:12}, but the merge would pin ${pinned:0:12}; next pass. ($title)"
+    actionable=1
+    return 1
+  fi
+  if head_moved_off "$number" "$pinned" "$title"; then return 1; fi
   echo "MERGE #$number ($title)"
   if [ "$mode" = fleet ]; then
     if [ "$no_check" -eq 1 ]; then
@@ -382,7 +412,7 @@ merge_pr() {
   body="$body Halt future runs with \`touch .claude/AUTOMERGE_OFF\` in the primary checkout."
   "$GH" pr comment "$number" --body "$body" >/dev/null || true
   for attempt in 1 2 3; do
-    if "$GH" pr merge "$number" --squash ${pinned:+--match-head-commit "$pinned"}; then
+    if "$GH" pr merge "$number" --squash --match-head-commit "$pinned"; then
       mkdir -p "$(dirname "$merge_log")"
       printf '%s merged #%s %s%s\n' "$(date -u +%FT%TZ)" "$number" "$title" "$suffix" >> "$merge_log"
       merged_this_pass=1
@@ -610,7 +640,7 @@ fleet_pass() {
     esac
     [ "$ready" -eq 1 ] || continue
 
-    if ! verdict=$(policy_check "$number"); then
+    if ! policy_check "$number"; then
       echo "HOLD  #$number — ${verdict:-policy gave no verdict (fail closed)}"
       echo "      a human grants this one with: gh pr edit $number --add-label shipit  ($title)"
       held_preflight "$number"
@@ -632,6 +662,12 @@ fleet_pass() {
     # The fold must be the head production was checked against — the merge is pinned to it.
     if [ "$preflight_touched" -eq 1 ] && [ "$head_sha" != "$preflight_head" ]; then
       echo "WAIT  #$number — its head moved between the fetch and the schema check ($head_sha vs $preflight_head); re-checked next pass. ($title)"
+      actionable=1
+      continue
+    fi
+    # And the head the policy judged, for the same reason.
+    if [ "$head_sha" != "$policy_head" ]; then
+      echo "WAIT  #$number — its head moved between the fetch and the policy check ($head_sha vs $policy_head); re-checked next pass. ($title)"
       actionable=1
       continue
     fi
@@ -912,7 +948,10 @@ EOF
       CLEAN)
         # CLEAN can be a moment stale — a head pushed seconds ago still reads
         # CLEAN until its checks register — so read every check, as fleet
-        # mode does, before merging.
+        # mode does, before merging. The rollup names no commit, so read the
+        # head first: if the policy then judges that same head, the checks
+        # read between the two were its own.
+        checks_head=$("$GH" pr view "$number" --json headRefOid --jq .headRefOid 2>/dev/null) || checks_head=""
         reason=$(required_green "$number") && rc=0 || rc=$?
         if [ "$rc" -eq 1 ]; then
           echo "SKIP  #$number has failing check(s): $reason ($title)"
@@ -924,11 +963,16 @@ EOF
           actionable=1
           continue
         fi
-        if ! verdict=$(policy_check "$number"); then
+        if ! policy_check "$number"; then
           echo "HOLD  #$number — ${verdict:-policy gave no verdict (fail closed)}"
           echo "      a human grants this one with: gh pr edit $number --add-label shipit  ($title)"
           held_preflight "$number"
           skipped="$skipped $number"
+          continue
+        fi
+        if [ "$policy_head" != "$checks_head" ]; then
+          echo "WAIT  #$number — its head moved after its checks were read (${checks_head:0:12}, now ${policy_head:0:12}); next pass. ($title)"
+          actionable=1
           continue
         fi
         if ! schema_preflight "$number"; then
@@ -936,8 +980,15 @@ EOF
           if [ "$preflight_retry" -eq 1 ]; then actionable=1; else skipped="$skipped $number"; fi
           continue
         fi
+        # The merge is pinned to the head the policy judged, so production
+        # must have been checked against that same one.
+        if [ "$preflight_touched" -eq 1 ] && [ "$preflight_head" != "$policy_head" ]; then
+          echo "WAIT  #$number — its head moved between the policy check and the schema check ($policy_head vs $preflight_head); re-checked next pass. ($title)"
+          actionable=1
+          continue
+        fi
         if [ "$apply" -eq 1 ]; then
-          merge_pr "$number" "$title" serial || continue
+          merge_pr "$number" "$title" serial "$policy_head" || continue
         else
           echo "WOULD MERGE #$number ($title)"
         fi
