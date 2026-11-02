@@ -30,15 +30,17 @@ for (const [name, value] of [['generations', generations], ['variants', nVariant
     return { error: `${name} must be an integer from 1 to 1000, got ${JSON.stringify(value)}.` }
   }
 }
-if (typeof model !== 'string' || /\s/.test(model)) {
-  return { error: `model must be one model id with no whitespace (it is interpolated into the eval command), got ${JSON.stringify(model)}.` }
+if (typeof model !== 'string' || (model && !/^[A-Za-z0-9._-]+$/.test(model))) {
+  return { error: `model must be one model id of [A-Za-z0-9._-] (it is interpolated into the eval command), got ${JSON.stringify(model)}.` }
 }
 // A subagent's cwd is the primary checkout unless told otherwise, and nothing
 // mechanical stops `npm run eval` from writing results there. So the lane is
 // not optional: the baseline is scored in the orchestrating session's own
 // worktree, named here.
-if (typeof lane !== 'string' || !lane.startsWith('/')) {
-  return { error: `lane is required: the absolute path of the orchestrating session's worktree (the baseline is scored there, never in the primary checkout), got ${JSON.stringify(lane)}.` }
+// No filesystem here, so this is a heuristic: absolute, no whitespace, and
+// inside a worktrees directory — which the primary checkout's own path never is.
+if (typeof lane !== 'string' || !lane.startsWith('/') || /\s/.test(lane) || !/\/worktrees\//.test(lane)) {
+  return { error: `lane is required: the absolute path of the orchestrating session's linked worktree under .claude/worktrees/ (the baseline is scored there, never in the primary checkout), got ${JSON.stringify(lane)}.` }
 }
 
 // Credentials, by backend:
@@ -62,10 +64,14 @@ if (typeof lane !== 'string' || !lane.startsWith('/')) {
 // It is spelled out because the Workflow runtime's worktree-isolation guard
 // reads `npm run eval` as a shell eval and refuses it (observed 2026-11-02,
 // run wf_cbe0dc1e-0e9: both variants were refused and had to work around it).
+// `--no-install` makes a missing node_modules fail loudly instead of npx
+// fetching a registry tsx. Unlike `npm run`, npx does not cd to the package
+// root, so "from the checkout root" in the brief is load-bearing: the runner
+// resolves the token from process.cwd().
 const modelFlag = model ? ` --model ${model}` : ''
 const evalCommand = backend === 'agent-sdk'
-  ? `env -u ANTHROPIC_API_KEY -u ANTHROPIC_AUTH_TOKEN npx tsx evals/run.ts --backend agent-sdk --judge-backend agent-sdk --concurrency ${concurrency}${modelFlag}`
-  : `npx tsx evals/run.ts --backend api --concurrency ${concurrency}${modelFlag}`
+  ? `env -u ANTHROPIC_API_KEY -u ANTHROPIC_AUTH_TOKEN npx --no-install tsx evals/run.ts --backend agent-sdk --judge-backend agent-sdk --concurrency ${concurrency}${modelFlag}`
+  : `npx --no-install tsx evals/run.ts --backend api --concurrency ${concurrency}${modelFlag}`
 const credentialNote = backend === 'agent-sdk'
   ? `This spends a Claude subscription, not an API key. The eval runner reads CLAUDE_CODE_OAUTH_TOKEN ` +
     `from the primary checkout's .env.local on its own (a worktree has none and must not get one): ` +
@@ -90,14 +96,20 @@ const DIMS_SCHEMA = {
 // some COMMITTED run (evals/results/ holds hundreds, most on the api backend),
 // and a run narrowed to a few cases would win on rates — neither is the
 // measurement this search compares, so measured() checks both against the
-// baseline.
+// baseline. `runId` (the file's, an ISO timestamp first) and
+// `currentPromptVersion` (PROMPT_VERSION as it stands in the agent's
+// prompt.ts) are what tell a run's own file from an OLDER committed one of the
+// same backend and suite: the file must carry the prompt the agent scored,
+// and a variant's run must postdate the baseline's.
 const RUN_PROPERTIES = {
   dims: DIMS_SCHEMA,
   erroredCases: { type: 'number' },
   backend: { type: 'string' },
   caseCount: { type: 'number' },
   resultFile: { type: 'string' },
+  runId: { type: 'string' },
   promptVersion: { type: 'string' },
+  currentPromptVersion: { type: 'string' },
   usage: {
     type: 'object',
     properties: {
@@ -110,7 +122,7 @@ const RUN_PROPERTIES = {
 }
 const BASELINE_SCHEMA = {
   type: 'object',
-  required: ['dims', 'erroredCases', 'backend', 'caseCount', 'failures'],
+  required: ['dims', 'erroredCases', 'backend', 'caseCount', 'runId', 'promptVersion', 'currentPromptVersion', 'failures'],
   properties: {
     ...RUN_PROPERTIES,
     failures: { type: 'array', items: { type: 'string' } },
@@ -118,7 +130,7 @@ const BASELINE_SCHEMA = {
 }
 const VARIANT_SCHEMA = {
   type: 'object',
-  required: ['dims', 'erroredCases', 'backend', 'caseCount', 'editSummary', 'diff'],
+  required: ['dims', 'erroredCases', 'backend', 'caseCount', 'runId', 'promptVersion', 'currentPromptVersion', 'editSummary', 'diff'],
   properties: {
     ...RUN_PROPERTIES,
     editSummary: { type: 'string' },
@@ -151,7 +163,9 @@ const scoreInstructions =
   `Read the NEWEST evals/results/*.json it wrote (the path is printed on its last line). Report ` +
   `dims as that file's aggregate.passRateByDimension, verbatim; erroredCases as the number of ` +
   `entries in cases[] that have an "error" field; backend as its backend field; caseCount as ` +
-  `cases.length; resultFile as its path; promptVersion as its promptVersion; usage from aggregate.totalInputTokens, aggregate.totalOutputTokens and ` +
+  `cases.length; resultFile as its path; runId as its runId; promptVersion as its promptVersion; ` +
+  `currentPromptVersion as the PROMPT_VERSION string in src/lib/coach/prompt.ts as it stands now ` +
+  `(\`grep PROMPT_VERSION src/lib/coach/prompt.ts\`); usage from aggregate.totalInputTokens, aggregate.totalOutputTokens and ` +
   `aggregate.totalCostUsd. If the command itself fails (missing token, rate or usage limit, ` +
   `network, a crash) say so in anomalies, report dims as {} and erroredCases as -1.`
 
@@ -159,17 +173,32 @@ const scoreInstructions =
 // requested backend, over the whole suite. `against` is the baseline once one
 // exists: a variant must also carry a bumped PROMPT_VERSION, or its "newest
 // result file" was not its own run.
+// PROMPT_VERSION is date-dot-serial, YYYY.MM.DD-n; "after" compares the date
+// as a string and the serial as a number, so -10 follows -9.
+const versionParts = v => {
+  const m = /^(\d{4}\.\d{2}\.\d{2})-(\d+)$/.exec(String(v ?? ''))
+  return m ? [m[1], Number(m[2])] : null
+}
+const versionAfter = (a, b) => {
+  const pa = versionParts(a), pb = versionParts(b)
+  return !!pa && !!pb && (pa[0] > pb[0] || (pa[0] === pb[0] && pa[1] > pb[1]))
+}
+const isStr = v => typeof v === 'string' && v.length > 0
 const measured = (r, against) =>
   !!r?.dims && Object.keys(r.dims).length > 0 && r.erroredCases === 0 && r.backend === backend &&
   Number.isInteger(r.caseCount) && r.caseCount > 0 &&
-  (!against || (r.caseCount === against.caseCount && r.promptVersion !== against.promptVersion))
+  isStr(r.runId) && isStr(r.promptVersion) && r.promptVersion === r.currentPromptVersion &&
+  (!against || (r.caseCount === against.caseCount && versionAfter(r.promptVersion, against.promptVersion) && r.runId > against.runId))
 const whyNot = (r, against) => {
   if (!r?.dims || Object.keys(r.dims).length === 0) return r?.erroredCases === -1 ? 'the run failed' : 'no dimensions reported'
-  if (r.erroredCases !== 0) return `${r.erroredCases} case(s) errored`
-  if (r.backend !== backend) return `result file is a ${r.backend} run, not ${backend}`
+  if (r.erroredCases !== 0) return `${r.erroredCases ?? 'an unknown number of'} case(s) errored`
+  if (r.backend !== backend) return `result file is a ${r.backend ?? 'backend-less'} run, not ${backend}`
   if (!Number.isInteger(r.caseCount) || r.caseCount <= 0) return 'no cases in the result file'
+  if (!isStr(r.runId) || !isStr(r.promptVersion)) return 'the result file has no runId or promptVersion'
+  if (r.promptVersion !== r.currentPromptVersion) return `the result file scored PROMPT_VERSION ${r.promptVersion} but prompt.ts says ${r.currentPromptVersion} — the newest file is an older run, not this one`
   if (against && r.caseCount !== against.caseCount) return `${r.caseCount} cases scored, baseline had ${against.caseCount}`
-  if (against && r.promptVersion === against.promptVersion) return `PROMPT_VERSION ${r.promptVersion} is the baseline's — the result file is not the variant's own run`
+  if (against && !versionAfter(r.promptVersion, against.promptVersion)) return `PROMPT_VERSION ${r.promptVersion} does not follow the baseline's ${against.promptVersion}`
+  if (against && !(r.runId > against.runId)) return `run ${r.runId} predates the baseline's ${against.runId}`
   return 'not a measurement'
 }
 const fmtDims = dims => Object.entries(dims).map(([d, v]) => `${d} ${v.pass}/${v.pass + v.fail}`).join(', ')
@@ -180,7 +209,7 @@ log(`backend ${backend}, concurrency ${concurrency}${model ? `, model ${model}` 
 const baseline = await agent(
   `You are the baseline scorer for an evolutionary search over the Apex coach prompt.\n` +
     (lane
-      ? `Lane: ${lane}\nWork in that worktree: \`cd ${lane}\` first; every command below runs there, never in the primary checkout.\n`
+      ? `Lane: ${lane}\nWork in that worktree: \`cd "${lane}"\` first; every command below runs there, never in the primary checkout.\n`
       : `Lane: none — scores the committed prompt where the orchestrating session already runs; it edits nothing.\n`) +
     `Read evals/README.md first. Do not edit anything. ${scoreInstructions} ` +
     `Also list each failing case as "caseId (dimension): one-line reason" in failures.`,
@@ -202,8 +231,9 @@ const ANGLES = [
 
 let champion = { dims: baseline.dims, diff: null, editSummary: 'baseline (unmodified prompt)' }
 const lineage = [{
-  gen: 0, variant: 'baseline', backend, dims: baseline.dims, editSummary: champion.editSummary,
-  promptVersion: baseline.promptVersion, caseCount: baseline.caseCount, usage: baseline.usage,
+  gen: 0, variant: 'baseline', backend: baseline.backend, runId: baseline.runId, dims: baseline.dims,
+  editSummary: champion.editSummary, promptVersion: baseline.promptVersion, caseCount: baseline.caseCount,
+  usage: baseline.usage,
 }]
 
 for (let gen = 1; gen <= generations; gen++) {
@@ -242,9 +272,9 @@ for (let gen = 1; gen <= generations; gen++) {
   const winners = scored.filter(v => measured(v, baseline) && dominates(v.dims, champion.dims))
   for (const v of scored) {
     lineage.push({
-      gen, variant: v.editSummary, backend, dims: v.dims, editSummary: v.editSummary, kept: winners.includes(v),
-      measured: measured(v, baseline), erroredCases: v.erroredCases, promptVersion: v.promptVersion,
-      caseCount: v.caseCount, usage: v.usage, diff: v.diff,
+      gen, variant: v.editSummary, backend: v.backend, runId: v.runId, dims: v.dims, editSummary: v.editSummary,
+      kept: winners.includes(v), measured: measured(v, baseline), erroredCases: v.erroredCases,
+      promptVersion: v.promptVersion, caseCount: v.caseCount, usage: v.usage, diff: v.diff,
     })
     log(`generation ${gen}: ${v.editSummary} — ${fmtDims(v.dims ?? {})}${fmtUsage(v.usage)}${winners.includes(v) ? ' — dominates' : ''}`)
   }

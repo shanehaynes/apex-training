@@ -3,7 +3,10 @@
 Each file here is the full lineage of one `coach-prompt-evolution` workflow
 run (`.claude/workflows/coach-prompt-evolution.js`): every variant proposed,
 its per-dimension eval results, its diff, and whether it was kept — the
-search's persistent memory, the same way `results/` is the suite's.
+search's memory of what was tried. It keeps **aggregates only**: the per-case
+verdicts and transcripts live in each run's result file, which is in a variant
+worktree the run leaves behind. Commit those beside the lineage file when a
+per-case claim must stay auditable; otherwise they are gone with the worktree.
 
 Every lineage entry names its `backend`. The default, `agent-sdk` (a Claude
 subscription), is a regression-detector measurement, not comparable

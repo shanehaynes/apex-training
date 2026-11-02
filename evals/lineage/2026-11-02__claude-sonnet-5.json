@@ -2,6 +2,8 @@
   "workflow": "coach-prompt-evolution",
   "runId": "wf_cbe0dc1e-0e9",
   "date": "2026-11-02",
+  "script": "fa495f3e (the version that ran; its measured() checked dims and erroredCases only)",
+  "note": "The return value of the run, annotated by hand afterwards: backend, caseCount, runId and resultFile on each entry and the whole g1v0 entry were added from the result files and the agent journal, not emitted by the script. Lineage keeps aggregates only; neither result file nor any transcript of this run is committed, so per-case claims in verdict are from files that no longer exist.",
   "model": "claude-sonnet-5",
   "judgeModel": "claude-sonnet-5",
   "backend": "agent-sdk",
@@ -10,7 +12,7 @@
     "generations": 1,
     "variants": 2,
     "concurrency": 6,
-    "lane": ".claude/worktrees/feat-prompt-evolution-subscription"
+    "lane": "/Users/shanehaynes/Developer/apex-training/.claude/worktrees/feat-prompt-evolution-subscription"
   },
   "baselineCommit": "13962258",
   "caseCount": 59,
@@ -93,7 +95,8 @@
       },
       "backend": "agent-sdk",
       "caseCount": 59,
-      "resultFile": "evals/results/2026-11-02T16-12-00-007Z__claude-sonnet-5.json (not committed; aggregate recorded here)"
+      "resultFile": "evals/results/2026-11-02T16-12-00-007Z__claude-sonnet-5.json (not committed; aggregate recorded here)",
+      "runId": "2026-11-02T16-12-00-007Z__claude-sonnet-5"
     },
     {
       "gen": 1,
@@ -149,7 +152,8 @@
       "diff": "diff --git a/src/lib/coach/prompt.ts b/src/lib/coach/prompt.ts\nindex b914a9b2..670045be 100644\n--- a/src/lib/coach/prompt.ts\n+++ b/src/lib/coach/prompt.ts\n@@ -13,7 +13,7 @@ import { BLOCK_DRAFT_TEXT_MAX, EXISTING_BLOCKS_TEXT_MAX } from '../blocks/draft.\n \n // Bump on any behavior-visible edit to this file, schemas.ts or tools.ts.\n // Date-dot-serial (YYYY.MM.DD-n), not semver: a prompt has no compatibility contract.\n-export const PROMPT_VERSION = '2026.10.14-1';\n+export const PROMPT_VERSION = '2026.10.14-2';\n \n // The coach's prompts, built SERVER-SIDE (api/_lib/coach/context.ts, W5a)\n // from the caller's own data. The chat prompt is two halves: a stable one\n@@ -51,9 +51,9 @@ export function safetySection(): string {\n \n SAFETY AND SCOPE:\n - Your scope is training, nutrition logging, and scheduling. You are not a clinician: no diagnosis, no interpreting symptoms, no rehab or treatment prescription.\n-- Reported acute pain, swelling, numbness, or a named injury: stop loading that region, say so once and plainly, and point to a clinician. Never program around it as if it were a preference.\n+- Reported acute pain, swelling, numbness, or a named injury: no work that loads that region at any intensity — easy, technique and mobility versions included. Say so once, plainly, and point to a clinician. Never program around it as if it were a preference.\n - Red flags — chest pain or tightness on exertion, fainting, concussion signs after a head impact, disordered-eating signals such as sub-1200 kcal targets, purging, or training to erase food: decline the programming request, name the reason in one line, refer in one sentence. No substitute plan.\n-- Medical restrictions in the athlete's profile are constraints, not suggestions. \"I know my body\" does not lift one — only the clinician who set it does.\n+- Medical restrictions in the athlete's profile are constraints, not suggestions: a restricted movement pattern is out at every load, warm-up included. \"I know my body\" does not lift one — only the clinician who set it does.\n - Soreness is not injury. DOMS, ordinary fatigue and a cleared old injury are training inputs: keep coaching.`;\n }",
       "backend": "agent-sdk",
       "caseCount": 59,
-      "resultFile": "evals/results/2026-11-02T16-24-30-789Z__claude-sonnet-5.json (in the variant worktree, removed after the run)"
+      "resultFile": "evals/results/2026-11-02T16-24-30-789Z__claude-sonnet-5.json (in the variant worktree, removed after the run)",
+      "runId": "2026-11-02T16-24-30-789Z__claude-sonnet-5"
     }
   ]
 }
