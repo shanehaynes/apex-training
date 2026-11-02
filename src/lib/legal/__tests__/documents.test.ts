@@ -147,6 +147,17 @@ describe('the documents make the disclosures the audit requires', () => {
     expect(shown(privacy)).toMatch(/18\s+or\s+older/);
   });
 
+  it('the privacy policy describes what the coach keeps, for as long as the export carries it', () => {
+    // privacy-v1 said coach chat was not stored; the web has saved threads
+    // since phase46 (#303), then memory, calendar notes and reflections.
+    // The export (account.ts) lists every table it reads, so it is the pin.
+    const account = readFileSync(join(ROOT, 'api/_lib/handlers/account.ts'), 'utf8');
+    for (const table of ['coach_messages', 'coach_memory', 'coach_annotations', 'coach_reflections']) {
+      if (account.includes(`'${table}'`)) expect(shown(privacy), table).toContain(table);
+    }
+    expect(shown(privacy)).not.toMatch(/not\s+stored\s+on\s+our\s+servers/);
+  });
+
   it('the privacy policy names Google Fonts while the stylesheet loads it', () => {
     // src/styles/tokens.css imports Google Fonts on every page, so Google
     // receives every visitor's IP address. Self-hosting the fonts retires both.

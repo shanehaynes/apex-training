@@ -21,6 +21,11 @@ effective: 2026-11-02
 - Sign-up asks you to confirm that you are 18 or older and records when you did
   (sections 2.1 and 9).
 - Resend also delivers sign-up links (section 4.2).
+- Section 2.3 now says what the coach keeps: your conversations on the web, the
+  facts you confirm it may remember, your coaching contract, the notes it pins
+  to your calendar and, if you switch it on, the nightly reflection. privacy-v1
+  said chat conversations were not stored; on the web they have been since
+  2026-09-22. Section 4.1 lists what of this reaches Anthropic.
 
 Nothing else in this policy changed.
 
@@ -85,7 +90,13 @@ no inference about you as a person.
 | --- | --- |
 | Post-workout coach summary | **Yes** — `workout_sessions.coach_summary` |
 | Monthly and yearly review commentary | **Yes** — `reviews.ai_commentary`, alongside the statistics that produced it |
-| Coach chat conversations | **No** — chat messages are not stored on our servers and are gone when you close the sidebar |
+| Coach chat conversations | **On the web, yes** — `coach_conversations`, `coach_messages`: every message you send and every reply, including what the coach looked up in your data to answer. They are kept until you delete your account; there is not yet a way to delete a single conversation. On iPhone, conversations are kept on the phone, not on our servers |
+| Facts the coach remembers | **Yes, once you confirm them** — `coach_memory`: short notes of five kinds (injury, preference, goal, history, note). The coach can only propose one; it is saved when you confirm it. Editing or removing one keeps the earlier version, hidden from the coach, until you delete your account |
+| Your coaching contract | **Yes** — `profiles.coach_contract`, the text you write, or accept from the coach, about how you want to be coached |
+| Notes the coach pins to your calendar | **Yes** — `coach_annotations`; dismissing one hides it but keeps it |
+| Nightly reflection, if you switch it on | **Yes** — `coach_reflections`: what the coach proposes after reading your previous day (section 4.1), kept with whether you accepted each proposal |
+
+<!-- LEGAL REVIEW: privacy-v1 section 2.3 said coach chat "is not stored on our servers and is gone when you close the sidebar". That stopped being true on 2026-09-22, when the web began saving threads (PR #303, migration phase46, whose header said it must not reach production before this policy described stored conversations; it did). Confirmed coach memory followed on 2026-09-27 (#354), calendar notes on 2026-09-28 (#355), and the coaching contract with the opt-in nightly reflection the same day (#358). privacy-v2 is the first version to describe them. All of it is in the account export (api/_lib/handlers/account.ts) and goes with account deletion. Please advise on two retention points: there is no way to delete a single web conversation short of deleting the account, and a memory the user edits or removes is kept (hidden from the model) rather than erased. Both may sit badly with GDPR's storage-limitation and erasure rights. -->
 
 ### 2.4 What your watch sends, if you connect one
 
@@ -143,8 +154,9 @@ purposes. The following providers receive it because they run parts of Apex.
 
 ### 4.1 Anthropic — the AI coach
 
-When you use the coach, the post-workout summary, or a periodic review, we send
-Anthropic a prompt containing, depending on the feature:
+When you use the coach, the post-workout summary, or a periodic review, or run
+the nightly reflection, we send Anthropic a prompt containing, depending on the
+feature:
 
 - your workout schedule, including event titles and times;
 - your four-week completion rate;
@@ -153,7 +165,13 @@ Anthropic a prompt containing, depending on the feature:
 - **your `coach_goal` and `coach_context` text, verbatim**;
 - for post-workout summaries, your logged sets with weights, reps, durations,
   and heart rate, and your personal records;
-- for periodic reviews, your aggregate statistics for the period.
+- for periodic reviews, your aggregate statistics for the period;
+- in a chat, the conversation so far, the facts you confirmed the coach may
+  remember, your coaching contract, and the results of anything the coach looks
+  up in your data to answer;
+- if you switch on the nightly reflection (it is off by default), once a night:
+  the previous day's completed workouts, that day's coach chat, and the facts
+  the coach remembers.
 
 **These calls are made with the Anthropic API key you saved in your profile and
 are billed to your Anthropic account.** Your relationship with Anthropic is
