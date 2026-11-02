@@ -111,8 +111,18 @@ describe('the documents make the disclosures the audit requires', () => {
     const shown = (source: string) => JSON.stringify(parseLegalMarkdown(source));
     expect(shown(terms)).not.toMatch(/created\s+by\s+invitation/);
     expect(shown(privacy)).not.toMatch(/third-party\s+scripts\s+of\s+any\s+kind/);
+    expect(shown(privacy)).not.toMatch(/sell\s+or\s+share\s+your\s+data/);
     expect(shown(privacy)).toContain('Turnstile');
     expect(shown(privacy)).toMatch(/18\s+or\s+older/);
+  });
+
+  it('the privacy policy names Google Fonts while the stylesheet loads it', () => {
+    // src/styles/tokens.css imports Google Fonts on every page, so Google
+    // receives every visitor's IP address. Self-hosting the fonts retires both.
+    const tokens = readFileSync(join(ROOT, 'src/styles/tokens.css'), 'utf8');
+    if (tokens.includes('fonts.googleapis.com')) {
+      expect(JSON.stringify(parseLegalMarkdown(privacy))).toContain('fonts.googleapis.com');
+    }
   });
 });
 
