@@ -34,8 +34,9 @@
 //   - the gate is run at most STOP_GATE_MAX_RED_RUNS (3) times per commit and
 //     STOP_GATE_MAX_RED_TOTAL (10) times per session while red; past either
 //     it stands aside with a note, so an unfixable red (stale stack, a flake,
-//     no network for npm audit) cannot loop a session forever. The dirty and
-//     unpushed checks never stand aside: they are one command to satisfy.
+//     no network for npm audit) cannot loop a session forever. The dirty,
+//     proof and unpushed checks never stand aside (the proof check only for
+//     a validation.md it cannot read): each is one edit to satisfy.
 //   - a session that cannot fix a red is still expected to commit and push
 //     it: a red branch on origin is visible; uncommitted work is not.
 //
@@ -227,64 +228,80 @@ export function changedSpecSlugs(wt) {
   return [...slugs].sort();
 }
 
+const lines = (text) => text.replace(/\r\n?/g, '\n').split('\n');
+const unmarked = (s) => s.replace(/[*_`]/g, '').trim(); // **bold**, _em_, `code` are not content
+
 // plan.md → one record per `### M<n> — <name>` heading: the ids on its
-// Delivers line and its boxes. Any heading ends the milestone.
+// Delivers line (a parenthetical on that line is commentary, not ids) and
+// its boxes, in `-`, `*` or `1.` lists. A heading at the milestone's level or
+// above ends it; a deeper one (`#### Acceptance`) is part of it. Fenced code
+// is skipped, so an example box is not a box.
 export function parseMilestones(plan) {
   const out = [];
   let cur = null;
-  for (const line of plan.split('\n')) {
-    const h = /^#{1,6}\s+(.*)$/.exec(line);
+  let fenced = false;
+  for (const line of lines(plan)) {
+    if (/^\s*(```|~~~)/.test(line)) {
+      fenced = !fenced;
+      continue;
+    }
+    if (fenced) continue;
+    const h = /^(#{1,6})\s+(.*)$/.exec(line);
     if (h) {
-      const m = /^(M\d+[a-z]?)\b\s*(?:[—–:-]+\s*)?(.*)$/.exec(h[1].trim());
-      cur = m ? { id: m[1], name: m[2].trim(), delivers: [], boxes: 0, checked: 0 } : null;
+      const level = h[1].length;
+      if (cur && level > cur.level) continue;
+      const m = /^(M\d+[a-z]?)\b\s*(?:[—–:-]+\s*)?(.*)$/.exec(unmarked(h[2]));
+      cur = m ? { id: m[1], name: m[2].trim(), delivers: [], boxes: 0, checked: 0, level } : null;
       if (cur) out.push(cur);
       continue;
     }
     if (!cur) continue;
-    const d = /^\s*(?:\*\*)?Delivers:?(?:\*\*)?:?\s*(.*)$/i.exec(line);
+    const d = /^\s*(?:[-*]\s+)?Delivers:?\s*(.*)$/i.exec(unmarked(line));
     if (d) {
-      for (const id of d[1].match(REQ_IDS) ?? []) if (!cur.delivers.includes(id)) cur.delivers.push(id);
+      for (const id of d[1].replace(/\([^)]*\)/g, '').match(REQ_IDS) ?? []) if (!cur.delivers.includes(id)) cur.delivers.push(id);
       continue;
     }
-    const b = /^\s*[-*]\s+\[([ xX])\]/.exec(line);
+    const b = /^\s*(?:[-*]|\d+\.)\s+\[([ xX])\]/.exec(line);
     if (b) {
       cur.boxes += 1;
       if (b[1] !== ' ') cur.checked += 1;
     }
   }
-  return out;
+  return out.map(({ level: _level, ...m }) => m);
 }
 
-// validation.md → the Status cell of each requirement id, from the first
-// table whose header has Req and Status columns; `malformed` says what is
-// missing when there is none.
+// A GFM table row's cells: outer pipes optional, `\|` a literal pipe.
+function tableCells(line) {
+  const l = line.trim().replace(/^\|/, '').replace(/\|$/, '');
+  return l.split(/(?<!\\)\|/).map((c) => c.replace(/\\\|/g, '|').trim());
+}
+const isTableLine = (line) => /(?<!\\)\|/.test(line);
+const isDelimiterRow = (line) => tableCells(line).every((c) => /^:?-+:?$/.test(c));
+
+// validation.md → the Status cell of each requirement id, from every table
+// whose header has Req and Status columns (a file may keep one table per
+// milestone); `malformed` says what is missing when there is none.
 export function parseProofs(validation) {
-  const lines = validation.split('\n');
-  const cells = (l) =>
-    l
-      .trim()
-      .replace(/^\|/, '')
-      .replace(/\|$/, '')
-      .split('|')
-      .map((c) => c.trim());
-  for (let i = 0; i + 1 < lines.length; i++) {
-    if (!lines[i].trim().startsWith('|')) continue;
-    const head = cells(lines[i]).map((c) => c.toLowerCase());
+  const ls = lines(validation);
+  const rows = new Map();
+  let tables = 0;
+  for (let i = 0; i + 1 < ls.length; i++) {
+    if (!isTableLine(ls[i]) || !isTableLine(ls[i + 1]) || !isDelimiterRow(ls[i + 1])) continue;
+    const head = tableCells(ls[i]).map((c) => unmarked(c).toLowerCase());
     const req = head.findIndex((c) => /^req/.test(c));
-    const status = head.indexOf('status');
-    if (req < 0 || status < 0 || !/^\|?\s*:?-{3,}/.test(lines[i + 1].trim())) continue;
-    const rows = new Map();
-    for (let j = i + 2; j < lines.length && lines[j].trim().startsWith('|'); j++) {
-      const c = cells(lines[j]);
+    const status = head.findIndex((c) => /^status/.test(c));
+    if (req < 0 || status < 0) continue;
+    tables += 1;
+    for (i += 2; i < ls.length && isTableLine(ls[i]); i++) {
+      const c = tableCells(ls[i]);
       if (c.length <= Math.max(req, status)) continue;
       for (const id of c[req].match(REQ_IDS) ?? []) rows.set(id, c[status]);
     }
-    return { rows, malformed: null };
   }
-  return { rows: new Map(), malformed: 'no table with Req and Status columns' };
+  return tables ? { rows, malformed: null } : { rows, malformed: 'no table with Req and Status columns' };
 }
 
-export const isProven = (status) => /^proven\b/i.test(status ?? '');
+export const isProven = (status) => /^proven\b/i.test(unmarked(status ?? ''));
 
 // What one folder leaves unproven: every milestone with all boxes checked
 // whose delivered requirements lack a proven row. `validation` null is a

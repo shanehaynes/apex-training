@@ -135,6 +135,34 @@ describe('reading the two documents', () => {
     expect(parseProofs('R1 is proven, trust me\n').malformed).toMatch(/Req and Status/);
   });
 
+  it('review probes: sub-headings, CRLF, fences, numbered and list-form lines, a parenthetical on Delivers', () => {
+    const m = parseMilestones(
+      ['### M1 — one', '- **Delivers:** R1, R2 (R3 moves to M2)', '#### Acceptance', '```', '- [ ] an example, not a box', '```', '1. [x] a', '2. [X] b', '### M2 — two', 'Delivers: R3', '- [x] c'].join('\r\n') + '\r\n',
+    );
+    expect(m).toEqual([
+      { id: 'M1', name: 'one', delivers: ['R1', 'R2'], boxes: 2, checked: 2 },
+      { id: 'M2', name: 'two', delivers: ['R3'], boxes: 1, checked: 1 },
+    ]);
+  });
+
+  it('review probes: escaped pipes, no outer pipes, bold header, short delimiter, Status suffix, bold status, two tables', () => {
+    const file = [
+      '**Req** | Proof | Status (PR)',
+      '-|-|-',
+      'R1 | `lsof -i \\| grep` | **proven** (PR #1)',
+      '',
+      '| Req | Proof | Kind | Status |',
+      '|---|---|---|---|',
+      '| R2 | t | unit | not proven |',
+      '',
+    ].join('\n');
+    const { rows, malformed } = parseProofs(file);
+    expect(malformed).toBeNull();
+    expect(rows.get('R1')).toBe('**proven** (PR #1)');
+    expect(rows.get('R2')).toBe('not proven');
+    expect(specProofGaps({ plan: '### M1\nDelivers: R1, R2\n- [x] a\n', validation: file }).gaps).toEqual([{ milestone: 'M1', name: '', unproven: ['R2'] }]);
+  });
+
   it('a milestone with no boxes, or no Delivers line, claims nothing', () => {
     const none = validation(row('R9', 'not proven'));
     expect(specProofGaps({ plan: '### M1 — empty\nDelivers: R1\n', validation: none }).gaps).toEqual([]);
