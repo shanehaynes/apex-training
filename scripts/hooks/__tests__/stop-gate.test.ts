@@ -1,11 +1,11 @@
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join, relative } from 'node:path';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 // @ts-expect-error — plain JS hook, run with bare node; no .d.mts on purpose (builtins only, like bash-guard)
-import { decide, gateArgv, lanePaths, lanesFor, runGate, sessionPaths } from '../stop-gate.mjs';
+import { decide, holdAwake, lanePaths, lanesFor, runGate, sessionPaths } from '../stop-gate.mjs';
 
 const hook = fileURLToPath(new URL('../stop-gate.mjs', import.meta.url));
 const cli = fileURLToPath(new URL('../../stop-gate.sh', import.meta.url));
@@ -231,52 +231,72 @@ describe('the gate, in order', () => {
   });
 });
 
-describe('the gate command: held awake on a Mac', () => {
-  // A fake caffeinate on an injected PATH, so the platform choice is tested
-  // on any OS. It says it ran, drops -i -s, and execs the gate.
-  const bin = join(base, 'bin');
-  const noExec = join(base, 'bin-noexec');
-  const empty = join(base, 'bin-empty');
-  const cmd = 'npm run agent:check';
-  const plain = { argv: ['sh', '-c', `(${cmd}) 2>&1`], shown: cmd };
+// Process checks. ps's argv column reads the same on Linux and macOS; a
+// killed child of this process is a zombie until Node reaps it, so Z is gone.
+const psLines = () => {
+  const r = spawnSync('ps', ['-A', '-ww', '-o', 'pid=,args='], { encoding: 'utf8' });
+  expect(r.status).toBe(0); // a ps that failed would show no survivors
+  return r.stdout.split('\n');
+};
+const alive = (pid: number) => {
+  const st = spawnSync('ps', ['-o', 'stat=', '-p', String(pid)], { encoding: 'utf8' }).stdout.trim();
+  return st !== '' && !st.startsWith('Z');
+};
+const until = async (ok: () => boolean, ms = 3000) => {
+  for (const t0 = Date.now(); !ok() && Date.now() - t0 < ms; ) await new Promise((r) => setTimeout(r, 25));
+  return ok();
+};
+
+describe('the gate held awake on a Mac', () => {
+  // A fake caffeinate at an injected path, so the platform choice is tested on
+  // any OS. It records its pid and arguments, then waits like the real one;
+  // the broken one fails the way an unknown flag does.
+  const fake = join(base, 'fake-caffeinate');
+  const broken = join(base, 'broken-caffeinate');
+  const seen = join(base, 'fake-caffeinate.seen');
+  const read = () => (existsSync(seen) ? readFileSync(seen, 'utf8').trim() : null);
   beforeAll(() => {
-    for (const d of [bin, noExec, empty]) mkdirSync(d, { recursive: true });
-    writeFileSync(join(bin, 'caffeinate'), '#!/bin/sh\necho "held $1 $2"\nshift 2\nexec "$@"\n', { mode: 0o755 });
-    writeFileSync(join(noExec, 'caffeinate'), '', { mode: 0o644 });
+    writeFileSync(fake, `#!/bin/sh\necho "$$ $*" > '${seen}.tmp' && mv '${seen}.tmp' '${seen}'\nexec sleep 30\n`, { mode: 0o755 });
+    writeFileSync(broken, '#!/bin/sh\necho "caffeinate: illegal option -- s" >&2\nexit 1\n', { mode: 0o755 });
   });
 
-  it('darwin: the gate runs under the caffeinate found on PATH, holding idle and AC sleep off', () => {
-    expect(gateArgv(cmd, { platform: 'darwin', PATH: `${empty}:${bin}` })).toEqual({
-      argv: [join(bin, 'caffeinate'), '-i', '-s', 'sh', '-c', `(${cmd}) 2>&1`],
-      shown: `caffeinate -i -s ${cmd}`,
-    });
+  it('darwin: a caffeinate beside the gate holds idle and AC sleep off for as long as the given process lives', async () => {
+    rmSync(seen, { force: true });
+    const hold = holdAwake({ platform: 'darwin', caffeinate: fake, pid: 4242 });
+    expect(await until(() => read() !== null)).toBe(true);
+    expect(read()).toBe(`${hold.pid} -i -s -w 4242`);
+    hold.kill();
   });
 
-  it('any other platform runs sh as before, even with caffeinate on PATH', () => {
-    for (const platform of ['linux', 'win32', 'freebsd']) expect(gateArgv(cmd, { platform, PATH: bin })).toEqual(plain);
+  it('no hold off darwin, without the binary, or with APEX_STOP_GATE_CAFFEINATE=off', () => {
+    for (const platform of ['linux', 'win32', 'freebsd']) expect(holdAwake({ platform, caffeinate: fake })).toBeNull();
+    expect(holdAwake({ platform: 'darwin', caffeinate: join(base, 'no-such-caffeinate') })).toBeNull();
+    process.env.APEX_STOP_GATE_CAFFEINATE = 'off';
+    try {
+      expect(holdAwake({ platform: 'darwin', caffeinate: fake })).toBeNull();
+    } finally {
+      delete process.env.APEX_STOP_GATE_CAFFEINATE;
+    }
   });
 
-  it('darwin without an executable caffeinate on PATH runs sh as before', () => {
-    expect(gateArgv(cmd, { platform: 'darwin', PATH: empty })).toEqual(plain);
-    expect(gateArgv(cmd, { platform: 'darwin', PATH: noExec })).toEqual(plain);
-    expect(gateArgv(cmd, { platform: 'darwin', PATH: '' })).toEqual(plain);
-  });
-
-  it('a relative PATH entry or a directory named caffeinate is passed over', () => {
-    // Relative to the test's cwd it finds the fake; spawn would resolve it
-    // against the lane instead, so it must not count.
-    expect(gateArgv(cmd, { platform: 'darwin', PATH: relative(process.cwd(), bin) })).toEqual(plain);
-    mkdirSync(join(empty, 'caffeinate'), { recursive: true });
-    expect(gateArgv(cmd, { platform: 'darwin', PATH: `${empty}:${bin}` }).argv[0]).toBe(join(bin, 'caffeinate'));
-  });
-
-  it('runGate spawns what gateArgv returns and reports the wrapped command', async () => {
-    const g = await runGate(lane, { cmd: 'echo gate-ran; exit 3', platform: 'darwin', PATH: bin, timeoutMs: 10_000 });
-    expect(g.ok).toBe(false); // the gate's status comes back through the wrapper
-    expect(g.tail).toBe('held -i -s\ngate-ran');
-    expect(g.cmd).toBe('caffeinate -i -s echo gate-ran; exit 3');
-    const off = await runGate(lane, { cmd: 'echo gate-ran', platform: 'linux', PATH: bin, timeoutMs: 10_000 });
+  it('runGate holds for the hook while the gate runs, ends the hold when it closes, and leaves the gate alone', async () => {
+    rmSync(seen, { force: true });
+    // The gate waits for the hold, so the two are proven to overlap.
+    const cmd = `until [ -f '${seen}' ]; do sleep 0.05; done; echo gate-ran; exit 3`;
+    const g = await runGate(lane, { cmd, platform: 'darwin', caffeinate: fake, timeoutMs: 10_000 });
+    expect(g).toMatchObject({ ok: false, timedOut: false, tail: 'gate-ran', cmd });
+    const [pid, ...args] = (read() ?? '').split(' ');
+    expect(args).toEqual(['-i', '-s', '-w', String(process.pid)]);
+    expect(await until(() => !alive(Number(pid)))).toBe(true);
+    rmSync(seen, { force: true });
+    const off = await runGate(lane, { cmd: 'echo gate-ran', platform: 'linux', caffeinate: fake, timeoutMs: 10_000 });
     expect(off).toMatchObject({ ok: true, tail: 'gate-ran', cmd: 'echo gate-ran' });
+    expect(read()).toBeNull();
+  });
+
+  it('a caffeinate that fails costs only the hold: the gate runs and its verdict stands', async () => {
+    const g = await runGate(lane, { cmd: 'echo gate-ran', platform: 'darwin', caffeinate: broken, timeoutMs: 10_000 });
+    expect(g).toMatchObject({ ok: true, tail: 'gate-ran', cmd: 'echo gate-ran' });
   });
 });
 
@@ -325,12 +345,12 @@ describe('as a hook process', () => {
     expect(readFileSync(lp.log, 'utf8')).toContain('err1');
   });
 
-  it('a timed-out gate leaves no processes behind, caffeinate included on a Mac', () => {
+  it('a timed-out gate leaves no processes behind', () => {
     freshCommit('p2.txt');
     // Each leaf carries the marker in argv, which ps shows on Linux and macOS
     // alike (macOS has no /proc and hides other processes' env), and touches a
     // file once running, so the check cannot pass because nothing started. The
-    // marker is in the gate command too, so caffeinate and sh carry it as well.
+    // marker is in the gate command too, so sh carries it as well.
     const marker = join(base, `STOPGATE_${process.pid}_${Date.now()}`);
     const leaf = (n: number) => `node -e "require('fs').writeFileSync(process.argv[1], ''); setTimeout(() => {}, 30000)" ${marker}.${n}`;
     const r = runHook(
@@ -340,26 +360,45 @@ describe('as a hook process', () => {
     expect(r.status).toBe(2);
     expect(r.stderr).toContain('timed out');
     expect([existsSync(`${marker}.1`), existsSync(`${marker}.2`)]).toEqual([true, true]);
-    const ps = spawnSync('ps', ['-A', '-ww', '-o', 'pid=,args='], { encoding: 'utf8' });
-    expect(ps.stdout.split('\n').filter((l) => l.includes(marker))).toEqual([]);
+    const ps = psLines();
+    expect(ps.some((l) => l.trim().startsWith(`${process.pid} `))).toBe(true); // ps can see this process at all
+    expect(ps.filter((l) => l.includes(marker))).toEqual([]);
   }, 20_000); // runs inside the Stop hook's own gate, often beside other sessions' gates
 
-  // The hook's real gate, on a real Mac: caffeinate's idle-sleep assertion
-  // names the gate shell's pid. caffeinate takes it a moment after the shell
-  // starts, so the gate polls for up to 2s. The guard does not ask gateArgv,
-  // so a broken gateArgv fails here instead of skipping.
-  const mac = process.platform === 'darwin' && spawnSync('sh', ['-c', 'command -v caffeinate']).status === 0;
-  it.runIf(mac)('on a Mac the gate runs holding an idle-sleep assertion', () => {
+  // The hook's real hold, on a real Mac: while the gate runs, caffeinate holds
+  // PreventUserIdleSystemSleep on the hook's behalf, and when the hook is
+  // killed outright the hold goes with it, although the detached gate lives
+  // on. The guard does not ask holdAwake, so a broken holdAwake fails here
+  // instead of skipping.
+  const mac = process.platform === 'darwin' && existsSync('/usr/bin/caffeinate');
+  it.runIf(mac)('on a Mac the gate runs under an idle-sleep hold that dies with the hook', async () => {
     freshCommit('p3.txt');
-    const held = `pmset -g assertions | grep -B1 "(pid $$)" | grep -c PreventUserIdleSystemSleep`;
-    const r = runHook(
-      { session_id: sid, cwd: primary },
-      { APEX_STOP_GATE_CMD: `for i in 1 2 3 4 5 6 7 8 9 10; do n=$(${held}); [ "$n" -gt 0 ] && break; sleep 0.2; done; echo "idle-held=$n"; exit 1` },
-    );
-    expect(r.status).toBe(2);
-    expect(r.stderr).toContain('idle-held=1');
-    expect(r.stderr).toContain('(`caffeinate -i -s for i in');
-    expect(readFileSync(lp.log, 'utf8')).toMatch(/^\$ caffeinate -i -s for i in/);
+    const started = join(base, `gate-started-${process.pid}`);
+    const child = spawn('node', [hook], {
+      env: { ...gitEnv, CLAUDE_PROJECT_DIR: primary, APEX_STOP_GATE_CMD: `echo $$ > '${started}.tmp' && mv '${started}.tmp' '${started}'; sleep 30` },
+      stdio: ['pipe', 'ignore', 'ignore'],
+    });
+    child.stdin.end(JSON.stringify({ session_id: sid, cwd: primary }));
+    const holdPid = () => psLines().find((l) => new RegExp(`caffeinate -i -s -w ${child.pid}(\\s|$)`).test(l))?.trim().split(/\s+/)[0];
+    const asserted = (pid: string) =>
+      new RegExp(`pid ${pid}\\(caffeinate\\):.*PreventUserIdleSystemSleep`).test(spawnSync('pmset', ['-g', 'assertions'], { encoding: 'utf8' }).stdout);
+    try {
+      expect(await until(() => existsSync(started), 10_000)).toBe(true);
+      const pid = holdPid();
+      expect(pid).toBeDefined();
+      expect(await until(() => asserted(pid!))).toBe(true);
+      child.kill('SIGKILL');
+      expect(await until(() => holdPid() === undefined)).toBe(true);
+      expect(asserted(pid!)).toBe(false);
+      expect(alive(Number(readFileSync(started, 'utf8')))).toBe(true); // the orphaned gate runs on; only the hold went
+    } finally {
+      child.kill('SIGKILL');
+      try {
+        process.kill(-Number(readFileSync(started, 'utf8')), 'SIGKILL'); // the gate's process group
+      } catch {
+        /* never started, or already gone */
+      }
+    }
   }, 20_000);
 
   it('exit 0 for a session that never cut a lane', () => {

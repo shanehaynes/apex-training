@@ -45,11 +45,11 @@
 // Knobs are read from the environment Claude Code itself was launched with
 // (a hook does not see the Bash tool's shell): APEX_STOP_GATE=off,
 // APEX_STOP_GATE_CMD, STOP_GATE_MAX_RED_RUNS, STOP_GATE_MAX_RED_TOTAL,
-// STOP_GATE_TIMEOUT_MS.
+// STOP_GATE_TIMEOUT_MS, and on a Mac APEX_STOP_GATE_CAFFEINATE=off (holdAwake).
 
 import { spawn, spawnSync } from 'node:child_process';
-import { accessSync, constants, existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
-import { basename, dirname, isAbsolute, join, resolve } from 'node:path';
+import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { basename, dirname, join, resolve } from 'node:path';
 
 export const DEFAULT_GATE = 'npm run agent:check';
 export const MAX_RED_RUNS = Number(process.env.STOP_GATE_MAX_RED_RUNS) || 3;
@@ -199,46 +199,40 @@ export function unpushedCount(wt, branch) {
   return r.ok ? Number(r.out) || 0 : 0;
 }
 
-// Absolute entries only: spawn resolves a relative one against the lane, not
-// against the hook's cwd where it was found.
-function onPath(name, PATH) {
-  for (const d of PATH.split(':')) {
-    if (!isAbsolute(d)) continue;
-    const p = join(d, name);
-    try {
-      accessSync(p, constants.X_OK);
-      if (statSync(p).isFile()) return p;
-    } catch {
-      /* not here */
-    }
+// A Mac sleeps when idle, and a Stop hook runs exactly when the session goes
+// idle: unheld, the e2e leg stalls at page.goto and a green commit spends its
+// red budget on timeouts. So on darwin, while the gate runs, a caffeinate
+// beside it holds off idle and (on AC) system sleep. Beside, not around: the
+// gate's argv, status, output and process group stay its own, and a
+// caffeinate that is missing or fails costs only the hold. `-w` ties the hold
+// to this hook process, so if the hook is killed (an interrupted stop, the
+// hook timeout) and the detached gate lives on, the hold still ends with the
+// hook. It covers idle sleep only; a closed lid sleeps the Mac regardless.
+// APEX_STOP_GATE_CAFFEINATE=off skips it.
+export const CAFFEINATE = '/usr/bin/caffeinate';
+export function holdAwake({ platform = process.platform, caffeinate = CAFFEINATE, pid = process.pid } = {}) {
+  if (platform !== 'darwin' || process.env.APEX_STOP_GATE_CAFFEINATE === 'off' || !existsSync(caffeinate)) return null;
+  try {
+    const hold = spawn(caffeinate, ['-i', '-s', '-w', String(pid)], { stdio: 'ignore' });
+    hold.on('error', () => {
+      /* no hold; the gate runs anyway */
+    });
+    hold.unref();
+    return hold;
+  } catch {
+    return null;
   }
-  return null;
-}
-
-// What runGate spawns. A Mac sleeps when idle, and a Stop hook runs exactly
-// when the session goes idle: unheld, the e2e leg stalls at page.goto and a
-// green commit spends its red budget on timeouts. On darwin the gate runs
-// under `caffeinate -i -s`, which holds off idle and (on AC) system sleep
-// until the gate exits and exits with its status. caffeinate and the process
-// it forks to hold the assertion stay in the gate's process group, so a
-// timeout kills them with the rest.
-// APEX_STOP_GATE_CMD is wrapped the same way, so a test of the hook runs the
-// gate the way the hook does.
-export function gateArgv(cmd, { platform = process.platform, PATH = process.env.PATH ?? '' } = {}) {
-  const inner = ['sh', '-c', `(${cmd}) 2>&1`];
-  const caffeinate = platform === 'darwin' ? onPath('caffeinate', PATH) : null;
-  return caffeinate ? { argv: [caffeinate, '-i', '-s', ...inner], shown: `caffeinate -i -s ${cmd}` } : { argv: inner, shown: cmd };
 }
 
 // Run the gate in its own process group so a timeout kills vite, vitest and
 // playwright too, not just the `sh` that started them. stderr is folded into
 // stdout so the tail reads in order.
-export function runGate(wt, { cmd = process.env.APEX_STOP_GATE_CMD || DEFAULT_GATE, logPath, timeoutMs = GATE_TIMEOUT_MS, platform, PATH } = {}) {
+export function runGate(wt, { cmd = process.env.APEX_STOP_GATE_CMD || DEFAULT_GATE, logPath, timeoutMs = GATE_TIMEOUT_MS, platform, caffeinate } = {}) {
   return new Promise((done) => {
     const chunks = [];
     let size = 0;
-    const { argv, shown } = gateArgv(cmd, { platform, PATH });
-    const child = spawn(argv[0], argv.slice(1), {
+    const hold = holdAwake({ platform, caffeinate });
+    const child = spawn('sh', ['-c', `(${cmd}) 2>&1`], {
       cwd: wt,
       detached: true,
       stdio: ['ignore', 'pipe', 'ignore'],
@@ -267,16 +261,17 @@ export function runGate(wt, { cmd = process.env.APEX_STOP_GATE_CMD || DEFAULT_GA
     });
     child.on('close', (status) => {
       clearTimeout(timer);
+      hold?.kill();
       const out = Buffer.concat(chunks).toString('utf8');
       if (logPath) {
         try {
-          writeText(logPath, `$ ${shown}\n(cwd ${wt})\n\n${out}${timedOut ? '\n[stop-gate: timed out, process group killed]\n' : ''}`);
+          writeText(logPath, `$ ${cmd}\n(cwd ${wt})\n\n${out}${timedOut ? '\n[stop-gate: timed out, process group killed]\n' : ''}`);
         } catch {
           /* the log is a convenience */
         }
       }
       const tail = out.split('\n').filter(Boolean).slice(-TAIL_LINES).join('\n');
-      done({ ok: status === 0 && !timedOut, timedOut, tail, cmd: shown });
+      done({ ok: status === 0 && !timedOut, timedOut, tail, cmd });
     });
   });
 }
