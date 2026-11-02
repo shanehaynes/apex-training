@@ -88,7 +88,11 @@ lane is dirty, red, or unpushed: a Stop hook (`scripts/hooks/stop-gate.mjs`,
 wired in `.claude/settings.json`) checks the worktree, runs `agent:check`
 once per commit (cached by SHA — it is minutes on a Mac and a quarter hour in
 a cloud container), and refuses the stop with the reason until the SHA is
-green and on origin. "Done" is no longer a feeling. Two deliberate ways out, both
+green and on origin. A lane that touches a feature folder (`docs/specs/<slug>/`)
+is also held to its own plan: once a milestone in `plan.md` has every box
+checked, each requirement on its `Delivers:` line needs a `validation.md` row
+whose Status begins with `proven`, or the stop is refused naming the slug,
+milestone and ids. "Done" is no longer a feeling. Two deliberate ways out, both
 on the record:
 
 - `scripts/stop-gate.sh blocked "<reason>"` lets one stop through — for an

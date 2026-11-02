@@ -10,8 +10,10 @@
 //
 //   1. uncommitted or untracked files            → "commit them" (lists them)
 //   2. work already landed in origin/main         → nothing left to prove
-//   3. the gate (npm run agent:check) is red      → the failing tail
-//   4. commits not on origin/<branch>             → "push"
+//   3. a milestone checked off in docs/specs/<slug>/plan.md whose
+//      requirements validation.md does not prove  → the slug, milestone, ids
+//   4. the gate (npm run agent:check) is red      → the failing tail
+//   5. commits not on origin/<branch>             → "push"
 //
 // and refuses the stop (exit 2, reason on stderr — Claude reads it and keeps
 // working). A green run is cached by commit SHA, so a session that stops
@@ -32,8 +34,9 @@
 //   - the gate is run at most STOP_GATE_MAX_RED_RUNS (3) times per commit and
 //     STOP_GATE_MAX_RED_TOTAL (10) times per session while red; past either
 //     it stands aside with a note, so an unfixable red (stale stack, a flake,
-//     no network for npm audit) cannot loop a session forever. The dirty and
-//     unpushed checks never stand aside: they are one command to satisfy.
+//     no network for npm audit) cannot loop a session forever. The dirty,
+//     proof and unpushed checks never stand aside (the proof check only for
+//     a validation.md it cannot read): each is one edit to satisfy.
 //   - a session that cannot fix a red is still expected to commit and push
 //     it: a red branch on origin is visible; uncommitted work is not.
 //
@@ -207,6 +210,146 @@ export function unpushedCount(wt, branch) {
       : git(wt, ['rev-list', '--count', 'HEAD', '--not', '--remotes'])
     : git(wt, ['rev-list', '--count', 'HEAD', '--not', '--remotes']);
   return r.ok ? Number(r.out) || 0 : 0;
+}
+
+// ---------------------------------------------------------------------------
+// Spec proofs. A feature folder docs/specs/<slug>/ holds plan.md, whose
+// milestones each carry a `Delivers: R1, R2` line and acceptance boxes, and
+// validation.md, a table with Req and Status columns, one row per
+// requirement. A milestone with every box checked claims its requirements
+// delivered, so each must have a row whose Status begins with "proven"
+// ("proven (PR #517)"); "not proven", the template's placeholder, and a
+// missing row are unproven. Only folders this branch touches
+// (origin/main...HEAD) are read, so a lane without a feature folder is never
+// touched. A validation.md with no such table cannot be judged: the check
+// stands aside with a note.
+// ---------------------------------------------------------------------------
+
+const REQ_IDS = /\bR\d+\b/g;
+
+export function changedSpecSlugs(wt) {
+  const r = git(wt, ['diff', '--name-only', 'origin/main...HEAD']);
+  if (!r.ok) return [];
+  const slugs = new Set();
+  for (const f of r.out.split('\n')) {
+    const m = /^docs\/specs\/([^/]+)\//.exec(f);
+    if (m && m[1] !== '_template') slugs.add(m[1]);
+  }
+  return [...slugs].sort();
+}
+
+const lines = (text) => text.replace(/\r\n?/g, '\n').split('\n');
+const unmarked = (s) => s.replace(/[*_`]/g, '').trim(); // **bold**, _em_, `code` are not content
+
+// plan.md → one record per `### M<n> — <name>` heading: the ids on its
+// Delivers line (a parenthetical on that line is commentary, not ids) and
+// its boxes, in `-`, `*` or `1.` lists. A heading at the milestone's level or
+// above ends it; a deeper one (`#### Acceptance`) is part of it. Fenced code
+// is skipped, so an example box is not a box.
+export function parseMilestones(plan) {
+  const out = [];
+  let cur = null;
+  let fenced = false;
+  for (const line of lines(plan)) {
+    if (/^\s*(```|~~~)/.test(line)) {
+      fenced = !fenced;
+      continue;
+    }
+    if (fenced) continue;
+    const h = /^(#{1,6})\s+(.*)$/.exec(line);
+    if (h) {
+      const level = h[1].length;
+      if (cur && level > cur.level) continue;
+      const m = /^(M\d+[a-z]?)\b\s*(?:[—–:-]+\s*)?(.*)$/.exec(unmarked(h[2]));
+      cur = m ? { id: m[1], name: m[2].trim(), delivers: [], boxes: 0, checked: 0, level } : null;
+      if (cur) out.push(cur);
+      continue;
+    }
+    if (!cur) continue;
+    const d = /^\s*(?:[-*]\s+)?Delivers:?\s*(.*)$/i.exec(unmarked(line));
+    if (d) {
+      for (const id of d[1].replace(/\([^)]*\)/g, '').match(REQ_IDS) ?? []) if (!cur.delivers.includes(id)) cur.delivers.push(id);
+      continue;
+    }
+    const b = /^\s*(?:[-*]|\d+\.)\s+\[([ xX])\]/.exec(line);
+    if (b) {
+      cur.boxes += 1;
+      if (b[1] !== ' ') cur.checked += 1;
+    }
+  }
+  return out.map(({ level: _level, ...m }) => m);
+}
+
+// A GFM table row's cells: outer pipes optional, `\|` a literal pipe.
+function tableCells(line) {
+  const l = line.trim().replace(/^\|/, '').replace(/\|$/, '');
+  return l.split(/(?<!\\)\|/).map((c) => c.replace(/\\\|/g, '|').trim());
+}
+const isTableLine = (line) => /(?<!\\)\|/.test(line);
+const isDelimiterRow = (line) => tableCells(line).every((c) => /^:?-+:?$/.test(c));
+
+// validation.md → the Status cell of each requirement id, from every table
+// whose header has Req and Status columns (a file may keep one table per
+// milestone); `malformed` says what is missing when there is none.
+export function parseProofs(validation) {
+  const ls = lines(validation);
+  const rows = new Map();
+  let tables = 0;
+  for (let i = 0; i + 1 < ls.length; i++) {
+    if (!isTableLine(ls[i]) || !isTableLine(ls[i + 1]) || !isDelimiterRow(ls[i + 1])) continue;
+    const head = tableCells(ls[i]).map((c) => unmarked(c).toLowerCase());
+    const req = head.findIndex((c) => /^req/.test(c));
+    const status = head.findIndex((c) => /^status/.test(c));
+    if (req < 0 || status < 0) continue;
+    tables += 1;
+    for (i += 2; i < ls.length && isTableLine(ls[i]); i++) {
+      const c = tableCells(ls[i]);
+      if (c.length <= Math.max(req, status)) continue;
+      for (const id of c[req].match(REQ_IDS) ?? []) rows.set(id, c[status]);
+    }
+  }
+  return tables ? { rows, malformed: null } : { rows, malformed: 'no table with Req and Status columns' };
+}
+
+export const isProven = (status) => /^proven\b/i.test(unmarked(status ?? ''));
+
+// What one folder leaves unproven: every milestone with all boxes checked
+// whose delivered requirements lack a proven row. `validation` null is a
+// missing file, which proves nothing. A malformed table returns no gaps and
+// says why, so the caller can stand aside instead of guessing.
+export function specProofGaps({ plan, validation }) {
+  const proofs = validation === null ? { rows: new Map(), malformed: null } : parseProofs(validation);
+  const gaps = [];
+  for (const m of parseMilestones(plan)) {
+    if (!m.boxes || m.checked < m.boxes || !m.delivers.length) continue;
+    if (proofs.malformed) return { gaps: [], malformed: proofs.malformed, missing: false };
+    const unproven = m.delivers.filter((id) => !isProven(proofs.rows.get(id)));
+    if (unproven.length) gaps.push({ milestone: m.id, name: m.name, unproven });
+  }
+  return { gaps, malformed: null, missing: validation === null && gaps.length > 0 };
+}
+
+// Read and judge every feature folder this lane's branch touches. The lane
+// is clean by the time this runs (check 1), so the working tree is HEAD.
+export function specProofCheck(wt) {
+  const notes = [];
+  const lines = [];
+  for (const slug of changedSpecSlugs(wt)) {
+    const dir = join(wt, 'docs', 'specs', slug);
+    const plan = readText(join(dir, 'plan.md'));
+    if (plan === null) continue; // no plan.md: nothing is claimed
+    const { gaps, malformed, missing } = specProofGaps({ plan, validation: readText(join(dir, 'validation.md')) });
+    if (malformed) {
+      notes.push(`docs/specs/${slug}/validation.md: ${malformed}; the proof check stood aside`);
+      continue;
+    }
+    for (const g of gaps) {
+      const claim = `${g.milestone}${g.name ? ` (${g.name})` : ''} has every box checked`;
+      const proof = missing ? 'validation.md is missing, so nothing proves' : 'validation.md does not prove';
+      lines.push(`  docs/specs/${slug}: ${claim}, but ${proof} ${g.unproven.join(', ')}`);
+    }
+  }
+  return { notes, lines };
 }
 
 // Absolute entries only: spawn resolves a relative one against the lane, not
@@ -414,7 +557,18 @@ export async function decide(
       continue;
     }
 
-    // 3. Gate, cached by SHA, budgeted while red.
+    // 3. A milestone checked off in plan.md claims its requirements; validation.md must prove them.
+    const proofs = specProofCheck(wt);
+    for (const n of proofs.notes) notes.push(`${wt}: ${n}`);
+    if (proofs.lines.length) {
+      return block(
+        `a milestone checked off in plan.md has unproven requirements:\n${proofs.lines.join('\n')}\n` +
+          `Prove each with a validation.md row whose Status begins with "proven" (e.g. "proven (PR #NNN)"), ` +
+          `or uncheck the milestone's boxes. Then commit and stop again.`,
+      );
+    }
+
+    // 4. Gate, cached by SHA, budgeted while red.
     const green = (readText(lp.green) || '').trim();
     if (green !== sha) {
       const c = readCount(lp.count);
@@ -467,7 +621,7 @@ export async function decide(
       }
     }
 
-    // 4. On origin, under its own name.
+    // 5. On origin, under its own name.
     const branch = branchOf(wt);
     const unpushed = unpushedCount(wt, branch);
     if (unpushed > 0 || (branch && !hasRemoteBranch(wt, branch))) {

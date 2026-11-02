@@ -9,7 +9,11 @@ the result.
 
 ## Requirement proofs
 One row per requirement in `requirements.md`; none may be blank when the
-feature ships.
+feature ships. The Stop hook reads this table against `plan.md`: once a
+milestone has every box checked, each requirement on its `Delivers:` line
+needs a row here whose Status begins with `proven`, or the session cannot
+stop. Keep the `Req` and `Status` columns; "not proven", the placeholder
+below and a missing row all count as unproven.
 
 | Req | Proof | Kind | Status |
 |---|---|---|---|
