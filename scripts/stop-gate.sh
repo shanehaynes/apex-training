@@ -52,8 +52,11 @@ case "$cmd" in
       [ -f "$g/blocked" ] && echo "pending:  one stop will be let through — $(cat "$g/blocked")"
       for f in "$g"/*.count; do
         [ -f "$f" ] || continue
-        read -r sha at total < "$f"
+        read -r sha at total slept slept_total < "$f" || true # the hook writes no newline, so read hits EOF; set -e must not end status here
         echo "red runs: $(basename "$f" .count) — $at at ${sha:0:7}, $total this session (caps ${STOP_GATE_MAX_RED_RUNS:-3}/${STOP_GATE_MAX_RED_TOTAL:-10})"
+        if [ "${slept_total:-0}" != 0 ]; then
+          echo "uncharged: $(basename "$f" .count) — ${slept:-0} at ${sha:0:7}, $slept_total this session, the Mac slept (caps ${STOP_GATE_MAX_SLEPT_RUNS:-3}/${STOP_GATE_MAX_SLEPT_TOTAL:-5})"
+        fi
       done
       for f in "$g"/*.green; do [ -f "$f" ] && echo "green:    $(basename "$f" .green) at $(cut -c1-7 "$f")"; done
       for f in "$g"/*.gate.log; do [ -f "$f" ] && echo "gate log: $f"; done
