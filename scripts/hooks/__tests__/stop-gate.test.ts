@@ -22,6 +22,10 @@ const github = join(base, 'github');
 const lane = join(primary, '.claude', 'worktrees', 'feat-a');
 const sid = 'sess-1234';
 
+// The hook runs agent:check with its own environment, so its knobs reach this
+// file when it runs inside the gate; each test sets the ones it means.
+for (const k of Object.keys(process.env)) if (/^(APEX_STOP_GATE|STOP_GATE_)/.test(k)) delete process.env[k];
+
 // Isolate git from the machine: no signing, no hooks, a fixed identity.
 const gitEnv = {
   ...process.env,
@@ -239,8 +243,12 @@ const psLines = () => {
   return r.stdout.split('\n');
 };
 const alive = (pid: number) => {
-  const st = spawnSync('ps', ['-o', 'stat=', '-p', String(pid)], { encoding: 'utf8' }).stdout.trim();
-  return st !== '' && !st.startsWith('Z');
+  const r = spawnSync('ps', ['-o', 'stat=', '-p', String(pid)], { encoding: 'utf8' });
+  if (r.status !== 0) {
+    expect(r.stderr).toBe(''); // no such process, not a ps that failed
+    return false;
+  }
+  return !r.stdout.trim().startsWith('Z');
 };
 const until = async (ok: () => boolean, ms = 3000) => {
   for (const t0 = Date.now(); !ok() && Date.now() - t0 < ms; ) await new Promise((r) => setTimeout(r, 25));
@@ -250,14 +258,17 @@ const until = async (ok: () => boolean, ms = 3000) => {
 describe('the gate held awake on a Mac', () => {
   // A fake caffeinate at an injected path, so the platform choice is tested on
   // any OS. It records its pid and arguments, then waits like the real one;
-  // the broken one fails the way an unknown flag does.
+  // the broken one fails the way an unknown flag does, and the last one
+  // cannot be spawned at all.
   const fake = join(base, 'fake-caffeinate');
   const broken = join(base, 'broken-caffeinate');
+  const noExec = join(base, 'noexec-caffeinate');
   const seen = join(base, 'fake-caffeinate.seen');
   const read = () => (existsSync(seen) ? readFileSync(seen, 'utf8').trim() : null);
   beforeAll(() => {
     writeFileSync(fake, `#!/bin/sh\necho "$$ $*" > '${seen}.tmp' && mv '${seen}.tmp' '${seen}'\nexec sleep 30\n`, { mode: 0o755 });
     writeFileSync(broken, '#!/bin/sh\necho "caffeinate: illegal option -- s" >&2\nexit 1\n', { mode: 0o755 });
+    writeFileSync(noExec, '#!/bin/sh\nexit 0\n', { mode: 0o644 });
   });
 
   it('darwin: a caffeinate beside the gate holds idle and AC sleep off for as long as the given process lives', async () => {
@@ -294,9 +305,11 @@ describe('the gate held awake on a Mac', () => {
     expect(read()).toBeNull();
   });
 
-  it('a caffeinate that fails costs only the hold: the gate runs and its verdict stands', async () => {
-    const g = await runGate(lane, { cmd: 'echo gate-ran', platform: 'darwin', caffeinate: broken, timeoutMs: 10_000 });
-    expect(g).toMatchObject({ ok: true, tail: 'gate-ran', cmd: 'echo gate-ran' });
+  it('a caffeinate that fails or cannot be spawned costs only the hold: the gate runs and its verdict stands', async () => {
+    for (const caffeinate of [broken, noExec]) {
+      const g = await runGate(lane, { cmd: 'echo gate-ran', platform: 'darwin', caffeinate, timeoutMs: 10_000 });
+      expect(g).toMatchObject({ ok: true, tail: 'gate-ran', cmd: 'echo gate-ran' });
+    }
   });
 });
 
@@ -342,7 +355,7 @@ describe('as a hook process', () => {
     expect(r.status).toBe(2);
     expect(r.stderr).toContain('gate is red');
     expect(r.stderr).toMatch(/out1\s+err1\s+out2/); // stderr folded into stdout, in order
-    expect(readFileSync(lp.log, 'utf8')).toContain('err1');
+    expect(readFileSync(lp.log, 'utf8')).toMatch(/^\$ echo out1; echo err1 >&2; echo out2; exit 1\n\(cwd \/.*\n\nout1\nerr1\nout2\n$/);
   });
 
   it('a timed-out gate leaves no processes behind', () => {

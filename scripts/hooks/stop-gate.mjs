@@ -231,13 +231,13 @@ export function runGate(wt, { cmd = process.env.APEX_STOP_GATE_CMD || DEFAULT_GA
   return new Promise((done) => {
     const chunks = [];
     let size = 0;
-    const hold = holdAwake({ platform, caffeinate });
     const child = spawn('sh', ['-c', `(${cmd}) 2>&1`], {
       cwd: wt,
       detached: true,
       stdio: ['ignore', 'pipe', 'ignore'],
       env: { ...process.env, FORCE_COLOR: '0' },
     });
+    const hold = holdAwake({ platform, caffeinate }); // after the spawn: a gate that throws leaves no hold behind
     const killGroup = (sig) => {
       try {
         process.kill(-child.pid, sig);

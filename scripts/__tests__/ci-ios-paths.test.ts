@@ -117,10 +117,10 @@ function repo(): string {
 }
 
 /** Runs the marked script the way a default `run:` step does (bash -e). */
-function decide(cwd: string, event: string) {
+function decide(cwd: string, event: string, file = script) {
   const output = join(cwd, '.github-output');
   writeFileSync(output, '');
-  const r = spawnSync('bash', ['-e', script], {
+  const r = spawnSync('bash', ['-e', file], {
     cwd,
     env: { ...gitEnv, GITHUB_EVENT_NAME: event, GITHUB_OUTPUT: output },
     encoding: 'utf8',
@@ -240,5 +240,52 @@ describe('the ios-paths script in ci.yml', () => {
     const r = decide(dir, 'pull_request');
     expect(r.status, r.stderr).toBe(0);
     expect(r.output).toBe('ios=true\n');
+  });
+});
+
+// The `hooks` step applies the same rule to the hooks and their toolchain. A
+// wrong false skips hooks-macos, the only macOS run of the hook tests, and
+// nothing goes red, so its run block is tested here too.
+describe('the hooks decision in ci.yml', () => {
+  const step = stepLines(ciYml, 'changes', '        id: hooks');
+  const run = step.indexOf('        run: |');
+  const hooks = join(work, 'hooks-paths.sh');
+  writeFileSync(hooks, step.slice(run + 1).map((l) => l.slice(10)).join('\n') + '\n');
+
+  it('is wired to hooks-macos, which skips only on a successful false', () => {
+    expect(run).toBeGreaterThan(-1);
+    expect(jobHead(ciYml, 'changes')).toContain('      hooks: ${{ steps.hooks.outputs.hooks }}');
+    const head = jobHead(ciYml, 'hooks-macos');
+    expect(head).toContain('    needs: changes');
+    expect(head).toContain("    if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.hooks != 'false') }}");
+  });
+
+  it('web-only pull request: false; a hook, its toolchain or ci.yml: true', () => {
+    const web = repo();
+    write(web, 'src/app.ts', 'changed\n');
+    commit(web, 'web change');
+    expect(decide(web, 'pull_request', hooks)).toMatchObject({ status: 0, output: 'hooks=false\n' });
+    for (const path of [
+      'scripts/hooks/stop-gate.mjs',
+      'scripts/stop-gate.sh',
+      '.claude/skills/parallel-agents/hooks/agent-guard.mjs',
+      '.nvmrc',
+      'package-lock.json',
+      '.github/workflows/ci.yml',
+    ]) {
+      const dir = repo();
+      write(dir, path, 'changed\n');
+      commit(dir, path);
+      const r = decide(dir, 'pull_request', hooks);
+      expect(r.status, r.stderr).toBe(0);
+      expect(r.output, path).toBe('hooks=true\n');
+    }
+  });
+
+  it('every event but a pull request or merge group: true', () => {
+    const dir = repo();
+    git(dir, 'checkout', '-q', 'main');
+    for (const event of ['push', 'schedule', 'workflow_dispatch', '']) expect(decide(dir, event, hooks).output, `event "${event}"`).toBe('hooks=true\n');
+    expect(decide(dir, 'merge_group', hooks).output).toBe('hooks=false\n');
   });
 });
