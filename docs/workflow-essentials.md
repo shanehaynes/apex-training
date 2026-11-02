@@ -126,7 +126,10 @@ npm run build           # tsc -b + vite build
 
 **Stopping is gated.** A session that cut a lane with `git-new.sh` cannot end
 its turn while that lane is dirty, red (`agent:check`), or unpushed — a Stop
-hook (`scripts/hooks/stop-gate.mjs`) refuses with the reason. At an ambiguity
+hook (`scripts/hooks/stop-gate.mjs`) refuses with the reason. A lane that
+touches a feature folder (`docs/specs/<slug>/`) is also refused while a
+milestone checked off in its `plan.md` has a requirement its `validation.md`
+does not mark proven; the refusal names the slug, milestone and ids. At an ambiguity
 that does not change the design: decide, log it (DECISIONS in your report, or
 the board's decisions file), continue. Stop early only for an irreversible
 action or a design-changing ambiguity, and then run
