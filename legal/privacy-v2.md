@@ -1,0 +1,390 @@
+---
+title: Privacy Policy
+version: privacy-v2
+effective: 2026-11-02
+---
+
+# Apex Training — Privacy Policy
+
+**Version privacy-v2 · Effective 2026-11-02**
+
+**What changed from privacy-v1:**
+
+- Sign-up now runs Cloudflare's bot check, the one third-party script in Apex,
+  and Cloudflare also uses what it reads to improve its own bot detection
+  (sections 1 and 4.2).
+- Google is named. Apex's web pages load their fonts from Google, and
+  privacy-v1 did not say so (section 4.2).
+- Section 4 names those two as the only cases where a provider uses your data
+  for its own purposes, and section 1 now says we do not sell your data or
+  share it for advertising, in place of "sell or share".
+- Sign-up asks you to confirm that you are 18 or older and records when you did
+  (sections 2.1 and 9).
+- Resend also delivers sign-up links (section 4.2).
+- Section 2.3 now says what the coach keeps: your conversations on the web, the
+  notes it remembers (the ones you confirm, and the nightly reflection's
+  proposals), your coaching contract, the notes it pins to your calendar, the
+  nightly reflection if you switch it on, and a record of each AI call.
+  privacy-v1 said chat conversations were not stored; on the web they have
+  been since September 2026. Section 4.1 lists what of this reaches Anthropic,
+  including the heart-rate and training-load summary that chat and the weekly
+  review send.
+- Sections 5 and 6 now say that what the coach keeps has no delete of its own:
+  it goes when your account does.
+
+Nothing else in this policy changed.
+
+This policy describes what Apex Training actually does with your data. It was
+written by reading the source code, not from a template, and it is meant to be
+checkable against it. Where Apex does something you might not expect, this
+document says so rather than glossing it.
+
+[LEGAL_ENTITY] operates Apex. Contact: support@apex-training.app.
+
+---
+
+## 1. The short version
+
+- Apex stores your training schedule, your workout logs, your meals, and — if
+  you connect a watch — **your heart-rate and GPS data**.
+- Using the AI coach sends your training context to **Anthropic**, on an API key
+  you supply and pay for yourself.
+- Our infrastructure providers are **Vercel** and **Supabase**. Every email Apex
+  sends is delivered by **Resend**.
+- **There are no analytics, no trackers, and no advertising.** The one
+  third-party script is Cloudflare's bot check, which loads only when you open
+  the sign-up form (section 4.2). We do not sell your data or share it for
+  advertising, and we do not use it to train models.
+- You can export everything and delete your account permanently, from your
+  profile, at any time.
+
+---
+
+## 2. What we collect
+
+### 2.1 What you enter
+
+| Data | Where it is stored |
+| --- | --- |
+| Email address and password | Supabase Auth (`auth.users`); the password is hashed by Supabase and we never see it |
+| Your confirmation, when you sign up, that you are 18 or older (or the age of majority where you live), and when you gave it | Supabase Auth (`auth.users`), in account metadata only our server can write |
+| Display name, avatar choice | `profiles` |
+| **Training goal and free-text "context"** for the AI coach | `profiles.coach_goal`, `profiles.coach_context` |
+| Workout titles, descriptions, difficulty, tags, equipment, and **location** | `workout_events` |
+| Per-set weight, reps, and duration | `workout_set_logs` |
+| Cardio duration, distance, elevation, and **average heart rate** | `workout_cardio_logs` |
+| Meals: title, time, calories, protein, carbohydrate, fibre, sugar, fat, and free-text notes | `meals`, `meal_favorites` |
+| Training blocks, objectives, and notes | `training_blocks`, `objectives` |
+| Your Anthropic API key | `user_api_keys`, encrypted (AES-256-GCM) before storage |
+
+**The "context" field is free text and some people record injuries, conditions,
+or medications in it.** Anything you type there is stored as written and is sent
+to Anthropic with every coach message. It is optional and you can clear it at any
+time.
+
+### 2.2 What we compute from it
+
+Estimated one-rep maxes (Epley formula), tonnage, personal records, completion
+rates, streaks, training-block attainment, and daily macronutrient totals. These
+are derived arithmetically from your own entries — no profiling, no scoring, and
+no inference about you as a person.
+
+### 2.3 What AI generates about you, and what we keep
+
+| Output | Stored? |
+| --- | --- |
+| Post-workout coach summary | **Yes** — `workout_sessions.coach_summary` |
+| Monthly and yearly review commentary | **Yes** — `reviews.ai_commentary`, alongside the statistics that produced it |
+| Coach chat conversations | **On the web, yes** — `coach_conversations`, `coach_messages`: every message you send and every reply, including what the coach looked up in your data to answer. They are kept until you delete your account; there is not yet a way to delete a single conversation. On iPhone, conversations are kept on the phone, not on our servers |
+| Facts the coach remembers | **Yes** — `coach_memory`: short notes of five kinds (injury, preference, goal, history, note). In chat the coach can only propose one, and it is saved when you confirm it. The nightly reflection saves its proposals unconfirmed until you answer them; only confirmed notes reach the chat. Editing, removing or dismissing one keeps the earlier version, hidden from the coach, until you delete your account |
+| Your coaching contract | **Yes** — `profiles.coach_contract`, the text you write, or accept from the coach, about how you want to be coached |
+| Notes the coach pins to your calendar | **Yes** — `coach_annotations`; dismissing one hides it but keeps it |
+| Nightly reflection, if you switch it on | **Yes** — `coach_reflections`: what the coach proposes after reading your previous day (section 4.1), kept with whether you accepted each proposal |
+| A record of each AI call | **Yes** — `coach_runs`: which feature called the model, which model, token counts and timing, kept to check the cost and reliability of the AI features. Never the prompt or the reply |
+
+<!-- LEGAL REVIEW: privacy-v1 section 2.3 said coach chat "is not stored on our servers and is gone when you close the sidebar". That stopped being true in late September 2026, when the web began saving threads (PR #303, merged 2026-09-22; its migration, phase46, whose header said it must not reach production before this policy described stored conversations, was confirmed in production by 2026-09-26). The chat context has also carried a five-week physiology summary (heart-rate zones, load, tonnage, HRV) since 2026-09-27 (#348, on the module #342 added; the weekly review and the reflection followed on 2026-09-28), which privacy-v1 section 4.1 did not list. Confirmed coach memory followed on 2026-09-27 (#354), calendar notes on 2026-09-28 (#355), and the coaching contract with the opt-in nightly reflection the same day (#358). privacy-v2 is the first version to describe them. All of it is in the account export (api/_lib/handlers/account.ts) and goes with account deletion. Please advise on two retention points: there is no way to delete a single web conversation short of deleting the account, and a memory the user edits or removes is kept (hidden from the model) rather than erased. Both may sit badly with GDPR's storage-limitation and erasure rights. -->
+
+### 2.4 What your watch sends, if you connect one
+
+Connecting a COROS account is entirely optional and off by default. If you
+connect one, imported activities bring:
+
+- **Health and physiological measurements** — average and maximum heart rate,
+  heart-rate zones, heart-rate variability, calories, training load, and VO2 max
+  estimates.
+- **Precise location history** — the GPS track of each activity, stored as a
+  time series of latitude, longitude, and elevation points (downsampled to
+  roughly 2,000 points per activity).
+
+Both live in the `activity_streams` table.
+
+**We treat this as the most sensitive data Apex holds.** In many jurisdictions
+health data and precise geolocation carry heightened legal protection. If you
+would rather Apex did not hold it, do not connect a watch — every other feature
+works without it.
+
+### 2.5 Technical data
+
+Server logs at Vercel record request metadata, including IP addresses, in the
+ordinary course of operating the site. We record per-user request counts for
+rate limiting (`api_request_counts`), which prune themselves automatically. When
+you accept these documents we record your IP address and browser user-agent
+string as evidence of acceptance (see section 7).
+
+We do not use cookies for tracking. Your login session is held in browser
+storage by Supabase's authentication library so that you stay signed in.
+
+---
+
+## 3. Why we process it
+
+To operate the Service you asked for: to show your calendar, log your training,
+compute your statistics, generate coaching and reviews at your request, sync
+your watch if you connected it, serve your calendar feed and API requests,
+secure the Service and enforce rate limits, and keep a record that you accepted
+these terms.
+
+We do not process your data for advertising, for analytics, for profiling, or to
+train machine-learning models.
+
+<!-- LEGAL REVIEW: This section deliberately avoids naming GDPR legal bases (consent, contract, legitimate interests) because we have not established whether Apex has EU or UK users. If it does, this section needs restating in Article 6 terms, and the watch data in 2.4 is Article 9 special-category data requiring an Article 9(2) condition — most likely explicit consent, which our single combined acceptance checkbox probably does not satisfy. Please advise on both, and on whether an Article 27 representative is required. -->
+
+---
+
+## 4. Who receives your data
+
+We do not sell your personal information or share it for cross-context
+behavioural advertising. Other than as the Cloudflare and Google rows in
+section 4.2 describe, we do not disclose it for anyone else's independent
+purposes. The following providers receive it because they run parts of Apex.
+
+### 4.1 Anthropic — the AI coach
+
+When you use the coach, the post-workout summary, or a periodic review, or run
+the nightly reflection, we send Anthropic a prompt containing, depending on the
+feature:
+
+- your workout schedule, including event titles and times;
+- your four-week completion rate;
+- the meals you logged that day, with macronutrients;
+- your exercise library names and active training block;
+- **your `coach_goal` and `coach_context` text, verbatim**;
+- for post-workout summaries, your logged sets with weights, reps, durations,
+  and heart rate, and your personal records;
+- for periodic reviews, your aggregate statistics for the period;
+- for chat and the weekly review, a summary of your last five weeks of training
+  physiology: time in each heart-rate zone, training load, tonnage and
+  heart-rate variability, from your logged and imported workouts;
+- in a chat, the conversation so far, the facts you confirmed the coach may
+  remember, your coaching contract, and the results of anything the coach looks
+  up in your data to answer;
+- for the weekly review, the facts you confirmed the coach may remember;
+- if you switch on the nightly reflection (it is off by default), once a night:
+  the previous day's completed workouts with the same physiology summary, that
+  day's coach chat, the facts the coach remembers and the ones it has proposed,
+  and your coaching contract.
+
+**These calls are made with the Anthropic API key you saved in your profile and
+are billed to your Anthropic account.** Your relationship with Anthropic is
+governed by their terms and privacy policy. If you remove your key, no further
+data is sent to them.
+
+### 4.2 Infrastructure
+
+| Provider | What they receive |
+| --- | --- |
+| **Vercel** | Hosting and serverless execution — all application traffic passes through them. Server logs contain request metadata and IP addresses, and application error messages. Prompt contents are not logged; token counts are. |
+| **Supabase** | Database, authentication, and file storage — everything in section 2 is stored on their infrastructure. They also generate account emails such as invitations and password resets, which Resend delivers. |
+| **Resend** | Delivers every email Apex sends — invitations, sign-up links, password resets, and periodic review emails — from the apex-training.app domain. Resend therefore processes your email address and the full contents of those emails, including the statistics and AI commentary in reviews. |
+| **Cloudflare** | Runs the bot check (Turnstile) on the sign-up form, on the web and in the iPhone app. While you sign up, its script reads your IP address and signals from your browser and device to tell a person from a bot, and our server sends Cloudflare your IP address again when it checks the result. We keep no record of the check. Cloudflare also uses these signals to improve its own bot detection, under its Turnstile privacy terms. Separately, Cloudflare receives mail sent to our apex-training.app addresses and forwards it to the operator's Google (Gmail) inbox. If you write to us, Cloudflare and Google process your address and your message. |
+| **Google** | Serves Apex's typefaces through Google Fonts (`fonts.googleapis.com`, `fonts.gstatic.com`) on every Apex web page, including the sign-up check the iPhone app shows, so Google receives your IP address, your browser's user-agent, and the site the request comes from. Google says it uses the IP address to answer the request and for security, that Google Fonts sets no cookies, and that it does not use font requests to profile you or to target advertising. Google also hosts the operator's Gmail inbox (see Cloudflare above). |
+| **COROS** | Only if you connect a watch. We exchange OAuth tokens with them and they return your activity, heart-rate, and GPS data. |
+
+<!-- LEGAL REVIEW: Outbound email moved from the operator's personal Gmail to Resend (api/_lib/mailer.ts, Supabase custom SMTP) on 2026-09-25, and privacy-v1 was edited in place rather than bumped, on the basis that the whole audience was then invited testers. privacy-v2 carries that edit forward, so everyone who accepts privacy-v2 has seen it. Please advise whether the in-place edit was acceptable for the period before privacy-v2. Resend and Cloudflare operate under their standard terms; no DPA has been executed with any provider in this section. Replies and support mail are forwarded to a personal consumer Gmail inbox. -->
+
+<!-- LEGAL REVIEW: Open sign-up began on 2026-10-17 (PR #452), and with it Cloudflare Turnstile on the sign-up form (src/components/auth/TurnstileWidget.tsx; the iPhone app's Create account, on main since PR #493 and in no released build yet, shows a separate check page, /signup-check, in a web view; api/_lib/handlers/signup.ts sends the token and the client IP to Cloudflare's siteverify). privacy-v1 section 1 said "no third-party scripts of any kind" and "we do not sell or share your data", its table named Cloudflare only for email routing and did not name Google Fonts (src/styles/tokens.css, loaded on every web page since 2026-06), and its section 4 promised no disclosure for anyone else's independent purposes, although Cloudflare's Turnstile Privacy Addendum (last updated 2025-06-18) says Cloudflare acts as a controller when it uses the signals to improve its bot detection. privacy-v2 corrects those passages and adds the Google row, the 18+ row in 2.1, the Resend row's sign-up links and section 9's sentence. It is a new version under section 11, bumped with terms-v2 so that one re-acceptance covers both. Everyone who signed up between 2026-10-17 and the day privacy-v2 went live accepted privacy-v1. Each user is asked to accept privacy-v2 the next time they use the web app, or the iPhone app from 1.1.0 (561) on. Earlier iPhone builds cannot show the prompt: they answer every request with "Accept the updated terms to continue." until the user accepts on the web. Scheduled processing does not check acceptance and continues meanwhile: the nightly watch sync (provider-cron), the opt-in nightly reflection, which sends Anthropic, on the user's key, the previous day's workouts with their physiology summary, that day's chat, the coach's memory and pending proposals, and the coaching contract (reflection-cron), and review emails, whose recap commentary also calls Anthropic on the user's key (review-cron). Please advise whether the re-acceptance prompt is enough notice for those sign-ups or they are owed more (for example an email), and whether processing that continues before a user re-accepts rests on privacy-v1. No DPA has been executed with Cloudflare for Turnstile. -->
+
+### 4.3 Third-party AI clients you authorise
+
+If you mint an access token or approve an OAuth connection, the client holding
+it can read, through `/api/mcp`: your schedule, individual workout details
+including every logged set, your exercise history and personal records, your
+period statistics, your training blocks and objectives, your exercise library,
+your logged meals, the notes and long-term memory the coach keeps about you,
+and your profile settings (display name, goal, context, coaching contract, and
+heart-rate settings). If you grant it write access, it can also create, change,
+and delete those things on your behalf. It cannot reach another user's data,
+and it cannot read your coach conversations, your Anthropic API key, or your
+account credentials.
+
+**Things worth knowing about these tokens and connections:**
+
+- **The access level is fixed when access is granted.** A token is read-only or
+  full from the moment you create it, and a connection's level is shown on the
+  consent screen before you approve it. Tokens and connections created before
+  write access existed stay read-only.
+- **Personal access tokens expire after one year**, or when you revoke them in
+  your profile; OAuth connections last until you disconnect them.
+- **There is no notification when a token is used.** Every change a client
+  makes is listed in your profile's activity log, and AI-made changes are
+  capped at 200 per day.
+- Once a client has read your data, **what it does with the copy is outside our
+  control**, and a change it makes is treated as yours. Our Terms restrict such
+  clients, but we cannot enforce that technically. Only grant write access to
+  clients you trust, and revoke tokens and connections you no longer use.
+
+### 4.4 Your calendar feed
+
+Your profile contains a private calendar-feed URL that serves your schedule as
+an `.ics` file to any calendar app. It is authorised by a secret token in the
+URL itself, so **anyone who obtains that URL can read your workout titles,
+dates, times, and locations** without signing in.
+
+**This token cannot currently be rotated.** If your feed URL leaks, there is no
+way to invalidate it short of deleting your account. The feed also keeps
+serving if we publish new terms and you have not yet accepted them — a
+calendar app has no way to show you a document, and silently breaking your
+calendar seemed the worse failure. We are telling you this
+because it is a real limitation, not a theoretical one. Note also that
+subscribing in Google Calendar or iCloud means those companies fetch the feed on
+your behalf and hold a copy of its contents.
+
+<!-- LEGAL REVIEW: The inability to rotate the ICS token means a user whose feed URL leaks has no remedy short of account deletion. Please advise whether disclosure alone is sufficient, or whether this is a security defect that must be fixed before accepting users who are not personal acquaintances. Open sign-up (2026-10-17) means such users are already being accepted. -->
+
+### 4.5 Legal disclosure
+
+We may disclose data if we are legally required to, or where we believe in good
+faith that disclosure is necessary to protect someone's safety or to
+investigate fraud or a security incident.
+
+---
+
+## 5. How long we keep it, and what deletion actually does
+
+**We keep your data until you delete it.** There is no automatic expiry and no
+retention schedule — an event you logged four years ago is still there.
+
+Three things behave differently from what you might assume:
+
+- **Deleting a workout** removes its sets, cardio logs, completion state, and
+  any imported watch data for it. It deliberately does **not** remove the
+  append-only history tables that record *that the change happened*
+  (`event_mutations_log`, `workout_completion_log`), nor the import ledger that
+  stops a deleted watch activity from being re-imported.
+- **What the coach keeps** (section 2.3) has no delete of its own yet. Web
+  conversations, calendar notes you dismissed, earlier versions of coach memory
+  you edited, removed or dismissed, nightly reflections, and the record of AI
+  calls stay until you delete your account.
+- **Deleting your account** removes everything, including those history tables
+  and your acceptance records. Almost every table is configured to delete its
+  rows automatically when your authentication record goes; one older
+  diagnostic table is not, so it is emptied explicitly first. Both happen in
+  the same request.
+
+**Account deletion is immediate and permanent. We cannot undo it.** Export your
+data first if you want a copy.
+
+Provider backups are the exception we cannot control: Supabase and Vercel retain
+their own backups on their own schedules, so deleted data may persist there
+briefly until those rotate.
+
+<!-- LEGAL REVIEW: Account deletion also destroys the terms-acceptance audit log for that user, because the record is tied to their authentication row by a cascading foreign key. This is a direct conflict: the acceptance record exists to prove the user agreed, and the deletion promise destroys the proof at exactly the moment a dispute becomes likely. The alternatives are (a) accept the loss, as currently built, (b) retain a de-identified acceptance record after deletion under a legitimate-interest basis, or (c) retain the record in full for a limited period. Please advise which is defensible. -->
+
+---
+
+## 6. Your choices and rights
+
+From your profile you can, at any time:
+
+- **Export everything** — a JSON file of every record we hold for you, across
+  every table. Two things are deliberately left out, and the file says so
+  where they would have been: your stored Anthropic API key, and the OAuth
+  tokens for a connected watch. Both are credential material; handing you a
+  copy in a downloads folder would create a risk without giving you anything
+  you could use. Your access tokens are stored only as hashes and cannot be
+  recovered at all, though their names and usage dates are included.
+- **Delete your account** — permanently, as described above.
+- **Correct or delete individual records** — every workout, log, meal, and note
+  is editable and deletable in the app, except what the coach keeps (section
+  2.3), which goes only with your account (section 5).
+- **Remove your Anthropic API key**, which stops any further data reaching
+  Anthropic.
+- **Revoke access tokens and OAuth connections.**
+- **Clear your `coach_context` field**, which stops that text being sent with
+  future prompts.
+- **Disconnect your watch.**
+
+These are actual buttons in the application, not a request process. For anything
+else, contact support@apex-training.app.
+
+**What we do not currently offer:** an automated way to object to or restrict
+specific processing while continuing to use the Service, a data-portability
+format other than the JSON export, or a formal complaints process. If you need
+one of these, write to us and we will handle it by hand.
+
+<!-- LEGAL REVIEW: This section describes capabilities rather than asserting statutory rights under GDPR, UK GDPR, CCPA/CPRA, or any state privacy law, because we have not determined which apply. If CCPA applies, we likely need explicit notice of the rights to know, delete, correct, and to limit the use of sensitive personal information — the watch data in 2.4 is sensitive personal information under CPRA on both the health and the precise-geolocation grounds. Please advise on applicability and required notice language, including whether state health-privacy statutes such as Washington's My Health My Data Act reach a non-HIPAA operator holding this category of data. -->
+
+---
+
+## 7. Records of your acceptance
+
+When you accept these documents we write a permanent record: your user id, the
+version of each document you accepted, the time, your IP address, and your
+browser's user-agent string. These records are append-only — a new acceptance is
+added, and earlier ones are never modified or overwritten.
+
+We keep them as evidence that the agreement was formed. They are deleted if you
+delete your account.
+
+---
+
+## 8. Security, honestly stated
+
+Passwords are hashed by Supabase and never reach us. Your Anthropic API key and
+your watch's OAuth tokens are encrypted before storage. Access tokens are stored
+only as SHA-256 hashes, so we cannot recover one. Every database query is scoped
+to the requesting user's own identity, and row-level security is enabled
+throughout. The site is served over HTTPS with strict transport security.
+
+**What we do not claim:** Apex is a personal project maintained by one person.
+There is no security team, no penetration testing, no SOC 2 or ISO
+certification, no bug bounty, and no formal incident-response plan. We are not a
+HIPAA-covered entity and Apex is not HIPAA-compliant. No system is perfectly
+secure, and we cannot guarantee yours will not be breached.
+
+If you find a vulnerability, please tell us at support@apex-training.app.
+
+<!-- LEGAL REVIEW: We make no breach-notification commitment here because none exists operationally — there is no incident-response plan and no defined notification path. Most US states impose statutory notification duties regardless of what a policy says. Please advise on the minimum viable commitment we can honestly make and are obliged to make. -->
+
+---
+
+## 9. Children
+
+Apex is not intended for anyone under 18 and we do not knowingly collect data
+from children. If you believe a child has an account, contact us and we will
+delete it. The sign-up form asks you to confirm that you are 18 or older (or
+the age of majority where you live) and records when you did, but nothing
+verifies that confirmation.
+
+---
+
+## 10. International users
+
+Apex is operated from the United States and its providers store data in the
+United States. If you use Apex from elsewhere, your data is transferred to and
+processed in the United States, which may not offer the same protections as your
+home country. We have not implemented standard contractual clauses or any other
+formal transfer mechanism.
+
+<!-- LEGAL REVIEW: This states plainly that no transfer mechanism exists. If there are EU or UK users, that is a compliance gap rather than a disclosure. Please advise whether to implement transfer machinery, or to restrict the Service to US users and enforce that at sign-up. -->
+
+---
+
+## 11. Changes to this policy
+
+This policy carries a version identifier — **privacy-v2**. When we make a
+substantive change we publish the new version, bump the identifier, and prompt
+you to accept it the next time you use Apex, recording that acceptance as
+described in section 7. Minor corrections may be made without a version bump.
+
+Questions: support@apex-training.app.

@@ -22,9 +22,10 @@ export interface ApexOptions {
    * Report the user as having accepted an OLDER document version, which is
    * what raises the blocking re-acceptance gate (src/components/legal/
    * TermsGate.tsx). Default false: every other spec needs a settled user, or
-   * the modal would sit over everything it wants to click.
+   * the modal would sit over everything it wants to click. 'never' reports
+   * no acceptance at all (the gate's first-time form).
    */
-  staleTerms: boolean;
+  staleTerms: boolean | 'never';
   /**
    * Freeze the app's date-semantic clock (see src/lib/clock.ts), e.g.
    * '2026-03-02T08:00:00'. The mock project pins a default in
