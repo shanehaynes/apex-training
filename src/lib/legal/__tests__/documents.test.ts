@@ -21,18 +21,32 @@ const DOCS = [
 /** The text a reader sees, one line per paragraph, list item or table cell.
  *  Inline runs are joined without separators, so bold or code in the middle
  *  of a sentence cannot split a phrase the pins below look for. */
+const inlineText = (inlines: Inline[]) => inlines.map(i => i.text).join('');
+function blockLines(b: Block): string[] {
+  switch (b.type) {
+    case 'heading': case 'paragraph': return [inlineText(b.inlines)];
+    case 'list': return b.items.map(inlineText);
+    case 'table': return [...b.head, ...b.rows.flat()].map(inlineText);
+    case 'image': return [b.alt];
+    case 'rule': return [];
+  }
+}
 function shown(source: string): string {
-  const line = (inlines: Inline[]) => inlines.map(i => i.text).join('');
-  const lines = (b: Block): string[] => {
-    switch (b.type) {
-      case 'heading': case 'paragraph': return [line(b.inlines)];
-      case 'list': return b.items.map(line);
-      case 'table': return [...b.head, ...b.rows.flat()].map(line);
-      case 'image': return [b.alt];
-      case 'rule': return [];
+  return parseLegalMarkdown(source).blocks.flatMap(blockLines).join('\n');
+}
+
+/** Rendered text per top-level section ("## N. …"), keyed by N; 0 is the preamble. */
+function sections(source: string): Map<number, string> {
+  const out = new Map<number, string>();
+  let current = 0;
+  for (const block of parseLegalMarkdown(source).blocks) {
+    if (block.type === 'heading' && block.level === 2) {
+      const n = Number(inlineText(block.inlines).match(/^(\d+)\./)?.[1]);
+      if (n) current = n;
     }
-  };
-  return parseLegalMarkdown(source).blocks.flatMap(lines).join('\n');
+    out.set(current, [out.get(current), ...blockLines(block)].join('\n'));
+  }
+  return out;
 }
 
 describe.each(DOCS)('legal/$version.md', ({ version, source }) => {
@@ -55,6 +69,23 @@ describe.each(DOCS)('legal/$version.md', ({ version, source }) => {
       const previous = version.replace(/\d+$/, String(n - 1));
       expect(shown(source)).toContain(`What changed from ${previous}`);
     }
+  });
+
+  it('and names every section whose text changed, so "Nothing else changed" is true', () => {
+    const n = Number(version.match(/-v(\d+)$/)![1]);
+    if (n <= 1) return;
+    const previous = version.replace(/\d+$/, String(n - 1));
+    // The version identifier itself is not a change worth listing.
+    const before = sections(read(previous).replaceAll(previous, version));
+    const after = sections(source);
+    const changed = [...after.keys()].filter(k => k > 0 && after.get(k) !== before.get(k));
+
+    const text = shown(source);
+    const summary = text.slice(text.indexOf(`What changed from ${previous}`), text.indexOf('Nothing else in'));
+    const named = new Set([...summary.matchAll(/sections?\s+(\d+(?:\.\d+)?(?:(?:\s*,\s*|\s+and\s+)\d+(?:\.\d+)?)*)/gi)]
+      .flatMap(m => m[1].split(/\s*,\s*|\s+and\s+/).map(s => Math.trunc(Number(s)))));
+    expect(changed.length, 'no section changed: is the previous version readable?').toBeGreaterThan(0);
+    expect(changed.filter(k => !named.has(k)), `sections changed since ${previous} but not named`).toEqual([]);
   });
 
   it('uses only the markdown subset the renderer implements', () => {
@@ -152,7 +183,10 @@ describe('the documents make the disclosures the audit requires', () => {
     // since phase46 (#303), then memory, calendar notes and reflections.
     // The export (account.ts) lists every table it reads, so it is the pin.
     const account = readFileSync(join(ROOT, 'api/_lib/handlers/account.ts'), 'utf8');
-    const list = account.match(/export const USER_DATA_TABLES = \[([\s\S]*?)\]/)?.[1] ?? '';
+    // Up to `] as const`, so a bracket in a comment cannot end the list early;
+    // a spread would hide names from this read, so it fails instead.
+    const list = account.match(/export const USER_DATA_TABLES = \[([\s\S]*?)\] as const/)?.[1] ?? '';
+    expect(list, 'USER_DATA_TABLES must stay a literal list').not.toContain('...');
     const coachTables = [...list.matchAll(/['"`](\w+)['"`]/g)].map(m => m[1]).filter(t => t.startsWith('coach_'));
     expect(coachTables.length, 'USER_DATA_TABLES not found or holds no coach table').toBeGreaterThan(0);
     for (const table of coachTables) expect(shown(privacy), table).toContain(table);

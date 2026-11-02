@@ -22,11 +22,15 @@ effective: 2026-11-02
   (sections 2.1 and 9).
 - Resend also delivers sign-up links (section 4.2).
 - Section 2.3 now says what the coach keeps: your conversations on the web, the
-  facts you confirm it may remember, your coaching contract, the notes it pins
-  to your calendar and, if you switch it on, the nightly reflection. privacy-v1
-  said chat conversations were not stored; on the web they have been since
-  September 2026. Section 4.1 lists what of this reaches Anthropic, including
-  the heart-rate and training-load summary that chat and reviews send.
+  notes it remembers (the ones you confirm, and the nightly reflection's
+  proposals), your coaching contract, the notes it pins to your calendar, the
+  nightly reflection if you switch it on, and a record of each AI call.
+  privacy-v1 said chat conversations were not stored; on the web they have
+  been since September 2026. Section 4.1 lists what of this reaches Anthropic,
+  including the heart-rate and training-load summary that chat and the weekly
+  review send.
+- Sections 5 and 6 now say that what the coach keeps has no delete of its own:
+  it goes when your account does.
 
 Nothing else in this policy changed.
 
@@ -96,9 +100,9 @@ no inference about you as a person.
 | Your coaching contract | **Yes** — `profiles.coach_contract`, the text you write, or accept from the coach, about how you want to be coached |
 | Notes the coach pins to your calendar | **Yes** — `coach_annotations`; dismissing one hides it but keeps it |
 | Nightly reflection, if you switch it on | **Yes** — `coach_reflections`: what the coach proposes after reading your previous day (section 4.1), kept with whether you accepted each proposal |
-| A record of each AI call | **Yes** — `coach_runs`: which feature called the model, which model, token counts and timing. Never the prompt or the reply |
+| A record of each AI call | **Yes** — `coach_runs`: which feature called the model, which model, token counts and timing, kept to check the cost and reliability of the AI features. Never the prompt or the reply |
 
-<!-- LEGAL REVIEW: privacy-v1 section 2.3 said coach chat "is not stored on our servers and is gone when you close the sidebar". That stopped being true in late September 2026, when the web began saving threads (PR #303, merged 2026-09-22; its migration, phase46, whose header said it must not reach production before this policy described stored conversations, was confirmed in production by 2026-09-26). The chat context has also carried a five-week physiology summary (heart-rate zones, load, tonnage, HRV) since 2026-09-25 (#342), which privacy-v1 section 4.1 did not list. Confirmed coach memory followed on 2026-09-27 (#354), calendar notes on 2026-09-28 (#355), and the coaching contract with the opt-in nightly reflection the same day (#358). privacy-v2 is the first version to describe them. All of it is in the account export (api/_lib/handlers/account.ts) and goes with account deletion. Please advise on two retention points: there is no way to delete a single web conversation short of deleting the account, and a memory the user edits or removes is kept (hidden from the model) rather than erased. Both may sit badly with GDPR's storage-limitation and erasure rights. -->
+<!-- LEGAL REVIEW: privacy-v1 section 2.3 said coach chat "is not stored on our servers and is gone when you close the sidebar". That stopped being true in late September 2026, when the web began saving threads (PR #303, merged 2026-09-22; its migration, phase46, whose header said it must not reach production before this policy described stored conversations, was confirmed in production by 2026-09-26). The chat context has also carried a five-week physiology summary (heart-rate zones, load, tonnage, HRV) since 2026-09-27 (#348, on the module #342 added; the weekly review and the reflection followed on 2026-09-28), which privacy-v1 section 4.1 did not list. Confirmed coach memory followed on 2026-09-27 (#354), calendar notes on 2026-09-28 (#355), and the coaching contract with the opt-in nightly reflection the same day (#358). privacy-v2 is the first version to describe them. All of it is in the account export (api/_lib/handlers/account.ts) and goes with account deletion. Please advise on two retention points: there is no way to delete a single web conversation short of deleting the account, and a memory the user edits or removes is kept (hidden from the model) rather than erased. Both may sit badly with GDPR's storage-limitation and erasure rights. -->
 
 ### 2.4 What your watch sends, if you connect one
 
@@ -168,12 +172,13 @@ feature:
 - for post-workout summaries, your logged sets with weights, reps, durations,
   and heart rate, and your personal records;
 - for periodic reviews, your aggregate statistics for the period;
-- for chat and periodic reviews, a summary of your last five weeks of training
+- for chat and the weekly review, a summary of your last five weeks of training
   physiology: time in each heart-rate zone, training load, tonnage and
   heart-rate variability, from your logged and imported workouts;
 - in a chat, the conversation so far, the facts you confirmed the coach may
   remember, your coaching contract, and the results of anything the coach looks
   up in your data to answer;
+- for the weekly review, the facts you confirmed the coach may remember;
 - if you switch on the nightly reflection (it is off by default), once a night:
   the previous day's completed workouts with the same physiology summary, that
   day's coach chat, the facts the coach remembers and the ones it has proposed,
@@ -197,7 +202,7 @@ data is sent to them.
 
 <!-- LEGAL REVIEW: Outbound email moved from the operator's personal Gmail to Resend (api/_lib/mailer.ts, Supabase custom SMTP) on 2026-09-25, and privacy-v1 was edited in place rather than bumped, on the basis that the whole audience was then invited testers. privacy-v2 carries that edit forward, so everyone who accepts privacy-v2 has seen it. Please advise whether the in-place edit was acceptable for the period before privacy-v2. Resend and Cloudflare operate under their standard terms; no DPA has been executed with any provider in this section. Replies and support mail are forwarded to a personal consumer Gmail inbox. -->
 
-<!-- LEGAL REVIEW: Open sign-up began on 2026-10-17 (PR #452), and with it Cloudflare Turnstile on the sign-up form (src/components/auth/TurnstileWidget.tsx; the iPhone app's Create account, on main since PR #493 and in no released build yet, shows a separate check page, /signup-check, in a web view; api/_lib/handlers/signup.ts sends the token and the client IP to Cloudflare's siteverify). privacy-v1 section 1 said "no third-party scripts of any kind" and "we do not sell or share your data", its table named Cloudflare only for email routing and did not name Google Fonts (src/styles/tokens.css, loaded on every web page since 2026-06), and its section 4 promised no disclosure for anyone else's independent purposes, although Cloudflare's Turnstile Privacy Addendum (last updated 2025-06-18) says Cloudflare acts as a controller when it uses the signals to improve its bot detection. privacy-v2 corrects those passages and adds the Google row, the 18+ row in 2.1, the Resend row's sign-up links and section 9's sentence. It is a new version under section 11, bumped with terms-v2 so that one re-acceptance covers both. Everyone who signed up between 2026-10-17 and the day privacy-v2 went live accepted privacy-v1. Each user is asked to accept privacy-v2 the next time they use the web app, or the iPhone app from 1.1.0 (561) on. Earlier iPhone builds cannot show the prompt: they answer every request with "Accept the updated terms to continue." until the user accepts on the web. Scheduled processing does not check acceptance and continues meanwhile: the nightly watch sync (provider-cron), the opt-in nightly reflection that sends the previous day's sessions, chat and memory to Anthropic on the user's key (reflection-cron), and review emails, whose recap commentary also calls Anthropic on the user's key (review-cron). Please advise whether the re-acceptance prompt is enough notice for those sign-ups or they are owed more (for example an email), and whether processing that continues before a user re-accepts rests on privacy-v1. No DPA has been executed with Cloudflare for Turnstile. -->
+<!-- LEGAL REVIEW: Open sign-up began on 2026-10-17 (PR #452), and with it Cloudflare Turnstile on the sign-up form (src/components/auth/TurnstileWidget.tsx; the iPhone app's Create account, on main since PR #493 and in no released build yet, shows a separate check page, /signup-check, in a web view; api/_lib/handlers/signup.ts sends the token and the client IP to Cloudflare's siteverify). privacy-v1 section 1 said "no third-party scripts of any kind" and "we do not sell or share your data", its table named Cloudflare only for email routing and did not name Google Fonts (src/styles/tokens.css, loaded on every web page since 2026-06), and its section 4 promised no disclosure for anyone else's independent purposes, although Cloudflare's Turnstile Privacy Addendum (last updated 2025-06-18) says Cloudflare acts as a controller when it uses the signals to improve its bot detection. privacy-v2 corrects those passages and adds the Google row, the 18+ row in 2.1, the Resend row's sign-up links and section 9's sentence. It is a new version under section 11, bumped with terms-v2 so that one re-acceptance covers both. Everyone who signed up between 2026-10-17 and the day privacy-v2 went live accepted privacy-v1. Each user is asked to accept privacy-v2 the next time they use the web app, or the iPhone app from 1.1.0 (561) on. Earlier iPhone builds cannot show the prompt: they answer every request with "Accept the updated terms to continue." until the user accepts on the web. Scheduled processing does not check acceptance and continues meanwhile: the nightly watch sync (provider-cron), the opt-in nightly reflection, which sends Anthropic, on the user's key, the previous day's workouts with their physiology summary, that day's chat, the coach's memory and pending proposals, and the coaching contract (reflection-cron), and review emails, whose recap commentary also calls Anthropic on the user's key (review-cron). Please advise whether the re-acceptance prompt is enough notice for those sign-ups or they are owed more (for example an email), and whether processing that continues before a user re-accepts rests on privacy-v1. No DPA has been executed with Cloudflare for Turnstile. -->
 
 ### 4.3 Third-party AI clients you authorise
 
@@ -266,9 +271,10 @@ Three things behave differently from what you might assume:
   append-only history tables that record *that the change happened*
   (`event_mutations_log`, `workout_completion_log`), nor the import ledger that
   stops a deleted watch activity from being re-imported.
-- **What the coach keeps** (section 2.3) has no delete of its own yet: web
-  conversations, and the earlier versions of coach memory and calendar notes
-  you edited, removed or dismissed, stay until you delete your account.
+- **What the coach keeps** (section 2.3) has no delete of its own yet. Web
+  conversations, calendar notes you dismissed, earlier versions of coach memory
+  you edited, removed or dismissed, nightly reflections, and the record of AI
+  calls stay until you delete your account.
 - **Deleting your account** removes everything, including those history tables
   and your acceptance records. Almost every table is configured to delete its
   rows automatically when your authentication record goes; one older
@@ -299,9 +305,8 @@ From your profile you can, at any time:
   recovered at all, though their names and usage dates are included.
 - **Delete your account** — permanently, as described above.
 - **Correct or delete individual records** — every workout, log, meal, and note
-  is editable and deletable in the app, except what section 2.3 says the coach
-  keeps: web conversations, and earlier versions of its memory and calendar
-  notes, go only with your account.
+  is editable and deletable in the app, except what the coach keeps (section
+  2.3), which goes only with your account (section 5).
 - **Remove your Anthropic API key**, which stops any further data reaching
   Anthropic.
 - **Revoke access tokens and OAuth connections.**

@@ -150,8 +150,9 @@ const STALE_ACCEPTANCE = {
  */
 export async function installIntercept(context, { anonKey = null, profile, staleTerms = false } = {}) {
   // `accepted` is what GET /api/profile reports back; `current` false is what
-  // raises the blocking gate in AuthGate.
-  const acceptance = staleTerms ? STALE_ACCEPTANCE : MOCK_ACCEPTANCE;
+  // raises the blocking gate in AuthGate. staleTerms 'never' is a signed-in
+  // user with no acceptance at all, which the gate titles "Before you start".
+  const acceptance = staleTerms === 'never' ? null : staleTerms ? STALE_ACCEPTANCE : MOCK_ACCEPTANCE;
   const termsCurrent = !staleTerms;
   // The design tokens @import Google Fonts — the one external fetch in an
   // otherwise hermetic suite, and a real flake source: Claude remote-sandbox

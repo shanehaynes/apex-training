@@ -148,6 +148,32 @@ test.describe('re-acceptance after a version bump', () => {
   });
 });
 
+test.describe('the gate for a user who never accepted', () => {
+  test.use({ staleTerms: 'never' });
+
+  test('keeps export in reach too, without accepting', async ({ page }) => {
+    // Deletion and export are the athlete's whether or not they ever agreed.
+    const accepted: string[] = [];
+    page.on('request', r => {
+      if (r.method() === 'POST' && r.url().includes('/api/terms-acceptance')) accepted.push(r.url());
+    });
+    await page.route('**/api/account', route => route.fulfill({
+      status: 200,
+      headers: { 'Content-Type': 'application/json; charset=utf-8' },
+      body: JSON.stringify({ exportedAt: '2026-11-02T00:00:00.000Z' }),
+    }));
+    await page.goto('/');
+    await expect(page.locator('#terms-gate-title')).toHaveText('Before you start', { timeout: 20000 });
+
+    await page.locator('.terms-gate__leave summary').click();
+    const download = page.waitForEvent('download');
+    await page.locator('.terms-gate__leave .account-data__action').click();
+    await download;
+    await expect(page.locator('#terms-gate-title')).toBeVisible();
+    expect(accepted).toEqual([]);
+  });
+});
+
 test.describe('the documents themselves', () => {
   test.use({ sessionSeed: false });
 
