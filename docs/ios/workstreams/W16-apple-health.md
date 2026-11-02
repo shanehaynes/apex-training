@@ -134,6 +134,8 @@ Acceptance:
       Accept clears it and retries.
 - [x] Smoke leg on `-apexMockTermsStale`; snapshot of the sheet.
 - [ ] In a released build that most testers have installed **before** `PRIVACY_VERSION` moves.
+      The first move is not W16's: #527 bumps to `terms-v2` / `privacy-v2` (open sign-up), and
+      merges when Shane marks it ready.
 
 ### M0 — Migration `phase59_apple_health.sql` (one file for M2 and M3) · Linux · HELD
 Claim `N` with `scripts/next-phase.sh` at PR time. SQL before code; the account export reads
@@ -246,7 +248,10 @@ Acceptance:
 - [x] Fixtures: `ios/Fixtures/provider-status.json` (apple block), `provider-preview-apple.json`.
 
 **Privacy bump (approved by Shane 2026-10-14; after M2b merges, after MT is adopted, before M2i ships).**
-`legal/privacy-v2.md` + `PRIVACY_VERSION` in `src/lib/legal/versions.ts` — one bump, with text
+`legal/privacy-v3.md` + `PRIVACY_VERSION` in `src/lib/legal/versions.ts`. It was `privacy-v2` until
+2026-11-02, when Shane chose a bump for the open sign-up corrections (#527) and that took `v2`;
+v3 is written from `privacy-v2`'s text, and `terms-v2` stays unless the Health bump changes the
+Terms. One bump, with text
 that already covers M3: what Health categories Apex reads, that they live on Apex's servers,
 and that daily metrics ride in the coach's context to **Anthropic** (guideline 5.1.2(i): third-
 party AI needs explicit permission, so the `dailyMetrics` toggle copy names it too).
@@ -415,6 +420,11 @@ acceptance endpoint MT calls (read the web's re-acceptance modal first).
 - 2026-10-14 · Mac · MT built (`feat/w16-mt-terms-reaccept`): client notice, background check,
   in-place screen, queue pause on the gate. ApexCore, AppModel, snapshot and smoke tests green.
   The release box is Shane's (ship before `PRIVACY_VERSION` moves).
+
+- 2026-11-02 · Mac · Naming: Shane chose a version bump for the open sign-up legal text, so #527
+  takes `terms-v2` / `privacy-v2` and the Health bump above becomes `privacy-v3`. Shane's
+  2026-10-14 approval stands; only the number moved. #527 is the first `PRIVACY_VERSION` move
+  MT's release box guards.
 
 ## Next brief
 **M1 — Write finished sessions to Health.** Goal: a tracker finish writes an Apex-branded

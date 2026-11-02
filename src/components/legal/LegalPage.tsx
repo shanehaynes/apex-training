@@ -2,8 +2,8 @@ import { useMemo } from 'react';
 import { parseLegalMarkdown } from '../../lib/legal/markdown';
 import MarkdownBlocks from './MarkdownBlocks';
 import { LEGAL_DOCUMENTS, type LegalSlug } from '../../lib/legal/versions';
-import termsSource from '../../../legal/terms-v1.md?raw';
-import privacySource from '../../../legal/privacy-v1.md?raw';
+import termsSource from '../../../legal/terms-v2.md?raw';
+import privacySource from '../../../legal/privacy-v2.md?raw';
 
 // The /terms and /privacy pages. Rendered by App.tsx BEFORE AuthProvider,
 // because the signup checkbox links here and a signed-out visitor must be

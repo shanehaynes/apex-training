@@ -343,9 +343,9 @@ Sources, current as of 2026-09-19:
 ## 7. Builds with Create account
 
 From the first build carrying docs/specs/open-signup.md M3. These lines **replace** their
-counterparts above; everything else stands. Before submitting such a build, the Terms
-(`legal/terms-v1.md` §2, "Accounts are currently created by invitation") must stop saying
-sign-up is by invitation: the Create account screen links to them.
+counterparts above; everything else stands. Before submitting such a build, `terms-v2` (#527)
+must be live: `terms-v1` §2 says "Accounts are currently created by invitation", and the Create
+account screen links to the Terms.
 
 - **Registration line** (review notes): "The sign-in screen has a Create account mode. The user
   enters an email, accepts the Terms of Service and Privacy Policy, confirms they are 18 or
@@ -363,9 +363,10 @@ sign-up is by invitation: the Create account screen links to them.
   the listing.
 - **App Privacy (§1), to review before submitting:** Create account runs Cloudflare Turnstile
   in an in-app web view, which reads IP address and device and browser signals to tell a person
-  from a bot. Decide whether that changes the App Privacy answers, and note that
-  `legal/privacy-v1.md` names Cloudflare only for email routing — the policy the Create account
-  toggle links at the moment of assent. Both are Shane's calls; nothing here is pre-decided.
+  from a bot. Decide whether that changes the App Privacy answers. `privacy-v2` (#527), the
+  policy the Create account toggle links at the moment of assent, describes Turnstile and Google
+  Fonts; `privacy-v1` named Cloudflare only for email routing. The App Privacy answer is Shane's
+  call; nothing here is pre-decided.
 - **Order**: production must be running PR #477 (the server's 18+ check and stamp) before any
   build with M3 goes to TestFlight. Main's handler before #477 ignores `ageConfirmed`, so an app
   sign-up would go through with nothing recorded.
@@ -386,17 +387,16 @@ sign-up is by invitation: the Create account screen links to them.
 ### The resubmission, in order
 
 1. **The legal text, first: it is already overdue.** Web sign-up has been open since 2026-10-17
-   (#452). Since then strangers accept Terms §2, "Accounts are currently created by invitation"
-   (its LEGAL REVIEW note, "no age gate", is stale too), and privacy-v1 §1 says "no third-party
-   scripts of any kind" while sign-up loads Cloudflare Turnstile (`TurnstileWidget.tsx`, and the
-   app's web view). Shane decides how. privacy-v1 §11 says a substantive change bumps the
-   version, and its LEGAL REVIEW note's reason for earlier in-place edits (an invited-tester
-   audience) ended on 2026-10-17. A bump has two conditions from W16: most testers on a build
-   with MT first (W16 MT's last box is open; a bump 403s every signed-in call from 509 and
-   earlier), and text that claims only what the shipping build does. The approved `privacy-v2`
-   covers Health reads, which 1.1.0 does not do, and flips §1 Health to Yes. W16's approval
-   covers `privacy-v2` only, not a `terms-v2`. The pages are served from the web (`/terms`,
-   `/privacy`), so no build waits on them.
+   (#452). Since then strangers accept terms-v1 §2, "Accounts are currently created by
+   invitation", and privacy-v1 §1, "no third-party scripts of any kind", while sign-up loads
+   Cloudflare Turnstile (`TurnstileWidget.tsx`, and the app's web view). **Shane chose a version
+   bump on 2026-11-02: `terms-v2` and `privacy-v2`, #527.** Both versions move together, so every
+   user re-accepts once. The web and builds from 561 on (W16 MT) prompt in place. Builds 509 and
+   earlier cannot: every signed-in call fails with "Accept the updated terms to continue." until
+   the user accepts on the web. Whether #527 merges before most testers run 561 or later (W16
+   MT's last box) is Shane's call when he marks it ready. W16's Health text, approved as
+   `privacy-v2`, is now `privacy-v3` and still flips §1 Health to Yes when it ships. The pages
+   are served from the web (`/terms`, `/privacy`), so no build waits on them.
 2. **App Privacy (§1):** Shane's answer on Turnstile (the bullet above).
 3. **A TestFlight build from `main`, on Shane's go** (`ios/CLAUDE.md`: uploading publishes):
    the first 1.1.0 build carrying #493, since 604 predates it. #477 has been on `main`, and so

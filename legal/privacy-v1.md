@@ -25,10 +25,9 @@ document says so rather than glossing it.
   you supply and pay for yourself.
 - Our infrastructure providers are **Vercel** and **Supabase**. Every email Apex
   sends is delivered by **Resend**.
-- **There are no analytics, no trackers, and no advertising.** The one
-  third-party script is Cloudflare's bot check, which loads only when you open
-  the sign-up form (section 4.2). We do not sell your data or share it for
-  advertising, and we do not use it to train models.
+- **There are no analytics, no trackers, no advertising, and no third-party
+  scripts of any kind.** We do not sell or share your data, and we do not use it
+  to train models.
 - You can export everything and delete your account permanently, from your
   profile, at any time.
 
@@ -41,7 +40,6 @@ document says so rather than glossing it.
 | Data | Where it is stored |
 | --- | --- |
 | Email address and password | Supabase Auth (`auth.users`); the password is hashed by Supabase and we never see it |
-| Your confirmation, when you sign up, that you are 18 or older (or the age of majority where you live), and when you gave it | Supabase Auth (`auth.users`), in account metadata only our server can write |
 | Display name, avatar choice | `profiles` |
 | **Training goal and free-text "context"** for the AI coach | `profiles.coach_goal`, `profiles.coach_context` |
 | Workout titles, descriptions, difficulty, tags, equipment, and **location** | `workout_events` |
@@ -120,10 +118,9 @@ train machine-learning models.
 
 ## 4. Who receives your data
 
-We do not sell your personal information or share it for cross-context
-behavioural advertising. Other than as the Cloudflare and Google rows in
-section 4.2 describe, we do not disclose it for anyone else's independent
-purposes. The following providers receive it because they run parts of Apex.
+We do not sell your personal information, share it for cross-context behavioural
+advertising, or disclose it for anyone else's independent purposes. The
+following providers receive it because they run parts of Apex.
 
 ### 4.1 Anthropic — the AI coach
 
@@ -150,14 +147,11 @@ data is sent to them.
 | --- | --- |
 | **Vercel** | Hosting and serverless execution — all application traffic passes through them. Server logs contain request metadata and IP addresses, and application error messages. Prompt contents are not logged; token counts are. |
 | **Supabase** | Database, authentication, and file storage — everything in section 2 is stored on their infrastructure. They also generate account emails such as invitations and password resets, which Resend delivers. |
-| **Resend** | Delivers every email Apex sends — invitations, sign-up links, password resets, and periodic review emails — from the apex-training.app domain. Resend therefore processes your email address and the full contents of those emails, including the statistics and AI commentary in reviews. |
-| **Cloudflare** | Runs the bot check (Turnstile) on the sign-up form, on the web and in the iPhone app. While you sign up, its script reads your IP address and signals from your browser and device to tell a person from a bot, and our server sends Cloudflare your IP address again when it checks the result. We keep no record of the check. Cloudflare also uses these signals to improve its own bot detection, under its Turnstile privacy terms. Separately, Cloudflare receives mail sent to our apex-training.app addresses and forwards it to the operator's Google (Gmail) inbox. If you write to us, Cloudflare and Google process your address and your message. |
-| **Google** | Serves Apex's typefaces through Google Fonts (`fonts.googleapis.com`, `fonts.gstatic.com`) on every Apex web page, including the sign-up check the iPhone app shows, so Google receives your IP address, your browser's user-agent, and the address of the page you are on. Google says it uses the IP address to answer the request and for security, that Google Fonts sets no cookies, and that it does not use font requests to profile you or to target advertising. Google also hosts the operator's Gmail inbox (see Cloudflare above). |
+| **Resend** | Delivers every email Apex sends — invitations, password resets, and periodic review emails — from the apex-training.app domain. Resend therefore processes your email address and the full contents of those emails, including the statistics and AI commentary in reviews. |
+| **Cloudflare** | Receives mail sent to our apex-training.app addresses and forwards it to the operator's Google (Gmail) inbox. If you write to us, Cloudflare and Google process your address and your message. |
 | **COROS** | Only if you connect a watch. We exchange OAuth tokens with them and they return your activity, heart-rate, and GPS data. |
 
 <!-- LEGAL REVIEW: Outbound email moved from the operator's personal Gmail to Resend (api/_lib/mailer.ts, Supabase custom SMTP) on 2026-09-25, and privacy-v1 was edited in place rather than bumped, on the basis that the whole v1 audience is invited testers and the pre-launch revision (entity, jurisdiction) will bump both documents anyway. Please advise whether that in-place edit is acceptable. Resend and Cloudflare operate under their standard terms; no DPA has been executed with any provider in this section. Replies and support mail are forwarded to a personal consumer Gmail inbox. -->
-
-<!-- LEGAL REVIEW: Open sign-up began on 2026-10-17 (PR #452), and with it Cloudflare Turnstile on the sign-up form (src/components/auth/TurnstileWidget.tsx; the iPhone app's Create account, on main since PR #493 and in no released build yet, shows a separate check page, /signup-check, in a web view; api/_lib/handlers/signup.ts sends the token and the client IP to Cloudflare's siteverify). Until this edit, section 1 said "no third-party scripts of any kind" and "we do not sell or share your data", this table named Cloudflare only for email routing and did not name Google Fonts (src/styles/tokens.css, loaded on every web page since 2026-06), and section 4 promised no disclosure for anyone else's independent purposes, although Cloudflare's Turnstile Privacy Addendum (last updated 2025-06-18) says Cloudflare acts as a controller when it uses the signals to improve its bot detection. Those passages, the Google row, the 18+ row in 2.1, the Resend row and section 9 were then edited in place. Unlike the Resend edit above, the audience was no longer only invited testers: everyone who signed up between 2026-10-17 and this edit accepted the earlier text. Please advise whether this change is substantive under section 11, and so needs a new version and re-acceptance, and whether those sign-ups are owed notice. No DPA has been executed with Cloudflare for Turnstile. -->
 
 ### 4.3 Third-party AI clients you authorise
 
@@ -204,7 +198,7 @@ because it is a real limitation, not a theoretical one. Note also that
 subscribing in Google Calendar or iCloud means those companies fetch the feed on
 your behalf and hold a copy of its contents.
 
-<!-- LEGAL REVIEW: The inability to rotate the ICS token means a user whose feed URL leaks has no remedy short of account deletion. Please advise whether disclosure alone is sufficient, or whether this is a security defect that must be fixed before accepting users who are not personal acquaintances. Open sign-up (2026-10-17) means such users are already being accepted. -->
+<!-- LEGAL REVIEW: The inability to rotate the ICS token means a user whose feed URL leaks has no remedy short of account deletion. Please advise whether disclosure alone is sufficient, or whether this is a security defect that must be fixed before accepting users who are not personal acquaintances. -->
 
 ### 4.5 Legal disclosure
 
@@ -312,9 +306,7 @@ If you find a vulnerability, please tell us at support@apex-training.app.
 
 Apex is not intended for anyone under 18 and we do not knowingly collect data
 from children. If you believe a child has an account, contact us and we will
-delete it. The sign-up form asks you to confirm that you are 18 or older (or
-the age of majority where you live) and records when you did, but nothing
-verifies that confirmation.
+delete it. Note that the application has no age verification of any kind.
 
 ---
 
@@ -326,7 +318,7 @@ processed in the United States, which may not offer the same protections as your
 home country. We have not implemented standard contractual clauses or any other
 formal transfer mechanism.
 
-<!-- LEGAL REVIEW: This states plainly that no transfer mechanism exists. If there are EU or UK users, that is a compliance gap rather than a disclosure. Please advise whether to implement transfer machinery, or to restrict the Service to US users and enforce that at sign-up. -->
+<!-- LEGAL REVIEW: This states plainly that no transfer mechanism exists. If there are EU or UK users, that is a compliance gap rather than a disclosure. Please advise whether to implement transfer machinery, or to restrict the Service to US users and enforce that at the invitation stage. -->
 
 ---
 

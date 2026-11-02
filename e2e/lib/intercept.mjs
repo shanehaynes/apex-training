@@ -130,9 +130,9 @@ export function isExpectedConsoleError(msg) {
 // bumping a version fails the suite here rather than silently leaving every
 // mock spec staring at an acceptance modal.
 const MOCK_ACCEPTANCE = {
-  termsVersion: 'terms-v1',
-  privacyVersion: 'privacy-v1',
-  acceptedAt: '2026-08-29T00:00:00.000Z',
+  termsVersion: 'terms-v2',
+  privacyVersion: 'privacy-v2',
+  acceptedAt: '2026-11-02T00:00:00.000Z',
 };
 
 /** What a user who accepted an EARLIER release looks like — the state the

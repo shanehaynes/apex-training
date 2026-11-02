@@ -70,23 +70,25 @@ describe.skipIf(!RUN)('terms acceptance against the local stack', () => {
   /** A throwaway user, so the shared stack's fixtures are never disturbed. */
   let subject: { token: string; userId: string };
   const EMAIL = 'itest-terms@apex.local';
+  /** A second throwaway user, holding an acceptance of an earlier version. */
+  const PRIOR_EMAIL = 'itest-terms-prior@apex.local';
   const PASSWORD = 'apex-agent-password';
 
-  async function createSubject() {
+  async function createSubject(email = EMAIL) {
     // Remove any leftover from an interrupted run before recreating.
     const { data } = await admin.auth.admin.listUsers({ perPage: 1000 });
-    const stale = data?.users.find(u => u.email === EMAIL);
+    const stale = data?.users.find(u => u.email === email);
     if (stale) await admin.auth.admin.deleteUser(stale.id);
 
     const { data: created, error } = await admin.auth.admin.createUser({
-      email: EMAIL, password: PASSWORD, email_confirm: true,
+      email, password: PASSWORD, email_confirm: true,
     });
     if (error || !created.user) throw new Error(`create failed: ${error?.message}`);
 
     const res = await fetch(`${env.url}/auth/v1/token?grant_type=password`, {
       method: 'POST',
       headers: { apikey: env.anonKey, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: EMAIL, password: PASSWORD }),
+      body: JSON.stringify({ email, password: PASSWORD }),
     });
     const token = (await res.json() as { access_token: string }).access_token;
     return { token, userId: created.user.id };
@@ -103,8 +105,10 @@ describe.skipIf(!RUN)('terms acceptance against the local stack', () => {
   afterAll(async () => {
     if (!RUN || !admin) return;
     const { data } = await admin.auth.admin.listUsers({ perPage: 1000 });
-    const left = data?.users.find(u => u.email === EMAIL);
-    if (left) await admin.auth.admin.deleteUser(left.id);
+    for (const email of [EMAIL, PRIOR_EMAIL]) {
+      const left = data?.users.find(u => u.email === email);
+      if (left) await admin.auth.admin.deleteUser(left.id);
+    }
   });
 
   it('gates a real handler behind a real JWT until the user accepts', async () => {
@@ -124,6 +128,63 @@ describe.skipIf(!RUN)('terms acceptance against the local stack', () => {
     const after = makeRes();
     await eventsHandler(makeReq({ method: 'GET', token: subject.token }), after.res);
     expect(after.statusCode, 'past the gate — 400 is the handler\'s own validation').not.toBe(403);
+  });
+
+  it('an account that accepted terms-v1 and privacy-v1 is asked again, keeps its export, and one acceptance lets it through', async () => {
+    // Every account created before the bump to terms-v2 / privacy-v2 holds
+    // exactly this row. Inserted directly as a stand-in for an acceptance made
+    // under v1: the append-only trigger refuses UPDATE and DELETE, not INSERT.
+    const prior = await createSubject(PRIOR_EMAIL);
+    const { error } = await admin.from('terms_acceptances').insert({
+      user_id: prior.userId, terms_version: 'terms-v1', privacy_version: 'privacy-v1',
+      accepted_at: '2026-10-20T12:00:00.000Z', ip: '192.0.2.1', user_agent: 'itest/v1',
+    });
+    expect(error).toBeNull();
+
+    const blocked = makeRes();
+    await eventsHandler(makeReq({ method: 'GET', token: prior.token }), blocked.res);
+    expect(blocked.statusCode).toBe(403);
+    expect(blocked.body).toBe(TERMS_REQUIRED_BODY);
+
+    // What the web gate and the iPhone app (1.1.0 (561) on) read to raise the
+    // prompt and to say what was accepted before.
+    const status = makeRes();
+    await acceptanceHandler(makeReq({ method: 'GET', token: prior.token }), status.res);
+    expect(status.statusCode).toBe(200);
+    expect(status.body).toMatchObject({
+      accepted: { termsVersion: 'terms-v1', privacyVersion: 'privacy-v1' },
+      current: false,
+      termsVersion: TERMS_VERSION,
+      privacyVersion: PRIVACY_VERSION,
+    });
+
+    // Terms section 12: export keeps working while the user decides.
+    const exported = makeRes();
+    await accountHandler(makeReq({ method: 'GET', token: prior.token }), exported.res);
+    expect(exported.statusCode).toBe(200);
+
+    const accept = makeRes();
+    await acceptanceHandler(makeReq({ method: 'POST', token: prior.token }), accept.res);
+    expect(accept.statusCode).toBe(200);
+    expect(accept.body).toMatchObject({
+      accepted: { termsVersion: TERMS_VERSION, privacyVersion: PRIVACY_VERSION },
+      current: true,
+    });
+
+    const after = makeRes();
+    await eventsHandler(makeReq({ method: 'GET', token: prior.token }), after.res);
+    expect(after.statusCode, 'past the gate').not.toBe(403);
+
+    // The v1 row stands beside the new one as the record of what was agreed when.
+    const { data } = await admin
+      .from('terms_acceptances')
+      .select('terms_version, privacy_version')
+      .eq('user_id', prior.userId)
+      .order('accepted_at', { ascending: true });
+    expect(data).toEqual([
+      { terms_version: 'terms-v1', privacy_version: 'privacy-v1' },
+      { terms_version: TERMS_VERSION, privacy_version: PRIVACY_VERSION },
+    ]);
   });
 
   it('stores the first x-forwarded-for hop, not the proxy', async () => {

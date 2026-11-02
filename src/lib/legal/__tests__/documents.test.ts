@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, it, expect } from 'vitest';
@@ -23,6 +24,20 @@ describe.each(DOCS)('legal/$version.md', ({ version, source }) => {
     expect(meta.version).toBe(version);
     expect(meta.effective).toBe(LEGAL_EFFECTIVE_DATE);
     expect(meta.title).toBeTruthy();
+  });
+
+  it('states the same version and date in the header a reader sees', () => {
+    expect(source).toContain(`**Version ${version} · Effective ${LEGAL_EFFECTIVE_DATE}**`);
+  });
+
+  it('a bumped document says what changed from the version before it', () => {
+    // An athlete asked to accept again should not have to diff two documents
+    // to learn why.
+    const n = Number(version.match(/-v(\d+)$/)![1]);
+    if (n > 1) {
+      const previous = version.replace(/\d+$/, String(n - 1));
+      expect(JSON.stringify(parseLegalMarkdown(source))).toContain(`What changed from ${previous}`);
+    }
   });
 
   it('uses only the markdown subset the renderer implements', () => {
@@ -109,7 +124,7 @@ describe('the documents make the disclosures the audit requires', () => {
     // age_confirmed_at. Checked on the rendered text: the LEGAL REVIEW notes
     // quote the old wording on purpose.
     const shown = (source: string) => JSON.stringify(parseLegalMarkdown(source));
-    expect(shown(terms)).not.toMatch(/created\s+by\s+invitation/);
+    expect(shown(terms)).not.toMatch(/Accounts\s+are\s+currently\s+created\s+by\s+invitation/);
     expect(shown(privacy)).not.toMatch(/third-party\s+scripts\s+of\s+any\s+kind/);
     expect(shown(privacy)).not.toMatch(/sell\s+or\s+share\s+your\s+data/);
     expect(shown(privacy)).toContain('Turnstile');
@@ -165,5 +180,35 @@ describe('LEGAL_DOCUMENTS', () => {
 
   it('a file exists on disk for every listed version', () => {
     for (const doc of LEGAL_DOCUMENTS) expect(read(doc.version).length).toBeGreaterThan(0);
+  });
+
+  it('the pages bundle the current files', () => {
+    // Static ?raw imports cannot be built from the constants, so a bump edits
+    // them by hand; this is what catches one that forgets.
+    const page = readFileSync(join(ROOT, 'src/components/legal/LegalPage.tsx'), 'utf8');
+    for (const doc of LEGAL_DOCUMENTS) expect(page).toContain(`legal/${doc.version}.md?raw`);
+  });
+});
+
+// Every acceptance row names a version. Once a version is superseded its file
+// is the record of what those rows agreed to, so it is kept, byte for byte.
+// Add each document here when a bump supersedes it.
+const SUPERSEDED: Record<string, string> = {
+  'terms-v1': 'ef6c2bfb59a44b439f1bb0b7beb73fbce07d88523d0c5f7e2199155faba5cf4f',
+  'privacy-v1': '955c31b7347d8347bfcb41cb63d87306d4722804ff2979a32cd47bd095300b99',
+};
+
+describe('superseded versions', () => {
+  it('every earlier version of a current document is listed', () => {
+    for (const doc of LEGAL_DOCUMENTS) {
+      const n = Number(doc.version.match(/-v(\d+)$/)![1]);
+      for (let k = 1; k < n; k++) expect(Object.keys(SUPERSEDED)).toContain(`${doc.slug}-v${k}`);
+    }
+  });
+
+  it.each(Object.entries(SUPERSEDED))('legal/%s.md is unchanged since it was superseded', (version, sha256) => {
+    const source = read(version);
+    expect(splitFrontmatter(source).meta.version).toBe(version);
+    expect(createHash('sha256').update(source).digest('hex')).toBe(sha256);
   });
 });

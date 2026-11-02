@@ -93,4 +93,4 @@ M3's last box: Shane's real sign-up from a TestFlight build. After M3 merges, cu
 - The new password signs in on the app and the web.
 - In Supabase, the user's `raw_app_meta_data.age_confirmed_at` is set.
 
-Before that build goes to App Review: edit `legal/terms-v1.md` §2 (Shane), and use app-store.md §7's wording.
+Before that build goes to App Review: `terms-v2` live (#527, a version bump Shane chose on 2026-11-02, drops terms-v1 §2's invitation sentence), and use app-store.md §7's wording.
