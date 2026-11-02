@@ -100,6 +100,13 @@ on the record:
   Commit and push anyway — a red branch on origin is visible, uncommitted
   work is not — and say what was red.
 
+A red run the Mac slept through is not charged, up to 3 per commit and 5 per
+session. The hook reads the kernel's last-sleep stamp (`kern.sleeptime`)
+before and after the gate; if it changed, the gate froze part-way and its
+tests timed out on wake. The block reason says so. If the tail is only
+timeouts, stop again; a closed lid can sleep the Mac even under the gate's
+`caffeinate`, so keep it open. Past either cap a slept run counts like any red.
+
 A lane whose work already landed in `origin/main` (squash-merged, remote
 branch gone) is done and never blocks. A stop taken while background tasks
 are still running is a wait, not an end, and passes. At any other ambiguity:

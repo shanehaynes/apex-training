@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
 import { useAuth } from '../../context/auth';
 import AcceptanceCheckbox from './AcceptanceCheckbox';
+import AccountData from '../profile/AccountData';
 import { LEGAL_DOCUMENTS } from '../../lib/legal/versions';
 
 // The re-acceptance gate: shown when the signed-in user's latest acceptance
@@ -19,7 +20,11 @@ import { LEGAL_DOCUMENTS } from '../../lib/legal/versions';
 // is up — otherwise mounting the calendar would fire a dozen gated reads and
 // bury the modal under failure toasts.
 //
-// The only ways out are accepting, or signing out.
+// The only ways out are accepting, or signing out. The gate also keeps export
+// and account deletion in reach, folded away: terms section 12 promises both
+// keep working while a user decides, deletion is a right whether or not they
+// ever accepted, and the server exempts /api/account from the gate
+// (account.ts, skipTermsGate).
 
 export default function TermsGate() {
   const { acceptTerms, signOut, termsStatus, session } = useAuth();
@@ -102,6 +107,10 @@ export default function TermsGate() {
             Sign out{session?.user.email ? ` (${session.user.email})` : ''}
           </button>
         </div>
+        <details className="terms-gate__leave">
+          <summary className="auth-link">Export or delete your data instead</summary>
+          <AccountData inlineErrors />
+        </details>
       </motion.div>
     </motion.div>,
     document.body,

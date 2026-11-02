@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 // @ts-expect-error — plain JS hook, run with bare node; no .d.mts on purpose (builtins only, like bash-guard)
-import { decide, holdAwake, lanePaths, lanesFor, runGate, sessionPaths } from '../stop-gate.mjs';
+import { decide, holdAwake, lanePaths, lanesFor, lastSleepMs, parseSleepTime, runGate, sessionPaths } from '../stop-gate.mjs';
 
 const hook = fileURLToPath(new URL('../stop-gate.mjs', import.meta.url));
 const cli = fileURLToPath(new URL('../../stop-gate.sh', import.meta.url));
@@ -69,12 +69,12 @@ const bind = (...lanes: string[]) => {
 };
 const count = () => (existsSync(lp.count) ? readFileSync(lp.count, 'utf8').trim() : null);
 
-type Gate = { ok: boolean; timedOut?: boolean; tail: string; cmd: string };
-const gate = (ok: boolean, tail = ok ? 'all green' : 'FAIL src/x.test.ts > breaks') => {
+type Gate = { ok: boolean; timedOut?: boolean; tail: string; cmd: string; sleptAt?: number | null };
+const gate = (ok: boolean, tail = ok ? 'all green' : 'FAIL src/x.test.ts > breaks', sleptAt: number | null = null) => {
   const calls: string[] = [];
   const run = async (wt: string): Promise<Gate> => {
     calls.push(wt);
-    return { ok, timedOut: false, tail, cmd: 'fake-gate' };
+    return { ok, timedOut: false, tail, cmd: 'fake-gate', sleptAt };
   };
   return { run, calls };
 };
@@ -139,7 +139,7 @@ describe('the gate, in order', () => {
     expect(v.reason).toContain('gate is red');
     expect(v.reason).toContain('run 1/3');
     expect(v.reason).toContain('FAIL src/x.test.ts');
-    expect(count()).toBe(`${sha} 1 1`);
+    expect(count()).toBe(`${sha} 1 1 0 0`);
     expect(existsSync(lp.green)).toBe(false);
   });
 
@@ -147,7 +147,7 @@ describe('the gate, in order', () => {
     const sha = git(lane, 'rev-parse', 'HEAD');
     expect((await stop(gate(false).run)).reason).toContain('run 2/3');
     expect((await stop(gate(false).run)).reason).toContain('run 3/3');
-    expect(count()).toBe(`${sha} 3 3`);
+    expect(count()).toBe(`${sha} 3 3 0 0`);
     const g = gate(false);
     const v = await stop(g.run);
     expect(g.calls).toEqual([]); // stood aside
@@ -232,6 +232,163 @@ describe('the gate, in order', () => {
     expect(v.action).toBe('allow');
     expect(v.notes[0]).toMatch(/already in origin\/main/);
     expect(g.calls).toEqual([]);
+  });
+});
+
+describe('a red run the Mac slept through', () => {
+  const commit = (name: string) => {
+    writeFileSync(join(lane, name), 'x\n');
+    git(lane, 'add', '.');
+    git(lane, 'commit', '-q', '-m', name);
+    return git(lane, 'rev-parse', 'HEAD');
+  };
+  const timeouts = 'Error: page.goto: Timeout 30000ms exceeded.';
+  const asleep = () => gate(false, timeouts, Date.now() - 60_000).run;
+  const status = () => spawnSync('bash', [cli, 'status'], { cwd: primary, encoding: 'utf8', env: { ...gitEnv, CLAUDE_CODE_SESSION_ID: sid } });
+
+  it('blocks with the tail, says the Mac slept, and charges nothing', async () => {
+    const sha = commit('slept-1.txt');
+    const v = await stop(asleep());
+    expect(v.action).toBe('block');
+    expect(v.reason).toMatch(/the gate is red at \w{7} \(`fake-gate`\), but the Mac went to sleep during the run \(last at \d\d:\d\d:\d\d\)/);
+    expect(v.reason).toContain('not charged to the red budget (uncharged run 1/3 for this commit, 1/5 this session; red runs still 0/3)');
+    expect(v.reason).toContain(timeouts);
+    expect(v.reason).toContain(lp.log);
+    expect(count()).toBe(`${sha} 0 0 1 1`);
+  });
+
+  it('three per commit; past that a slept red counts like any red, and says so', async () => {
+    const sha = git(lane, 'rev-parse', 'HEAD');
+    expect((await stop(asleep())).reason).toContain('uncharged run 2/3');
+    expect((await stop(asleep())).reason).toContain('uncharged run 3/3');
+    expect(count()).toBe(`${sha} 0 0 3 3`);
+    const v = await stop(asleep());
+    expect(v.reason).toContain('run 1/3 for this commit');
+    expect(v.reason).toContain('but this commit has had its 3 uncharged runs, so this one counts');
+    expect(count()).toBe(`${sha} 1 1 3 3`);
+  });
+
+  it('an awake red is charged as before; a new commit gets fresh uncharged runs and both totals carry', async () => {
+    const sha = git(lane, 'rev-parse', 'HEAD');
+    const v = await stop(gate(false).run);
+    expect(v.reason).toContain('run 2/3 for this commit');
+    expect(v.reason).not.toMatch(/sleep|uncharged/);
+    expect(count()).toBe(`${sha} 2 2 3 3`);
+    const next = commit('slept-2.txt');
+    expect((await stop(asleep())).reason).toContain('uncharged run 1/3 for this commit, 4/5 this session; red runs still 0/3');
+    expect(count()).toBe(`${next} 0 2 1 4`);
+    const st = status();
+    expect(st.status).toBe(0); // the count file has no newline; status used to die on it
+    expect(st.stdout).toContain(`red runs: feat-a — 0 at ${next.slice(0, 7)}, 2 this session`);
+    expect(st.stdout).toContain(`uncharged: feat-a — 1 at ${next.slice(0, 7)}, 4 this session, the Mac slept (caps 3/5)`);
+  });
+
+  it('a timed-out run is treated the same, and keeps the red runs already spent at this commit', async () => {
+    const sha = git(lane, 'rev-parse', 'HEAD');
+    writeFileSync(lp.count, `${sha} 1 3 1 4`);
+    const run = async () => ({ ok: false, timedOut: true, tail: timeouts, cmd: 'fake-gate', sleptAt: Date.now() - 60_000 });
+    const v = await stop(run);
+    expect(v.reason).toMatch(/the gate timed out at \w{7} \(`fake-gate`\), but the Mac went to sleep during the run/);
+    expect(v.reason).toContain('uncharged run 2/3 for this commit, 5/5 this session; red runs still 1/3');
+    expect(count()).toBe(`${sha} 1 3 2 5`);
+  });
+
+  it('a run the Mac slept through that passes is green', async () => {
+    const sha = git(lane, 'rev-parse', 'HEAD');
+    const v = await stop(gate(true, 'all green', Date.now() - 60_000).run);
+    expect(readFileSync(lp.green, 'utf8')).toBe(sha);
+    expect(count()).toBeNull();
+    expect(v.reason).toMatch(/not on origin/);
+  });
+
+  it('the session cap holds across commits: a commit after every slept red still ends in a stand-aside', async () => {
+    rmSync(lp.count, { force: true });
+    const g = gate(false, timeouts, Date.now() - 60_000);
+    const verdicts = [];
+    for (let i = 0; i < 18; i++) {
+      commit(`loop-${i}.txt`);
+      verdicts.push(await stop(g.run));
+    }
+    expect(g.calls).toHaveLength(5 + 10); // 5 uncharged per session, then the 10 charged ones
+    expect(verdicts[4].reason).toContain('uncharged run 1/3 for this commit, 5/5 this session');
+    expect(verdicts[5].reason).toContain('but this session has had its 5 uncharged runs, so this one counts');
+    expect(verdicts[17].notes.join('\n')).toMatch(/stood aside.*10 this session/);
+    rmSync(lp.count, { force: true });
+  }, 30_000);
+});
+
+describe('knowing the Mac slept', () => {
+  // A fake sysctl that reports a later sleep on every call, as if the Mac
+  // slept between any two readings, and one that fails.
+  const fakeSysctl = join(base, 'fake-sysctl');
+  const failingSysctl = join(base, 'failing-sysctl');
+  const reads = join(base, 'fake-sysctl.reads');
+  beforeAll(() => {
+    writeFileSync(
+      fakeSysctl,
+      `#!/bin/sh\nn=$(cat "${reads}" 2>/dev/null || echo 1793624521)\necho $((n + 60)) > "${reads}"\necho "{ sec = $n, usec = 0 } fake"\n`,
+      { mode: 0o755 },
+    );
+    writeFileSync(failingSysctl, '#!/bin/sh\necho "sysctl: unknown oid" >&2\nexit 1\n', { mode: 0o755 });
+  });
+
+  it('parseSleepTime reads `sysctl -n kern.sleeptime`: never slept is 0, junk is null', () => {
+    expect(parseSleepTime('{ sec = 1793624521, usec = 923212 } Mon Nov  2 08:02:01 2026\n')).toBe(1793624521923);
+    expect(parseSleepTime('{ sec = 0, usec = 0 } Thu Jan  1 00:00:00 1970')).toBe(0);
+    expect(parseSleepTime('')).toBeNull();
+    expect(parseSleepTime('sysctl: unknown oid')).toBeNull();
+  });
+
+  it('lastSleepMs is null off darwin, and when sysctl fails or is missing', () => {
+    expect(lastSleepMs({ platform: 'linux', sysctl: fakeSysctl })).toBeNull();
+    expect(lastSleepMs({ platform: 'darwin', sysctl: failingSysctl })).toBeNull();
+    expect(lastSleepMs({ platform: 'darwin', sysctl: join(base, 'no-such-sysctl') })).toBeNull();
+  });
+
+  it.runIf(process.platform === 'darwin')('on a Mac the kernel answers with a time in the past, or 0 if it never slept', () => {
+    const v = lastSleepMs();
+    expect(Number.isInteger(v) && v <= Date.now()).toBe(true);
+    expect(v).toBe(parseSleepTime(spawnSync('/usr/sbin/sysctl', ['-n', 'kern.sleeptime'], { encoding: 'utf8' }).stdout));
+  });
+
+  it('runGate reads sysctl before and after the gate; a changed stamp is a sleep, reported and logged', async () => {
+    rmSync(reads, { force: true });
+    const log = join(base, 'slept.gate.log');
+    const g = await runGate(lane, { cmd: 'echo t; exit 1', platform: 'darwin', sysctl: fakeSysctl, logPath: log, timeoutMs: 10_000 });
+    expect(g.ok).toBe(false);
+    expect(g.sleptAt).toBe(1793624581000); // the second reading
+    expect(readFileSync(log, 'utf8')).toMatch(/\n\[stop-gate: the Mac slept during the gate \(started \d\d:\d\d:\d\d, last sleep \d\d:\d\d:\d\d\)\]\n$/);
+    const failed = await runGate(lane, { cmd: 'echo t', platform: 'darwin', sysctl: failingSysctl, timeoutMs: 10_000 });
+    expect(failed).toMatchObject({ ok: true, sleptAt: null });
+  });
+
+  it('an unchanged stamp, a failed read at either end, or a reader that throws is awake; a first sleep since boot is a sleep', async () => {
+    const pairs: [number | null, number | null][] = [
+      [1000, 1000],
+      [0, 0],
+      [null, 2000],
+      [1000, null],
+      [null, null],
+    ];
+    const reading = (before: number | null, after: number | null) => {
+      let n = 0;
+      return () => (n++ === 0 ? before : after);
+    };
+    for (const [before, after] of pairs) {
+      expect(await runGate(lane, { cmd: 'echo t', platform: 'linux', timeoutMs: 10_000, lastSleep: reading(before, after) })).toMatchObject({
+        ok: true,
+        sleptAt: null,
+      });
+    }
+    const throws = () => {
+      throw new Error('sysctl gone');
+    };
+    expect(await runGate(lane, { cmd: 'echo t', platform: 'linux', timeoutMs: 10_000, lastSleep: throws })).toMatchObject({ ok: true, sleptAt: null });
+    expect((await runGate(lane, { cmd: 'echo t', platform: 'linux', timeoutMs: 10_000, lastSleep: reading(0, 5000) })).sleptAt).toBe(5000);
+  });
+
+  it('with this machine\'s own sysctl, a gate that stayed awake is not reported as slept', async () => {
+    expect(await runGate(lane, { cmd: 'echo t', timeoutMs: 10_000 })).toMatchObject({ ok: true, sleptAt: null });
   });
 });
 

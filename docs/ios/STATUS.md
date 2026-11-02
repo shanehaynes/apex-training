@@ -32,7 +32,8 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
 0. **App Store resubmission — 1.1.0 with Create account (ROADMAP Now 1).** 509 is not going back.
    The order is [app-store.md](app-store.md) §7, "The resubmission, in order". First the legal
    text, already overdue: web sign-up has been open since 2026-10-17 while Terms §2 says
-   invitation-only and privacy-v1 says no third-party scripts (Turnstile is one). Then the
+   invitation-only and privacy-v1 says no third-party scripts (Turnstile is one). Shane chose a
+   version bump on 2026-11-02: `terms-v2` / `privacy-v2`, draft #527, his to mark ready. Then the
    Turnstile App Privacy answer, a TestFlight build from `main` on Shane's go (the first carrying
    #493), one real sign-up on it, Apple's 2026-10-13 agreement, the version number, the recording
    and the reply. An agent can draft the legal text and cut the build when Shane says so; every
@@ -57,8 +58,8 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
 0. **W16 M2i — iOS reads Health workouts (Mac), after the privacy bump.** Goal: a Watch,
    Garmin-via-Health or Whoop-via-Health workout reaches the server as provider `apple` (M2b,
    #472) from the phone, durable through kills and offline, and a match the athlete has not
-   decided is never lost. **First, Shane:** the privacy bump approved 2026-10-14 (`legal/privacy-v2.md`
-   + `PRIVACY_VERSION`, text naming Health categories, server storage and Anthropic for daily
+   decided is never lost. **First, Shane:** the privacy bump approved 2026-10-14 (`legal/privacy-v3.md`
+   since #527 took `v2` for open sign-up, + `PRIVACY_VERSION`, text naming Health categories, server storage and Anthropic for daily
    metrics) once testers are on 561 — M2i ships only after it. Scope (full contract:
    [W16 brief, M2i](workstreams/W16-apple-health.md)): `HealthWorkoutReader` (anchored query,
    now−30d start, own source excluded, HR per workout, background delivery that only enqueues);

@@ -1,5 +1,5 @@
 // The single source of truth for which legal documents are in force.
-// legal/terms-v1.md, legal/privacy-v1.md, the acceptance handler
+// legal/terms-v2.md, legal/privacy-v2.md, the acceptance handler
 // (api/_lib/handlers/termsAcceptance.ts), the requireUser gate, and the
 // re-acceptance modal all read from here — one bump moves everything
 // together, and src/lib/legal/__tests__/versions.test.ts pins these against
@@ -12,13 +12,16 @@
 //
 // BUMPING A VERSION IS A USER-VISIBLE EVENT: every existing user is blocked
 // behind the re-acceptance modal on their next load until they accept again.
-// Bump for substantive changes, not typo fixes.
+// Bump for substantive changes, not typo fixes. iPhone builds before 1.1.0
+// (561) have no in-app prompt: every gated call fails until the user accepts
+// on the web. A superseded document stays in legal/ unchanged, as the text
+// its acceptances agreed to, and LegalPage.tsx imports the current files.
 
-export const TERMS_VERSION = 'terms-v1';
-export const PRIVACY_VERSION = 'privacy-v1';
+export const TERMS_VERSION = 'terms-v2';
+export const PRIVACY_VERSION = 'privacy-v2';
 
 /** ISO date the current versions took effect; rendered in the page header. */
-export const LEGAL_EFFECTIVE_DATE = '2026-08-29';
+export const LEGAL_EFFECTIVE_DATE = '2026-11-02';
 
 /** The document slugs, in the order the acceptance checkbox lists them. */
 export const LEGAL_DOCUMENTS = [
