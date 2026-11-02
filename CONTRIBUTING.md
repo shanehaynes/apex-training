@@ -121,6 +121,12 @@ lane? `scripts/stop-gate.sh status` shows what the hook thinks;
 bound to all of them. `APEX_STOP_GATE=off` in the environment `claude` was
 launched with disables it (a hook does not see the Bash tool's shell).
 
+On a Mac the hook holds idle sleep off while its gate runs, on battery too,
+up to the 29-minute gate timeout: a `caffeinate -i -s -w <hook pid>` beside
+the gate, which ends when the gate does or when the hook is killed. It does
+not hold a closed lid. `APEX_STOP_GATE_CAFFEINATE=off`, in the same
+environment, turns off just the hold.
+
 Squash-merge it. GitHub deletes the remote branch. Then retire the local side:
 
 ```bash

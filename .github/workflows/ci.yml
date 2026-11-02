@@ -166,6 +166,7 @@ jobs:
     timeout-minutes: 5
     outputs:
       ios: ${{ steps.paths.outputs.ios }}
+      hooks: ${{ steps.hooks.outputs.hooks }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -186,6 +187,23 @@ jobs:
           echo "ios=$ios"
           echo "ios=$ios" >> "$GITHUB_OUTPUT"
           # ios-paths:end
+      # The same rule for hooks-macos, over the hooks its tests load and the
+      # toolchain that runs them. ci-ios-paths.test.ts runs this block too.
+      - name: Decide whether hooks-macos must run
+        id: hooks
+        run: |
+          hooks=true
+          case "$GITHUB_EVENT_NAME" in
+            pull_request | merge_group)
+              if base=$(git merge-base origin/main HEAD) &&
+                git diff --quiet "$base" HEAD -- scripts/hooks/ scripts/stop-gate.sh .claude/skills/parallel-agents/hooks/ \
+                  .nvmrc package-lock.json .github/workflows/ci.yml; then
+                hooks=false
+              fi
+              ;;
+          esac
+          echo "hooks=$hooks"
+          echo "hooks=$hooks" >> "$GITHUB_OUTPUT"
 
   # The iOS app: generate the project, build it, run the unit and UI tests on a
   # simulator.
@@ -346,6 +364,27 @@ jobs:
           name: ios-results
           path: ios/build/Apex.xcresult
           retention-days: 7
+
+  # The hooks' darwin-only tests: the stop gate's caffeinate hold on a real
+  # Mac, and that it dies with the hook. Every other job that runs vitest is
+  # Linux, so without this they are proven only on a developer's Mac, and a
+  # macOS change to caffeinate would show up first as broken Stop gates. Not a
+  # required check. The babysitter waits on every check, so it runs only where
+  # `changes` says the hooks, their toolchain or this file changed, on push,
+  # schedule and dispatch, and when `changes` did not decide; a skip passes.
+  hooks-macos:
+    needs: changes
+    if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.hooks != 'false') }}
+    runs-on: macos-26
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npx vitest run scripts/hooks/
 
   # Production probes. Nightly/manual only: they read PRODUCTION over the
   # network, so a per-PR run would be dozens of pointless round-trips a day
