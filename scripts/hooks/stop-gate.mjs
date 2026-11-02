@@ -48,8 +48,8 @@
 // STOP_GATE_TIMEOUT_MS.
 
 import { spawn, spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
-import { basename, dirname, join, resolve } from 'node:path';
+import { accessSync, constants, existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { basename, dirname, isAbsolute, join, resolve } from 'node:path';
 
 export const DEFAULT_GATE = 'npm run agent:check';
 export const MAX_RED_RUNS = Number(process.env.STOP_GATE_MAX_RED_RUNS) || 3;
@@ -199,14 +199,46 @@ export function unpushedCount(wt, branch) {
   return r.ok ? Number(r.out) || 0 : 0;
 }
 
+// Absolute entries only: spawn resolves a relative one against the lane, not
+// against the hook's cwd where it was found.
+function onPath(name, PATH) {
+  for (const d of PATH.split(':')) {
+    if (!isAbsolute(d)) continue;
+    const p = join(d, name);
+    try {
+      accessSync(p, constants.X_OK);
+      if (statSync(p).isFile()) return p;
+    } catch {
+      /* not here */
+    }
+  }
+  return null;
+}
+
+// What runGate spawns. A Mac sleeps when idle, and a Stop hook runs exactly
+// when the session goes idle: unheld, the e2e leg stalls at page.goto and a
+// green commit spends its red budget on timeouts. On darwin the gate runs
+// under `caffeinate -i -s`, which holds off idle and (on AC) system sleep
+// until the gate exits and exits with its status. caffeinate and the process
+// it forks to hold the assertion stay in the gate's process group, so a
+// timeout kills them with the rest.
+// APEX_STOP_GATE_CMD is wrapped the same way, so a test of the hook runs the
+// gate the way the hook does.
+export function gateArgv(cmd, { platform = process.platform, PATH = process.env.PATH ?? '' } = {}) {
+  const inner = ['sh', '-c', `(${cmd}) 2>&1`];
+  const caffeinate = platform === 'darwin' ? onPath('caffeinate', PATH) : null;
+  return caffeinate ? { argv: [caffeinate, '-i', '-s', ...inner], shown: `caffeinate -i -s ${cmd}` } : { argv: inner, shown: cmd };
+}
+
 // Run the gate in its own process group so a timeout kills vite, vitest and
 // playwright too, not just the `sh` that started them. stderr is folded into
 // stdout so the tail reads in order.
-export function runGate(wt, { cmd = process.env.APEX_STOP_GATE_CMD || DEFAULT_GATE, logPath, timeoutMs = GATE_TIMEOUT_MS } = {}) {
+export function runGate(wt, { cmd = process.env.APEX_STOP_GATE_CMD || DEFAULT_GATE, logPath, timeoutMs = GATE_TIMEOUT_MS, platform, PATH } = {}) {
   return new Promise((done) => {
     const chunks = [];
     let size = 0;
-    const child = spawn('sh', ['-c', `(${cmd}) 2>&1`], {
+    const { argv, shown } = gateArgv(cmd, { platform, PATH });
+    const child = spawn(argv[0], argv.slice(1), {
       cwd: wt,
       detached: true,
       stdio: ['ignore', 'pipe', 'ignore'],
@@ -238,13 +270,13 @@ export function runGate(wt, { cmd = process.env.APEX_STOP_GATE_CMD || DEFAULT_GA
       const out = Buffer.concat(chunks).toString('utf8');
       if (logPath) {
         try {
-          writeText(logPath, `$ ${cmd}\n(cwd ${wt})\n\n${out}${timedOut ? '\n[stop-gate: timed out, process group killed]\n' : ''}`);
+          writeText(logPath, `$ ${shown}\n(cwd ${wt})\n\n${out}${timedOut ? '\n[stop-gate: timed out, process group killed]\n' : ''}`);
         } catch {
           /* the log is a convenience */
         }
       }
       const tail = out.split('\n').filter(Boolean).slice(-TAIL_LINES).join('\n');
-      done({ ok: status === 0 && !timedOut, timedOut, tail, cmd });
+      done({ ok: status === 0 && !timedOut, timedOut, tail, cmd: shown });
     });
   });
 }
