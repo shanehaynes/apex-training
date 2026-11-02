@@ -78,8 +78,13 @@ const gate = (ok: boolean, tail = ok ? 'all green' : 'FAIL src/x.test.ts > break
   };
   return { run, calls };
 };
+// The caps are explicit: the hook reads their knobs when it is imported, before
+// the stripping above runs, so the defaults would follow the launch environment.
 const stop = (run: (wt: string) => Promise<Gate>, input: Record<string, unknown> = {}) =>
-  decide({ session_id: sid, cwd: primary, hook_event_name: 'Stop', ...input }, { primary, run });
+  decide(
+    { session_id: sid, cwd: primary, hook_event_name: 'Stop', ...input },
+    { primary, run, maxRedRuns: 3, maxRedTotal: 10, maxSleptRuns: 3, maxSleptTotal: 5 },
+  );
 
 describe('which lanes', () => {
   it('a session with no binding and a cwd outside any worktree is never gated', async () => {
@@ -512,7 +517,7 @@ describe('as a hook process', () => {
     expect(r.status).toBe(2);
     expect(r.stderr).toContain('gate is red');
     expect(r.stderr).toMatch(/out1\s+err1\s+out2/); // stderr folded into stdout, in order
-    expect(readFileSync(lp.log, 'utf8')).toMatch(/^\$ echo out1; echo err1 >&2; echo out2; exit 1\n\(cwd \/.*\n\nout1\nerr1\nout2\n$/);
+    expect(readFileSync(lp.log, 'utf8')).toMatch(/^\$ echo out1; echo err1 >&2; echo out2; exit 1\n\(cwd \/.*\n\nout1\nerr1\nout2\n/); // not end-anchored: a sleep mid-gate appends a note
   });
 
   it('a timed-out gate leaves no processes behind', () => {
