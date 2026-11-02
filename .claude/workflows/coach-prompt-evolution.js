@@ -1,25 +1,7 @@
 export const meta = {
   name: 'coach-prompt-evolution',
-  description:
-    'AVO-style bounded search over the coach prompt, scored per-dimension by the eval suite on a Claude subscription (agent-sdk backend), never an API key',
-  whenToUse:
-    'Evolve src/lib/coach/prompt.ts against `npm run eval`. Spends the Claude SUBSCRIPTION of ' +
-    'whoever ran `claude setup-token` (CLAUDE_CODE_OAUTH_TOKEN= in the primary checkout\'s ' +
-    'gitignored .env.local; evals/README.md "Backends") and never an API key: every eval run is ' +
-    '`--backend agent-sdk --judge-backend agent-sdk` with ANTHROPIC_API_KEY unset, and variant ' +
-    'worktrees have no .env.local of their own — the runner reads the primary\'s by path. One full ' +
-    'suite run per variant per generation, plus the baseline; run only when the user asked for an ' +
-    'evolution run. Args: {generations?: number (default 2), variants?: number (default 3), ' +
-    'model?: string (eval --model arg; empty = harness default), backend?: "agent-sdk" | "api" ' +
-    '(default agent-sdk; "api" bills ANTHROPIC_API_KEY and is the production-shaped measurement), ' +
-    'concurrency?: number (eval --concurrency, default 6, the gate\'s), lane?: string (absolute ' +
-    'path of the orchestrating session\'s worktree; the baseline is scored there — never the ' +
-    'primary checkout)}. Returns {champion, lineage, backend}; agent-sdk numbers are a ' +
-    'regression-detector measurement and are not comparable to API-backend runs. A winning ' +
-    'champion.diff is NOT applied by this workflow: a prompt change needs the eval gate and the ' +
-    'eval-analyst agent first (docs/workflow-essentials.md). Save the lineage JSON to ' +
-    'evals/lineage/<date>__<model>.json when a variant wins; a plateau needs no file. Remove the ' +
-    'variant worktrees afterwards (`git worktree list` before and after; remove only the new ones).',
+  description: 'AVO-style bounded search over the coach prompt, scored per-dimension by the eval suite on a Claude subscription (agent-sdk backend), never an API key',
+  whenToUse: 'Evolve src/lib/coach/prompt.ts against `npm run eval`. Spends the Claude SUBSCRIPTION of whoever ran `claude setup-token` (CLAUDE_CODE_OAUTH_TOKEN= in the primary checkout\'s gitignored .env.local; evals/README.md "Backends") and never an API key: every eval run is `--backend agent-sdk --judge-backend agent-sdk` with ANTHROPIC_API_KEY unset, and variant worktrees have no .env.local of their own — the runner reads the primary\'s by path. One full suite run per variant per generation, plus the baseline; run only when the user asked for an evolution run. Args: {generations?: number (default 2), variants?: number (default 3), model?: string (eval --model arg; empty = harness default), backend?: "agent-sdk" | "api" (default agent-sdk; "api" bills ANTHROPIC_API_KEY and is the production-shaped measurement), concurrency?: number (eval --concurrency, default 6, the gate\'s), lane?: string (absolute path of the orchestrating session\'s worktree; the baseline is scored there — never the primary checkout)}. Returns {champion, lineage, backend}; agent-sdk numbers are a regression-detector measurement and are not comparable to API-backend runs. A winning champion.diff is NOT applied by this workflow: a prompt change needs the eval gate and the eval-analyst agent first (docs/workflow-essentials.md). Save the lineage JSON to evals/lineage/<date>__<model>.json when a variant wins; a plateau needs no file. Remove the variant worktrees afterwards (`git worktree list` before and after; remove only the new ones).',
   phases: [
     { title: 'Baseline', detail: 'score the current prompt on every dimension' },
     { title: 'Evolve', detail: 'variant agents propose one prompt edit each, scored in isolated worktrees' },
