@@ -85,6 +85,14 @@ describe('held paths outside the authority chain', () => {
     expect(decide(['docs/workflow-essentials.md', 'ios/CLAUDE.md'], [])).toBeNull();
   });
 
+  it('holds the legal documents and the version that makes every athlete accept again', () => {
+    for (const p of ['legal/terms-v2.md', 'legal/privacy-v3.md']) {
+      expect(decide([p], []), p).toMatch(/wording and when they change/);
+    }
+    expect(decide(['src/lib/legal/versions.ts'], [])).toMatch(/accept again/);
+    expect(decide(['src/lib/legal/markdown.ts', 'src/components/legal/TermsGate.tsx'], [])).toBeNull();
+  });
+
   it('holds the iOS release lane', () => {
     for (const path of ['ios/fastlane/Fastfile', 'ios/scripts/testflight.sh']) {
       expect(decide([path], []), path).toMatch(/the release lane/);

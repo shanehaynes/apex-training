@@ -31,6 +31,13 @@
 //     newly gaining an install script, is not held (manifestHold below).
 //     Anything else in the manifest — scripts, overrides, engines, a git or
 //     file spec, a dev dependency promoted to runtime — still is.
+//   - legal/ and src/lib/legal/versions.ts: the terms and privacy policy
+//     every athlete accepts. CI can prove a version renders; it cannot prove
+//     the wording is true, or that this is the day to make everyone accept
+//     again. A version change also locks out builds without the in-app
+//     acceptance screen (509 and earlier), so its timing is a release call.
+//     Before this entry, legal PRs opened as drafts to stay out of the
+//     babysitter's reach (#527).
 //   - evals/baseline/: the promoted eval run that defines what correct coach
 //     behavior IS. Every other held path is something CI cannot prove; this
 //     one is the standard CI proves things against, which is the same
@@ -81,6 +88,8 @@ export const HELD = [
   { path: 'package.json', reason: 'dependency changes deserve a human eye' },
   { path: 'package-lock.json', reason: 'dependency changes deserve a human eye' },
   { path: 'evals/baseline/', reason: 'redefines what correct coach behavior is' },
+  { path: 'legal/', reason: 'the terms and privacy policy athletes accept; their wording and when they change are Shane\'s' },
+  { path: 'src/lib/legal/versions.ts', reason: 'a version change makes every athlete accept again and locks out builds that cannot' },
   { path: 'MISSION.md', reason: 'the mission; only Shane amends it' },
   { path: 'CLAUDE.md', reason: 'loads the constitution into every session' },
   { path: 'TECHSTACK.md', reason: 'stack decisions loaded into every session' },
