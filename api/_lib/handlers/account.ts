@@ -77,7 +77,10 @@ export const NON_CASCADING_TABLES = ['phase32_quarantine'] as const;
  * skip others. api/__tests__/account.test.ts checks every table's order
  * against its primary key in the migrations.
  */
-export const EXPORT_ORDER: Partial<Record<(typeof USER_DATA_TABLES)[number], readonly string[]>> = {
+/** Every table the export reads by user_id: the swept ones are records too. */
+export const EXPORTED_TABLES = [...USER_DATA_TABLES, ...NON_CASCADING_TABLES] as const;
+
+export const EXPORT_ORDER: Partial<Record<(typeof EXPORTED_TABLES)[number], readonly string[]>> = {
   workout_completions: ['event_id'],
   workout_exercise_notes: ['event_id', 'event_date', 'section', 'exercise_id'],
   activity_streams: ['event_id', 'event_date'],
@@ -108,24 +111,35 @@ function isTableMissing(error: { code?: string }): boolean {
   return error.code === 'PGRST205' || error.code === '42P01';
 }
 
-async function buildExport(supabase: Admin, userId: string) {
-  const data: Record<string, unknown> = {};
+/** How many times a table is re-read when it changed while it was paged. */
+const MAX_READS = 3;
 
-  const { data: profile, error: profileErr } = await supabase
-    .from('profiles').select('*').eq('id', userId).maybeSingle();
-  if (profileErr) throw new Error(`profiles: ${profileErr.message}`);
-  data.profiles = profile ?? null;
+/** Rows of the user's in one table; an unmigrated table reads as none. */
+async function countRows(supabase: Admin, table: (typeof EXPORTED_TABLES)[number], userId: string): Promise<number> {
+  const { count, error } = await supabase
+    .from(table).select('*', { count: 'exact', head: true }).eq('user_id', userId);
+  if (error && isTableMissing(error)) return 0;
+  if (error) throw new Error(`${table} count failed: ${error.message}`);
+  return count ?? 0;
+}
 
-  // Sequential rather than Promise.all: one export is a rare, unbounded read
-  // over every table a user owns, and firing 23 of them at once is how a
-  // single click becomes a database incident.
-  //
-  // Paged: PostgREST caps a select at 1000 rows, and the delete screens tell
-  // the athlete to export first, so a capped export would lose their history
-  // for good once the account goes.
-  for (const table of USER_DATA_TABLES) {
-    const order = EXPORT_ORDER[table] ?? ['id'];
-    data[table] = await fetchAllPages<Record<string, unknown>>(table, async (from, to) => {
+/**
+ * Every row of the user's in one table, paged in its key order.
+ *
+ * Paged: PostgREST caps a select at 1000 rows, and the delete screens tell the
+ * athlete to export first, so a capped export would lose their history for
+ * good once the account goes. Pages are offset ranges outside one snapshot,
+ * so an insert or delete while the table is read (a write-queue flush, a
+ * Health import, another device) shifts rows between pages: one repeats, or
+ * one is skipped. The count before and after, and the keys being unique,
+ * catch both; the table is read again, and after MAX_READS the export fails
+ * rather than hand over a copy that is wrong.
+ */
+async function readTable(supabase: Admin, table: (typeof EXPORTED_TABLES)[number], userId: string) {
+  const order = EXPORT_ORDER[table] ?? ['id'];
+  for (let attempt = 1; ; attempt++) {
+    const before = await countRows(supabase, table, userId);
+    const rows = await fetchAllPages<Record<string, unknown>>(table, async (from, to) => {
       let query = supabase.from(table).select('*').eq('user_id', userId);
       for (const column of order) query = query.order(column as never, { ascending: true });
       const page = await query.range(from, to);
@@ -136,18 +150,34 @@ async function buildExport(supabase: Admin, userId: string) {
       if (page.error && isTableMissing(page.error)) return { data: [], error: null };
       return page;
     });
+    const after = await countRows(supabase, table, userId);
+    const keys = new Set(rows.map(row => JSON.stringify(order.map(column => row[column]))));
+    if (before === after && after === rows.length && keys.size === rows.length) return rows;
+    if (attempt === MAX_READS) {
+      throw new Error(`${table} kept changing while it was read (${before} → ${after} rows, ${rows.length} read)`);
+    }
   }
+}
 
-  // The authentication record: the email address and the 18+ confirmation
-  // (app_metadata.age_confirmed_at) are records we hold too (privacy-v2 §2).
+async function buildExport(supabase: Admin, userId: string) {
+  // The authentication record first: if it cannot be read there is no
+  // complete export, and nothing else is worth reading. The email address and
+  // the 18+ confirmation (app_metadata.age_confirmed_at) are records we hold
+  // too (privacy-v2 §2). Never the password hash, identity tokens or MFA
+  // secrets: the fields below are named, not spread.
   const { data: auth, error: authErr } = await supabase.auth.admin.getUserById(userId);
   if (authErr || !auth.user) throw new Error(`auth user: ${authErr?.message ?? 'not found'}`);
   const user = auth.user;
   const account = {
     email: user.email ?? null,
+    pendingEmail: user.new_email ?? null,
     phone: user.phone || null,
     createdAt: user.created_at,
+    updatedAt: user.updated_at ?? null,
+    invitedAt: user.invited_at ?? null,
+    confirmationSentAt: user.confirmation_sent_at ?? null,
     emailConfirmedAt: user.email_confirmed_at ?? null,
+    recoverySentAt: user.recovery_sent_at ?? null,
     lastSignInAt: user.last_sign_in_at ?? null,
     appMetadata: user.app_metadata ?? {},
     userMetadata: user.user_metadata ?? {},
@@ -156,7 +186,24 @@ async function buildExport(supabase: Admin, userId: string) {
       createdAt: i.created_at ?? null,
       lastSignInAt: i.last_sign_in_at ?? null,
     })),
+    factors: (user.factors ?? []).map(f => ({
+      type: f.factor_type,
+      status: f.status,
+      createdAt: f.created_at,
+    })),
   };
+
+  const data: Record<string, unknown> = {};
+
+  const { data: profile, error: profileErr } = await supabase
+    .from('profiles').select('*').eq('id', userId).maybeSingle();
+  if (profileErr) throw new Error(`profiles: ${profileErr.message}`);
+  data.profiles = profile ?? null;
+
+  // Sequential rather than Promise.all: one export is a rare, unbounded read
+  // over every table a user owns, and firing 23 of them at once is how a
+  // single click becomes a database incident.
+  for (const table of EXPORTED_TABLES) data[table] = await readTable(supabase, table, userId);
 
   // Token metadata is genuinely the user's — which clients they connected
   // and when — even though the hashes are not.
@@ -183,6 +230,9 @@ async function buildExport(supabase: Admin, userId: string) {
   };
 }
 
+/** Bytes per res.write: the export streams, so no single body has to fit. */
+const CHUNK = 256 * 1024;
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'GET' && req.method !== 'DELETE') {
     res.status(405).send('Method not allowed');
@@ -201,12 +251,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   if (req.method === 'GET') {
     try {
-      const payload = await buildExport(supabase, userId);
+      // Every read finishes before the first byte, so any failure is still a
+      // clean 500 rather than a cut-off file presented as a download.
+      const body = JSON.stringify(await buildExport(supabase, userId));
       res.setHeader('Content-Type', 'application/json; charset=utf-8');
       res.setHeader('Content-Disposition', 'attachment; filename="apex-training-export.json"');
       // Everything the account holds: never kept by a browser, proxy or URLCache.
       res.setHeader('Cache-Control', 'no-store');
-      res.status(200).send(JSON.stringify(payload, null, 2));
+      // Streamed in chunks: Vercel refuses a buffered function response over
+      // 4.5 MB, and one long history with watch streams passes that; a
+      // streamed response has no such limit. Compact, for the same reason.
+      res.status(200);
+      for (let at = 0; at < body.length; at += CHUNK) res.write(body.slice(at, at + CHUNK));
+      res.end();
     } catch (err) {
       console.error('[api/account] export failed:', err instanceof Error ? err.message : err);
       res.status(500).send('Failed to build export');

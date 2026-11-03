@@ -2,7 +2,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import handler, { EXPORT_ORDER, NON_CASCADING_TABLES, USER_DATA_TABLES } from '../_lib/handlers/account';
+import handler, { EXPORT_ORDER, EXPORTED_TABLES, NON_CASCADING_TABLES, USER_DATA_TABLES } from '../_lib/handlers/account';
 import { getSupabaseAdmin } from '../_lib/supabaseAdmin';
 import { requireUser } from '../_lib/auth';
 
@@ -28,6 +28,10 @@ interface AdminState {
   orderedBy: Record<string, string[]>;
   /** What auth.admin.getUserById answers; an Error makes it fail. */
   authUser?: Record<string, unknown> | Error;
+  /** Calls made, in order: 'auth' for the auth read, else `${table}` per select. */
+  calls: string[];
+  /** Runs before a page is served: a test's write landing mid-export. */
+  onRange?: (table: string, from: number) => void;
 }
 
 /** PostgREST's max-rows: a select with no range answers at most this many. */
@@ -54,28 +58,45 @@ function makeAdmin(state: AdminState) {
           state.deleteUserCalled = id;
           return { error: state.deleteUserError ? { message: state.deleteUserError } : null };
         },
-        getUserById: async () => state.authUser instanceof Error
+        getUserById: async () => (state.calls.push('auth'), state.authUser instanceof Error)
           ? { data: { user: null }, error: { message: state.authUser.message } }
           : { data: { user: state.authUser ?? AUTH_USER }, error: null },
       },
     },
     from(table: string) {
       const builder: Record<string, unknown> = {};
-      builder.select = () => {
-        state.selectedFrom.push(table);
-        state.orderedBy[table] = [];
+      builder.select = (_columns?: string, options?: { count?: string; head?: boolean }) => {
+        if (!options?.head) {
+          state.selectedFrom.push(table);
+          state.calls.push(table);
+          state.orderedBy[table] = [];
+        }
+        const filters: Array<[string, unknown]> = [];
+        // Like PostgREST: only rows matching every eq(), in the order asked.
+        const matching = () => (state.rows?.[table] ?? [])
+          .filter(row => filters.every(([column, value]) => (row as Record<string, unknown>)[column] === value))
+          .sort((a, b) => {
+            for (const column of state.orderedBy[table] ?? []) {
+              const x = String((a as Record<string, unknown>)[column]);
+              const y = String((b as Record<string, unknown>)[column]);
+              if (x !== y) return x < y ? -1 : 1;
+            }
+            return 0;
+          });
         const answer = (rows: unknown[]) => state.selectErrors?.[table]
-          ? { data: null, error: state.selectErrors[table] }
-          : { data: rows, error: null };
-        const all = () => state.rows?.[table] ?? [];
+          ? { data: null, count: null, error: state.selectErrors[table] }
+          : { data: options?.head ? null : rows, count: matching().length, error: null };
         const leaf: Record<string, unknown> = {
-          eq: () => leaf,
+          eq: (column: string, value: unknown) => { filters.push([column, value]); return leaf; },
           order: (column: string) => { state.orderedBy[table].push(column); return leaf; },
-          range: async (from: number, to: number) => answer(all().slice(from, to + 1)),
+          range: async (from: number, to: number) => {
+            state.onRange?.(table, from);
+            return answer(matching().slice(from, to + 1));
+          },
           // profiles uses .select().eq().maybeSingle()
-          maybeSingle: async () => ({ data: all()[0] ?? null, error: null }),
+          maybeSingle: async () => ({ data: matching()[0] ?? null, error: null }),
           then: (resolve: (v: unknown) => unknown) =>
-            Promise.resolve(answer(all().slice(0, MAX_ROWS))).then(resolve),
+            Promise.resolve(answer(matching().slice(0, MAX_ROWS))).then(resolve),
         };
         return leaf;
       };
@@ -99,20 +120,23 @@ function makeReq(method: string, body?: unknown): VercelRequest {
 function makeRes() {
   let code: number | null = null;
   let payload: unknown;
+  const written: string[] = [];
   const headers: Record<string, string> = {};
   const res = {
     status(c: number) { code = c; return res; },
     send(b: unknown) { payload = b; return res; },
+    write(chunk: string) { written.push(chunk); return true; },
+    end() { if (written.length) payload = written.join(''); return res; },
     json(b: unknown) { payload = b; return res; },
     setHeader(k: string, v: string) { headers[k] = v; return res; },
   } as unknown as VercelResponse;
-  return { res, statusCode: () => code, body: () => payload, headers };
+  return { res, statusCode: () => code, body: () => payload, headers, chunks: () => written.length };
 }
 
 let state: AdminState;
 
 beforeEach(() => {
-  state = { deletedFrom: [], selectedFrom: [], orderedBy: {} };
+  state = { deletedFrom: [], selectedFrom: [], orderedBy: {}, calls: [] };
   mockedAdmin.mockReset();
   mockedAdmin.mockReturnValue(makeAdmin(state));
   mockedRequireUser.mockReset();
@@ -157,7 +181,7 @@ describe('GET /api/account — export', () => {
   it('pages every table in a total order: its key, user_id aside', async () => {
     const { res } = makeRes();
     await handler(makeReq('GET'), res);
-    for (const table of USER_DATA_TABLES) {
+    for (const table of EXPORTED_TABLES) {
       expect(state.orderedBy[table], table).toEqual([...(EXPORT_ORDER[table] ?? ['id'])]);
     }
   });
@@ -167,6 +191,7 @@ describe('GET /api/account — export', () => {
     await handler(makeReq('GET'), res);
     const text = body() as string;
     const payload = JSON.parse(text);
+    expect(state.calls[0]).toBe('auth');
     expect(payload.account).toMatchObject({
       email: 'athlete@example.com',
       phone: null,
@@ -194,12 +219,90 @@ describe('GET /api/account — export', () => {
     expect(headers['Cache-Control']).toBe('no-store');
   });
 
+  // The service-role client bypasses RLS: the user_id filter is all that
+  // keeps another athlete's rows out of this file.
+  it('exports only the requesting user\'s rows, from every table', async () => {
+    state.rows = Object.fromEntries(EXPORTED_TABLES.map(table => [table, [
+      { id: `${table}-mine`, user_id: 'user-123' },
+      { id: `${table}-theirs`, user_id: 'someone-else' },
+    ]]));
+    const { res, body } = makeRes();
+    await handler(makeReq('GET'), res);
+    const text = body() as string;
+    expect(text).not.toContain('someone-else');
+    for (const table of EXPORTED_TABLES) {
+      expect(JSON.parse(text).data[table], table).toEqual([{ id: `${table}-mine`, user_id: 'user-123' }]);
+    }
+  });
+
+  // Swept on delete, so a record we hold: privacy-v2 §6, "across every table".
+  it('exports the non-cascading tables too', async () => {
+    state.rows = { phase32_quarantine: [{ id: 1, user_id: 'user-123', row_data: { kept: true } }] };
+    const { res, body } = makeRes();
+    await handler(makeReq('GET'), res);
+    expect(JSON.parse(body() as string).data.phase32_quarantine).toEqual([{ id: 1, user_id: 'user-123', row_data: { kept: true } }]);
+    for (const table of NON_CASCADING_TABLES) expect(state.selectedFrom).toContain(table);
+  });
+
+  // A delete while a table is paged shifts the later pages left: one live
+  // row is never read. An insert shifts them right: one row is read twice.
+  it('reads a table again when it changed while it was paged, so no row is skipped or repeated', async () => {
+    const sets = Array.from({ length: 2 * MAX_ROWS + 500 }, (_, i) => ({ id: `set-${String(i).padStart(5, '0')}`, user_id: 'user-123' }));
+    state.rows = { workout_set_logs: [...sets] };
+    let deleted = false;
+    state.onRange = (table, from) => {
+      if (table === 'workout_set_logs' && from === MAX_ROWS && !deleted) {
+        deleted = true;
+        state.rows!.workout_set_logs.splice(5, 1);
+      }
+    };
+    const { res, body, statusCode } = makeRes();
+    await handler(makeReq('GET'), res);
+    expect(statusCode()).toBe(200);
+    const exported = (JSON.parse(body() as string).data.workout_set_logs as { id: string }[]).map(r => r.id);
+    expect(exported).toEqual(state.rows!.workout_set_logs.map(r => (r as { id: string }).id));
+  });
+
+  it('fails rather than export a table that never holds still', async () => {
+    state.rows = { workout_set_logs: Array.from({ length: MAX_ROWS + 10 }, (_, i) => ({ id: `set-${i}`, user_id: 'user-123' })) };
+    let n = 0;
+    state.onRange = (table, from) => {
+      if (table === 'workout_set_logs' && from === MAX_ROWS) state.rows!.workout_set_logs.unshift({ id: `new-${n++}`, user_id: 'user-123' });
+    };
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const { res, statusCode } = makeRes();
+    await handler(makeReq('GET'), res);
+    expect(statusCode()).toBe(500);
+  });
+
+  it('reads the sign-in record before any table, so its failure costs no table reads', async () => {
+    const { res } = makeRes();
+    await handler(makeReq('GET'), res);
+    expect(state.calls[0]).toBe('auth');
+  });
+
+  // Vercel refuses a buffered function response over 4.5 MB; a streamed one
+  // has no such limit, and a long history with watch streams passes 4.5 MB.
+  it('streams a large export in chunks, compact', async () => {
+    const points = Array.from({ length: 4000 }, (_, i) => i);
+    state.rows = { activity_streams: Array.from({ length: 150 }, (_, i) => ({
+      event_id: `ride-${i}`, event_date: '2026-10-01', user_id: 'user-123', hr: points, latlng: points,
+    })) };
+    const { res, body, chunks, statusCode } = makeRes();
+    await handler(makeReq('GET'), res);
+    expect(statusCode()).toBe(200);
+    expect((body() as string).length).toBeGreaterThan(4.5 * 1024 * 1024);
+    expect(chunks()).toBeGreaterThan(1);
+    expect(body() as string).not.toMatch(/\n {2}/);
+    expect(JSON.parse(body() as string).data.activity_streams).toHaveLength(150);
+  });
+
   it('summarises provider connections without their tokens', async () => {
-    state.rows = { provider_connections: [{ provider: 'apple', status: 'connected', categories: { workoutsRead: true } }] };
+    state.rows = { provider_connections: [{ user_id: 'user-123', provider: 'apple', status: 'connected', categories: { workoutsRead: true } }] };
     const { res, body } = makeRes();
     await handler(makeReq('GET'), res);
     const payload = JSON.parse(body() as string);
-    expect(payload.providerConnectionSummary).toEqual([{ provider: 'apple', status: 'connected', categories: { workoutsRead: true } }]);
+    expect(payload.providerConnectionSummary).toMatchObject([{ provider: 'apple', status: 'connected', categories: { workoutsRead: true } }]);
     expect(payload.data).not.toHaveProperty('provider_connections');
   });
 
@@ -384,34 +487,44 @@ describe('account deletion covers every table holding user data', () => {
 });
 
 /**
- * Each table's primary key at the end of the migrations: a table-level
- * PRIMARY KEY (…), a column marked PRIMARY KEY, or a later ALTER TABLE … ADD
- * PRIMARY KEY (…), which replaces what came before. Files run in phase order.
+ * Each table's primary key at the end of the given SQL, statement by
+ * statement in order: a CREATE TABLE's table-level PRIMARY KEY (…) or a column
+ * marked PRIMARY KEY; ALTER TABLE … ADD [CONSTRAINT name] PRIMARY KEY (…),
+ * which replaces it; DROP TABLE, which forgets it until the table is created
+ * again.
  */
+function primaryKeysIn(sqlFiles: string[]): Map<string, string[]> {
+  const columns = (list: string) => list.split(',').map(c => c.trim().toLowerCase());
+  const keys = new Map<string, string[]>();
+  const statement = new RegExp([
+    String.raw`CREATE TABLE (?:IF NOT EXISTS )?(?:public\.)?(?<created>[a-z_0-9]+)\s*\((?<body>[\s\S]*?)\n\);`,
+    String.raw`ALTER TABLE (?:ONLY )?(?:public\.)?(?<altered>[a-z_0-9]+)\s+ADD (?:CONSTRAINT [a-z_0-9]+ )?PRIMARY KEY\s*\((?<key>[^)]+)\)`,
+    String.raw`DROP TABLE (?:IF EXISTS )?(?:public\.)?(?<dropped>[a-z_0-9]+)`,
+  ].join('|'), 'gi');
+  for (const raw of sqlFiles) {
+    const sql = raw.replace(/--[^\n]*/g, '');
+    for (const m of sql.matchAll(statement)) {
+      const { created, body, altered, key, dropped } = m.groups!;
+      if (dropped) { keys.delete(dropped); continue; }
+      if (altered) { keys.set(altered, columns(key)); continue; }
+      if (keys.has(created)) continue; // IF NOT EXISTS on a table that exists
+      const tableLevel = /PRIMARY KEY\s*\(([^)]+)\)/i.exec(body);
+      const inline = body.split('\n').find(l => /^\s*[a-z_0-9]+\s[^\n]*\bPRIMARY KEY\b/i.test(l));
+      if (tableLevel) keys.set(created, columns(tableLevel[1]));
+      else if (inline) keys.set(created, [inline.trim().split(/\s+/)[0].toLowerCase()]);
+    }
+  }
+  return keys;
+}
+
+/** The repo's schema, then its migrations in phase order. */
 function primaryKeys(): Map<string, string[]> {
   const phase = (f: string) => Number(/^phase(\d+)/.exec(f)?.[1] ?? -1);
   const files = [SCHEMA_SQL, ...readdirSync(MIGRATIONS_DIR)
     .filter(f => f.endsWith('.sql'))
     .sort((a, b) => phase(a) - phase(b) || a.localeCompare(b))
     .map(f => join(MIGRATIONS_DIR, f))];
-  const columns = (list: string) => list.split(',').map(c => c.trim().toLowerCase());
-  const keys = new Map<string, string[]>();
-
-  for (const file of files) {
-    const sql = readFileSync(file, 'utf8').replace(/--[^\n]*/g, '');
-    for (const m of sql.matchAll(/CREATE TABLE (?:IF NOT EXISTS )?(?:public\.)?([a-z_0-9]+)\s*\(([\s\S]*?)\n\);/gi)) {
-      const [, name, body] = m;
-      if (keys.has(name)) continue;
-      const tableLevel = /PRIMARY KEY\s*\(([^)]+)\)/i.exec(body);
-      const inline = body.split('\n').find(l => /^\s*[a-z_0-9]+\s[^\n]*\bPRIMARY KEY\b/i.test(l));
-      if (tableLevel) keys.set(name, columns(tableLevel[1]));
-      else if (inline) keys.set(name, [inline.trim().split(/\s+/)[0].toLowerCase()]);
-    }
-    for (const m of sql.matchAll(/ALTER TABLE (?:ONLY )?(?:public\.)?([a-z_0-9]+)\s+ADD PRIMARY KEY\s*\(([^)]+)\)/gi)) {
-      keys.set(m[1], columns(m[2]));
-    }
-  }
-  return keys;
+  return primaryKeysIn(files.map(f => readFileSync(f, 'utf8')));
 }
 
 describe('the export pages each table in a total order', () => {
@@ -421,10 +534,22 @@ describe('the export pages each table in a total order', () => {
     expect(keys.get('workout_events')).toEqual(['user_id', 'id']);
     expect(keys.get('workout_exercise_notes')).toEqual(['user_id', 'event_id', 'event_date', 'section', 'exercise_id']);
     expect(keys.get('coach_runs')).toEqual(['id']);
+    expect(keys.get('phase32_quarantine')).toEqual(['id']);
+  });
+
+  it('follows a key that a later migration names, replaces, or recreates', () => {
+    const later = primaryKeysIn([
+      'CREATE TABLE IF NOT EXISTS a (\n  id uuid PRIMARY KEY,\n  user_id uuid\n);',
+      'CREATE TABLE IF NOT EXISTS b (\n  id uuid PRIMARY KEY\n);',
+      'ALTER TABLE a DROP CONSTRAINT a_pkey;\nALTER TABLE a ADD CONSTRAINT a_pkey PRIMARY KEY (user_id, created_at);',
+      'DROP TABLE IF EXISTS b;\nCREATE TABLE b (\n  user_id uuid,\n  day date,\n  PRIMARY KEY (user_id, day)\n);',
+    ]);
+    expect(later.get('a')).toEqual(['user_id', 'created_at']);
+    expect(later.get('b')).toEqual(['user_id', 'day']);
   });
 
   it('orders every exported table by its primary key, user_id aside', () => {
-    const wrong = USER_DATA_TABLES.flatMap(table => {
+    const wrong = EXPORTED_TABLES.flatMap(table => {
       const key = keys.get(table)?.filter(c => c !== 'user_id');
       const order = [...(EXPORT_ORDER[table] ?? ['id'])];
       return key && [...key].sort().join() === [...order].sort().join()
