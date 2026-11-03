@@ -5,7 +5,9 @@ import XCTest
 /// an in-memory store and a `TestClock` — backoff runs instantly and is asserted
 /// on the recorded sleeps. A test that reads the queue between a failure and its
 /// retry holds the retry on a `HeldClock` instead: under `TestClock` the retry
-/// can fire before the test's next line.
+/// can fire before the test's next line. A call a test starts in a task of its
+/// own is waited for until the queue reports it parked (`waitFor`), never
+/// assumed after a run of `Task.yield()`: under load the task may not have run.
 final class WriteQueueTests: XCTestCase {
     private let session = fixtureSession
     private let other = SessionKey(eventId: "ios-fixture-run", eventDate: "2026-09-08")
@@ -20,6 +22,43 @@ final class WriteQueueTests: XCTestCase {
 
     private func save(_ rows: [SetLogRow], removed: [SetKey] = []) -> TrackerOpPayload {
         .save(SavePayload(setLogs: rows, removedSets: removed))
+    }
+
+    /// Waits until `count` sleeps are held on `clock`. Each retry is a task of its
+    /// own, so it reaches the clock some time after the flush that scheduled it
+    /// returns, and two retries reach it in no promised order.
+    private func waitForHeldSleeps(
+        _ count: Int, on clock: HeldClock, file: StaticString = #filePath, line: UInt = #line
+    ) async {
+        let deadline = Date().addingTimeInterval(5)
+        while clock.heldSleeps < count, Date() < deadline {
+            try? await Task.sleep(nanoseconds: 1_000_000)
+        }
+        XCTAssertEqual(clock.heldSleeps, count, "sleeps held on the clock", file: file, line: line)
+    }
+
+    /// Waits until `value` reads `expected` (five seconds at most), then asserts
+    /// it. A call started in a task of its own reaches the queue some time
+    /// after the task is made, in no promised order with other tasks: a step
+    /// that needs the call parked inside the queue waits for the queue to say so.
+    private func waitFor(
+        _ expected: Int, _ what: String, file: StaticString = #filePath, line: UInt = #line,
+        _ value: () async -> Int
+    ) async {
+        let deadline = Date().addingTimeInterval(5)
+        while await value() != expected, Date() < deadline {
+            try? await Task.sleep(nanoseconds: 1_000_000)
+        }
+        let last = await value()
+        XCTAssertEqual(last, expected, what, file: file, line: line)
+    }
+
+    private func waitForTurnWaiters(
+        _ count: Int, on queue: WriteQueue, in session: SessionKey, file: StaticString = #filePath, line: UInt = #line
+    ) async {
+        await waitFor(count, "calls parked on the lane's turn", file: file, line: line) {
+            await queue.turnWaiterCount(for: session)
+        }
     }
 
     // MARK: - Send
@@ -188,11 +227,15 @@ final class WriteQueueTests: XCTestCase {
         let queue = makeQueue(transport, clock: clock)
         try await queue.enqueue(save([setRow(1)]), for: session)
         await queue.flush(session)  // fails: a 1s retry waits on the clock
+        await waitForHeldSleeps(1, on: clock)
         // A trigger lands after that backoff but before its sleep ends; its send
         // fails too, and the 2s retry it schedules replaces the 1s one.
         clock.advance(by: 1)
         await queue.flush(session)
+        await waitForHeldSleeps(2, on: clock)  // the called-off 1s sleep stays held until open()
+        XCTAssertEqual(clock.cancelledHeldSleeps, 1, "the 2s retry called off the 1s one")
         await queue.purgeAll()  // calls off the 2s retry
+        XCTAssertEqual(clock.cancelledHeldSleeps, 2, "the purge called off the 2s retry")
         try await queue.enqueue(save([setRow(2)]), for: session)
 
         // Calling a retry off cancels its sleep, which ends it early (`Task.sleep`
@@ -204,6 +247,32 @@ final class WriteQueueTests: XCTestCase {
         XCTAssertEqual(clock.sleeps, [1, 2])
         let queued = await queue.pendingSaves(for: session).count
         XCTAssertEqual(queued, 1)
+    }
+
+    func testACalledOffRetryWindingDownLeavesTheNewerOnesBackoffInPlace() async throws {
+        // A called-off retry's sleep ends at once, so it winds down while the
+        // retry that replaced it still waits. It must not lift that retry's
+        // backoff on its way out: a trigger in the meantime sends nothing.
+        let transport = ScriptedTransport([.throwNetwork, .throwNetwork, .ok()])
+        let clock = HeldClock()
+        let queue = makeQueue(transport, clock: clock)
+        try await queue.enqueue(save([setRow(1)]), for: session)
+        await queue.flush(session)  // fails: a 1s retry waits on the clock
+        await waitForHeldSleeps(1, on: clock)
+        clock.advance(by: 1)
+        await queue.flush(session)  // fails: the 2s retry calls off the 1s one
+        await waitForHeldSleeps(2, on: clock)
+        clock.endCancelled()        // the 1s retry winds down; the 2s one still waits
+        await waitFor(1, "retries still running") { await queue.retryTaskCount }
+        await queue.flush(session)  // a trigger inside the 2s backoff
+        let early = await transport.count
+        XCTAssertEqual(early, 2, "sent inside the newer retry's backoff")
+
+        clock.open()
+        await queue.awaitRetries()
+        let sent = await transport.requests.map(\.action)
+        XCTAssertEqual(sent, ["save", "save", "save"], "the 2s retry sends it")
+        XCTAssertEqual(clock.sleeps, [1, 2])
     }
 
     func testRateLimitHonoursRetryAfter() async throws {
@@ -588,7 +657,7 @@ final class WriteQueueTests: XCTestCase {
             await returned.open()
             return await transport.requests.map(\.action)
         }
-        for _ in 0..<50 { await Task.yield() }
+        await waitFor(1, "untilIdle parked") { await queue.idleWaiterCount(for: session) }
         let early = await returned.isOpen
         XCTAssertFalse(early, "returned while the first save was still in the air")
         await gate.open()
@@ -613,7 +682,7 @@ final class WriteQueueTests: XCTestCase {
             return answer
         }
         func append(_ op: TrackerOp) async throws -> Int64 { try await inner.append(op) }
-        func update(_ op: TrackerOp) async throws { try await inner.update(op) }
+        func update(_ op: TrackerOp) async throws -> Bool { try await inner.update(op) }
         func delete(id: Int64) async throws { try await inner.delete(id: id) }
         func tail(for session: SessionKey) async throws -> TrackerOp? { try await inner.tail(for: session) }
         func ops(for session: SessionKey) async throws -> [TrackerOp] { try await inner.ops(for: session) }
@@ -623,9 +692,10 @@ final class WriteQueueTests: XCTestCase {
     }
 
     func testUntilIdleWaitsForTheRerunPassAnOpQueuedAfterTheLastReadNeeds() async throws {
-        // The narrow case: the running flush has sent everything and read an
-        // empty queue when the finish is queued. Only its re-run sends it, so
-        // `untilIdle` must not return before that pass.
+        // The narrow case: the running flush has sent everything and is reading
+        // an empty queue when the finish is queued. The enqueue waits for that
+        // read (the lane's turn) and lands after it, so only the re-run sends
+        // it, and `untilIdle` must not return before that pass.
         let transport = ScriptedTransport()
         let gate = Gate()
         let store = StaleReadStore(holdingRead: 2, on: gate)
@@ -633,17 +703,529 @@ final class WriteQueueTests: XCTestCase {
         try await queue.enqueue(save([setRow(1)]), for: session)
         let first = Task { [session] in await queue.flush(session) }
         while await store.reads < 2 { await Task.yield() }   // sent op 1, read empty, held
-        try await queue.enqueue(save([setRow(2)]), for: session)
+        let edit = save([setRow(2)])
+        let queued = Task { [session] in try await queue.enqueue(edit, for: session) }
+        await waitForTurnWaiters(1, on: queue, in: session)   // the enqueue waits for that read
         await queue.flush(session)                            // mid-flush: asks for a re-run
         let idle = Task { [session] in
             await queue.untilIdle(session)
             return await transport.requests.map(\.action)
         }
-        for _ in 0..<50 { await Task.yield() }
+        await waitFor(1, "untilIdle parked") { await queue.idleWaiterCount(for: session) }
         await gate.open()
         let sent = await idle.value
+        _ = try await queued.value
         await first.value
         XCTAssertEqual(sent, ["save", "save"])
+    }
+
+    // MARK: - Enqueue order
+
+    /// Holds the `held`-th `tail(for:)` read after it has read the store, so
+    /// the enqueue that made it answers what the store held before the gate.
+    /// The GRDB store's read is a real suspension and the queue is reentrant:
+    /// this is that suspension, made long enough to queue something behind.
+    private actor HeldTailStore: WriteQueueStore {
+        let inner = MemoryWriteQueueStore()
+        let gate: Gate
+        let held: Int
+        private(set) var tails = 0
+        init(holdingTail held: Int = 1, on gate: Gate) { self.held = held; self.gate = gate }
+        func tail(for session: SessionKey) async throws -> TrackerOp? {
+            tails += 1
+            let answer = try await inner.tail(for: session)
+            if tails == held { await gate.wait() }
+            return answer
+        }
+        func append(_ op: TrackerOp) async throws -> Int64 { try await inner.append(op) }
+        func update(_ op: TrackerOp) async throws -> Bool { try await inner.update(op) }
+        func delete(id: Int64) async throws { try await inner.delete(id: id) }
+        func nextPending(for session: SessionKey) async throws -> TrackerOp? { try await inner.nextPending(for: session) }
+        func ops(for session: SessionKey) async throws -> [TrackerOp] { try await inner.ops(for: session) }
+        func sessionsWithPending() async throws -> [SessionKey] { try await inner.sessionsWithPending() }
+        func purge(session: SessionKey) async throws { try await inner.purge(session: session) }
+        func purgeAll() async throws { try await inner.purgeAll() }
+        func all() async -> [TrackerOp] { await inner.all }
+    }
+
+    func testAnOpQueuedWhileASaveReadsTheTailLandsBehindTheSave() async throws {
+        // The tracker's Finish or Swap tapped as the autosave fires: the save
+        // is inside `enqueue`, waiting on its tail read, when the finish is
+        // queued. The finish must not take the lower id — the server would
+        // build the recap and PRs without the last set, and a swap would be
+        // overwritten by the save carrying the old name.
+        let behind: [TrackerOpPayload] = [
+            .finish(FinishPayload(autofillRows: [], finishedAt: nil)),
+            .swapExercise(SwapPayload(section: "exercise", exerciseId: "fx-press", exerciseName: "Fixture Bench", definitionId: "fixture-bench")),
+        ]
+        for payload in behind {
+            let transport = ScriptedTransport()
+            let gate = Gate()
+            let store = HeldTailStore(on: gate)
+            let queue = WriteQueue(store: store, client: makeClient(transport), clock: TestClock(now: Date(timeIntervalSince1970: 1_788_868_800)))
+            let edit = save([setRow(1)])
+            let saving = Task { [session] in try await queue.enqueue(edit, for: session) }
+            while await store.tails < 1 { await Task.yield() }   // the save holds its tail read
+            let queuing = Task { [session] in try await queue.enqueue(payload, for: session) }
+            await waitForTurnWaiters(1, on: queue, in: session)
+            await gate.open()
+            _ = try await saving.value
+            _ = try await queuing.value
+
+            let stored = await store.all().map(\.payload.action)
+            XCTAssertEqual(stored, [.save, payload.action])
+            await queue.flush(session)
+            let sent = await transport.requests.map(\.action)
+            XCTAssertEqual(sent, ["save", payload.action.rawValue])
+        }
+    }
+
+    func testOpsWaitingBehindASaveLandInTheOrderTheyWereQueued() async throws {
+        // Two callers wait for the lane at once: the turn passes first come,
+        // first served, not to whoever asked last.
+        let gate = Gate()
+        let store = HeldTailStore(on: gate)
+        let queue = WriteQueue(store: store, client: makeClient(ScriptedTransport()), clock: TestClock(now: Date(timeIntervalSince1970: 1_788_868_800)))
+        let edit = save([setRow(1)])
+        let finish = TrackerOpPayload.finish(FinishPayload(autofillRows: [], finishedAt: nil))
+        let swap = TrackerOpPayload.swapExercise(SwapPayload(section: "exercise", exerciseId: "fx-press", exerciseName: "Fixture Bench", definitionId: "fixture-bench"))
+        let saving = Task { [session] in try await queue.enqueue(edit, for: session) }
+        while await store.tails < 1 { await Task.yield() }
+        let finishing = Task { [session] in try await queue.enqueue(finish, for: session) }
+        await waitForTurnWaiters(1, on: queue, in: session)   // the finish is asked for first
+        let swapping = Task { [session] in try await queue.enqueue(swap, for: session) }
+        await waitForTurnWaiters(2, on: queue, in: session)
+        await gate.open()
+        _ = try await saving.value
+        _ = try await finishing.value
+        _ = try await swapping.value
+
+        let stored = await store.all().map(\.payload.action)
+        XCTAssertEqual(stored, [.save, .finish, .swapExercise])
+    }
+
+    func testACancelQueuedWhileASaveReadsTheTailLeavesNothingBehindIt() async throws {
+        // Nothing queued for a cancelled session may land after the cancel:
+        // a save already inside `enqueue` is queued first and purged with it.
+        let gate = Gate()
+        let store = HeldTailStore(on: gate)
+        let queue = WriteQueue(store: store, client: makeClient(ScriptedTransport()), clock: TestClock(now: Date(timeIntervalSince1970: 1_788_868_800)))
+        let edit = save([setRow(1)])
+        let saving = Task { [session] in try await queue.enqueue(edit, for: session) }
+        while await store.tails < 1 { await Task.yield() }
+        let cancelling = Task { [session] in try await queue.cancelSession(session) }
+        await waitForTurnWaiters(1, on: queue, in: session)
+        await gate.open()
+        _ = try await saving.value
+        try await cancelling.value
+
+        let stored = await store.all().map(\.payload)
+        XCTAssertEqual(stored, [.cancel])
+    }
+
+    func testASaveWhoseTailWasSentDuringTheReadIsNotLost() async throws {
+        // The save reads the tail while that tail is in the air; the send
+        // lands and the row is deleted before the read returns. Merging into
+        // the row it read would write into nothing.
+        let transport = ScriptedTransport()
+        let sending = Gate()
+        await transport.hold(with: sending)
+        let reading = Gate()
+        let store = HeldTailStore(holdingTail: 2, on: reading)
+        let queue = WriteQueue(store: store, client: makeClient(transport), clock: TestClock(now: Date(timeIntervalSince1970: 1_788_868_800)))
+        try await queue.enqueue(save([setRow(1, weight: "100")]), for: session)
+        let flush = Task { [session] in await queue.flush(session) }
+        while await transport.count == 0 { await Task.yield() }   // the first save is in the air
+        let edit = save([setRow(2, weight: "105")])
+        let saving = Task { [session] in try await queue.enqueue(edit, for: session) }
+        while await store.tails < 2 { await Task.yield() }       // the second holds its tail read
+        await sending.open()
+        // The send lands; its settle waits for the save's turn, so the row stays.
+        await waitForTurnWaiters(1, on: queue, in: session)
+        let rows = await store.all().count
+        XCTAssertEqual(rows, 1, "settled while the save held the lane")
+        await reading.open()
+        _ = try await saving.value
+        await flush.value
+
+        await queue.flush(session)
+        let weights = await transport.requests.flatMap { ($0.body?["setLogs"] as? [[String: Any]] ?? []).compactMap { $0["actual_weight"] as? String } }
+        XCTAssertEqual(weights, ["100", "105"])
+    }
+
+    func testASaveQueuedWhileTheDrainReadsItsNextOpIsNotMergedIntoWhatItSends() async throws {
+        // The drain has read the tail save and not yet marked it in flight. A
+        // save merged into that row now is not in what the drain sends, and
+        // goes when the drain deletes the row.
+        let transport = ScriptedTransport()
+        let gate = Gate()
+        let store = StaleReadStore(holdingRead: 1, on: gate)
+        let queue = WriteQueue(store: store, client: makeClient(transport), clock: TestClock(now: Date(timeIntervalSince1970: 1_788_868_800)))
+        try await queue.enqueue(save([setRow(1, weight: "100")]), for: session)
+        let flush = Task { [session] in await queue.flush(session) }
+        while await store.reads < 1 { await Task.yield() }   // the drain holds its read of the first save
+        let edit = save([setRow(2, weight: "105")])
+        let saving = Task { [session] in try await queue.enqueue(edit, for: session) }
+        await waitForTurnWaiters(1, on: queue, in: session)
+        await gate.open()
+        _ = try await saving.value
+        await flush.value
+
+        await queue.flush(session)
+        let weights = await transport.requests.flatMap { ($0.body?["setLogs"] as? [[String: Any]] ?? []).compactMap { $0["actual_weight"] as? String } }
+        XCTAssertEqual(weights, ["100", "105"])
+    }
+
+    func testAPurgeTakesASaveThatWasAlreadyBeingQueued() async throws {
+        // Account deletion purges the store while the autosave's save waits on
+        // its tail read. The save goes with everything else: appended after
+        // the purge, it would 404 forever for an account that no longer exists.
+        let gate = Gate()
+        let store = HeldTailStore(on: gate)
+        let queue = WriteQueue(store: store, client: makeClient(ScriptedTransport()), clock: TestClock(now: Date(timeIntervalSince1970: 1_788_868_800)))
+        let edit = save([setRow(1)])
+        let saving = Task { [session] in try await queue.enqueue(edit, for: session) }
+        while await store.tails < 1 { await Task.yield() }
+        await queue.purgeAll()
+        await gate.open()
+        let returned = try await saving.value
+
+        let left = await store.all()
+        XCTAssertEqual(left, [])
+        XCTAssertEqual(returned.id, 0, "handed back unstored")
+    }
+
+    func testAPurgeTakesASaveThatReadAPendingSaveBeforeIt() async throws {
+        // The save read the lane's pending save as its merge target; the purge
+        // removes that row before the merge is written. Neither the merge nor
+        // its fallback append may bring the session back.
+        let gate = Gate()
+        let store = HeldTailStore(holdingTail: 2, on: gate)
+        let queue = WriteQueue(store: store, client: makeClient(ScriptedTransport()), clock: TestClock(now: Date(timeIntervalSince1970: 1_788_868_800)))
+        try await queue.enqueue(save([setRow(1, weight: "100")]), for: session)
+        let edit = save([setRow(2, weight: "105")])
+        let saving = Task { [session] in try await queue.enqueue(edit, for: session) }
+        while await store.tails < 2 { await Task.yield() }   // read the first save, held
+        await queue.purgeAll()
+        await gate.open()
+        _ = try await saving.value
+
+        let left = await store.all()
+        XCTAssertEqual(left, [])
+    }
+
+    /// Holds the first `append` after `arm()` before it inserts: the write
+    /// has left the queue but not reached the database.
+    private actor HeldAppendStore: WriteQueueStore {
+        let inner = MemoryWriteQueueStore()
+        let gate: Gate
+        private var armed = false
+        private(set) var isHolding = false
+        init(on gate: Gate) { self.gate = gate }
+        func arm() { armed = true }
+        func append(_ op: TrackerOp) async throws -> Int64 {
+            if armed {
+                armed = false
+                isHolding = true
+                await gate.wait()
+            }
+            return try await inner.append(op)
+        }
+        func tail(for session: SessionKey) async throws -> TrackerOp? { try await inner.tail(for: session) }
+        func update(_ op: TrackerOp) async throws -> Bool { try await inner.update(op) }
+        func delete(id: Int64) async throws { try await inner.delete(id: id) }
+        func nextPending(for session: SessionKey) async throws -> TrackerOp? { try await inner.nextPending(for: session) }
+        func ops(for session: SessionKey) async throws -> [TrackerOp] { try await inner.ops(for: session) }
+        func sessionsWithPending() async throws -> [SessionKey] { try await inner.sessionsWithPending() }
+        func purge(session: SessionKey) async throws { try await inner.purge(session: session) }
+        func purgeAll() async throws { try await inner.purgeAll() }
+        func all() async -> [TrackerOp] { await inner.all }
+    }
+
+    func testAPurgeThatOvertakesTheInsertStillLeavesNothing() async throws {
+        // The save passed its purge check and its insert is on the way when
+        // the purge's delete gets to the database first.
+        let gate = Gate()
+        let store = HeldAppendStore(on: gate)
+        let queue = WriteQueue(store: store, client: makeClient(ScriptedTransport()), clock: TestClock(now: Date(timeIntervalSince1970: 1_788_868_800)))
+        await store.arm()
+        let edit = save([setRow(1)])
+        let saving = Task { [session] in try await queue.enqueue(edit, for: session) }
+        while await !store.isHolding { await Task.yield() }
+        await queue.purgeAll()
+        await gate.open()
+        let returned = try await saving.value
+
+        let left = await store.all()
+        XCTAssertEqual(left, [])
+        XCTAssertEqual(returned.id, 0)
+    }
+
+    func testACancelUnderWayWhenThePurgeRunsQueuesNothing() async throws {
+        let gate = Gate()
+        let store = HeldTailStore(on: gate)
+        let queue = WriteQueue(store: store, client: makeClient(ScriptedTransport()), clock: TestClock(now: Date(timeIntervalSince1970: 1_788_868_800)))
+        let edit = save([setRow(1)])
+        let saving = Task { [session] in try await queue.enqueue(edit, for: session) }
+        while await store.tails < 1 { await Task.yield() }
+        let cancelling = Task { [session] in try await queue.cancelSession(session) }
+        await waitForTurnWaiters(1, on: queue, in: session)   // called before the purge, waiting behind the save
+        await queue.purgeAll()
+        await gate.open()
+        _ = try await saving.value
+        try await cancelling.value
+
+        let left = await store.all()
+        XCTAssertEqual(left, [])
+    }
+
+    /// Answers the tail with a pending save that is no longer stored: a row
+    /// removed between the merge's read and its write.
+    private actor GoneTailStore: WriteQueueStore {
+        let inner = MemoryWriteQueueStore()
+        let gone: TrackerOp
+        init(gone: TrackerOp) { self.gone = gone }
+        func tail(for session: SessionKey) async throws -> TrackerOp? { gone }
+        func append(_ op: TrackerOp) async throws -> Int64 { try await inner.append(op) }
+        func update(_ op: TrackerOp) async throws -> Bool { try await inner.update(op) }
+        func delete(id: Int64) async throws { try await inner.delete(id: id) }
+        func nextPending(for session: SessionKey) async throws -> TrackerOp? { try await inner.nextPending(for: session) }
+        func ops(for session: SessionKey) async throws -> [TrackerOp] { try await inner.ops(for: session) }
+        func sessionsWithPending() async throws -> [SessionKey] { try await inner.sessionsWithPending() }
+        func purge(session: SessionKey) async throws { try await inner.purge(session: session) }
+        func purgeAll() async throws { try await inner.purgeAll() }
+        func all() async -> [TrackerOp] { await inner.all }
+    }
+
+    func testASaveWhoseMergeTargetIsGoneIsAppendedNotLost() async throws {
+        let gone = TrackerOp(id: 999, session: session, payload: save([setRow(1, weight: "100")]), createdAt: Date(timeIntervalSince1970: 1_788_868_800))
+        let store = GoneTailStore(gone: gone)
+        let queue = WriteQueue(store: store, client: makeClient(ScriptedTransport()), clock: TestClock(now: Date(timeIntervalSince1970: 1_788_868_800)))
+        try await queue.enqueue(save([setRow(2, weight: "105")]), for: session)
+
+        let stored = await store.all().map(\.payload)
+        XCTAssertEqual(stored, [save([setRow(2, weight: "105")])])
+    }
+
+    /// Holds the first `ops(for:)` read after `arm()` once it has read the
+    /// store, so the caller answers what the lane held before the gate.
+    private actor HeldOpsStore: WriteQueueStore {
+        let inner = MemoryWriteQueueStore()
+        let gate: Gate
+        private var armed = false
+        private(set) var isHolding = false
+        init(on gate: Gate) { self.gate = gate }
+        func arm() { armed = true }
+        func ops(for session: SessionKey) async throws -> [TrackerOp] {
+            let answer = try await inner.ops(for: session)
+            if armed {
+                armed = false
+                isHolding = true
+                await gate.wait()
+            }
+            return answer
+        }
+        func tail(for session: SessionKey) async throws -> TrackerOp? { try await inner.tail(for: session) }
+        func append(_ op: TrackerOp) async throws -> Int64 { try await inner.append(op) }
+        func update(_ op: TrackerOp) async throws -> Bool { try await inner.update(op) }
+        func delete(id: Int64) async throws { try await inner.delete(id: id) }
+        func nextPending(for session: SessionKey) async throws -> TrackerOp? { try await inner.nextPending(for: session) }
+        func sessionsWithPending() async throws -> [SessionKey] { try await inner.sessionsWithPending() }
+        func purge(session: SessionKey) async throws { try await inner.purge(session: session) }
+        func purgeAll() async throws { try await inner.purgeAll() }
+    }
+
+    private let oats = MealOpPayload(kind: .create, id: "meal-oats", title: "Oats", day: "2026-09-08", columns: [:])
+
+    func testALetGoMadeWhileAFlushPutsTheOpBackIsNotUndone() async throws {
+        // A flush reads the lane to put its gave-up ops back while the user
+        // lets one go. Written from that earlier read, the put-back would
+        // turn the let-go meal pending again, and send it.
+        let transport = ScriptedTransport()
+        let gate = Gate()
+        let store = HeldOpsStore(on: gate)
+        let queue = WriteQueue(store: store, client: makeClient(transport), clock: TestClock(now: Date(timeIntervalSince1970: 1_788_868_800)))
+        var meal = try await queue.enqueue(.meal(oats), for: .outbox)
+        meal.state = .failed
+        meal.gaveUp = true
+        meal.giveUpCount = TrackerOp.letGoThreshold
+        _ = try await store.update(meal)
+
+        await store.arm()
+        let flushing = Task { await queue.flush() }
+        while await !store.isHolding { await Task.yield() }   // the put-back holds its read
+        let id = meal.id
+        let lettingGo = Task { await queue.letGo(id, in: .outbox) }
+        await waitForTurnWaiters(1, on: queue, in: .outbox)   // tapped before the put-back writes
+        await gate.open()
+        await flushing.value
+        let letGo = await lettingGo.value
+        await queue.flush(.outbox)
+
+        XCTAssertEqual(letGo, .meal(oats))
+        let sent = await transport.requests.map(\.path)
+        XCTAssertEqual(sent, [], "a let-go meal is never sent")
+        let kept = await queue.ops(for: .outbox)
+        XCTAssertEqual(kept.map(\.isRefused), [true])
+    }
+
+    func testALetGoDuringASendTakesEffectWhenTheSendFails() async throws {
+        // The send's outcome is written over the op, so a let-go written
+        // during it would be undone the moment the send failed. It waits for
+        // the send instead, then lets go of what is still waiting.
+        let transport = ScriptedTransport([.status(500, body: "boom"), .ok()])
+        let gate = Gate()
+        await transport.hold(with: gate)
+        let store = MemoryWriteQueueStore()
+        let clock = HeldClock()
+        let queue = makeQueue(transport, store: store, clock: clock)
+        var meal = try await queue.enqueue(.meal(oats), for: .outbox)
+        meal.giveUpCount = TrackerOp.letGoThreshold   // put back after three give-ups
+        try await store.update(meal)
+        let flushing = Task { await queue.flush(.outbox) }
+        while await transport.count == 0 { await Task.yield() }
+
+        let id = meal.id
+        let lettingGo = Task { await queue.letGo(id, in: .outbox) }
+        await waitFor(1, "let-go parked on the send") { await queue.settleWaiterCount(for: id) }
+        await gate.open()
+        await flushing.value
+        let letGo = await lettingGo.value
+
+        XCTAssertEqual(letGo, .meal(oats))
+        let kept = await store.all.map(\.isRefused)
+        XCTAssertEqual(kept, [true], "kept as a refusal, not back waiting")
+        clock.open()
+        await queue.awaitRetries()
+        let sent = await transport.count
+        XCTAssertEqual(sent, 1, "the retry found nothing to send")
+    }
+
+    func testALetGoWaitsOutASecondSendWhenTheOpIsPickedAgainAtOnce() async throws {
+        // The network comes back during the first send, so its failure is
+        // re-sent at once: the drain picks the op again before the waiting
+        // let-go gets the lane. It must wait out that send too, or the second
+        // send's outcome is written over the let-go.
+        let transport = ScriptedTransport([.throwNetwork, .throwNetwork, .ok()])
+        let first = Gate()
+        await transport.hold(with: first)
+        let picking = Gate()
+        let store = HeldOpsStore(on: picking)
+        let clock = HeldClock()
+        let queue = WriteQueue(store: store, client: makeClient(transport), clock: clock)
+        var meal = try await queue.enqueue(.meal(oats), for: .outbox)
+        meal.giveUpCount = TrackerOp.letGoThreshold
+        _ = try await store.update(meal)
+        let flushing = Task { await queue.flush(.outbox) }
+        while await transport.count == 0 { await Task.yield() }
+
+        let id = meal.id
+        let returned = Gate()
+        let lettingGo = Task {
+            let payload = await queue.letGo(id, in: .outbox)
+            await returned.open()
+            return payload
+        }
+        await waitFor(1, "let-go parked on the first send") { await queue.settleWaiterCount(for: id) }
+        let second = Gate()
+        await transport.hold(with: second)
+        await queue.resume()                                  // mid-send: the failure is re-sent at once
+        await store.arm()                                     // the next lane read is the drain's re-pick
+        await first.open()
+        // The first send settles and wakes the let-go, but the drain has
+        // already taken the lane to pick the op again: the let-go waits for it.
+        await waitForTurnWaiters(1, on: queue, in: .outbox)
+        await picking.open()
+        // Picked again and in the air when the turn reaches the let-go: it
+        // waits out this send too.
+        await waitFor(1, "let-go parked on the second send") { await queue.settleWaiterCount(for: id) }
+        let early = await returned.isOpen
+        XCTAssertFalse(early, "let go while the second send was in the air")
+        await second.open()
+        await flushing.value
+        let letGo = await lettingGo.value
+
+        XCTAssertEqual(letGo, .meal(oats))
+        let kept = await queue.ops(for: .outbox).map(\.isRefused)
+        XCTAssertEqual(kept, [true])
+        let sent = await transport.count
+        XCTAssertEqual(sent, 2)
+        clock.open()
+        await queue.awaitRetries()
+    }
+
+    func testALetGoDuringASendThatLandsLetsNothingGo() async throws {
+        let transport = ScriptedTransport()
+        let gate = Gate()
+        await transport.hold(with: gate)
+        let store = MemoryWriteQueueStore()
+        let queue = makeQueue(transport, store: store)
+        var meal = try await queue.enqueue(.meal(oats), for: .outbox)
+        meal.giveUpCount = TrackerOp.letGoThreshold
+        try await store.update(meal)
+        let flushing = Task { await queue.flush(.outbox) }
+        while await transport.count == 0 { await Task.yield() }
+
+        let id = meal.id
+        let lettingGo = Task { await queue.letGo(id, in: .outbox) }
+        await waitFor(1, "let-go parked on the send") { await queue.settleWaiterCount(for: id) }
+        await gate.open()
+        await flushing.value
+        let letGo = await lettingGo.value
+
+        XCTAssertNil(letGo, "it landed: nothing to let go, nothing to undo")
+        let left = await store.all.count
+        XCTAssertEqual(left, 0)
+    }
+
+    // Two taps on the tracker's failure bar, Discard and Retry, a moment
+    // apart: the first one tapped decides.
+
+    func testDiscardTappedJustBeforeRetryWins() async throws {
+        let transport = ScriptedTransport()
+        let gate = Gate()
+        let store = HeldOpsStore(on: gate)
+        let queue = WriteQueue(store: store, client: makeClient(transport), clock: TestClock(now: Date(timeIntervalSince1970: 1_788_868_800)))
+        var failed = try await queue.enqueue(save([setRow(1)]), for: session)
+        failed.state = .failed
+        _ = try await store.update(failed)
+
+        await store.arm()
+        let discarding = Task { [session] in await queue.discardFailed(session) }
+        while await !store.isHolding { await Task.yield() }
+        let retrying = Task { [session] in await queue.retryFailed(session) }
+        await waitForTurnWaiters(1, on: queue, in: session)
+        await gate.open()
+        await discarding.value
+        await retrying.value
+
+        let sent = await transport.count
+        XCTAssertEqual(sent, 0, "discarded, so never sent")
+        let left = await queue.ops(for: session)
+        XCTAssertEqual(left, [])
+    }
+
+    func testRetryTappedJustBeforeDiscardWins() async throws {
+        let transport = ScriptedTransport()
+        let gate = Gate()
+        let store = HeldOpsStore(on: gate)
+        let queue = WriteQueue(store: store, client: makeClient(transport), clock: TestClock(now: Date(timeIntervalSince1970: 1_788_868_800)))
+        var failed = try await queue.enqueue(save([setRow(1)]), for: session)
+        failed.state = .failed
+        _ = try await store.update(failed)
+
+        await store.arm()
+        let retrying = Task { [session] in await queue.retryFailed(session) }
+        while await !store.isHolding { await Task.yield() }
+        let discarding = Task { [session] in await queue.discardFailed(session) }
+        await waitForTurnWaiters(1, on: queue, in: session)
+        await gate.open()
+        await retrying.value
+        await discarding.value
+        await queue.untilIdle(session)
+
+        let sent = await transport.requests.map(\.action)
+        XCTAssertEqual(sent, ["save"], "retried, so sent")
     }
 
     // MARK: - The outbox lane (an exercise created offline outside a workout)
@@ -1277,5 +1859,259 @@ final class WriteQueueTests: XCTestCase {
         }
         XCTAssertEqual(ops.quick.action.rawValue, "quick-complete")
         XCTAssertEqual(TrackerOpPayload.meal(edit).action.rawValue, "meal")
+    }
+}
+
+/// A queue store whose writes fail on demand — a full disk, a locked SQLite
+/// file. Reads always work, so the queue keeps seeing the op it could not
+/// update.
+actor FailingWritesStore: WriteQueueStore {
+    let inner = MemoryWriteQueueStore()
+    var failUpdates = false
+    var failDeletes = false
+    private(set) var failedWrites = 0
+
+    struct StoreDown: Error {}
+
+    func setFailing(updates: Bool, deletes: Bool) {
+        failUpdates = updates
+        failDeletes = deletes
+    }
+
+    func append(_ op: TrackerOp) async throws -> Int64 { try await inner.append(op) }
+    func update(_ op: TrackerOp) async throws -> Bool {
+        if failUpdates { failedWrites += 1; throw StoreDown() }
+        return try await inner.update(op)
+    }
+    func delete(id: Int64) async throws {
+        if failDeletes { failedWrites += 1; throw StoreDown() }
+        try await inner.delete(id: id)
+    }
+    func tail(for session: SessionKey) async throws -> TrackerOp? { try await inner.tail(for: session) }
+    func nextPending(for session: SessionKey) async throws -> TrackerOp? { try await inner.nextPending(for: session) }
+    func ops(for session: SessionKey) async throws -> [TrackerOp] { try await inner.ops(for: session) }
+    func sessionsWithPending() async throws -> [SessionKey] { try await inner.sessionsWithPending() }
+    func purge(session: SessionKey) async throws { try await inner.purge(session: session) }
+    func purgeAll() async throws { try await inner.purgeAll() }
+}
+
+/// A store write that fails mid-drain stops the drain, emits `storeFailed`, and waits a
+/// backoff — it used to be discarded with `try?`, which handed the same op
+/// straight back and re-sent it in a loop.
+final class WriteQueueStoreFailureTests: XCTestCase {
+    private let session = fixtureSession
+
+    private func save() -> TrackerOpPayload {
+        .save(SavePayload(setLogs: [setRow(1, weight: "100")], removedSets: []))
+    }
+
+    /// Waits until `clock` has been asked for `count` sleeps (five seconds at
+    /// most). A retry sleeps in a task of its own, some time after the call
+    /// that scheduled it returns, and in no promised order with a retry that
+    /// call called off.
+    private func waitForSleeps(
+        _ count: Int, on clock: HeldClock, file: StaticString = #filePath, line: UInt = #line
+    ) async {
+        let deadline = Date().addingTimeInterval(5)
+        while clock.sleeps.count < count, Date() < deadline {
+            try? await Task.sleep(nanoseconds: 1_000_000)
+        }
+        XCTAssertEqual(clock.sleeps.count, count, "sleeps asked of the clock", file: file, line: line)
+    }
+
+    func testAFailedDeleteAfterASendStopsTheDrainAndBacksOff() async throws {
+        let transport = ScriptedTransport([.ok()])
+        let store = FailingWritesStore()
+        let clock = HeldClock()
+        let queue = WriteQueue(store: store, client: makeClient(transport), clock: clock)
+        let recorder = EventRecorder()
+        await recorder.start(await queue.subscribe())
+        try await queue.enqueue(save(), for: session)
+        await store.setFailing(updates: false, deletes: true)
+
+        await queue.flush(session)
+
+        let sent = await transport.requests.count
+        XCTAssertEqual(sent, 1, "one send, not a loop re-sending the op its failed delete left behind")
+        let expected = QueueEvent.storeFailed(session)
+        let events = await recorder.waitFor { $0.contains(expected) }
+        XCTAssertTrue(events.contains(expected))
+
+        // The store recovers: the retry re-sends once and clears the row.
+        await store.setFailing(updates: false, deletes: false)
+        clock.open()
+        await queue.awaitRetries()
+        let resent = await transport.requests.count
+        XCTAssertEqual(resent, 2)
+        let left = await store.inner.all.count
+        XCTAssertEqual(left, 0)
+        XCTAssertEqual(clock.sleeps.count, 1, "exactly one backoff before the re-send")
+        await recorder.stop()
+    }
+
+    func testAFailedUpdateOnARefusalDoesNotResendInALoop() async throws {
+        let transport = ScriptedTransport([.status(400, body: "Invalid setLogs")])
+        let store = FailingWritesStore()
+        let clock = HeldClock()
+        let queue = WriteQueue(store: store, client: makeClient(transport), clock: clock)
+        try await queue.enqueue(save(), for: session)
+        await store.setFailing(updates: true, deletes: false)
+
+        await queue.flush(session)
+
+        let sent = await transport.requests.count
+        XCTAssertEqual(sent, 1)
+        let failedWrites = await store.failedWrites
+        XCTAssertEqual(failedWrites, 1)
+
+        // Recovered, the retry re-sends once and records the refusal.
+        await store.setFailing(updates: false, deletes: false)
+        clock.open()
+        await queue.awaitRetries()
+        let resent = await transport.requests.count
+        XCTAssertEqual(resent, 2)
+        XCTAssertEqual(clock.sleeps.count, 1)
+        let kept = await store.inner.all
+        XCTAssertEqual(kept.map(\.state), [.failed])
+    }
+
+    func testAFailedUpdateOnTheTimestampStripStopsTheDrainAndRetriesTheStampedOp() async throws {
+        let transport = ScriptedTransport([.status(400, body: "startedAt must be an ISO timestamp within the last 7 days"), .ok()])
+        let store = FailingWritesStore()
+        let clock = HeldClock()
+        let queue = WriteQueue(store: store, client: makeClient(transport), clock: clock)
+        try await queue.enqueue(.start(startedAt: "2026-08-01T00:00:00.000Z"), for: session)
+        await store.setFailing(updates: true, deletes: false)
+
+        await queue.flush(session)
+
+        let sent = await transport.requests.count
+        XCTAssertEqual(sent, 1, "the stamped op is not re-sent in a loop")
+
+        await store.setFailing(updates: false, deletes: false)
+        clock.open()
+        await queue.awaitRetries()
+        let requests = await transport.requests
+        XCTAssertEqual(requests.map(\.action), ["start", "start"])
+        // The strip was never stored, so the retry sends the stamped original.
+        XCTAssertEqual(requests[1].body?["startedAt"] as? String, "2026-08-01T00:00:00.000Z")
+        let left = await store.inner.all.count
+        XCTAssertEqual(left, 0)
+    }
+
+    func testWhileTheStoreStaysDownTheBackoffGrowsAndTheOpGivesUp() async throws {
+        // Every send fails on the network; every write fails on the device.
+        let transport = ScriptedTransport([.throwNetwork])
+        let store = FailingWritesStore()
+        let clock = HeldClock()
+        let policy = RetryPolicy(baseDelay: 1, maxDelay: 300, maxAttempts: 2)
+        let queue = WriteQueue(store: store, client: makeClient(transport), clock: clock, policy: policy)
+        try await queue.enqueue(save(), for: session)
+        await store.setFailing(updates: true, deletes: true)
+
+        await queue.flush(session)
+        // Each held retry is let through one at a time; the count rides in
+        // memory, so the waits grow and the policy's ceiling still arrives.
+        for _ in 0..<4 {
+            while clock.heldSleeps == 0 { await Task.yield() }
+            clock.releaseHeld()
+        }
+        while clock.heldSleeps == 0 { await Task.yield() }
+        XCTAssertEqual(clock.sleeps, [2, 4, 8, 16, 32], "one backoff per store failure, doubling")
+        let sent = await transport.requests.count
+        XCTAssertEqual(sent, 5)
+
+        // The store recovers: the op is recorded as given up, not retried forever.
+        await store.setFailing(updates: false, deletes: false)
+        clock.open()
+        await queue.awaitRetries()
+        let ops = await store.inner.all
+        XCTAssertEqual(ops.map(\.state), [.failed])
+        XCTAssertEqual(ops.first?.gaveUp, true)
+    }
+
+    func testTheCarriedAttemptGoesWithTheOpsNextSuccessfulWrite() async throws {
+        // Carried once, stored once: after the store recovers, each failure
+        // adds one attempt to the row, not one plus the old carry.
+        let transport = ScriptedTransport([.status(500), .status(500), .status(500), .ok()])
+        let store = FailingWritesStore()
+        let clock = HeldClock()
+        let queue = WriteQueue(store: store, client: makeClient(transport), clock: clock)
+        try await queue.enqueue(save(), for: session)
+        await store.setFailing(updates: true, deletes: false)
+        await queue.flush(session)                         // 500: the attempt is carried, not stored
+        await store.setFailing(updates: false, deletes: false)
+
+        while clock.heldSleeps == 0 { await Task.yield() }
+        clock.releaseHeld()                                // 500 again: stored with the carry
+        while clock.heldSleeps == 0 { await Task.yield() }
+        let afterFirst = await store.inner.all.first?.attempts
+        clock.releaseHeld()                                // and again: one more, the carry is spent
+        while clock.heldSleeps == 0 { await Task.yield() }
+        let afterSecond = await store.inner.all.first?.attempts
+
+        XCTAssertEqual(afterFirst, 2)
+        XCTAssertEqual(afterSecond, 3)
+        clock.open()
+        await queue.awaitRetries()
+    }
+
+    private let oats = MealOpPayload(kind: .create, id: "meal-oats", title: "Oats", day: "2026-09-08", columns: [:])
+
+    func testRetryAfterALetGoStartsTheLadderFresh() async throws {
+        // A carry from a failed store write must not outlive the user's
+        // reset: after Let go and Retry the next failure is the first one.
+        let transport = ScriptedTransport([.status(500), .status(500), .ok()])
+        let store = FailingWritesStore()
+        let clock = HeldClock()
+        let queue = WriteQueue(store: store, client: makeClient(transport), clock: clock)
+        var meal = try await queue.enqueue(.meal(oats), for: .outbox)
+        meal.giveUpCount = TrackerOp.letGoThreshold
+        _ = try await store.update(meal)
+        await store.setFailing(updates: true, deletes: false)
+        await queue.flush(.outbox)                         // 500: the attempt is carried
+        await store.setFailing(updates: false, deletes: false)
+
+        let letGo = await queue.letGo(meal.id, in: .outbox)
+        XCTAssertEqual(letGo, .meal(oats))
+        await queue.retryFailed(.outbox)
+        await queue.resume()                               // past the backoff the carry set: 500 again
+
+        let attempts = await store.inner.all.first?.attempts
+        XCTAssertEqual(attempts, 1)
+        // Two retries sleep: the carry's 2s one, which `resume()` called off,
+        // and the 1s one its send scheduled. Each sleeps in its own task, in
+        // no promised order, so the newest is not always `sleeps.last`.
+        await waitForSleeps(2, on: clock)
+        XCTAssertEqual(clock.sleeps.sorted(), [1, 2], "the first rung's backoff, beside the called-off carry's")
+        clock.open()
+        await queue.awaitRetries()
+    }
+
+    func testAFailedUpdateOnABuilderRefusalDoesNotResendInALoop() async throws {
+        // 200 with ok:false: the refusal could not be recorded, so the draft
+        // still reads pending. The drain must stop, not send it again at once.
+        let transport = ScriptedTransport([.ok(#"{"ok":false,"problem":"Bad workout"}"#), .throwNetwork])
+        let store = FailingWritesStore()
+        let clock = HeldClock()
+        let queue = WriteQueue(store: store, client: makeClient(transport), clock: clock)
+        let draft = TrackerOpPayload.workoutDraft(WorkoutDraftOpPayload(
+            draft: .empty(date: "2026-09-10", title: "Leg day"), today: "2026-09-08", action: .create,
+            clientId: "ai-0b9f3c52-6a1e-4c47-9d3a-5f2e8b7c1a90"
+        ))
+        try await queue.enqueue(draft, for: .outbox)
+        await store.setFailing(updates: true, deletes: false)
+
+        await queue.flush(.outbox)
+
+        let sent = await transport.requests.count
+        XCTAssertEqual(sent, 1, "one send, then the backoff")
+        await store.setFailing(updates: false, deletes: false)
+        await transport.script([.ok(#"{"ok":false,"problem":"Bad workout"}"#)])
+        clock.open()
+        await queue.awaitRetries()
+        let kept = await store.inner.all
+        XCTAssertEqual(kept.map(\.state), [.failed])
+        XCTAssertEqual(kept.first?.lastError, "Bad workout")
     }
 }

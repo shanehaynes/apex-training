@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // PreToolUse hook for the Bash tool (wired in .claude/settings.json): the
-// mechanical form of three CLAUDE.md rules that used to be prose only.
+// mechanical form of three workflow-essentials rules that used to be prose only.
 //
 //   1. Never kill vite by name — `pkill -f vite`, or a `kill` handed every PID
 //      `pgrep`/`pidof` can find for it. That is every session's dev server.
@@ -130,7 +130,7 @@ const PRIMARY_BANNED =
   /\bgit\s+commit\b|\bnpm\s+run\s+(build|dev(:agent)?|preview|e2e(:live)?|agent:check(:full)?)\b|\bnpx?\s+vite\b|\bxcodebuild\b|\bxcodegen\b|\bswift\s+(build|test)\b/;
 
 const MSG_PKILL =
-  'Blocked: `pkill`/`killall` on vite kills every session’s dev server, not just yours (CLAUDE.md). ' +
+  'Blocked: `pkill`/`killall` on vite kills every session’s dev server, not just yours (docs/workflow-essentials.md). ' +
   'Kill only your own: `lsof -i :$(npm run -s port)`, then kill that PID.';
 
 // Every destructive-git message ends the same way: look first, then override
@@ -162,7 +162,7 @@ const MSG_RESTORE =
 const MSG_STASH_DROP =
   'Blocked: the stash stack is shared with the primary checkout and every other worktree, so ' +
   '`git stash drop` / `git stash clear` can throw away another session’s only copy of its work ' +
-  '(CLAUDE.md). Run `git stash list` and identify your own entry by its message first. ' +
+  '(docs/workflow-essentials.md). Run `git stash list` and identify your own entry by its message first. ' +
   DESTRUCTIVE_TAIL;
 
 // The stash stack is shared, so every entry on it has to be findable by whoever
@@ -176,20 +176,20 @@ const STASH_SAFE_PATTERN =
 const MSG_STASH_PUSH =
   'Blocked: a bare `git stash` (or `git stash push`/`save` without `-m`) reverts your tracked edits ' +
   'onto a stack shared with the primary checkout and every other worktree, as an entry nothing can ' +
-  'later tell from another session’s (CLAUDE.md). ' +
+  'later tell from another session’s (docs/workflow-essentials.md). ' +
   STASH_SAFE_PATTERN +
   DESTRUCTIVE_TAIL;
 
 const MSG_STASH_POP =
   'Blocked: `git stash pop` applies and drops the top of a stack shared with every other worktree — ' +
   'that entry may be another session’s, and a conflict on apply leaves it half-restored and dropped ' +
-  '(CLAUDE.md). ' +
+  '(docs/workflow-essentials.md). ' +
   STASH_SAFE_PATTERN +
   DESTRUCTIVE_TAIL;
 
 const MSG_STASH_APPLY_TOP =
   'Blocked: `git stash apply` with no ref applies stash@{0}, which on a stack shared with every other ' +
-  'worktree is whatever any session pushed last, not necessarily yours (CLAUDE.md). ' +
+  'worktree is whatever any session pushed last, not necessarily yours (docs/workflow-essentials.md). ' +
   STASH_SAFE_PATTERN +
   DESTRUCTIVE_TAIL;
 
@@ -202,7 +202,7 @@ const MSG_BRANCH_DELETE =
 const MSG_WORKTREE_REMOVE =
   'Blocked: `git worktree remove --force` deletes a worktree that still has uncommitted changes in it ' +
   '— the force flag exists to override exactly the check that protects them, and the worktree may not ' +
-  'be yours (CLAUDE.md). Run `git -C <worktree> status` first; `scripts/git-tidy.sh` retires merged ' +
+  'be yours (docs/workflow-essentials.md). Run `git -C <worktree> status` first; `scripts/git-tidy.sh` retires merged ' +
   'worktrees safely. ' +
   DESTRUCTIVE_TAIL;
 
@@ -215,7 +215,7 @@ const MSG_PUSH_FORCE =
 
 const MSG_KILL_VITE =
   'Blocked: killing every pid `pgrep`/`pidof` reports for vite kills every session’s dev server, not ' +
-  'just yours (CLAUDE.md). Kill only your own: `lsof -i :$(npm run -s port)`, then kill that PID — ' +
+  'just yours (docs/workflow-essentials.md). Kill only your own: `lsof -i :$(npm run -s port)`, then kill that PID — ' +
   '`lsof -ti :$(npm run -s port) | xargs kill` is fine, because the port is per-worktree.';
 
 const MSG_GH_MERGE =
@@ -236,7 +236,7 @@ const MSG_GRAPHQL_LABEL =
 
 const MSG_PRIMARY =
   'Blocked: this would run in the primary checkout, which stays on main, clean — never build or ' +
-  'commit there (CLAUDE.md). Start work with `scripts/git-new.sh <type>/<slug>` and run this inside ' +
+  'commit there (docs/workflow-essentials.md). Start work with `scripts/git-new.sh <type>/<slug>` and run this inside ' +
   'the worktree it prints.';
 
 // cwd plus `cd` targets, found by splitting the raw text on separators. Wrong
@@ -1100,7 +1100,7 @@ function isVitePidLookup(cmd) {
 // vite)`) or an upstream pipeline stage (`pgrep -f vite | xargs kill`). The
 // lookup on its own is read-only and stays allowed, and so does
 // `lsof -ti :$(npm run -s port) | xargs kill`: that port is only ever this
-// worktree's, which is what CLAUDE.md tells sessions to use.
+// worktree's, which is what the workflow essentials tell sessions to use.
 function isKillVite(inv) {
   if (base(inv.argv[0].value) !== 'kill') return false;
   if ((inv.subs ?? []).some(isVitePidLookup)) return true;

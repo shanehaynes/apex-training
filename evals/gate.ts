@@ -23,7 +23,7 @@ import type { VerdictStatus } from './src/types';
 //   npm run eval:gate                       # run the suite locally, decide, attest
 //   npm run eval:gate -- --concurrency 3    # fewer lanes (default 6)
 //   npm run eval:baseline -- <result.json>  # promote a result file to the baseline
-//   npm run eval:hash                       # print the two hashes the attestation pins
+//   npm run eval:hash                       # print the hashes and SDK version the attestation pins
 //   npm run eval:verify                     # token-free: check the committed attestation
 //
 // WHY IT IS SHAPED THIS WAY. The gate has to spend a Claude subscription and
@@ -59,6 +59,11 @@ export interface Attestation {
   promptFileHash: string;
   evalSurfaceHash: string;
   promptVersion: string;
+  /** The @anthropic-ai/sdk version package-lock.json pins. The SDK sets the
+   *  wire defaults every production coach call carries (1.0 moved the
+   *  `anthropic-version` header), so a bump is a coach change. Kept out of
+   *  promptFileHash, which would demand a PROMPT_VERSION bump for it. */
+  anthropicSdkVersion: string;
   backend: string;
   model: string;
   baselineFile: string;
@@ -103,6 +108,7 @@ export interface GateDeps {
   promptFileHash: string;
   evalSurfaceHash: string;
   promptVersion: string;
+  anthropicSdkVersion: string;
   /** ISO timestamp. Injected so a test can name the result file it will assert on. */
   now: () => string;
   log?: (line: string) => void;
@@ -115,6 +121,16 @@ export interface GateOutcome {
 }
 
 const posix = (p: string) => p.split('\\').join('/');
+
+/** The @anthropic-ai/sdk version package-lock.json pins — what `npm ci`
+ *  installs in CI and on Vercel. Read from the tree, like the hashes, so
+ *  verify needs no node_modules of its own. */
+export function anthropicSdkVersion(root: string = REPO_ROOT): string {
+  const lock = readJson<{ packages?: Record<string, { version?: string }> }>(join(root, 'package-lock.json'));
+  const version = lock.packages?.['node_modules/@anthropic-ai/sdk']?.version;
+  if (!version) throw new Error('package-lock.json pins no @anthropic-ai/sdk version.');
+  return version;
+}
 
 function readJson<T>(path: string): T {
   return JSON.parse(readFileSync(path, 'utf8')) as T;
@@ -269,6 +285,7 @@ export async function runGate(deps: GateDeps): Promise<GateOutcome> {
     promptFileHash: deps.promptFileHash,
     evalSurfaceHash: deps.evalSurfaceHash,
     promptVersion: deps.promptVersion,
+    anthropicSdkVersion: deps.anthropicSdkVersion,
     backend: BACKEND,
     model: deps.model,
     baselineFile: baselineRel,
@@ -310,6 +327,7 @@ export interface VerifyDeps {
   promptFileHash: string;
   evalSurfaceHash: string;
   promptVersion: string;
+  anthropicSdkVersion: string;
   /** Every id the case set declares today. */
   caseIds: string[];
 }
@@ -350,6 +368,10 @@ export function verifyAttestation(deps: VerifyDeps): GateOutcome {
   }
   if (a.promptVersion !== deps.promptVersion) {
     return fail(`attestation is for PROMPT_VERSION ${a.promptVersion}, the tree is ${deps.promptVersion}.`);
+  }
+  if (a.anthropicSdkVersion !== deps.anthropicSdkVersion) {
+    return fail(`attestation is for @anthropic-ai/sdk ${a.anthropicSdkVersion ?? '(unrecorded)'}, package-lock.json ` +
+      `pins ${deps.anthropicSdkVersion} — run \`npm run eval:gate\` and commit the new one.`);
   }
 
   const baselinePath = join(deps.root, a.baselineFile);
@@ -468,11 +490,16 @@ async function main(): Promise<number> {
   const argv = process.argv.slice(2);
   const command = argv[0] ?? 'run';
   const root = REPO_ROOT;
-  const hashes = { promptFileHash: promptFileHash(), evalSurfaceHash: evalSurfaceHash(root) };
+  const hashes = {
+    promptFileHash: promptFileHash(),
+    evalSurfaceHash: evalSurfaceHash(root),
+    anthropicSdkVersion: anthropicSdkVersion(root),
+  };
 
   if (command === 'hash') {
-    console.log(`promptFileHash  ${hashes.promptFileHash}`);
-    console.log(`evalSurfaceHash ${hashes.evalSurfaceHash}`);
+    console.log(`promptFileHash      ${hashes.promptFileHash}`);
+    console.log(`evalSurfaceHash     ${hashes.evalSurfaceHash}`);
+    console.log(`anthropicSdkVersion ${hashes.anthropicSdkVersion}`);
     return 0;
   }
 

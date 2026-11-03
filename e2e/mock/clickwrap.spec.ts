@@ -112,11 +112,65 @@ test.describe('re-acceptance after a version bump', () => {
     await expect(page.locator('.event-chip__main').first()).toBeVisible({ timeout: 20000 });
   });
 
+  test('export and deletion stay in reach while the user decides (terms §12)', async ({ page }) => {
+    // The server exempts /api/account from the gate (account.ts); this is the
+    // client half of the promise. Exporting must not count as accepting.
+    const accepted: string[] = [];
+    page.on('request', r => {
+      if (r.method() === 'POST' && r.url().includes('/api/terms-acceptance')) accepted.push(r.url());
+    });
+    await page.route('**/api/account', route => route.fulfill({
+      status: 200,
+      headers: { 'Content-Type': 'application/json; charset=utf-8' },
+      body: JSON.stringify({ exportedAt: '2026-11-02T00:00:00.000Z' }),
+    }));
+    await page.goto('/');
+    await expect(page.locator('#terms-gate-title')).toBeVisible({ timeout: 20000 });
+
+    await page.locator('.terms-gate__leave summary').click();
+    const download = page.waitForEvent('download');
+    await page.locator('.terms-gate__leave .account-data__action').click();
+    expect((await download).suggestedFilename()).toMatch(/^apex-training-export-\d{4}-\d{2}-\d{2}\.json$/);
+
+    await page.locator('.terms-gate__leave .account-data__danger').click();
+    await expect(page.locator('.terms-gate__leave .account-data__confirm')).toBeVisible();
+    await shot(page, 'clickwrap-reacceptance-leave');
+
+    await expect(page.locator('#terms-gate-title'), 'exporting is not accepting').toBeVisible();
+    expect(accepted).toEqual([]);
+  });
+
   test('signing out is the other way past the gate', async ({ page }) => {
     await page.goto('/');
     await expect(page.locator('#terms-gate-title')).toBeVisible({ timeout: 20000 });
     await page.locator('.auth-link', { hasText: 'Sign out' }).click();
     await expect(page.locator('.auth-card')).toBeVisible({ timeout: 20000 });
+  });
+});
+
+test.describe('the gate for a user who never accepted', () => {
+  test.use({ staleTerms: 'never' });
+
+  test('keeps export in reach too, without accepting', async ({ page }) => {
+    // Deletion and export are the athlete's whether or not they ever agreed.
+    const accepted: string[] = [];
+    page.on('request', r => {
+      if (r.method() === 'POST' && r.url().includes('/api/terms-acceptance')) accepted.push(r.url());
+    });
+    await page.route('**/api/account', route => route.fulfill({
+      status: 200,
+      headers: { 'Content-Type': 'application/json; charset=utf-8' },
+      body: JSON.stringify({ exportedAt: '2026-11-02T00:00:00.000Z' }),
+    }));
+    await page.goto('/');
+    await expect(page.locator('#terms-gate-title')).toHaveText('Before you start', { timeout: 20000 });
+
+    await page.locator('.terms-gate__leave summary').click();
+    const download = page.waitForEvent('download');
+    await page.locator('.terms-gate__leave .account-data__action').click();
+    await download;
+    await expect(page.locator('#terms-gate-title')).toBeVisible();
+    expect(accepted).toEqual([]);
   });
 });
 

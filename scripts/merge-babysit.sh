@@ -29,7 +29,9 @@
 # Every ready PR is folded onto origin/main in merge order (git merge-tree —
 # one that will not fold is skipped, not the fleet), the folded tree runs
 # agent:check in a throwaway worktree (scripts/combine-check.sh --check
-# --sequential), and only then do the PRs merge, in that same order. The mode
+# --sequential, given the folded SHAs), and only then do the PRs merge, in that
+# same order, each pinned to the head that was folded: a push since then waits
+# for the next pass to fold and prove it. The mode
 # must match the rule and the script checks: --fleet --yes refuses while the
 # rule is on, and the serial loop refuses --yes while it is off — it would
 # merge every green PR back to back with no proof at all. Flipping the rule
@@ -39,9 +41,12 @@
 # the stacked-PR trap that once merged #23 into its base and took production
 # down, so those are reported and skipped, never merged.
 #
-# --yes is NOT allow-listed in .claude/settings.json today, so every run still
-# prompts; a permissions.allow entry there is what would grant an unattended
-# run, and that is Shane's to add. The bounds hold either way: branch
+# `--yes` and `--fleet --yes` are allow-listed in .claude/settings.json, so
+# those exact invocations run without a prompt. A grant names a relative path,
+# so it would also cover a worktree's unreviewed copy of this script and of
+# the policy; under --yes the run therefore refuses, every pass, unless the
+# automation it is about to execute matches origin/main exactly
+# (automation_is_main below). The bounds hold either way: branch
 # protection means nothing red can land, and scripts/merge-policy.mjs HOLDs
 # any PR touching migrations, CI,
 # routing, dependencies, or the automation itself — a human grants those per
@@ -111,21 +116,38 @@ skipped=""
 in_flight_prs=""
 merged_any=0
 merged_count=0
+gave_up=0
 fleet_n=0
 fleet_base=""
 
 # Ask scripts/merge-policy.mjs whether this PR may land without a human.
-# Prints the hold reason (if any); non-zero means hold. gh caps the file
-# listing, so changedFiles rides along and the policy holds on a mismatch.
+# Sets verdict (the hold reason, if any) and policy_head (the head SHA the
+# verdict is about); non-zero means hold. gh caps the file listing, so
+# changedFiles rides along and the policy holds on a mismatch. The number and
+# head let the policy read content-checked files (package.json) and git's own
+# file list at the PR's head itself; one it cannot read holds.
+# A serial merge is pinned to policy_head: a verdict is about one commit, and
+# unpinned, gh merges whatever the head is by then — a push the policy never
+# saw (`git mv` of a held path, say), once its required checks pass.
+# Runs in the caller's shell, not $(…), so policy_head survives the call.
 # Unlike the guard hooks (fail open), this fails CLOSED: no verdict, no merge.
 policy_check() {
-  local meta
-  meta=$("$GH" pr view "$1" --json files,labels,changedFiles \
-    --jq '{paths: [.files[].path], labels: [.labels[].name], changed: .changedFiles}') || {
-    echo "could not read the PR's files and labels"
+  local line meta
+  verdict=""
+  policy_head=""
+  line=$("$GH" pr view "$1" --json number,headRefOid,files,labels,changedFiles \
+    --jq '"\(.headRefOid // "")\t\({number: .number, head: .headRefOid, paths: [.files[].path], labels: [.labels[].name], changed: .changedFiles} | tojson)"') || {
+    verdict="could not read the PR's files and labels"
     return 1
   }
-  printf '%s' "$meta" | node scripts/merge-policy.mjs
+  policy_head=${line%%$'\t'*}
+  meta=${line#*$'\t'}
+  if ! [[ "$policy_head" =~ ^[0-9a-f]{40}$ ]]; then
+    verdict="could not read the PR's head commit — a verdict must name the commit it is about"
+    policy_head=""
+    return 1
+  fi
+  verdict=$(printf '%s' "$meta" | node scripts/merge-policy.mjs)
 }
 
 # A migration lands only on a production that already has everything main
@@ -202,7 +224,13 @@ run_head_check() {
 }
 
 schema_preflight() {
-  local counts changed seen mig head_oid=""
+  local counts changed seen mig head_oid="" entry kept=""
+  # A head checked on an earlier pass says nothing about this one (a push
+  # may have dropped the migration); merge_pr would wait on it forever.
+  for entry in $checked_heads; do
+    [ "${entry%%:*}" = "$1" ] || kept="$kept $entry"
+  done
+  checked_heads=$kept
   preflight_touched=0
   preflight_head=""
   preflight_retry=0
@@ -313,11 +341,12 @@ is_skipped() {
   return 1
 }
 
-# Fleet mode needs the head branch too; the serial loop's field layout stays.
+# Fleet mode needs the head branch, its SHA and whether it is a fork's; the
+# serial loop's field layout stays.
 list_fleet_prs() {
   "$GH" pr list --state open --limit 200 \
-    --json number,title,baseRefName,isDraft,mergeStateStatus,headRefName \
-    --jq 'reverse | .[] | [.number, .baseRefName, (.isDraft|tostring), .mergeStateStatus, .headRefName, .title] | @tsv'
+    --json number,title,baseRefName,isDraft,mergeStateStatus,headRefName,headRefOid,isCrossRepository \
+    --jq 'reverse | .[] | [.number, .baseRefName, (.isDraft|tostring), .mergeStateStatus, .headRefName, .headRefOid, (.isCrossRepository|tostring), .title] | @tsv'
 }
 
 list_prs_for_mode() {
@@ -331,16 +360,45 @@ protection_strict() {
     --jq '.strict' 2>/dev/null || true
 }
 
+# Has PR $1's head moved off $2, the SHA it was proven at? A moved head cannot
+# merge under its pin, so say so (WAIT, $3 is the title) and keep the PR in
+# the run: the next pass checks, folds and proves its new head, rather than
+# fail three merges and skip it as broken. Unreadable counts as not moved —
+# GitHub still refuses a pin that no longer matches.
+head_moved_off() {
+  local now
+  now=$("$GH" pr view "$1" --json headRefOid --jq .headRefOid 2>/dev/null) || return 1
+  [ -n "$now" ] && [ "$now" != "$2" ] || return 1
+  echo "WAIT  #$1 — its head moved after it was proven (${2:0:12}, now ${now:0:12}); the next pass checks and folds the new one. ($3)"
+  actionable=1
+}
+
 # Squash-merge one PR with the two audit records (a comment on the PR, a line
 # in the local log). GitHub recomputes mergeability after every merge to
 # main, and a merge that lands in that window can fail transiently, so try
 # three times before giving the PR up — and never let one failure end the
 # run: the post-merge lifecycle still has to happen for what did land.
+#
+# $4 pins the merge to a head SHA (gh --match-head-commit), and is required:
+# unpinned, gh merges whatever the head is by then — a push nobody judged,
+# once its required checks pass, and ios unwaited on. Fleet mode passes the
+# head it folded (the union proof takes minutes); serial mode the head the
+# policy judged, which a migration PR's preflight must also have checked
+# production against. A pin that disagrees with checked_heads waits.
 merge_pr() {
-  local number=$1 title=$2 mode=$3 attempt body suffix="" pinned
+  local number=$1 title=$2 mode=$3 pinned=${4:-} checked attempt body suffix=""
   [ "$mode" = fleet ] && suffix=' [fleet]'
-  # A migration PR merges only the head its preflight proved production ready for.
-  pinned=$(printf '%s\n' $checked_heads | awk -F: -v n="$number" '$1 == n { sha = $2 } END { print sha }')
+  if ! [[ "$pinned" =~ ^[0-9a-f]{40}$ ]]; then
+    echo "HOLD  #$number — no head commit to pin the merge to (fail closed). ($title)"
+    return 1
+  fi
+  checked=$(printf '%s\n' $checked_heads | awk -F: -v n="$number" '$1 == n { sha = $2 } END { print sha }')
+  if [ -n "$checked" ] && [ "$checked" != "$pinned" ]; then
+    echo "WAIT  #$number — production was checked against ${checked:0:12}, but the merge would pin ${pinned:0:12}; next pass. ($title)"
+    actionable=1
+    return 1
+  fi
+  if head_moved_off "$number" "$pinned" "$title"; then return 1; fi
   echo "MERGE #$number ($title)"
   if [ "$mode" = fleet ]; then
     if [ "$no_check" -eq 1 ]; then
@@ -354,7 +412,7 @@ merge_pr() {
   body="$body Halt future runs with \`touch .claude/AUTOMERGE_OFF\` in the primary checkout."
   "$GH" pr comment "$number" --body "$body" >/dev/null || true
   for attempt in 1 2 3; do
-    if "$GH" pr merge "$number" --squash ${pinned:+--match-head-commit "$pinned"}; then
+    if "$GH" pr merge "$number" --squash --match-head-commit "$pinned"; then
       mkdir -p "$(dirname "$merge_log")"
       printf '%s merged #%s %s%s\n' "$(date -u +%FT%TZ)" "$number" "$title" "$suffix" >> "$merge_log"
       merged_this_pass=1
@@ -378,7 +436,9 @@ merge_pr() {
 # folded tree, merge the PRs in that order. Sets actionable/merged_* like the
 # serial pass does, so end_of_pass decides whether to loop.
 
-# The contexts branch protection requires — the floor. Read once.
+# The contexts branch protection requires — the floor. Read once, in the
+# main shell before the loop: required_green runs inside $(...), where a load
+# would be lost with the subshell and repeated for every PR.
 required_contexts=""
 required_contexts_loaded=0
 load_required_contexts() {
@@ -388,42 +448,89 @@ load_required_contexts() {
   required_contexts_loaded=1
 }
 
-# Is this PR's head green where it matters? 0: every required check passed
-# and no check failed outright; 1 (reason on stdout): a required check is
-# red or cancelled, or a non-required job failed — advisory, but not
-# something to merge past blind; 2: still pending. mergeStateStatus alone
-# cannot say: UNSTABLE covers a superseded run's CANCELLED job and a failed
-# preview deploy alike, and neither is what the floor is about.
+# Is this PR's head green? 0: every required check passed and every other
+# check on the head finished without failing; 1 (reason on stdout): a check
+# is red; 2 (what it waits on, when known, on stdout): a check is still
+# running, or a required one has not reported. Both modes ask this, so a PR
+# is red or waiting by one definition. mergeStateStatus alone cannot say:
+# UNSTABLE covers a running job, a superseded run's CANCELLED job and a
+# failed preview deploy alike.
+#
+# Every check counts, not only the required ones. When this waited only on
+# what branch protection required, and `ios` was not on that list, fleet mode
+# merged 12 of 16 iOS PRs (Oct 2026) while ios was still running, and 9 of
+# those runs ended red — #395 and #438 were cut off at the cap. The fleet's
+# union proof runs agent:check, which neither builds the iOS app nor runs its
+# UI tests, so a check that is running or red holds its PR whether or not
+# protection names it.
+#
+# A required check passes as branch protection passes it: on SUCCESS, or on
+# SKIPPED or NEUTRAL, with the newest run of each name deciding. A web-only
+# PR's `ios` is skipped by its own `if:` on the `changes` job's answer, and
+# waiting on it would hold that PR forever. CI fails that skip closed, so
+# this trusts it; copying CI's iOS-path rule here instead would fail open the
+# day the two drift. Other skips are not vetted here: a CI run dispatched by
+# hand on a PR branch skips the event-only `coach-gate`, and that SKIPPED
+# decides over an older red run of it, here as in protection.
+#
+# One verdict per check name, so a re-run decides and not the run it
+# replaced: a run still going makes the name pending, otherwise the newest
+# run is the verdict. A run the concurrency group superseded on this head has
+# a newer sibling, so its CANCELLED never decides. A CANCELLED that is the
+# newest run was cut off (timeout-minutes reports cancelled, not timed_out)
+# or cancelled by hand. Either way its tests never finished, so it is red.
+rollup_verdicts='
+  def verdict:
+    if .__typename == "CheckRun" and (.status // "COMPLETED") != "COMPLETED" then "PENDING"
+    else (.conclusion // .state // "PENDING") end;
+  [.statusCheckRollup[] | {name: (.name // .context), v: verdict, at: [(.startedAt // ""), (.completedAt // "")]}]
+  | group_by(.name) | .[]
+  | if any(.[]; .v == "PENDING" or .v == "EXPECTED" or .v == "") then "\(.[0].name)\tPENDING"
+    else (max_by(.at) | "\(.name)\t\(.v)") end'
 required_green() {
-  local rollup ctx st red
-  load_required_contexts || return 2
-  rollup=$("$GH" pr view "$1" --json statusCheckRollup \
-    --jq '.statusCheckRollup[] | "\(.name // .context)\t\(.conclusion // .state // "")"') || return 2
+  local rollup ctx st red="" pending=""
+  load_required_contexts || { echo "branch protection (could not read it)"; return 2; }
+  rollup=$("$GH" pr view "$1" --json statusCheckRollup --jq "$rollup_verdicts") || return 2
   for ctx in $required_contexts; do
     st=$(printf '%s\n' "$rollup" | awk -F'\t' -v c="$ctx" '$1 == c { print $2; exit }')
     case "$st" in
-      SUCCESS) ;;
-      FAILURE|ERROR|TIMED_OUT|CANCELLED|ACTION_REQUIRED) echo "$ctx=$st (required)"; return 1 ;;
-      *) return 2 ;;
+      SUCCESS|SKIPPED|NEUTRAL) ;;
+      CANCELLED) red="$red $ctx=CANCELLED (required; cut off before it finished — re-run it)" ;;
+      FAILURE|ERROR|TIMED_OUT|ACTION_REQUIRED|STARTUP_FAILURE|STALE) red="$red $ctx=$st (required)" ;;
+      *) pending="$pending $ctx" ;;
     esac
   done
-  red=$(printf '%s\n' "$rollup" | awk -F'\t' '$2 == "FAILURE" || $2 == "ERROR" || $2 == "TIMED_OUT" { printf "%s=%s ", $1, $2 }')
+  while IFS=$'\t' read -r ctx st; do
+    [ -n "$ctx" ] || continue
+    case " $required_contexts " in *" $ctx "*) continue ;; esac
+    case "$st" in
+      SUCCESS|SKIPPED|NEUTRAL) ;;
+      PENDING) pending="$pending $ctx" ;;
+      CANCELLED) red="$red $ctx=CANCELLED (cut off before it finished — re-run it)" ;;
+      *) red="$red $ctx=$st" ;;
+    esac
+  done <<<"$rollup"
   if [ -n "$red" ]; then
-    echo "${red% }"
+    echo "${red# }"
     return 1
+  fi
+  if [ -n "$pending" ]; then
+    echo "${pending# }"
+    return 2
   fi
   return 0
 }
 
 fleet_pass() {
-  local number base draft state head title verdict tree head_sha base_sha cur i n before ready note reason rc fleet_migration=""
-  local -a numbers=() heads=() titles=()
+  local number base draft state head oid fork title verdict tree head_sha base_sha cur i n before ready note reason rc fleet_migration="" pins=""
+  # shas: the head each PR was folded at — what the proof sees and each merge is pinned to.
+  local -a numbers=() shas=() titles=()
 
   git fetch -q origin --prune
   base_sha=$(git rev-parse origin/main)
   cur="$base_sha"
 
-  while IFS=$'\t' read -r number base draft state head title; do
+  while IFS=$'\t' read -r number base draft state head oid fork title; do
     [ -n "$number" ] || continue
     is_skipped "$number" && continue
 
@@ -435,6 +542,28 @@ fleet_pass() {
     if [ "$draft" = "true" ]; then
       echo "SKIP  #$number is a draft. ($title)"
       skipped="$skipped $number"
+      continue
+    fi
+    # A fork's head is not origin/<head>, even when a branch of that name
+    # exists here (someone:main) — it would wait below on every pass.
+    if [ "$fork" = "true" ]; then
+      echo "SKIP  #$number comes from a fork — fleet folds only this repo's branches. ($title)"
+      skipped="$skipped $number"
+      continue
+    fi
+    if ! head_sha=$(git rev-parse --quiet --verify "refs/remotes/origin/$head"); then
+      echo "SKIP  #$number — origin/$head is not a branch of this repo (a fork?). ($title)"
+      skipped="$skipped $number"
+      continue
+    fi
+    # The checks, the policy's file list and the migration test below are
+    # GitHub's account of the PR's head; the fold, the proof and the pinned
+    # merge are of the commit fetched above. GitHub's view can trail a push,
+    # so they must name one commit before anything is read — or a head whose
+    # checks, ios and paths nobody read is proven and merged under its own pin.
+    if [ "$oid" != "$head_sha" ]; then
+      echo "WAIT  #$number — GitHub reports head ${oid:0:12} but the fetch has ${head_sha:0:12} (a push in flight); next pass. ($title)"
+      actionable=1
       continue
     fi
 
@@ -452,7 +581,7 @@ fleet_pass() {
             echo "SKIP  #$number has failing check(s): $reason ($title)"
             skipped="$skipped $number"
           else
-            echo "WAIT  #$number: CI still running on its head; next pass. ($title)"
+            echo "WAIT  #$number: CI still running on its head${reason:+ — waiting on $reason}; next pass. ($title)"
             actionable=1
           fi
           continue
@@ -476,7 +605,7 @@ fleet_pass() {
             echo "SKIP  #$number has failing check(s): $reason ($title)"
             skipped="$skipped $number"
           else
-            echo "WAIT  #$number: behind, CI still running. ($title)"
+            echo "WAIT  #$number: behind, CI still running${reason:+ — waiting on $reason}. ($title)"
             actionable=1
           fi
           continue
@@ -497,7 +626,7 @@ fleet_pass() {
             echo "SKIP  #$number has failing check(s): $reason ($title)"
             skipped="$skipped $number"
           else
-            echo "WAIT  #$number: $state — CI still running; next pass. ($title)"
+            echo "WAIT  #$number: $state — CI still running${reason:+ — waiting on $reason}; next pass. ($title)"
             actionable=1
           fi
           continue
@@ -511,7 +640,7 @@ fleet_pass() {
     esac
     [ "$ready" -eq 1 ] || continue
 
-    if ! verdict=$(policy_check "$number"); then
+    if ! policy_check "$number"; then
       echo "HOLD  #$number — ${verdict:-policy gave no verdict (fail closed)}"
       echo "      a human grants this one with: gh pr edit $number --add-label shipit  ($title)"
       held_preflight "$number"
@@ -530,14 +659,15 @@ fleet_pass() {
       skipped="$skipped $number"
       continue
     fi
-    if ! head_sha=$(git rev-parse --quiet --verify "refs/remotes/origin/$head"); then
-      echo "SKIP  #$number — origin/$head is not a branch of this repo (a fork?). ($title)"
-      skipped="$skipped $number"
-      continue
-    fi
     # The fold must be the head production was checked against — the merge is pinned to it.
     if [ "$preflight_touched" -eq 1 ] && [ "$head_sha" != "$preflight_head" ]; then
       echo "WAIT  #$number — its head moved between the fetch and the schema check ($head_sha vs $preflight_head); re-checked next pass. ($title)"
+      actionable=1
+      continue
+    fi
+    # And the head the policy judged, for the same reason.
+    if [ "$head_sha" != "$policy_head" ]; then
+      echo "WAIT  #$number — its head moved between the fetch and the policy check ($head_sha vs $policy_head); re-checked next pass. ($title)"
       actionable=1
       continue
     fi
@@ -547,7 +677,8 @@ fleet_pass() {
       continue
     fi
     cur=$(git commit-tree "$tree" -p "$cur" -p "$head_sha" -m "throwaway fleet fold")
-    numbers+=("$number"); heads+=("$head"); titles+=("$title")
+    numbers+=("$number"); shas+=("$head_sha"); titles+=("$title")
+    pins="$pins #$number@${head_sha:0:7}"
     if [ "$preflight_touched" -eq 1 ]; then fleet_migration=$number; fi
     echo "FLEET #$number$note ($title)"
   done <<EOF
@@ -564,15 +695,17 @@ EOF
   fleet_base=${base_sha:0:12}
 
   if [ "$apply" -eq 0 ]; then
-    echo "WOULD PROVE the union of $n PR(s) on origin/main ${base_sha:0:7} (combine-check --check --sequential), then merge them in that order."
+    echo "WOULD PROVE the union of $n PR(s) on origin/main ${base_sha:0:7} (combine-check --check --sequential), then merge them in that order, each pinned to its folded head:$pins"
     return 0
   fi
 
   if [ "$no_check" -eq 1 ]; then
     echo "── --no-check: skipping the union proof on the operator's word"
   else
-    echo "── proving the union of $n PR(s) on origin/main ${base_sha:0:7}"
-    if ! scripts/combine-check.sh --check --sequential "${heads[@]}"; then
+    # The SHAs, not the branch names: combine-check fetches again, and a push
+    # since the fold would have it prove a head that is not the one merged.
+    echo "── proving the union of $n PR(s) on origin/main ${base_sha:0:7}, at the heads folded:$pins"
+    if ! scripts/combine-check.sh --check --sequential "${shas[@]}"; then
       echo "ACTION the union of this fleet fails combine-check — nothing merged. Bisect with: scripts/combine-check.sh --check --sequential <branches>" >&2
       exit 1
     fi
@@ -590,12 +723,20 @@ EOF
     echo "── origin/main moved during the proof — folding again next pass"
     return 0
   fi
+  # Likewise every head: one pushed during the proof merges none of the fleet,
+  # since the PRs ahead of it were proven with it, never without it.
+  for ((i = 0; i < n; i++)); do
+    if head_moved_off "${numbers[i]}" "${shas[i]}" "${titles[i]}"; then
+      echo "── fleet: #${numbers[i]} moved during the proof — nothing merged; folding again next pass"
+      return 0
+    fi
+  done
 
   # The proof was of the whole union: once one merge fails (a pinned head that
   # moved, say), the rest would land on a tree nobody proved — fold again instead.
   before=$merged_count
   for ((i = 0; i < n; i++)); do
-    if ! merge_pr "${numbers[i]}" "${titles[i]}" fleet; then
+    if ! merge_pr "${numbers[i]}" "${titles[i]}" fleet "${shas[i]}"; then
       echo "── fleet: #${numbers[i]} did not merge — the rest of this fleet waits for a fresh fold and proof next pass"
       actionable=1
       break
@@ -622,9 +763,13 @@ end_of_pass() {
     fi
     return 1
   fi
+  # Giving up still runs the post-merge lifecycle for what this run already
+  # merged, then exits 1: a fleet waits on slow ios jobs, and a deadline that
+  # skipped deploy-verify would leave earlier merges unverified.
   if [ "$(date +%s)" -ge "$deadline" ]; then
     echo "── giving up after ${max_minutes}m — CI is slower than expected or something is wedged." >&2
-    exit 1
+    gave_up=1
+    return 1
   fi
   # After a merge GitHub recomputes every other PR's state; either way CI
   # needs real time. Poll, don't spin.
@@ -673,11 +818,43 @@ MSG
     echo "NOTE  could not read main's branch protection; --yes would refuse."
     ;;
 esac
+# A failure here is retried by each required_green call, which reports it.
+load_required_contexts || true
+
+# The files that decide what this run may do — this script, the policy and
+# everything else under scripts/, the settings that grant it, the guard hooks.
+AUTOMATION_PATHS=(scripts .claude/settings.json .claude/skills/parallel-agents/hooks)
+
+# 0 when the checkout's automation is byte-for-byte origin/main's: no tracked
+# change (staged or not), no untracked file. Otherwise the reason on stdout.
+# The policy is what HOLDs a change to these files from merging; running a
+# modified copy directly would skip it, so --yes runs only main's.
+automation_is_main() {
+  local untracked
+  if ! git fetch -q origin main 2>/dev/null; then
+    echo "could not fetch origin/main to compare the automation against"
+    return 1
+  fi
+  if ! git diff --quiet origin/main -- "${AUTOMATION_PATHS[@]}" 2>/dev/null; then
+    echo "the automation in $(pwd -P) differs from origin/main: $(git diff --name-only origin/main -- "${AUTOMATION_PATHS[@]}" | tr '\n' ' ')— run --yes from a checkout at origin/main (git -C <primary> pull --ff-only)"
+    return 1
+  fi
+  untracked=$(git ls-files --others --exclude-standard -- "${AUTOMATION_PATHS[@]}")
+  if [ -n "$untracked" ]; then
+    echo "untracked automation files in $(pwd -P): $(printf '%s' "$untracked" | tr '\n' ' ')"
+    return 1
+  fi
+}
 
 while :; do
   # Checked every pass, not once: touching the file halts a loop mid-run too.
   if [ "$apply" -eq 1 ] && [ -e "$kill_switch" ]; then
     echo "── kill switch: $kill_switch exists — no autonomous merging until it is removed." >&2
+    exit 1
+  fi
+  # Every pass too: an edit to the policy mid-run would apply from the next call.
+  if [ "$apply" -eq 1 ] && ! not_main=$(automation_is_main); then
+    echo "── --yes refused: $not_main" >&2
     exit 1
   fi
 
@@ -769,11 +946,33 @@ EOF
 
     case "$state" in
       CLEAN)
-        if ! verdict=$(policy_check "$number"); then
+        # CLEAN can be a moment stale — a head pushed seconds ago still reads
+        # CLEAN until its checks register — so read every check, as fleet
+        # mode does, before merging. The rollup names no commit, so read the
+        # head first: if the policy then judges that same head, the checks
+        # read between the two were its own.
+        checks_head=$("$GH" pr view "$number" --json headRefOid --jq .headRefOid 2>/dev/null) || checks_head=""
+        reason=$(required_green "$number") && rc=0 || rc=$?
+        if [ "$rc" -eq 1 ]; then
+          echo "SKIP  #$number has failing check(s): $reason ($title)"
+          skipped="$skipped $number"
+          continue
+        fi
+        if [ "$rc" -eq 2 ]; then
+          echo "WAIT  #$number: CLEAN, but CI still running${reason:+ — waiting on $reason}; next pass. ($title)"
+          actionable=1
+          continue
+        fi
+        if ! policy_check "$number"; then
           echo "HOLD  #$number — ${verdict:-policy gave no verdict (fail closed)}"
           echo "      a human grants this one with: gh pr edit $number --add-label shipit  ($title)"
           held_preflight "$number"
           skipped="$skipped $number"
+          continue
+        fi
+        if [ "$policy_head" != "$checks_head" ]; then
+          echo "WAIT  #$number — its head moved after its checks were read (${checks_head:0:12}, now ${policy_head:0:12}); next pass. ($title)"
+          actionable=1
           continue
         fi
         if ! schema_preflight "$number"; then
@@ -781,8 +980,15 @@ EOF
           if [ "$preflight_retry" -eq 1 ]; then actionable=1; else skipped="$skipped $number"; fi
           continue
         fi
+        # The merge is pinned to the head the policy judged, so production
+        # must have been checked against that same one.
+        if [ "$preflight_touched" -eq 1 ] && [ "$preflight_head" != "$policy_head" ]; then
+          echo "WAIT  #$number — its head moved between the policy check and the schema check ($policy_head vs $preflight_head); re-checked next pass. ($title)"
+          actionable=1
+          continue
+        fi
         if [ "$apply" -eq 1 ]; then
-          merge_pr "$number" "$title" serial || continue
+          merge_pr "$number" "$title" serial "$policy_head" || continue
         else
           echo "WOULD MERGE #$number ($title)"
         fi
@@ -821,14 +1027,20 @@ EOF
         skipped="$skipped $number"
         ;;
       BLOCKED|UNSTABLE|UNKNOWN)
-        # Checks still running, or GitHub hasn't computed mergeability yet.
-        # A failed required check also shows as BLOCKED — surface it.
-        failed=$("$GH" pr checks "$number" 2>/dev/null | grep -c $'\tfail' || true)
-        if [ "${failed:-0}" -gt 0 ]; then
-          echo "SKIP  #$number has $failed failing check(s) — fix before it can merge. ($title)"
+        # Checks still running, or GitHub hasn't computed mergeability yet. A
+        # red check shows as BLOCKED or UNSTABLE — surface it. A cut-off job
+        # is red here too: `gh pr checks` files it under "cancel", not
+        # "fail", so grepping for failures waited on it until the deadline.
+        # Only CLEAN merges in this loop, so all-green still waits.
+        reason=$(required_green "$number") && rc=0 || rc=$?
+        if [ "$rc" -eq 1 ]; then
+          echo "SKIP  #$number has failing check(s): $reason ($title)"
           skipped="$skipped $number"
+        elif [ "$rc" -eq 2 ]; then
+          echo "WAIT  #$number: $state — CI still running${reason:+ — waiting on $reason}. ($title)"
+          actionable=1
         else
-          echo "WAIT  #$number: $state — CI still running. ($title)"
+          echo "WAIT  #$number: $state, though every check finished green — GitHub has not called it CLEAN yet. ($title)"
           actionable=1
         fi
         ;;
@@ -848,7 +1060,7 @@ done
 # Pressing the button is not the end of a merge: merged branches need
 # retiring, the primary checkout should read what main now says, and prod
 # must still route — a deploy follows every merge.
-[ "$apply" -eq 1 ] && [ "$merged_any" -eq 1 ] || exit 0
+[ "$apply" -eq 1 ] && [ "$merged_any" -eq 1 ] || exit "$gave_up"
 
 echo
 echo "── post-merge: retiring merged branches and worktrees"
@@ -882,3 +1094,4 @@ scripts/deploy-verify.sh --max-minutes="$dv_minutes" || {
   echo "ACTION deploy verification failed — check production and the Vercel dashboard now." >&2
   exit 1
 }
+exit "$gave_up"

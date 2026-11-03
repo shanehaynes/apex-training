@@ -8,6 +8,11 @@ them can see each other's uncommitted work.**
 Ignoring that is not a style violation, it is how work gets destroyed. The
 incident that produced this document is written up at the end.
 
+What Apex is for, and what it will not do, is in [MISSION.md](MISSION.md).
+The rules every session loads are in
+[docs/workflow-essentials.md](docs/workflow-essentials.md); this document holds
+the procedures and the reasons behind them.
+
 ## The one rule
 
 **The primary checkout is never a workspace.**
@@ -83,7 +88,11 @@ lane is dirty, red, or unpushed: a Stop hook (`scripts/hooks/stop-gate.mjs`,
 wired in `.claude/settings.json`) checks the worktree, runs `agent:check`
 once per commit (cached by SHA — it is minutes on a Mac and a quarter hour in
 a cloud container), and refuses the stop with the reason until the SHA is
-green and on origin. "Done" is no longer a feeling. Two deliberate ways out, both
+green and on origin. A lane that touches a feature folder (`docs/specs/<slug>/`)
+is also held to its own plan: once a milestone in `plan.md` has every box
+checked, each requirement on its `Delivers:` line needs a `validation.md` row
+whose Status begins with `proven`, or the stop is refused naming the slug,
+milestone and ids. "Done" is no longer a feeling. Two deliberate ways out, both
 on the record:
 
 - `scripts/stop-gate.sh blocked "<reason>"` lets one stop through — for an
@@ -95,6 +104,13 @@ on the record:
   Commit and push anyway — a red branch on origin is visible, uncommitted
   work is not — and say what was red.
 
+A red run the Mac slept through is not charged, up to 3 per commit and 5 per
+session. The hook reads the kernel's last-sleep stamp (`kern.sleeptime`)
+before and after the gate; if it changed, the gate froze part-way and its
+tests timed out on wake. The block reason says so. If the tail is only
+timeouts, stop again; a closed lid can sleep the Mac even under the gate's
+`caffeinate`, so keep it open. Past either cap a slept run counts like any red.
+
 A lane whose work already landed in `origin/main` (squash-merged, remote
 branch gone) is done and never blocks. A stop taken while background tasks
 are still running is a wait, not an end, and passes. At any other ambiguity:
@@ -104,6 +120,12 @@ lane? `scripts/stop-gate.sh status` shows what the hook thinks;
 `bind <worktree>` attaches it; an orchestrator that cuts several lanes is
 bound to all of them. `APEX_STOP_GATE=off` in the environment `claude` was
 launched with disables it (a hook does not see the Bash tool's shell).
+
+On a Mac the hook holds idle sleep off while its gate runs, on battery too,
+up to the 29-minute gate timeout: a `caffeinate -i -s -w <hook pid>` beside
+the gate, which ends when the gate does or when the hook is killed. It does
+not hold a closed lid. `APEX_STOP_GATE_CAFFEINATE=off`, in the same
+environment, turns off just the hold.
 
 Squash-merge it. GitHub deletes the remote branch. Then retire the local side:
 
@@ -125,7 +147,8 @@ before this document: 7 worktrees, 15 merged-but-undeleted local branches, and
 ### A review before Shane reads the diff
 
 Between the gate and `gh pr create`, launch the `reviewer` agent
-(`.claude/agents/reviewer.md`) with the spec or brief and the diff
+(`.claude/agents/reviewer.md`) with the feature's three documents (or the
+board brief) and the diff
 (`git diff origin/main...HEAD`) — not your reasoning: a reviewer that has read
 the author's story checks the story. Fix or answer each finding, then paste
 the report into the PR body under `## Review` (the PR template has the
@@ -232,10 +255,12 @@ same fleet by hand and `main` has not moved since.
 
 `scripts/merge-babysit.sh --yes` is the only merge path: the guard hook blocks a
 direct `gh pr merge`, so every merge goes through the loop and its audit trail.
-Running it is still an ordinary permission prompt — **no session is allow-listed
-to run it unattended today.** Granting that means adding a `permissions.allow`
-entry to [.claude/settings.json](.claude/settings.json), and it is Shane's to
-add: the policy holds that file for exactly this reason.
+Two invocations are allow-listed in [.claude/settings.json](.claude/settings.json)
+and run without a prompt: `scripts/merge-babysit.sh --yes` and
+`scripts/merge-babysit.sh --fleet --yes`. The rules are exact strings, not
+prefixes, so any other flag — `--no-check` above all, which skips the union
+proof on the operator's word — still prompts. Widening the grant is Shane's:
+the policy holds that file for exactly this reason (`docs/specs/agent-autonomy.md`).
 
 Granted or not, what the loop may do is bounded on four sides — which is what
 makes granting it a small decision rather than a large one:
@@ -249,7 +274,9 @@ makes granting it a small decision rather than a large one:
 - **The merge policy is the boundary** ([scripts/merge-policy.mjs](scripts/merge-policy.mjs)):
   a PR touching `supabase/migrations/`, `.github/`, `scripts/ci-guards.sh`
   (where the floor's content lives — `ci.yml` delegates to it), `vercel.json`,
-  the dependency manifests, the iOS release surface (`ios/fastlane/` and
+  the dependency manifests (unless the change only bumps names already present,
+  from the npm registry, with no new install script — `manifestHold` and
+  `lockfileHold` in the policy), the iOS release surface (`ios/fastlane/` and
   `ios/scripts/` ship a build; `ios/project.yml`, `ios/Config/`, the
   entitlements, the `Info.plist`s and `PrivacyInfo.xcprivacy` decide what Apple
   receives), or any file of the automation itself — the policy,

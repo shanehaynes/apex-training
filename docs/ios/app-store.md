@@ -6,10 +6,11 @@ M3, in-app Create account); everything below is
 filled in by hand in [App Store Connect](https://appstoreconnect.apple.com) by Shane, because
 the console has no API for most of it and the demo account needs a real key.
 
-> **Two builds, two sets of notes.** Everything below up to §7 describes build 1.0.0 (509),
-> the one in review, which is invite-only. Builds with in-app Create account
-> (docs/specs/open-signup.md M3) use the replacements in
-> [§7](#7-builds-with-create-account) instead. Never paste a §7 line into a reply about 509.
+> **Which build goes back.** 1.0.0 (509), invite-only, was rejected on 2026-10-09 and will not
+> be resubmitted: Shane chose (2026-11-01) a 1.1.0 build with in-app Create account
+> (docs/specs/open-signup.md M3). Everything below up to §7 was written for 509; for the
+> resubmission use it with the replacements in [§7](#7-builds-with-create-account), in the
+> order §7's checklist gives.
 
 > Who can mint an App Store Connect API key, where each secret is escrowed, and how to recover
 > the Apple Account without the release machine: [ops-runbook.md](../ops-runbook.md).
@@ -342,9 +343,9 @@ Sources, current as of 2026-09-19:
 ## 7. Builds with Create account
 
 From the first build carrying docs/specs/open-signup.md M3. These lines **replace** their
-counterparts above; everything else stands. Before submitting such a build, the Terms
-(`legal/terms-v1.md` §2, "Accounts are currently created by invitation") must stop saying
-sign-up is by invitation: the Create account screen links to them.
+counterparts above; everything else stands. Before submitting such a build, `terms-v2` (#527)
+must be live: `terms-v1` §2 says "Accounts are currently created by invitation", and the Create
+account screen links to the Terms.
 
 - **Registration line** (review notes): "The sign-in screen has a Create account mode. The user
   enters an email, accepts the Terms of Service and Privacy Policy, confirms they are 18 or
@@ -362,9 +363,58 @@ sign-up is by invitation: the Create account screen links to them.
   the listing.
 - **App Privacy (§1), to review before submitting:** Create account runs Cloudflare Turnstile
   in an in-app web view, which reads IP address and device and browser signals to tell a person
-  from a bot. Decide whether that changes the App Privacy answers, and note that
-  `legal/privacy-v1.md` names Cloudflare only for email routing — the policy the Create account
-  toggle links at the moment of assent. Both are Shane's calls; nothing here is pre-decided.
+  from a bot. Decide whether that changes the App Privacy answers. `privacy-v2` (#527), the
+  policy the Create account toggle links at the moment of assent, describes Turnstile and Google
+  Fonts; `privacy-v1` named Cloudflare only for email routing. The App Privacy answer is Shane's
+  call; nothing here is pre-decided.
 - **Order**: production must be running PR #477 (the server's 18+ check and stamp) before any
   build with M3 goes to TestFlight. Main's handler before #477 ignores `ageConfirmed`, so an app
   sign-up would go through with nothing recorded.
+- **Build line** (review notes item 1 and the recording): "build 1.1.0 (<build>)" in place of
+  "build 1.0.0 (509)".
+- **External services** (review notes item 4): "Resend: delivers account emails (sign-up links
+  and password resets)" and "Cloudflare: DNS, support email routing, and the bot check on
+  Create account (Turnstile)".
+- **Item 6** (review notes): drop "From 1.1"; the build is 1.1. It still reads nothing from
+  HealthKit (`HKHealthStoreAdapter` asks for `read: []`) until W16 M2i ships. Add: "The app also
+  carries a HealthKit read purpose string, because Apple refuses a HealthKit upload without one
+  (ITMS-90683); this version asks only to write, so the read prompt never appears."
+- **Recording**: after the tracker's Finish, You › Apple Health: turn it on, allow the write
+  sheet, and show the finished workout in the Health app. Step 6's throwaway account is the real
+  sign-up from step 4 of the order below, not a Supabase invite.
+- **§6**: read "1.0" as the first App Store version (1.1.0) and "1.0.1" as the next (1.1.1).
+
+### The resubmission, in order
+
+1. **The legal text, first: it is already overdue.** Web sign-up has been open since 2026-10-17
+   (#452). Since then strangers accept terms-v1 §2, "Accounts are currently created by
+   invitation", and privacy-v1 §1, "no third-party scripts of any kind", while sign-up loads
+   Cloudflare Turnstile (`TurnstileWidget.tsx`, and the app's web view). **Shane chose a version
+   bump on 2026-11-02: `terms-v2` and `privacy-v2`, #527.** Both versions move together, so every
+   user re-accepts once. The web and builds from 561 on (W16 MT) prompt in place. Builds 509 and
+   earlier cannot: every signed-in call fails with "Accept the updated terms to continue." until
+   the user accepts on the web. Queued writes refused meanwhile are not resent on their own: a
+   tracker op waits on the tracker bar for a manual Retry (Discard deletes it), an offline Builder
+   save is toasted ("Open its day to fix it"), and an offline new library exercise is discarded
+   with a toast. Whether #527 merges before most testers run 561 or later (W16
+   MT's last box) is Shane's call when he marks it ready. W16's Health text, approved as
+   `privacy-v2`, is now `privacy-v3` and still flips §1 Health to Yes when it ships. The pages
+   are served from the web (`/terms`, `/privacy`), so no build waits on them.
+2. **App Privacy (§1):** Shane's answer on Turnstile (the bullet above).
+3. **A TestFlight build from `main`, on Shane's go** (`ios/CLAUDE.md`: uploading publishes):
+   the first 1.1.0 build carrying #493, since 604 predates it. #477 has been on `main`, and so
+   in production, since 2026-10-20, so the order rule above holds. Beyond 604, the build adds
+   Create account (#493), the write-queue fixes #455 and #495 (never on a device yet), and
+   W17's You › Training rows *Share voice log* and *Clear voice log*, which show even with
+   voice off. Whether those go public as they are is Shane's call.
+4. **One real sign-up on that build** (open-signup M3's last box): a fresh inbox; the Cloudflare
+   check passes; the email comes from invites@; its link's *Open in the Apex app* lands on
+   set-password; the password signs in on the app and the web; `age_confirmed_at` is set in
+   `raw_app_meta_data`.
+5. **Apple's agreement:** Shane accepts the agreement update Apple emailed on 2026-10-13. App
+   Store Connect blocks submission until then.
+6. **App Store Connect:** the version number matches the build (1.1.0), the new build is
+   selected, and China mainland stays unticked (decided 2026-10-12).
+7. **The demo account and the recording** (§3, with the replacements above) on the new build.
+8. **Reply and submit:** answer the 2.1 request in the Resolution Center with §3's notes and the
+   replacements above, paste the same text into Notes, and submit. Manual release stays set (§6).

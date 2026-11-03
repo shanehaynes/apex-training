@@ -1,6 +1,6 @@
 ## What
 
-<!-- One paragraph. Which spec or board brief this lands (docs/specs/<slug>.md,
+<!-- One paragraph. Which feature or board brief this lands (docs/specs/<slug>/,
 docs/ios/workstreams/W<n>, docs/onboarding/<lane>), or "one-off" and why. -->
 
 ## Review

@@ -22,13 +22,22 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
 | W10 | Library, Blocks, Meals | done (#184–#188) | both | TestFlight build 7 (0.8.0/353) uploaded 2026-09-17; device acceptance is Shane's |
 | W11 | Profile, integrations, account | done (#149, #157) | both | on TestFlight build 6; phase41 in prod (2026-09-16); device runs are Shane's |
 | W12 | Live Activity | done (#131, #132) | Mac | TestFlight build 4 (0.5.0/306); device run passed 2026-09-11 (30-min background and the Done linger not timed) |
-| W13 | Release + polish | done (#190, #191, #193, #194) · **App Store: 1.0 (509) rejected 2026-10-09 — 2.1 Information Needed; reply + recording pending (app-store.md §3)** | Mac | 2026-10-09: build 10 = 1.0.0 (509) from `testflight.yml` run 37964880205 carries W15, #383–#388; phase52 in prod; Push Notifications enabled on the App ID; version 1.0 at *Prepare for Submission*, manual release set |
+| W13 | Release + polish | done (#190, #191, #193, #194) · **App Store: 1.0 (509) rejected 2026-10-09 — 2.1 Information Needed; Shane chose 2026-11-01 to resubmit a 1.1.0 build with Create account, not 509 (app-store.md §7, "The resubmission, in order")** | Mac | 2026-10-09: build 10 = 1.0.0 (509) from `testflight.yml` run 37964880205 carries W15, #383–#388; phase52 in prod; Push Notifications enabled on the App ID; version 1.0 at *Prepare for Submission*, manual release set |
 | W14 | UX review implementation | done (#283–#292, #296, #297) | Mac | ux-review.md §7; decisions D-037…D-044; **TestFlight build 8 (0.9.0/424) uploaded 2026-09-22 by the first `testflight.yml` run**; snapshots re-recorded on the iPhone 17 (#300); Shane's device run on build 8 is next |
 | W15 | Connector access level (look-only / full tokens) | done (#379) | Mac | after #371/#376 gave `/api/mcp` write access; brief [W15](workstreams/W15-connector-access.md) |
-| W16 | Apple Health (write, read workouts, daily metrics, body weight, meals) | M1 (#430) + MT (#438) shipped in TestFlight 1.1.0 (561); M0 landed (phase59, #469); M2b landed (#472); M3b in review; privacy bump, then M2i next | both | D-056 supersedes D-018; M1 (write, no migration) merges after 1.0 is approved and ships as 1.1; MT (in-app terms re-acceptance) gates the privacy bump; brief [W16](workstreams/W16-apple-health.md) |
+| W16 | Apple Health (write, read workouts, daily metrics, body weight, meals) | M1 (#430) + MT (#438) shipped in TestFlight 1.1.0 (561); M0 landed (phase59, #469); M2b landed (#472); M3b in review; privacy bump, then M2i next | both | D-056 supersedes D-018; M1 (write, no migration) reaches the App Store with the 1.1.0 resubmission; MT (in-app terms re-acceptance) gates the privacy bump; brief [W16](workstreams/W16-apple-health.md) |
 | W17 | Voice set logging (on-device Speech, no LLM) | PR-H #480, M1 #483, M2 #484 merged; TestFlight 1.1.0 (604), toggle off by default; M3 dogfood next | both | D-059; Swift parser on a JSON fixture (112 cases, ratchet), Undo, ships dark behind `apex.tracker.voice`; 604 uploaded 2026-10-22 from main at 75096526 (#486); next: Shane's device run on 604 (toggle on, the scorecard, #480's pins — all NOT VERIFIED), then one `fix/w17-voice-cases-<date>` ApexCore PR per gym session; brief [W17](workstreams/W17-voice-set-logging.md) |
 
 ## Next up
+0. **App Store resubmission — 1.1.0 with Create account (ROADMAP Now 1).** 509 is not going back.
+   The order is [app-store.md](app-store.md) §7, "The resubmission, in order". First the legal
+   text, already overdue: web sign-up has been open since 2026-10-17 while Terms §2 says
+   invitation-only and privacy-v1 says no third-party scripts (Turnstile is one). Shane chose a
+   version bump on 2026-11-02: `terms-v2` / `privacy-v2`, draft #527, his to mark ready. Then the
+   Turnstile App Privacy answer, a TestFlight build from `main` on Shane's go (the first carrying
+   #493), one real sign-up on it, Apple's 2026-10-13 agreement, the version number, the recording
+   and the reply. An agent can draft the legal text and cut the build when Shane says so; every
+   other step is his. The APNs key (D-051) is still listed as his, below.
 0. **W17 M3 — the device run on TestFlight 1.1.0 (604), then ApexCore PRs.** All three lanes are on
    `main` (PR-H #480 and M1 #483 on 2026-10-20, M2 #484 on 2026-10-21) and build 604, uploaded
    2026-10-22 from `main` at 75096526 (#486), carries them with the toggle off. First, Shane:
@@ -49,8 +58,8 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
 0. **W16 M2i — iOS reads Health workouts (Mac), after the privacy bump.** Goal: a Watch,
    Garmin-via-Health or Whoop-via-Health workout reaches the server as provider `apple` (M2b,
    #472) from the phone, durable through kills and offline, and a match the athlete has not
-   decided is never lost. **First, Shane:** the privacy bump approved 2026-10-14 (`legal/privacy-v2.md`
-   + `PRIVACY_VERSION`, text naming Health categories, server storage and Anthropic for daily
+   decided is never lost. **First, Shane:** the privacy bump approved 2026-10-14 (`legal/privacy-v3.md`
+   since #527 took `v2` for open sign-up, + `PRIVACY_VERSION`, text naming Health categories, server storage and Anthropic for daily
    metrics) once testers are on 561 — M2i ships only after it. Scope (full contract:
    [W16 brief, M2i](workstreams/W16-apple-health.md)): `HealthWorkoutReader` (anchored query,
    now−30d start, own source excluded, HR per workout, background delivery that only enqueues);
@@ -76,24 +85,26 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
    (it carries 1.1.0 and the entitlement). In parallel: **W16 MT** (Mac — a signed-in user can
    re-accept updated terms in the app; the privacy bump waits for it) and **W16 M0** (Linux —
    the one migration for M2/M3; HELD).
-0. **Tracker parity with web #390, second half — the subtitle and the day-only note.** Goal: the two
-   edits #390 added to the web card that the iOS card still lacks. Scope: (a) the definition's
-   technique notes as an editable subtitle under the exercise name (pencil in the header when
-   empty; a PATCH of `technique_notes` through the same `update-definition` op, generalised from
-   `log_fields` to a `[String: JSONValue]` of changed columns); (b) "+ note" — a note on one
-   exercise for this occurrence only, `workout_exercise_notes` (phase 54, keyed by event_id +
+0. **Tracker parity with web: an exercise's two notes (#390, reshaped by the notes panel PR).** Shane
+   logs in the iPhone app and wants to add or edit an exercise's notes mid-workout, in two sections:
+   saved across every time, and just this instance. Goal: the web card's notes panel
+   (`src/components/tracker/ExerciseNotes.tsx`) on `TrackedExerciseView`. Scope: (a) "Every time"
+   is the definition's `technique_notes`, editable multi-line, written through the same
+   `update-definition` op, generalised from `log_fields` to a `[String: JSONValue]` of changed
+   columns; (b) "This workout only" is `workout_exercise_notes` (phase 54, keyed by event_id +
    event_date + section + exercise_id), which rides the web's debounced save, loads in bootstrap
    and goes with the session on cancel — check `api/_lib` for how `save` carries it and whether
-   the iOS `SavePayload`/`TrackerBootstrap` need the field (fixtures re-emitted if so).
-   Acceptance: both edits on `TrackedExerciseView` with identifiers; `ApexCore` tests for the
-   op payload and the save merge; the smoke drives "+ weight" on a reps-only fixture exercise
-   (`tracker.add-field.<id>.weight`, from this session's chips) and the new note; snapshots
-   re-recorded. Owns: `ios/Packages/ApexCore/Sources/ApexCore/{Tracker,Cache,API}`,
+   the iOS `SavePayload`/`TrackerBootstrap` need the field (fixtures re-emitted if so). Closed, the
+   panel reads as the notes under their labels and a tap opens the editor on one; with neither
+   note, one "+ note" chip. Acceptance: both edits on `TrackedExerciseView` with identifiers;
+   `ApexCore` tests for the op payload and the save merge; the smoke drives the new note;
+   snapshots re-recorded. Owns: `ios/Packages/ApexCore/Sources/ApexCore/{Tracker,Cache,API}`,
    `ApexFeatures/Tracker`, fixtures only if the bootstrap shape changes. Mac session.
 0. **Tracker scroll fix (D-054) is PR #398** — carries no migration; next
    `testflight.yml` run after merge ships it, and Shane's phone run is the real verdict. If the
    120 Hz device still hitches, the fallback is D-054's option (b): unfocused inputs as `Text`.
-0. **Answer App Review: 2.1 *Information Needed* (rejected 2026-10-09 11:54 PM, submission
+0. **Superseded 2026-11-01 by the resubmission item at the top: 509 is not going back.** Kept for
+   the history. **Answer App Review: 2.1 *Information Needed* (rejected 2026-10-09 11:54 PM, submission
    `9a4347ed`).** No defect named — Apple's standard request for a new developer account: a
    physical-device recording from launch (login, the flow, account deletion, any UGC/paid
    content) plus six written answers, also pasted into the Notes field. The answers and the shot
@@ -102,7 +113,7 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
    Availability (decided 2026-10-12: generative-AI permit, no Anthropic API there); paste the
    Notes; reply with the recording; **Resubmit to App Review**. prod-schema-check exit 0 on
    2026-10-12.
-0. **Submitted 1.0 on build 509 (2026-10-09).** The console is complete (demo account verified, review
+0. **Superseded 2026-11-01 (509 is not going back), except (c), the APNs key.** **Submitted 1.0 on build 509 (2026-10-09).** The console is complete (demo account verified, review
    contact and notes filled, manual release set). Left: (a) Shane's device run on 1.0.0 (509) from
    TestFlight, including You → Data → Delete account on a throwaway account; (b) **Add for Review**
    on the version page; (c) the APNs key — Shane mints it at developer.apple.com → Keys, sets
@@ -157,6 +168,21 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
    (`printf` the two ids back after a tidy) — both git-ignored, so never from the primary checkout.
 
 ## Recent sessions
+- 2026-11-01 · App Store build decision · docs only. Shane chose a 1.1.0 build with Create account
+  over 509 and App Store Connect's Active Devices as the objective's measure; ROADMAP Now 1 and the
+  Objective record both, Now 3 (measurement) is struck, and app-store.md §7 gains the remaining
+  replacements and the resubmission order. The review found the legal text overdue on the web
+  since open sign-up (2026-10-17), so it is step 1; the two 509 items below are marked superseded.
+- 2026-10-27 · Write-queue ordering fix · Mac. A Finish or Swap tapped as the autosave queued its
+  save could take the lower id and be sent first (`WriteQueue` is a reentrant actor; the save waited
+  on its GRDB tail read). Same root found two save-loss races (a merge into a row the drain was
+  sending) and a save landing after a cancel. A per-lane turn now serialises every read-then-write
+  on a lane (`enqueue`, `cancelSession`, the drain's pick and settle, Retry, Discard, Let go, the
+  outbox put-back); the send holds none. Follow-ups in the same PR: a purge counter so nothing
+  called before `purgeAll` (account deletion) lands after it; `WriteQueueStore.update` returns
+  whether its row existed, and a merge into a gone row appends; Let go during a send waits for it.
+  16 new ApexCore tests (15 fail without their fix), 2 TrackerModel, 1 GRDB store. Only change you
+  can see: Let go on an op being sent takes effect once the send ends, with no busy state meanwhile (#495).
 - 2026-10-25 · W17 M3 pins, R8 edges · Mac. Seven authored cases (106–112) pin decision 4 for every
   connective and both sides of the boundary: the four #488's review asked for — `5 reps for 3` → W3 (`for` apart from `x`), `10 x 5 reps`
   → 10 sets and `11 x 5 reps` → W11 (the boundary), `225 at 5 reps` → W225 — then, after one reviewer
@@ -247,6 +273,14 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
   `ascent_style`/`attempts` on a pitch's only (`setToRow`'s keys); zero-fills reset them; a queued
   row replays them. The summary tags warm-ups and ratings. Tracker and You snapshots re-recorded
   (the stale ones included) plus `tracker-metadata` at 393 and 375. Next up: session volume on the summary.
+- 2026-10-15 · Write-queue store failures · Mac. `WriteQueue.drain` no longer discards its six
+  store writes with `try?`: a failed write stops the drain, emits the new `QueueEvent.storeFailed`
+  (not `failed` — nothing was refused, so no refusal UI fires) and retries the session after a
+  backoff. The attempt it could not record is carried in memory, so the backoff doubles and
+  `maxAttempts` still arrives while the store is down. Before, a store that kept failing handed the
+  same op straight back and re-sent it in a loop; two of the four new `WriteQueueStoreFailureTests`
+  hang the old code. The app does not surface `storeFailed` yet (the pending-sync chip stays up); the
+  user-action paths still use `try?` (docs/improvements/04-clean-code/ios-core.md). Brought up to date with #495 on 2026-10-27: `record` runs inside the drain's settle turn, and the carried count is dropped wherever the ladder restarts or the op leaves (put-back, Retry, Discard, Let go, purge); three more store-failure tests. ApexCore 673 (1 skipped) on macOS.
 - 2026-10-15 · Profile time zone · Mac. The app writes `TimeZone.current` to `profiles.timezone`
   (phase58, #449) after sign-in, on every foreground and after accepting updated terms, when it
   differs from what `GET /api/profile` reports (D-057). `ProfileResponse.timezone`,

@@ -82,6 +82,8 @@ describe.skipIf(!RUN)('api handlers against the local stack', () => {
     admin = createClient(env.url, env.serviceKey, { auth: { persistSession: false } });
 
     await admin.from('workout_events').delete().eq('id', EVENT_ID);
+    // An interrupted run leaves its count behind; the bump test needs 1..5.
+    await admin.from('api_request_counts').delete().eq('bucket', 'itest');
   });
 
   afterAll(async () => {
@@ -148,6 +150,8 @@ describe.skipIf(!RUN)('api handlers against the local stack', () => {
   });
 
   it('bump_rate_limit counts atomically within one window', async () => {
+    // `itest` is no handler's bucket (RATE_LIMITS), so no other file in this
+    // parallel suite touches it; ios-read's cleanup deletes only those.
     const counts: number[] = [];
     for (let i = 0; i < 5; i++) {
       const { data, error } = await admin.rpc('bump_rate_limit', {

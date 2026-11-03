@@ -36,6 +36,7 @@ e2e/screenshots/
 # (merge audit log, locks) and the autonomous-merge kill switch
 .claude/state/
 .claude/AUTOMERGE_OFF
+.claude/OWNER_OFF
 
 # Linked worktrees — scripts/git-new.sh creates them inside the primary checkout
 .claude/worktrees/

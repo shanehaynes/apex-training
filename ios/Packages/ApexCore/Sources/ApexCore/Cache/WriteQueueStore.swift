@@ -255,7 +255,9 @@ public protocol WriteQueueStore: Sendable {
     /// Assigns and returns the id.
     func append(_ op: TrackerOp) async throws -> Int64
     /// By id: payload (a merge), attempts, lastError, state, gaveUp, giveUpCount.
-    func update(_ op: TrackerOp) async throws
+    /// False when no row has the id any more (sent, purged, discarded).
+    @discardableResult
+    func update(_ op: TrackerOp) async throws -> Bool
     /// "Sent": a finished op leaves no row behind.
     func delete(id: Int64) async throws
     /// The newest op for the session, whatever its state — the merge candidate.

@@ -78,32 +78,91 @@ apexcore-linux:
       with: { swift-version: "6.1" }          # ApexCore is tools-version 6.0; no Apple SDK needed
     - run: swift test --package-path ios/Packages/ApexCore
 
-ios:
-  # macos-15's default Xcode cannot build a tools-version 6.2 manifest or Swift 6.3
-  # sources, which is what ApexKit is.
-  runs-on: macos-26
-  timeout-minutes: 40
+changes:
+  # Decides on ubuntu whether ios must run. In ci.yml the script sits between
+  # ios-paths markers, and scripts/__tests__/ci-ios-paths.test.ts runs it from there.
+  runs-on: ubuntu-latest
+  timeout-minutes: 5
+  outputs: { ios: "${{ steps.paths.outputs.ios }}" }
   steps:
     - uses: actions/checkout@v7
       with: { fetch-depth: 0 }
-    - name: Skip when no iOS paths changed
+    - id: paths
       run: |
-        base=$(git merge-base origin/main HEAD)
-        if git diff --quiet "$base" HEAD -- ios/ ; then echo "no ios changes"; echo "skip=1" >> "$GITHUB_ENV"; fi
+        ios=true
+        case "$GITHUB_EVENT_NAME" in
+          pull_request | merge_group)
+            if base=$(git merge-base origin/main HEAD) &&
+              git diff --quiet "$base" HEAD -- ios/ .github/workflows/ci.yml; then ios=false; fi ;;
+        esac
+        echo "ios=$ios" >> "$GITHUB_OUTPUT"
+
+ios:
+  needs: changes
+  if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.ios != 'false') }}
+  # macos-15's default Xcode cannot build a tools-version 6.2 manifest or Swift 6.3
+  # sources, which is what ApexKit is.
+  runs-on: macos-26
+  timeout-minutes: 75
+  steps:
+    - name: Fail when the changes job did not decide
+      if: needs.changes.result != 'success'
+      run: echo "::error::The changes job ended '${{ needs.changes.result }}' …"; exit 1
+    - uses: actions/checkout@v7
+      with: { fetch-depth: 0 }
     - run: brew install xcodegen
-      if: env.skip != '1'
     - run: xcodegen generate --spec ios/project.yml
-      if: env.skip != '1'
     - run: xcodebuild -project ios/Apex.xcodeproj -scheme Apex -configuration Local -destination 'platform=iOS Simulator,name=iPhone 17,OS=26.5' -derivedDataPath ios/build/dd -resultBundlePath ios/build/Apex.xcresult -retry-tests-on-failure -test-iterations 2 CODE_SIGNING_ALLOWED=NO test
-      if: env.skip != '1'
     - uses: actions/upload-artifact@v7
-      if: always() && env.skip != '1'
+      if: always()
       with: { name: ios-results, path: ios/build/Apex.xcresult, retention-days: 7 }
 ```
 
-Why the early-exit instead of `on.paths`: the merge queue's `merge_group` event and required
-status checks do not compose with path filters — a required check that never starts blocks the
-queue. The job always starts and finishes green in seconds for web-only PRs.
+Why `timeout-minutes: 75`: the cap is there to stop a hung job, so it sits 15 minutes above
+the slowest legitimate run seen, not at the typical one. Under the old 40-minute cap, 7 of
+October's 201 built runs were killed and none was hung. Five had passed every test and died
+writing or uploading the results; two were partway through ApexUITests and passing.
+
+Where a run goes: the build takes 4–10 minutes. The test host's first launch on the simulator
+takes 2–12, and shows in the log only as silence between the last build line (`Touch
+…ApexUITests.xctest`) and the first test; the `.xcresult` puts the install at under a second,
+so the cost is the launch. ApexTests takes under 2 minutes and ApexUITests 16–21 (26 cases).
+Green runs were 34 minutes at p50 over October and 37 in its last week, but that distribution
+stops at 40 because every longer run was killed. The killed runs had the longest first
+launches (9–12 minutes) and builds at or past the top of the green range (8–20), and needed
+41–48 minutes. #502, with a 20-minute build and a 12-minute first launch, would have needed ~57.
+The job's p50 has grown by 1–2 minutes a week as UI cases are added (21 in mid-October, 26 now).
+
+When any run gets within 15 minutes of the cap (past 60), shorten the job rather than raise
+the cap again. First find out whether the first launch is the simulator still booting: time a
+`xcrun simctl boot` plus `xcrun simctl bootstatus -b` step before the build for a few runs. If
+it is, boot it during the build; if not, shard ApexUITests across jobs.
+
+A run the cap kills ends `cancelled`, with an `.xcresult` that cannot be read. So the cap frees
+the runner, but a hang still shows up as no test result at all.
+
+Why a job-level skip decided on ubuntu, instead of `on.paths` or a skip inside the job:
+- A path filter does not compose with required status checks (or the merge queue's
+  `merge_group` event): a required check that never starts blocks the merge forever.
+- A skip step inside `ios` needs a macOS runner just to exit, so every web-only PR waits for
+  one. In the 2026-09-21 fleet, #237's skip started 114 minutes after its other checks, and a
+  macOS outage would hold every web-only PR whose `ios` is required.
+- So the `changes` job decides on ubuntu, and `ios` is skipped at job level. GitHub counts a
+  job skipped by its `if:` as passing a required check.
+
+Because a skip passes, the skip fails closed: `ios` skips only when `changes` succeeded and
+said `false`.
+- A `changes` that failed or timed out (GitHub reports a timeout as `cancelled`) makes `ios`
+  run, and its first step fails with an `::error::` naming `changes`. `!cancelled()` replaces
+  the implicit `success()`, which would skip `ios` whenever `changes` failed.
+- When the whole run is cancelled, by hand or by a newer push, `ios` ends `cancelled` without
+  ever getting a runner. That fails a required check too.
+- A `changes` that succeeded without writing `ios=` leaves the output `''`, and `ios` builds.
+  That is why the condition is `!= 'false'`: `== 'true'` would skip.
+
+Push, schedule and dispatch always build: there the merge base is HEAD, so the diff is empty
+and would skip the nightly run, the one that most needs to build the app. `ci.yml` counts as
+an iOS path (the whole file, so a `coach-gate` edit too), and a PR that edits it runs this job.
 
 Why `-retry-tests-on-failure -test-iterations 2`: a failed test is run once more and the job
 is green if the second run passes — and the `.xcresult` marks it "passed on retry", which is

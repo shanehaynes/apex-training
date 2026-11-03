@@ -1,0 +1,209 @@
+# Agent autonomy: fewer holds where CI or a classifier can prove safety — spec
+
+**Owns:** `.claude/settings.json` (`permissions` only), a new
+`scripts/__tests__/settings-grant.test.ts`, the header and the `--yes`
+self-check (`automation_is_main`) of `scripts/merge-babysit.sh`, `scripts/merge-policy.mjs`,
+`scripts/merge-policy.d.mts`, `scripts/__tests__/merge-policy.test.ts`, new
+`scripts/migration-classify.mjs` and `scripts/migration-apply.mjs` with their tests,
+the `policy_check` and `schema_preflight` functions of `scripts/merge-babysit.sh`,
+the "Autonomous merging" sections of CLAUDE.md and CONTRIBUTING.md, and
+CLAUDE.md's "Production's schema" bullet.
+**Forbidden:** `.github/`, `scripts/ci-guards.sh`, the guard hooks, the iOS release
+surface, `evals/baseline/`, and any removal from `HELD` — exceptions are carved out
+by content checks inside `decide`, never by shrinking the list.
+**Depends on:** M3 touches `merge-babysit.sh`, which #507 and #510 also change; M3's
+PR opens after both merge.
+**Status:** in review (M1, M2 PRs; M3 branch waits for M2, #507 and #510)
+
+## Goal
+Last month 22 of 100 merged PRs touched a held path and 21 of them were merged by
+hand outside the babysitter. The held list mixes two kinds of rule: **authority**
+(the agent must never merge an expansion of what the agent may do — the
+automation's own files, `.github/`, the guard hooks) and **provability** (CI cannot
+show a dependency or a migration is safe). Authority rules stay absolute. This spec
+replaces three provability holds with mechanical checks: the merge loop runs
+without a prompt (M1), dependency bumps of packages already present merge alone
+(M2), and migrations that only add — proven by a fail-closed classifier — are
+applied to production by the babysitter and then merged (M3).
+
+The revert story, which is the condition Shane set: code reverts with `git revert`;
+an additive migration does not revert with git, so M3 prints and records the
+inverse SQL (drop what it created) for every migration it applies. A destructive
+migration has no mechanical inverse and therefore stays held.
+
+## Scope
+In:
+- M1: two exact-string allow rules for the babysitter.
+- M2: a package.json content check inside `decide`.
+- M3: a SQL classifier, a Management-API applier, the babysitter wiring.
+Out:
+- The iOS release surface, `.github/`, the automation's own files: no change.
+- Any route for the agent to apply `shipit`, approve, or call `gh pr merge`.
+- Destructive or rewriting DDL, data updates, functions, triggers, views,
+  extensions — held as today.
+
+## Milestones
+
+### M1 — the merge loop runs without a prompt
+- [ ] `.claude/settings.json` allows exactly `Bash(scripts/merge-babysit.sh --yes)`
+  and `Bash(scripts/merge-babysit.sh --fleet --yes)`; no wildcard, so
+  `--no-check` and every other flag still prompt.
+- [ ] CLAUDE.md, CONTRIBUTING.md and the babysitter's header say what is
+  allow-listed and why the rule is exact.
+- [ ] A test pins `permissions.allow` to exactly those two strings, with no wildcard.
+- [ ] Under `--yes`, every pass, the babysitter refuses unless `scripts/`,
+  `.claude/settings.json` and the agent-guard hooks in its checkout match
+  `origin/main` exactly (no tracked diff, no untracked file). The grant names a
+  relative path, so without this a session in a worktree would run its own
+  unreviewed policy unattended. Tested with a modified policy and an untracked
+  script: no `gh pr merge` call.
+
+### M2 — dependency bumps of packages already present merge alone
+`decide` gets the PR's `package.json` before and after (the babysitter reads both
+with `git show` at the merge base and the head; unreadable → hold).
+- [ ] A PR whose `package.json` change only changes the version of names already in
+  `dependencies`/`devDependencies`/`optionalDependencies`/`peerDependencies` is not
+  held for the manifest; `package-lock.json` alongside it is not held either.
+- [ ] A lockfile-only change (no `package.json` diff) is not held.
+- [ ] Held, each with its own reason: a new direct dependency name; a name moved
+  from `devDependencies` to `dependencies`; any change to `scripts`, `overrides`,
+  `resolutions`, `workspaces`, `engines`, `bin`, `type`, `main`/`exports`, or any
+  other top-level key; a version spec that is not a registry semver range
+  (`git+`, `file:`, `http(s):`, `npm:` alias, `link:`, `workspace:`).
+- [ ] Missing before/after content holds (fail closed); the existing HELD entries
+  and their tests stay, and the `agent:check`/`npm audit` floor is unchanged.
+- [ ] The merge-policy header comment states the new rule and why new names are the
+  line (a name is a new publisher; a bump is a publisher already trusted).
+
+### M3 — additive migrations are applied by the babysitter, then merged
+`scripts/migration-classify.mjs` (pure) takes one migration's SQL and returns
+`{ additive: true, inverse: "<sql>" }` or `{ additive: false, reasons: [...] }`.
+It reuses `statements()` from `prod-schema-check.mjs`. Allowed statements:
+- `create table [if not exists] <name> (…)` in public — not `as`, not `like`,
+  not `temp`/`unlogged`, not `partition of`; every such table must also get
+  `alter table <it> enable row level security` in the same file;
+- `alter table <t> add column [if not exists] …` (several per statement allowed),
+  `alter table <t> add constraint <n> check|foreign key|unique …` (no cascading
+  `on delete/update` on an existing table), `alter table <t> drop constraint if
+  exists <n>` only when the same file re-adds `<n>` as a CHECK on the same table
+  (the applier reads the old definition first so the inverse restores it), and
+  `alter table <new t> enable row level security`;
+- `create [unique] index [if not exists] … on <t> …` — not `concurrently`
+  (it cannot run inside the single transaction the apply uses);
+- `comment on …`;
+- `drop policy if exists … on <t>`, `create policy … on <t>`, `revoke … on <t>`,
+  `grant … on [table] <t> to authenticated|service_role`
+  — only where `<t>` is created in the same file. A policy or grant on an existing
+  table changes access to data that already exists, additive or not;
+- `notify pgrst, 'reload schema'`;
+- the ledger stamp, as the last statement, matching `stampFor(file, sql)`.
+Everything else — `do`, `create function`, `create view`, triggers, `update`,
+`insert` (other than the stamp), `drop`, `alter column`, `rename`, `alter policy`,
+`create extension`, `begin`/`commit` — is non-additive.
+- [ ] Every migration on `main` classifies without throwing; a test pins the
+  additive/non-additive verdict for each existing file (a snapshot, one verdict per file).
+- [ ] Adversarial tests: a policy on an existing table, `grant … to anon`, a table
+  without RLS, a `create table … as select`, a function hidden in a `do` block, a
+  second statement after the stamp, an edited stamp, `concurrently` — each held,
+  with a reason naming the statement.
+- [ ] `decide` does not hold `supabase/migrations/*` paths when every one is an
+  added file (not modified or deleted) that classifies additive; the sources reach
+  it the same way M2's package.json does.
+- [ ] `scripts/migration-apply.mjs <ref> <file>…` applies each file, in `sort -V`
+  order, through `POST https://api.supabase.com/v1/projects/<ref>/database/query`,
+  one file per request (a multi-statement query is one implicit transaction), using
+  `SUPABASE_ACCESS_TOKEN` from `~/.config/apex-training/prod.env`. Without the
+  token it exits 3 and changes nothing; the babysitter then holds as today
+  ("apply by hand"). The token's absence is the opt-out.
+- [ ] Before applying, every object the file creates is looked up and the apply is
+  refused if one exists: `if not exists` would no-op and the inverse would drop it.
+- [ ] Both new scripts are in `HELD` and in the authority-chain test.
+- [ ] In `schema_preflight`, with `--yes` only, serial loop only: when production passes against
+  `main`, fails against the PR's head only on the PR's own migrations, and the
+  policy passed the PR, the babysitter runs the applier, re-runs the head check,
+  and merges only on exit 0. It posts the applied files and their inverse SQL as a
+  PR comment before merging and appends one line per file to the merge log.
+- [ ] A dry run never applies; `AUTOMERGE_OFF` stops before any apply.
+
+## Gate
+`npm run agent:check` on every commit. Plus, for M3, one real apply that nobody but
+Shane can authorize: a throwaway additive migration (a comment-only table) applied
+by the babysitter against production, its inverse run by hand, and
+`prod-schema-check.mjs` exit 0 before and after. Shane creates the access token.
+
+## Done means
+Every box above checked, every PR merged (each is HELD by design and needs
+`shipit`), `scripts/git-tidy.sh --yes` run, and the Next brief filled in.
+
+## Decisions
+- 2026-10-28 · Allow rules are exact strings: a prefix rule would also grant `--no-check`.
+- 2026-10-28 · New dependency names stay held, bumps do not. A version bump can still
+  ship a compromised release; that risk already exists today, since 21 of the 22 held
+  PRs were merged without a line-by-line review. The line is drawn where a human adds
+  information: choosing a new publisher.
+- 2026-10-28 · Policies and grants count as additive only on tables the same migration
+  creates. On an existing table, `using (true)` is purely additive and exposes everything.
+- 2026-10-28 · DDL goes through the Management API, not a new `pg` dependency (itself
+  a held change) and not `supabase db push`, whose history table production does not keep.
+- 2026-10-28 · The applier runs in the babysitter on Shane's Mac, not in CI: the
+  production access token stays off GitHub, and the order stays DDL first, merge second.
+
+- 2026-10-28 · Applies run in the serial loop only. A fleet preflights before its union
+  proof and its one-migration rule, so it could apply DDL for a PR it then skips.
+- 2026-10-28 · No explicit BEGIN/COMMIT: on error a pooled connection could be left
+  in an aborted transaction. The implicit transaction of a multi-statement query
+  is atomic on its own.
+- 2026-10-28 · Replace-a-CHECK (drop if exists + add the same name) is additive. It is
+  the shape of phase57–59 and loses no data. With it, 34 of the 57 migrations on
+  main would have applied without a human.
+- 2026-10-28 · Access-control statements (RLS toggle, policies, grants, revokes) only
+  on tables the same file creates: on existing tables even a revoke has no exact
+  inverse.
+
+- 2026-10-28 · The `--yes` grant also covers M3's production apply, with no second
+  permission entry. That is deliberate: Shane asked for migrations to be autonomous.
+  The separate, revocable opt-in is the token in `prod.env`: delete the line and
+  every migration holds again.
+- 2026-10-28 · The `--yes` self-check compares against origin/main rather than
+  requiring the primary checkout. A worktree whose automation equals main's runs
+  main's code, so it is harmless. A primary behind origin/main is refused until
+  pulled.
+
+- 2026-10-28 · Lockfile entries must be the exact registry tarball of the name their
+  key installs (`<name>/-/<base>-<version>.tgz`), with new npm aliases held. Registry
+  plus integrity alone let a key point at another publisher's tarball. `.npmrc`,
+  `npm-shrinkwrap.json`, other managers' lockfiles and nested `package.json` are
+  held by pattern.
+- 2026-10-28 · Not fixed here: a content-checked PR's merge is pinned to the checked head
+  only for migration PRs. #510 pins fleet merges to the head the union proof saw, and
+  the serial window between policy and merge is seconds. Revisit once #510 lands.
+
+- 2026-10-28 · From the M3 review. Any `$` outside a plain string literal, any E'' string
+  and any nested block comment holds the file: Postgres lexes `a$q$` as one
+  identifier, while the splitter saw a dollar quote that hid statements from the
+  classifier.
+- 2026-10-28 · On existing tables, DEFAULT, CHECK and index expressions may call only
+  side-effect-free built-ins (`SAFE_CALLS`), because Postgres runs them over every
+  existing row. `comment on` is allowed only for objects the file creates. The
+  applier refuses a drop-and-re-add whose dropped constraint is not a CHECK
+  (`contype`).
+- 2026-10-28 · The babysitter applies only files the PR adds. Before applying, it
+  re-asks the policy about the exact SHA, without labels, so a push between the
+  policy and the preflight cannot slip SQL through, and a shipit on other held
+  files does not extend to the apply. A partial apply is still logged and commented.
+
+## Session log
+- 2026-10-28 · spec written; M1 on `chore/agent-autonomy-m1`, M2 on
+  `chore/agent-autonomy-m2`, M3 on `db/agent-autonomy-m3` (stacked on M2). Not
+  verified: a real apply against production (needs Shane's token).
+
+## Next brief
+**M2 — dependency bumps merge alone.** Implement M2's boxes above in a lane cut with
+`scripts/git-new.sh chore/agent-autonomy-m2 "merge-policy.mjs decide: package.json
+content check; merge-babysit.sh policy_check passes manifests"`. `decide(paths,
+labels, changed, sources)` gets a fourth argument `{ 'package.json': { before, after } }`;
+`policy_check` in the babysitter fills it with `git show <merge-base>:package.json` and
+`git show <head>:package.json` after fetching `refs/pull/N/head`, and passes
+`null` for a side that is missing (a new file is a new manifest: held). Keep every
+HELD entry; add the exception inside `decide`, each held reason distinct and tested.
+Acceptance is the M2 list; the PR is HELD (it changes the policy) and needs `shipit`.

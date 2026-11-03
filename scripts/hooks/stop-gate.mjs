@@ -10,8 +10,10 @@
 //
 //   1. uncommitted or untracked files            → "commit them" (lists them)
 //   2. work already landed in origin/main         → nothing left to prove
-//   3. the gate (npm run agent:check) is red      → the failing tail
-//   4. commits not on origin/<branch>             → "push"
+//   3. a milestone checked off in docs/specs/<slug>/plan.md whose
+//      requirements validation.md does not prove  → the slug, milestone, ids
+//   4. the gate (npm run agent:check) is red      → the failing tail
+//   5. commits not on origin/<branch>             → "push"
 //
 // and refuses the stop (exit 2, reason on stderr — Claude reads it and keeps
 // working). A green run is cached by commit SHA, so a session that stops
@@ -32,10 +34,19 @@
 //   - the gate is run at most STOP_GATE_MAX_RED_RUNS (3) times per commit and
 //     STOP_GATE_MAX_RED_TOTAL (10) times per session while red; past either
 //     it stands aside with a note, so an unfixable red (stale stack, a flake,
-//     no network for npm audit) cannot loop a session forever. The dirty and
-//     unpushed checks never stand aside: they are one command to satisfy.
+//     no network for npm audit) cannot loop a session forever. The dirty,
+//     proof and unpushed checks never stand aside (the proof check only for
+//     a validation.md it cannot read): each is one edit to satisfy.
 //   - a session that cannot fix a red is still expected to commit and push
 //     it: a red branch on origin is visible; uncommitted work is not.
+//
+// A red run the Mac slept through is not charged. A sleep freezes the gate
+// part-way and its in-flight tests time out on wake, which says nothing about
+// the commit. runGate reads kern.sleeptime before and after the run; if it
+// changed, the run crossed a sleep. Up to STOP_GATE_MAX_SLEPT_RUNS (3) such
+// runs per commit and STOP_GATE_MAX_SLEPT_TOTAL (5) per session go uncharged,
+// and the block reason says the Mac slept. Past either cap they count like
+// any red, so a closed lid cannot loop a session forever either.
 //
 // Everything lives in this one file on purpose, like bash-guard.mjs: bare
 // `node`, builtins only, and internal errors allow (fail open) — a broken
@@ -45,7 +56,8 @@
 // Knobs are read from the environment Claude Code itself was launched with
 // (a hook does not see the Bash tool's shell): APEX_STOP_GATE=off,
 // APEX_STOP_GATE_CMD, STOP_GATE_MAX_RED_RUNS, STOP_GATE_MAX_RED_TOTAL,
-// STOP_GATE_TIMEOUT_MS.
+// STOP_GATE_MAX_SLEPT_RUNS, STOP_GATE_MAX_SLEPT_TOTAL, STOP_GATE_TIMEOUT_MS,
+// and on a Mac APEX_STOP_GATE_CAFFEINATE=off (holdAwake).
 
 import { spawn, spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
@@ -54,6 +66,8 @@ import { basename, dirname, join, resolve } from 'node:path';
 export const DEFAULT_GATE = 'npm run agent:check';
 export const MAX_RED_RUNS = Number(process.env.STOP_GATE_MAX_RED_RUNS) || 3;
 export const MAX_RED_TOTAL = Number(process.env.STOP_GATE_MAX_RED_TOTAL) || 10;
+export const MAX_SLEPT_RUNS = Number(process.env.STOP_GATE_MAX_SLEPT_RUNS) || 3;
+export const MAX_SLEPT_TOTAL = Number(process.env.STOP_GATE_MAX_SLEPT_TOTAL) || 5;
 const GATE_TIMEOUT_MS = Number(process.env.STOP_GATE_TIMEOUT_MS) || 1_740_000; // under the 1800s hook timeout; a cloud container's e2e leg alone takes ~15 min
 const TAIL_LINES = 60;
 
@@ -100,7 +114,7 @@ export function worktreeContaining(dir) {
 //   <primary>/.claude/state/sessions/<id>                     one lane path per line
 //   <primary>/.claude/state/stop-gate/<id>/blocked            the one-stop pass
 //   <primary>/.claude/state/stop-gate/<id>/<lane>.green       SHA of the last green run
-//   <primary>/.claude/state/stop-gate/<id>/<lane>.count       "<sha> <red runs at sha> <red runs total>"
+//   <primary>/.claude/state/stop-gate/<id>/<lane>.count       "<sha> <red runs at sha> <red runs total> <uncharged slept runs at sha> <uncharged total>"
 //   <primary>/.claude/state/stop-gate/<id>/<lane>.gate.log    full output of the last run
 // ---------------------------------------------------------------------------
 
@@ -199,19 +213,228 @@ export function unpushedCount(wt, branch) {
   return r.ok ? Number(r.out) || 0 : 0;
 }
 
+// ---------------------------------------------------------------------------
+// Spec proofs. A feature folder docs/specs/<slug>/ holds plan.md, whose
+// milestones each carry a `Delivers: R1, R2` line and acceptance boxes, and
+// validation.md, a table with Req and Status columns, one row per
+// requirement. A milestone with every box checked claims its requirements
+// delivered, so each must have a row whose Status begins with "proven"
+// ("proven (PR #517)"); "not proven", the template's placeholder, and a
+// missing row are unproven. Only folders this branch touches
+// (origin/main...HEAD) are read, so a lane without a feature folder is never
+// touched. A validation.md with no such table cannot be judged: the check
+// stands aside with a note.
+// ---------------------------------------------------------------------------
+
+const REQ_IDS = /\bR\d+\b/g;
+
+export function changedSpecSlugs(wt) {
+  const r = git(wt, ['diff', '--name-only', 'origin/main...HEAD']);
+  if (!r.ok) return [];
+  const slugs = new Set();
+  for (const f of r.out.split('\n')) {
+    const m = /^docs\/specs\/([^/]+)\//.exec(f);
+    if (m && m[1] !== '_template') slugs.add(m[1]);
+  }
+  return [...slugs].sort();
+}
+
+const lines = (text) => text.replace(/\r\n?/g, '\n').split('\n');
+const unmarked = (s) => s.replace(/[*_`]/g, '').trim(); // **bold**, _em_, `code` are not content
+
+// plan.md → one record per `### M<n> — <name>` heading: the ids on its
+// Delivers line (a parenthetical on that line is commentary, not ids) and
+// its boxes, in `-`, `*` or `1.` lists. A heading at the milestone's level or
+// above ends it; a deeper one (`#### Acceptance`) is part of it. Fenced code
+// is skipped, so an example box is not a box.
+export function parseMilestones(plan) {
+  const out = [];
+  let cur = null;
+  let fenced = false;
+  for (const line of lines(plan)) {
+    if (/^\s*(```|~~~)/.test(line)) {
+      fenced = !fenced;
+      continue;
+    }
+    if (fenced) continue;
+    const h = /^(#{1,6})\s+(.*)$/.exec(line);
+    if (h) {
+      const level = h[1].length;
+      if (cur && level > cur.level) continue;
+      const m = /^(M\d+[a-z]?)\b\s*(?:[—–:-]+\s*)?(.*)$/.exec(unmarked(h[2]));
+      cur = m ? { id: m[1], name: m[2].trim(), delivers: [], boxes: 0, checked: 0, level } : null;
+      if (cur) out.push(cur);
+      continue;
+    }
+    if (!cur) continue;
+    const d = /^\s*(?:[-*]\s+)?Delivers:?\s*(.*)$/i.exec(unmarked(line));
+    if (d) {
+      for (const id of d[1].replace(/\([^)]*\)/g, '').match(REQ_IDS) ?? []) if (!cur.delivers.includes(id)) cur.delivers.push(id);
+      continue;
+    }
+    const b = /^\s*(?:[-*]|\d+\.)\s+\[([ xX])\]/.exec(line);
+    if (b) {
+      cur.boxes += 1;
+      if (b[1] !== ' ') cur.checked += 1;
+    }
+  }
+  return out.map(({ level: _level, ...m }) => m);
+}
+
+// A GFM table row's cells: outer pipes optional, `\|` a literal pipe.
+function tableCells(line) {
+  const l = line.trim().replace(/^\|/, '').replace(/\|$/, '');
+  return l.split(/(?<!\\)\|/).map((c) => c.replace(/\\\|/g, '|').trim());
+}
+const isTableLine = (line) => /(?<!\\)\|/.test(line);
+const isDelimiterRow = (line) => tableCells(line).every((c) => /^:?-+:?$/.test(c));
+
+// validation.md → the Status cell of each requirement id, from every table
+// whose header has Req and Status columns (a file may keep one table per
+// milestone); `malformed` says what is missing when there is none.
+export function parseProofs(validation) {
+  const ls = lines(validation);
+  const rows = new Map();
+  let tables = 0;
+  for (let i = 0; i + 1 < ls.length; i++) {
+    if (!isTableLine(ls[i]) || !isTableLine(ls[i + 1]) || !isDelimiterRow(ls[i + 1])) continue;
+    const head = tableCells(ls[i]).map((c) => unmarked(c).toLowerCase());
+    const req = head.findIndex((c) => /^req/.test(c));
+    const status = head.findIndex((c) => /^status/.test(c));
+    if (req < 0 || status < 0) continue;
+    tables += 1;
+    for (i += 2; i < ls.length && isTableLine(ls[i]); i++) {
+      const c = tableCells(ls[i]);
+      if (c.length <= Math.max(req, status)) continue;
+      for (const id of c[req].match(REQ_IDS) ?? []) rows.set(id, c[status]);
+    }
+  }
+  return tables ? { rows, malformed: null } : { rows, malformed: 'no table with Req and Status columns' };
+}
+
+export const isProven = (status) => /^proven\b/i.test(unmarked(status ?? ''));
+
+// What one folder leaves unproven: every milestone with all boxes checked
+// whose delivered requirements lack a proven row. `validation` null is a
+// missing file, which proves nothing. A malformed table returns no gaps and
+// says why, so the caller can stand aside instead of guessing.
+export function specProofGaps({ plan, validation }) {
+  const proofs = validation === null ? { rows: new Map(), malformed: null } : parseProofs(validation);
+  const gaps = [];
+  for (const m of parseMilestones(plan)) {
+    if (!m.boxes || m.checked < m.boxes || !m.delivers.length) continue;
+    if (proofs.malformed) return { gaps: [], malformed: proofs.malformed, missing: false };
+    const unproven = m.delivers.filter((id) => !isProven(proofs.rows.get(id)));
+    if (unproven.length) gaps.push({ milestone: m.id, name: m.name, unproven });
+  }
+  return { gaps, malformed: null, missing: validation === null && gaps.length > 0 };
+}
+
+// Read and judge every feature folder this lane's branch touches. The lane
+// is clean by the time this runs (check 1), so the working tree is HEAD.
+export function specProofCheck(wt) {
+  const notes = [];
+  const lines = [];
+  for (const slug of changedSpecSlugs(wt)) {
+    const dir = join(wt, 'docs', 'specs', slug);
+    const plan = readText(join(dir, 'plan.md'));
+    if (plan === null) continue; // no plan.md: nothing is claimed
+    const { gaps, malformed, missing } = specProofGaps({ plan, validation: readText(join(dir, 'validation.md')) });
+    if (malformed) {
+      notes.push(`docs/specs/${slug}/validation.md: ${malformed}; the proof check stood aside`);
+      continue;
+    }
+    for (const g of gaps) {
+      const claim = `${g.milestone}${g.name ? ` (${g.name})` : ''} has every box checked`;
+      const proof = missing ? 'validation.md is missing, so nothing proves' : 'validation.md does not prove';
+      lines.push(`  docs/specs/${slug}: ${claim}, but ${proof} ${g.unproven.join(', ')}`);
+    }
+  }
+  return { notes, lines };
+}
+
+// A Mac sleeps when idle, and a Stop hook runs exactly when the session goes
+// idle: unheld, the e2e leg stalls at page.goto and a green commit spends its
+// red budget on timeouts. So on darwin, while the gate runs, a caffeinate
+// beside it holds off idle and (on AC) system sleep. Beside, not around: the
+// gate's argv, status, output and process group stay its own, and a
+// caffeinate that is missing or fails costs only the hold. `-w` ties the hold
+// to this hook process, so if the hook is killed (an interrupted stop, the
+// hook timeout) and the detached gate lives on, the hold still ends with the
+// hook. It covers idle sleep only; a closed lid sleeps the Mac regardless.
+// APEX_STOP_GATE_CAFFEINATE=off skips it.
+export const CAFFEINATE = '/usr/bin/caffeinate';
+export function holdAwake({ platform = process.platform, caffeinate = CAFFEINATE, pid = process.pid } = {}) {
+  if (platform !== 'darwin' || process.env.APEX_STOP_GATE_CAFFEINATE === 'off' || !existsSync(caffeinate)) return null;
+  try {
+    const hold = spawn(caffeinate, ['-i', '-s', '-w', String(pid)], { stdio: 'ignore' });
+    hold.on('error', () => {
+      /* no hold; the gate runs anyway */
+    });
+    hold.unref();
+    return hold;
+  } catch {
+    return null;
+  }
+}
+
+// `sysctl -n kern.sleeptime` prints `{ sec = 1793624521, usec = 923212 } Mon
+// Nov  2 08:02:01 2026`, and sec = 0 if the Mac has not slept since boot.
+// Epoch ms (0 for never), or null for anything else.
+export function parseSleepTime(text) {
+  const m = /\bsec = (\d+), usec = (\d+)/.exec(text ?? '');
+  return m ? Number(m[1]) * 1000 + Math.floor(Number(m[2]) / 1000) : null;
+}
+
+// When the Mac last went to sleep, from the kernel: idle sleep, a closed lid
+// and each maintenance sleep between dark wakes all stamp it. Off darwin, or
+// if sysctl fails, null. Node's monotonic clock keeps counting through sleep
+// on darwin, so it cannot tell.
+export function lastSleepMs({ platform = process.platform, sysctl = '/usr/sbin/sysctl' } = {}) {
+  if (platform !== 'darwin') return null;
+  const r = spawnSync(sysctl, ['-n', 'kern.sleeptime'], { encoding: 'utf8', timeout: 5000 });
+  return r.status === 0 ? parseSleepTime(r.stdout) : null;
+}
+
+const clock = (ms) => new Date(ms).toTimeString().slice(0, 8);
+
 // Run the gate in its own process group so a timeout kills vite, vitest and
 // playwright too, not just the `sh` that started them. stderr is folded into
-// stdout so the tail reads in order.
-export function runGate(wt, { cmd = process.env.APEX_STOP_GATE_CMD || DEFAULT_GATE, logPath, timeoutMs = GATE_TIMEOUT_MS } = {}) {
+// stdout so the tail reads in order. `sleptAt` is the Mac's last sleep if the
+// kernel's stamp changed while the gate ran, else null. Comparing two kernel
+// readings, not a stamp against our own clock, keeps a clock step from
+// reading as a sleep; a failed read at either end reads as awake.
+export function runGate(
+  wt,
+  {
+    cmd = process.env.APEX_STOP_GATE_CMD || DEFAULT_GATE,
+    logPath,
+    timeoutMs = GATE_TIMEOUT_MS,
+    platform,
+    caffeinate,
+    sysctl,
+    lastSleep = () => lastSleepMs({ platform, sysctl }),
+  } = {},
+) {
+  const readSleep = () => {
+    try {
+      return lastSleep();
+    } catch {
+      return null;
+    }
+  };
   return new Promise((done) => {
     const chunks = [];
     let size = 0;
+    const startedAt = Date.now();
+    const sleptBefore = readSleep();
     const child = spawn('sh', ['-c', `(${cmd}) 2>&1`], {
       cwd: wt,
       detached: true,
       stdio: ['ignore', 'pipe', 'ignore'],
       env: { ...process.env, FORCE_COLOR: '0' },
     });
+    const hold = holdAwake({ platform, caffeinate }); // after the spawn: a gate that throws leaves no hold behind
     const killGroup = (sig) => {
       try {
         process.kill(-child.pid, sig);
@@ -235,16 +458,23 @@ export function runGate(wt, { cmd = process.env.APEX_STOP_GATE_CMD || DEFAULT_GA
     });
     child.on('close', (status) => {
       clearTimeout(timer);
+      hold?.kill();
       const out = Buffer.concat(chunks).toString('utf8');
+      const sleptAfter = readSleep();
+      const sleptAt = sleptBefore !== null && sleptAfter !== null && sleptAfter !== sleptBefore ? sleptAfter : null;
       if (logPath) {
         try {
-          writeText(logPath, `$ ${cmd}\n(cwd ${wt})\n\n${out}${timedOut ? '\n[stop-gate: timed out, process group killed]\n' : ''}`);
+          writeText(
+            logPath,
+            `$ ${cmd}\n(cwd ${wt})\n\n${out}${timedOut ? '\n[stop-gate: timed out, process group killed]\n' : ''}` +
+              (sleptAt !== null ? `\n[stop-gate: the Mac slept during the gate (started ${clock(startedAt)}, last sleep ${clock(sleptAt)})]\n` : ''),
+          );
         } catch {
           /* the log is a convenience */
         }
       }
       const tail = out.split('\n').filter(Boolean).slice(-TAIL_LINES).join('\n');
-      done({ ok: status === 0 && !timedOut, timedOut, tail, cmd });
+      done({ ok: status === 0 && !timedOut, timedOut, tail, cmd, sleptAt });
     });
   });
 }
@@ -254,11 +484,21 @@ export function runGate(wt, { cmd = process.env.APEX_STOP_GATE_CMD || DEFAULT_GA
 // ---------------------------------------------------------------------------
 
 function readCount(p) {
-  const [sha = '', at = '0', total = '0'] = (readText(p) || '').trim().split(/\s+/);
-  return { sha, at: Number(at) || 0, total: Number(total) || 0 };
+  const [sha = '', at = '0', total = '0', slept = '0', sleptTotal = '0'] = (readText(p) || '').trim().split(/\s+/);
+  return { sha, at: Number(at) || 0, total: Number(total) || 0, slept: Number(slept) || 0, sleptTotal: Number(sleptTotal) || 0 };
 }
 
-export async function decide(input, { primary, run = runGate, maxRedRuns = MAX_RED_RUNS, maxRedTotal = MAX_RED_TOTAL } = {}) {
+export async function decide(
+  input,
+  {
+    primary,
+    run = runGate,
+    maxRedRuns = MAX_RED_RUNS,
+    maxRedTotal = MAX_RED_TOTAL,
+    maxSleptRuns = MAX_SLEPT_RUNS,
+    maxSleptTotal = MAX_SLEPT_TOTAL,
+  } = {},
+) {
   const sessionId = input.session_id ?? 'unknown';
   const cwd = input.cwd || process.cwd();
   primary ??= primaryRootOf(cwd);
@@ -313,11 +553,23 @@ export async function decide(input, { primary, run = runGate, maxRedRuns = MAX_R
       continue;
     }
 
-    // 3. Gate, cached by SHA, budgeted while red.
+    // 3. A milestone checked off in plan.md claims its requirements; validation.md must prove them.
+    const proofs = specProofCheck(wt);
+    for (const n of proofs.notes) notes.push(`${wt}: ${n}`);
+    if (proofs.lines.length) {
+      return block(
+        `a milestone checked off in plan.md has unproven requirements:\n${proofs.lines.join('\n')}\n` +
+          `Prove each with a validation.md row whose Status begins with "proven" (e.g. "proven (PR #NNN)"), ` +
+          `or uncheck the milestone's boxes. Then commit and stop again.`,
+      );
+    }
+
+    // 4. Gate, cached by SHA, budgeted while red.
     const green = (readText(lp.green) || '').trim();
     if (green !== sha) {
       const c = readCount(lp.count);
       const at = c.sha === sha ? c.at : 0;
+      const slept = c.sha === sha ? c.slept : 0;
       if (at >= maxRedRuns || c.total >= maxRedTotal) {
         notes.push(
           `${wt}: gate stood aside — red ${at} time(s) at ${sha.slice(0, 7)}, ${c.total} this session (caps ${maxRedRuns}/${maxRedTotal}); ` +
@@ -326,14 +578,34 @@ export async function decide(input, { primary, run = runGate, maxRedRuns = MAX_R
       } else {
         const g = await run(wt, { logPath: lp.log });
         if (!g.ok) {
+          const what = `${g.timedOut ? 'the gate timed out' : 'the gate is red'} at ${sha.slice(0, 7)} (\`${g.cmd}\``;
+          const asleep = g.sleptAt != null;
+          const tail = `Last ${TAIL_LINES} lines:\n${g.tail}\nFull output: ${lp.log}\n`;
+          if (asleep && slept < maxSleptRuns && c.sleptTotal < maxSleptTotal) {
+            try {
+              writeText(lp.count, `${sha} ${at} ${c.total} ${slept + 1} ${c.sleptTotal + 1}`);
+            } catch {
+              /* the budget is a convenience */
+            }
+            return block(
+              `${what}), but the Mac went to sleep during the run (last at ${clock(g.sleptAt)}), so this run is not charged to the red budget ` +
+                `(uncharged run ${slept + 1}/${maxSleptRuns} for this commit, ${c.sleptTotal + 1}/${maxSleptTotal} this session; red runs still ${at}/${maxRedRuns}). ` +
+                `A sleep freezes the gate and its in-flight tests time out on wake; a closed lid can sleep the Mac even under caffeinate. ` +
+                tail +
+                `If the failures are only timeouts, stop again to re-run the gate; if they are real, fix them, commit, and stop again.`,
+            );
+          }
           try {
-            writeText(lp.count, `${sha} ${at + 1} ${c.total + 1}`);
+            writeText(lp.count, `${sha} ${at + 1} ${c.total + 1} ${slept} ${c.sleptTotal}`);
           } catch {
             /* the budget is a convenience */
           }
+          const spent = slept >= maxSleptRuns ? `this commit has had its ${maxSleptRuns}` : `this session has had its ${maxSleptTotal}`;
           return block(
-            `${g.timedOut ? 'the gate timed out' : 'the gate is red'} at ${sha.slice(0, 7)} (\`${g.cmd}\`, run ${at + 1}/${maxRedRuns} for this commit). Last ${TAIL_LINES} lines:\n${g.tail}\n` +
-              `Full output: ${lp.log}\nFix it, commit, and stop again.`,
+            `${what}, run ${at + 1}/${maxRedRuns} for this commit). ` +
+              (asleep ? `The Mac went to sleep during this run too (last at ${clock(g.sleptAt)}), but ${spent} uncharged runs, so this one counts. ` : '') +
+              tail +
+              `Fix it, commit, and stop again.`,
           );
         }
         try {
@@ -345,7 +617,7 @@ export async function decide(input, { primary, run = runGate, maxRedRuns = MAX_R
       }
     }
 
-    // 4. On origin, under its own name.
+    // 5. On origin, under its own name.
     const branch = branchOf(wt);
     const unpushed = unpushedCount(wt, branch);
     if (unpushed > 0 || (branch && !hasRemoteBranch(wt, branch))) {

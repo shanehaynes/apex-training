@@ -146,7 +146,15 @@ the CI-level ones, set up per project (the new-dev-project skill wires them):
   by design.
 - **Never give a required check a `paths:` filter**: on PRs it skips, it never
   reports, and the PR waits "Expected" forever. Use an always-running job that
-  skips internally.
+  skips internally — unless its runner is scarce (macOS). An internal skip
+  still queues for a runner of the job's own kind, so every unrelated PR waits
+  for one. Then decide the paths in a cheap ubuntu job and skip the scarce job
+  at job level (`needs:` + `if:`); a job skipped by its `if:` passes a required
+  check. Because it passes, fail closed: skip only when the deciding job
+  succeeded and said no
+  (`!cancelled() && (needs.<job>.result != 'success' || needs.<job>.outputs.<out> != 'false')`
+  — `== 'true'` would skip on a missing output), and give the scarce job a first
+  step that fails when the deciding job did not succeed.
 
 ## 7. After merging
 

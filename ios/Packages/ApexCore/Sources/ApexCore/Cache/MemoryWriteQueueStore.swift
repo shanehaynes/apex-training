@@ -17,9 +17,11 @@ public actor MemoryWriteQueueStore: WriteQueueStore {
         return stored.id
     }
 
-    public func update(_ op: TrackerOp) async throws {
-        guard let i = ops.firstIndex(where: { $0.id == op.id }) else { return }
+    @discardableResult
+    public func update(_ op: TrackerOp) async throws -> Bool {
+        guard let i = ops.firstIndex(where: { $0.id == op.id }) else { return false }
         ops[i] = op
+        return true
     }
 
     public func delete(id: Int64) async throws {
