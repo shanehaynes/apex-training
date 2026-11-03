@@ -1,4 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import type { Database } from '../../../src/lib/db/database.types.js';
 import { getSupabaseAdmin } from '../supabaseAdmin.js';
 import { requireUser } from '../auth.js';
 import { enforceRateLimit } from '../rateLimit.js';
@@ -88,6 +89,8 @@ export const EXPORT_ORDER: Partial<Record<(typeof EXPORTED_TABLES)[number], read
   daily_metrics: ['date', 'provider'],
 };
 
+type Column<T extends keyof Database['public']['Tables']> = keyof Database['public']['Tables'][T]['Row'] & string;
+
 /**
  * The secret-holding tables, summarised: the named columns only, never the
  * secrets. Paged like any table, by `order` (the primary key without
@@ -104,7 +107,8 @@ export const SUMMARIES = {
     columns: ['provider', 'status', 'connected_at', 'last_synced_at', 'auto_sync', 'categories'],
     order: ['provider'],
   },
-} as const;
+  // A misspelled column is a 42703 on every export: make it a type error.
+} as const satisfies { [T in 'mcp_tokens' | 'provider_connections']: { columns: readonly Column<T>[]; order: readonly Column<T>[] } };
 
 /**
  * Tables holding secret material. Their existence is disclosed in the
@@ -175,6 +179,7 @@ async function readTable(
   columns = '*',
 ) {
   const rows: Record<string, unknown>[] = [];
+  const seen = new Set<string>();
   for (let last: Record<string, unknown> | undefined; ;) {
     let query = supabase.from(table).select(columns).eq('user_id', userId);
     if (last) {
@@ -194,13 +199,17 @@ async function readTable(
     if (error) throw new Error(`${table} fetch failed: ${error.message}`);
     const page = (data ?? []) as unknown as Record<string, unknown>[];
     if (page.length === 0) break;
+    // A key cursor cannot read a key twice. If it does, the order is not the
+    // table's key or the cursor stopped advancing: fail on this page rather
+    // than copy wrong or read until the function times out.
+    for (const row of page) {
+      const key = JSON.stringify(order.map(column => row[column]));
+      if (seen.has(key)) throw new Error(`${table}: a key was read twice; its export order is not its key`);
+      seen.add(key);
+    }
     rows.push(...page);
     last = page[page.length - 1];
   }
-  // A key cursor cannot read a key twice; if it ever does, the order is not
-  // the table's key, and the copy would be wrong.
-  const keys = new Set(rows.map(row => JSON.stringify(order.map(column => row[column]))));
-  if (keys.size !== rows.length) throw new Error(`${table}: a key was read twice; its export order is not its key`);
   return rows;
 }
 

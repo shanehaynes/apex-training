@@ -36,6 +36,11 @@ interface AdminState {
   pages: Record<string, number>;
   /** PostgREST's max_rows, when lower than MAX_ROWS: caps every select, limit or not. */
   maxRows?: number;
+  /** A table whose cursor filters (gt, or) are ignored: a cursor that never advances. */
+  stalled?: string;
+  /** Paged reads in flight now, and the most ever at once. */
+  inFlight: number;
+  maxInFlight: number;
 }
 
 type Condition = { column: string; op: 'eq' | 'gt'; value: string };
@@ -143,18 +148,21 @@ function makeAdmin(state: AdminState) {
         const leaf: Record<string, unknown> = {
           eq: (column: string, value: unknown) => { filters.push(row => row[column] === value); return leaf; },
           gt: (column: string, value: unknown) => {
-            filters.push(row => holds(row, { column, op: 'gt', value: String(value) }));
+            if (state.stalled !== table) filters.push(row => holds(row, { column, op: 'gt', value: String(value) }));
             return leaf;
           },
           or: (expr: string) => {
             const any = parseOr(expr);
-            filters.push(row => any.some(all => all.every(c => holds(row, c))));
+            if (state.stalled !== table) filters.push(row => any.some(all => all.every(c => holds(row, c))));
             return leaf;
           },
           order: (column: string) => { state.orderedBy[table].push(column); return leaf; },
           limit: async (n: number) => {
             const page = state.pages[table] = (state.pages[table] ?? -1) + 1;
             state.onPage?.(table, page);
+            state.maxInFlight = Math.max(state.maxInFlight, ++state.inFlight);
+            await new Promise(resolve => setTimeout(resolve, 0));
+            state.inFlight--;
             return answer(matching().slice(0, Math.min(n, state.maxRows ?? MAX_ROWS)));
           },
           // profiles uses .select().eq().maybeSingle()
@@ -202,7 +210,7 @@ function makeRes() {
 let state: AdminState;
 
 beforeEach(() => {
-  state = { deletedFrom: [], selectedFrom: [], orderedBy: {}, calls: [], pages: {} };
+  state = { deletedFrom: [], selectedFrom: [], orderedBy: {}, calls: [], pages: {}, inFlight: 0, maxInFlight: 0 };
   mockedAdmin.mockReset();
   mockedAdmin.mockReturnValue(makeAdmin(state));
   mockedRequireUser.mockReset();
@@ -467,6 +475,28 @@ describe('GET /api/account — export', () => {
     expect(summary[0]).toEqual({ name: 'Claude', token_last4: 'a1b2', kind: 'oauth', created_at: '2026-10-01T00:00:00Z' });
     expect(body() as string).not.toContain('hash-');
     expect(body() as string).not.toContain('tok-0');
+  });
+
+  // One export reads every table a user owns: all at once, one click becomes
+  // a burst of unbounded queries.
+  it('reads one page at a time, never in parallel', async () => {
+    state.rows = Object.fromEntries(EXPORTED_TABLES.map(table => [table, [{ id: `${table}-1`, user_id: 'user-123' }]]));
+    const { res, statusCode } = makeRes();
+    await handler(makeReq('GET'), res);
+    expect(statusCode()).toBe(200);
+    expect(state.maxInFlight).toBe(1);
+  });
+
+  // Paging ends at an empty page, so only the cursor moving forward ends it.
+  it('fails fast, naming the table, when its cursor stops advancing', async () => {
+    state.stalled = 'workout_set_logs';
+    state.rows = { workout_set_logs: ['a', 'b', 'c'].map(id => ({ id, user_id: 'user-123' })) };
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const { res, statusCode } = makeRes();
+    await handler(makeReq('GET'), res);
+    expect(statusCode()).toBe(500);
+    expect(state.pages.workout_set_logs).toBe(1);
+    expect(String(errors.mock.calls[0]?.[1])).toContain('workout_set_logs');
   });
 
   it('fails rather than export an empty summary when its read fails', async () => {
