@@ -2,7 +2,6 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getSupabaseAdmin } from '../supabaseAdmin.js';
 import { requireUser } from '../auth.js';
 import { enforceRateLimit } from '../rateLimit.js';
-import { fetchAllPages } from '../pagination.js';
 
 // Account export and deletion — the two capabilities the Privacy Policy
 // (legal/privacy-v2.md §6) promises, and which did not exist before it.
@@ -70,16 +69,16 @@ export const USER_DATA_TABLES = [
  */
 export const NON_CASCADING_TABLES = ['phase32_quarantine'] as const;
 
-/**
- * The columns each table is paged in, when they are not just `id`: its primary
- * key without `user_id`, which every read already filters on. Pages are
- * ranges, and a range over rows with no total order can repeat some rows and
- * skip others. api/__tests__/account.test.ts checks every table's order
- * against its primary key in the migrations.
- */
 /** Every table the export reads by user_id: the swept ones are records too. */
 export const EXPORTED_TABLES = [...USER_DATA_TABLES, ...NON_CASCADING_TABLES] as const;
 
+/**
+ * The key each table is paged by, when it is not just `id`: its primary key
+ * without `user_id`, which every read already filters on. A page starts after
+ * the last key read, so the key must be unique and total.
+ * api/__tests__/account.test.ts checks every table's key against its primary
+ * key in the migrations.
+ */
 export const EXPORT_ORDER: Partial<Record<(typeof EXPORTED_TABLES)[number], readonly string[]>> = {
   workout_completions: ['event_id'],
   workout_exercise_notes: ['event_id', 'event_date', 'section', 'exercise_id'],
@@ -111,52 +110,69 @@ function isTableMissing(error: { code?: string }): boolean {
   return error.code === 'PGRST205' || error.code === '42P01';
 }
 
-/** How many times a table is re-read when it changed while it was paged. */
-const MAX_READS = 3;
+/** Rows per page: PostgREST's cap on a single select. */
+const PAGE_SIZE = 1000;
 
-/** Rows of the user's in one table; an unmigrated table reads as none. */
-async function countRows(supabase: Admin, table: (typeof EXPORTED_TABLES)[number], userId: string): Promise<number> {
-  const { count, error } = await supabase
-    .from(table).select('*', { count: 'exact', head: true }).eq('user_id', userId);
-  if (error && isTableMissing(error)) return 0;
-  if (error) throw new Error(`${table} count failed: ${error.message}`);
-  return count ?? 0;
+/** A PostgREST filter value, quoted so commas, dots, colons and parentheses stay data. */
+function literal(value: unknown): string {
+  return `"${String(value).replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
 }
 
 /**
- * Every row of the user's in one table, paged in its key order.
+ * The PostgREST `or` filter for "after this key" over a composite key, as
+ * (a > x) or (a = x and b > y) or …: a row comparison in filter syntax.
+ */
+export function afterKey(order: readonly string[], last: Record<string, unknown>): string {
+  return order.map((column, i) => {
+    const gt = `${column}.gt.${literal(last[column])}`;
+    if (i === 0) return gt;
+    const equal = order.slice(0, i).map(c => `${c}.eq.${literal(last[c])}`);
+    return `and(${[...equal, gt].join(',')})`;
+  }).join(',');
+}
+
+/**
+ * Every row of the user's in one table, paged by key.
  *
  * Paged: PostgREST caps a select at 1000 rows, and the delete screens tell the
  * athlete to export first, so a capped export would lose their history for
- * good once the account goes. Pages are offset ranges outside one snapshot,
- * so an insert or delete while the table is read (a write-queue flush, a
- * Health import, another device) shifts rows between pages: one repeats, or
- * one is skipped. The count before and after, and the keys being unique,
- * catch both; the table is read again, and after MAX_READS the export fails
- * rather than hand over a copy that is wrong.
+ * good once the account goes. By key, not by offset: an insert or delete while
+ * the table is read (a write-queue flush, a Health import, another device)
+ * would shift an offset page and skip or repeat a row that never changed. A
+ * key cursor reads every row that exists throughout, with its key unchanged,
+ * exactly once. Rows written mid-read appear or not, as of when their page was
+ * read. A row whose key itself changes mid-read (relabelTrackedEventId) can
+ * still appear twice or not at all; only one snapshot, a single SQL function,
+ * prevents that.
  */
 async function readTable(supabase: Admin, table: (typeof EXPORTED_TABLES)[number], userId: string) {
   const order = EXPORT_ORDER[table] ?? ['id'];
-  for (let attempt = 1; ; attempt++) {
-    const before = await countRows(supabase, table, userId);
-    const rows = await fetchAllPages<Record<string, unknown>>(table, async (from, to) => {
-      let query = supabase.from(table).select('*').eq('user_id', userId);
-      for (const column of order) query = query.order(column as never, { ascending: true });
-      const page = await query.range(from, to);
-      // A table whose migration has not reached this database yet holds no
-      // rows for anyone: export it empty rather than fail the whole export.
-      // Migrations are pasted into production by hand and can trail the code
-      // that lists their tables here (phase59's daily_metrics).
-      if (page.error && isTableMissing(page.error)) return { data: [], error: null };
-      return page;
-    });
-    const after = await countRows(supabase, table, userId);
-    const keys = new Set(rows.map(row => JSON.stringify(order.map(column => row[column]))));
-    if (before === after && after === rows.length && keys.size === rows.length) return rows;
-    if (attempt === MAX_READS) {
-      throw new Error(`${table} kept changing while it was read (${before} → ${after} rows, ${rows.length} read)`);
+  const rows: Record<string, unknown>[] = [];
+  for (let last: Record<string, unknown> | undefined; ;) {
+    let query = supabase.from(table).select('*').eq('user_id', userId);
+    if (last) {
+      query = order.length === 1
+        ? query.gt(order[0] as never, last[order[0]] as never)
+        : query.or(afterKey(order, last));
     }
+    for (const column of order) query = query.order(column as never, { ascending: true });
+    const { data, error } = await query.limit(PAGE_SIZE);
+    // A table whose migration has not reached this database yet holds no rows
+    // for anyone: export it empty rather than fail the whole export.
+    // Migrations are pasted into production by hand and can trail the code
+    // that lists their tables here (phase59's daily_metrics).
+    if (error && isTableMissing(error)) return [];
+    if (error) throw new Error(`${table} fetch failed: ${error.message}`);
+    const page = (data ?? []) as unknown as Record<string, unknown>[];
+    rows.push(...page);
+    if (page.length < PAGE_SIZE) break;
+    last = page[page.length - 1];
   }
+  // A key cursor cannot read a key twice; if it ever does, the order is not
+  // the table's key, and the copy would be wrong.
+  const keys = new Set(rows.map(row => JSON.stringify(order.map(column => row[column]))));
+  if (keys.size !== rows.length) throw new Error(`${table}: a key was read twice; its export order is not its key`);
+  return rows;
 }
 
 async function buildExport(supabase: Admin, userId: string) {
@@ -201,7 +217,7 @@ async function buildExport(supabase: Admin, userId: string) {
   data.profiles = profile ?? null;
 
   // Sequential rather than Promise.all: one export is a rare, unbounded read
-  // over every table a user owns, and firing 23 of them at once is how a
+  // over every table a user owns, and firing all of them at once is how a
   // single click becomes a database incident.
   for (const table of EXPORTED_TABLES) data[table] = await readTable(supabase, table, userId);
 
@@ -231,7 +247,7 @@ async function buildExport(supabase: Admin, userId: string) {
 }
 
 /** Bytes per res.write: the export streams, so no single body has to fit. */
-const CHUNK = 256 * 1024;
+const CHUNK_BYTES = 256 * 1024;
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'GET' && req.method !== 'DELETE') {
@@ -253,7 +269,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     try {
       // Every read finishes before the first byte, so any failure is still a
       // clean 500 rather than a cut-off file presented as a download.
-      const body = JSON.stringify(await buildExport(supabase, userId));
+      // Encoded once, then sliced as bytes: slicing the string could split a
+      // surrogate pair, and each half would be written as U+FFFD.
+      const body = Buffer.from(JSON.stringify(await buildExport(supabase, userId)), 'utf8');
       res.setHeader('Content-Type', 'application/json; charset=utf-8');
       res.setHeader('Content-Disposition', 'attachment; filename="apex-training-export.json"');
       // Everything the account holds: never kept by a browser, proxy or URLCache.
@@ -262,7 +280,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       // 4.5 MB, and one long history with watch streams passes that; a
       // streamed response has no such limit. Compact, for the same reason.
       res.status(200);
-      for (let at = 0; at < body.length; at += CHUNK) res.write(body.slice(at, at + CHUNK));
+      for (let at = 0; at < body.length; at += CHUNK_BYTES) res.write(body.subarray(at, at + CHUNK_BYTES));
       res.end();
     } catch (err) {
       console.error('[api/account] export failed:', err instanceof Error ? err.message : err);
