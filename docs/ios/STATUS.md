@@ -30,14 +30,15 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
 
 ## Next up
 0. **App Store resubmission — 1.1.0 with Create account (ROADMAP Now 1).** 509 is not going back.
-   The order is [app-store.md](app-store.md) §7, "The resubmission, in order". First the legal
-   text, already overdue: web sign-up has been open since 2026-10-17 while Terms §2 says
-   invitation-only and privacy-v1 says no third-party scripts (Turnstile is one). Shane chose a
-   version bump on 2026-11-02: `terms-v2` / `privacy-v2`, draft #527, his to mark ready. Then the
-   Turnstile App Privacy answer, a TestFlight build from `main` on Shane's go (the first carrying
-   #493), one real sign-up on it, Apple's 2026-10-13 agreement, the version number, the recording
-   and the reply. An agent can draft the legal text and cut the build when Shane says so; every
-   other step is his. The APNs key (D-051) is still listed as his, below.
+   The order is [app-store.md](app-store.md) §7, "The resubmission, in order". Done: the legal
+   text (#527, terms-v2 and privacy-v2 live 2026-11-02) and export plus delete on the iOS terms
+   screen (#534). App Privacy: §1 and `PrivacyInfo.xcprivacy` declare Turnstile and the
+   acceptance record's IP address (Device ID and Product Interaction, linked; app-store.md §1
+   says why). The account export pages past 1000 rows and carries the sign-in record (the
+   delete screens say to export first). Then a TestFlight build from `main` on Shane's go (the
+   first carrying #493 and #534), one real sign-up on it, Apple's 2026-10-13 agreement, the
+   version number, the recording and the reply; those are his. The APNs key (D-051) is still
+   listed as his, below.
 0. **W17 M3 — the device run on TestFlight 1.1.0 (604), then ApexCore PRs.** All three lanes are on
    `main` (PR-H #480 and M1 #483 on 2026-10-20, M2 #484 on 2026-10-21) and build 604, uploaded
    2026-10-22 from `main` at 75096526 (#486), carries them with the toggle off. First, Shane:

@@ -27,10 +27,38 @@ uploaded build. Answer **"Yes, we collect data from this app"**, then:
 | Health & Fitness → Fitness | Yes | Yes | No | App Functionality (workouts, sets, meals, HR zones, a connected watch's activities) |
 | User Content → Other User Content | Yes | Yes | No | App Functionality (coach chat, goal and context text) |
 | Identifiers → User ID | Yes | Yes | No | App Functionality (the account id every row is keyed by) |
+| Identifiers → Device ID | Yes | Yes | No | App Functionality (fraud prevention: Create account's Cloudflare Turnstile check, in an in-app web view, sends Cloudflare the IP address and browser signals, which Cloudflare keeps to refine its bot detection) and Other Purposes (the IP address and User-Agent stored with every terms acceptance, `terms_acceptances`, as the record of it). From 1.1.0 |
+| Usage Data → Product Interaction | Yes | Yes | No | App Functionality (fraud prevention: Turnstile's challenges probe for "human behavior" on the sign-up check page). From 1.1.0 |
 | Health & Fitness → Health | **No** | | | From 1.1 the app *writes* finished workouts to HealthKit (W16 M1, D-056) but reads nothing from it, so nothing is collected. Flips to Yes when W16 M2 reads workouts |
 | User Content → Audio Data | **No** | | | W17 logs sets by voice with on-device speech recognition (D-059); audio is processed on the device only, never recorded, stored or sent; the logged set is the fitness data already declared |
 | Location | **No** | | | A watch activity's route is stored as the provider sent it; the app never asks for location |
-| Diagnostics, Usage Data, Purchases, Financial Info, Browsing, Search | **No** | | | None collected; no analytics SDK, no crash reporter |
+| Diagnostics, Usage Data (other than Product Interaction), Purchases, Financial Info, Browsing, Search | **No** | | | None collected; no analytics SDK, no crash reporter |
+
+Why the two rows from 1.1.0 (proposed 2026-11-03; Shane's `shipit` on the PR that added them
+is the decision):
+- **Declared at all.** Data a web view collects "must be declared, unless you are enabling the
+  user to navigate the open web", and the sign-up check is Apex's own page. "Collect" is keeping
+  data longer than serving the request needs, which Cloudflare's own-detection use is. The
+  optional-disclosure exemption fails on its fourth criterion: the signals are not entered by
+  the user in the app's interface, nor chosen each time.
+- **Device ID.** Apple's guidance on IP addresses: declare them by how they are used, "such as
+  precise location, coarse location, device ID, or diagnostics". Apex's two uses, the bot check
+  and the acceptance record, are neither location nor diagnostics. Google Fonts on the same page
+  receives the IP address and keeps it for security (privacy-v2's Google row); the same row
+  covers it, and self-hosting the fonts would remove it.
+- **Linked.** Apple: "'Personal Information' and 'Personal Data', as defined under relevant
+  privacy laws, are considered linked to the user." A raw IP address is both, and neither
+  Cloudflare nor Apex anonymizes it before it is kept.
+- **Product Interaction.** Cloudflare's addendum lists its signals as "such as" IP address, TLS
+  fingerprint, User-Agent and sitekey, an open list, and its docs say the challenges detect
+  "human behavior". Google maps reCAPTCHA's equivalent to Product Interaction. Undeclared
+  collection is the failure Apple acts on; this row costs a line on the label.
+- **Other Purposes.** Keeping the IP address and User-Agent as proof of acceptance is a legal
+  record, not app functionality as Apple lists it.
+
+The lighter reading, if Shane prefers it: Device ID not linked (common for bot checks), no
+Product Interaction row, App Functionality only. It rests on Cloudflare's addendum naming no
+interaction data and on industry practice, against Apple's own note on personal data.
 
 "Data used to track you": **none**. `NSPrivacyTracking` is `false` and the manifest lists no
 tracking domains.
@@ -361,12 +389,10 @@ account screen links to the Terms.
   key saved…"
 - §6's phased-release note: the day-one ceiling is no longer the invite list but anyone with
   the listing.
-- **App Privacy (§1), to review before submitting:** Create account runs Cloudflare Turnstile
-  in an in-app web view, which reads IP address and device and browser signals to tell a person
-  from a bot. Decide whether that changes the App Privacy answers. `privacy-v2` (#527), the
-  policy the Create account toggle links at the moment of assent, describes Turnstile and Google
-  Fonts; `privacy-v1` named Cloudflare only for email routing. The App Privacy answer is Shane's
-  call; nothing here is pre-decided.
+- **App Privacy (§1):** Create account runs Cloudflare Turnstile in an in-app web view, and every
+  terms acceptance stores its IP address, so §1 and `PrivacyInfo.xcprivacy` gain Identifiers →
+  Device ID and Usage Data → Product Interaction, both linked, neither tracking (§1 says why). `privacy-v2` (#527), the policy the Create account toggle links
+  at the moment of assent, already describes Turnstile and Google Fonts.
 - **Order**: production must be running PR #477 (the server's 18+ check and stamp) before any
   build with M3 goes to TestFlight. Main's handler before #477 ignores `ageConfirmed`, so an app
   sign-up would go through with nothing recorded.
@@ -386,9 +412,9 @@ account screen links to the Terms.
 
 ### The resubmission, in order
 
-1. **The legal text, first: it is already overdue.** Web sign-up has been open since 2026-10-17
-   (#452). Since then strangers accept terms-v1 §2, "Accounts are currently created by
-   invitation", and privacy-v1 §1, "no third-party scripts of any kind", while sign-up loads
+1. **The legal text. Done 2026-11-02: #527 merged, terms-v2 and privacy-v2 live.** Web sign-up had been open since 2026-10-17
+   (#452). Until then strangers accepted terms-v1 §2, "Accounts are currently created by
+   invitation", and privacy-v1 §1, "no third-party scripts of any kind", while sign-up loaded
    Cloudflare Turnstile (`TurnstileWidget.tsx`, and the app's web view). **Shane chose a version
    bump on 2026-11-02: `terms-v2` and `privacy-v2`, #527.** Both versions move together, so every
    user re-accepts once. The web and builds from 561 on (W16 MT) prompt in place. Builds 509 and
@@ -396,11 +422,13 @@ account screen links to the Terms.
    the user accepts on the web. Queued writes refused meanwhile are not resent on their own: a
    tracker op waits on the tracker bar for a manual Retry (Discard deletes it), an offline Builder
    save is toasted ("Open its day to fix it"), and an offline new library exercise is discarded
-   with a toast. Whether #527 merges before most testers run 561 or later (W16
-   MT's last box) is Shane's call when he marks it ready. W16's Health text, approved as
+   with a toast. Shane merged #527 on 2026-11-02, before W16 MT's last box (most testers on 561
+   or later). W16's Health text, approved as
    `privacy-v2`, is now `privacy-v3` and still flips §1 Health to Yes when it ships. The pages
    are served from the web (`/terms`, `/privacy`), so no build waits on them.
-2. **App Privacy (§1):** Shane's answer on Turnstile (the bullet above).
+2. **App Privacy (§1):** the Device ID and Product Interaction rows, in the build's manifest
+   (`PrivacyInfo.xcprivacy`, held for Shane). Enter §1's table in App Store Connect at step 6,
+   row for row.
 3. **A TestFlight build from `main`, on Shane's go** (`ios/CLAUDE.md`: uploading publishes):
    the first 1.1.0 build carrying #493, since 604 predates it. #477 has been on `main`, and so
    in production, since 2026-10-20, so the order rule above holds. Beyond 604, the build adds
@@ -415,7 +443,8 @@ account screen links to the Terms.
 5. **Apple's agreement:** Shane accepts the agreement update Apple emailed on 2026-10-13. App
    Store Connect blocks submission until then.
 6. **App Store Connect:** the version number matches the build (1.1.0), the new build is
-   selected, and China mainland stays unticked (decided 2026-10-12).
+   selected, App Privacy matches §1 (Device ID and Product Interaction are new), and China mainland stays
+   unticked (decided 2026-10-12).
 7. **The demo account and the recording** (§3, with the replacements above) on the new build.
 8. **Reply and submit:** answer the 2.1 request in the Resolution Center with §3's notes and the
    replacements above, paste the same text into Notes, and submit. Manual release stays set (§6).
