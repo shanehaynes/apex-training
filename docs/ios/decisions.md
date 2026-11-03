@@ -1264,7 +1264,7 @@ and a deterministic Swift parser turns the transcript into a set. Brief: [W17](w
   on-device models; an M3 candidate for its `.phrase` preset and the custom language model).
 
 ## D-060 · Export and delete on the terms screen: the You tab's controls, with export added to both
-**Status:** decided · session call · 2026-11-03
+**Status:** decided · session call · 2026-11-03 · #534
 Terms §12 promises export and deletion keep working while an athlete decides on updated terms,
 and the server exempts `/api/account` from the gate (`account.ts`, `skipTermsGate`). The web gate
 folds `AccountData.tsx` under Sign out (#527). iOS had deletion (W11) but no export: About sent

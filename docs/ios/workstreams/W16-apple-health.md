@@ -428,7 +428,7 @@ acceptance endpoint MT calls (read the web's re-acceptance modal first).
   2026-10-14 approval stands; only the number moved. #527 is the first `PRIVACY_VERSION` move
   MT's release box guards.
 
-- 2026-11-03 · Mac · MT follow-up (`feat/ios-terms-export-delete`): export and delete folded
+- 2026-11-03 · Mac · MT follow-up (#534, `feat/ios-terms-export-delete`): export and delete folded
   under Sign out on the terms screen, through the You tab's own controls; iOS export is new and
   also lands in You → Data (D-060). Unit (behind the mock's gate), smoke and snapshot tests. It
   reaches athletes in the next TestFlight build, which is Shane's go.

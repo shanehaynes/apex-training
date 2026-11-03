@@ -168,7 +168,7 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
    (`printf` the two ids back after a tidy) — both git-ignored, so never from the primary checkout.
 
 ## Recent sessions
-- 2026-11-03 · Terms screen export and delete · Mac. #527's follow-up 4: the updated-terms screen
+- 2026-11-03 · Terms screen export and delete (#534) · Mac. #527's follow-up 4: the updated-terms screen
   folds *Export or delete your data instead* under Sign out, like the web gate, so an athlete can
   leave with their data or delete the account without accepting (terms §12, 5.1.1(v)). iOS had
   no export; `ExportDataRow` saves `GET /api/account` through Files and also sits in You → Data
