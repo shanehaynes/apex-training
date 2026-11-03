@@ -170,6 +170,10 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
    (`printf` the two ids back after a tidy) — both git-ignored, so never from the primary checkout.
 
 ## Recent sessions
+- 2026-11-03 · TestFlight 1.1.0 attempt · CI. On Shane's go, `testflight.yml` from `main` at
+  6fe45505 (run 41706007034) failed at the archive: the Program License Agreement update is not
+  accepted, so Apple issued no signing profiles. Nothing uploaded; no build number burned. The
+  agreement moves to app-store.md §7 step 3, ahead of the build.
 - 2026-11-03 · Terms screen export and delete (#534) · Mac. #527's follow-up 4: the updated-terms screen
   folds *Export or delete your data instead* under Sign out, like the web gate, so an athlete can
   leave with their data or delete the account without accepting (terms §12, 5.1.1(v)). iOS had

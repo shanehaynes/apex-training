@@ -430,12 +430,14 @@ account screen links to the Terms.
    (`PrivacyInfo.xcprivacy`, held for Shane). Enter §1's table in App Store Connect at step 6,
    row for row.
 3. **Apple's agreement, before any build:** Shane accepts the Program License Agreement update
-   Apple emailed on 2026-10-13 (App Store Connect, or developer.apple.com → Account). Until he
-   does, Apple refuses to issue signing profiles, so no build can be archived: the 2026-11-03
-   TestFlight run from `main` at 6fe45505 (Actions run 41706007034) failed at the archive with
-   "PLA Update available … your team's Account Holder, Shane Haynes, must accept". Nothing
-   reached Apple, so build number 658 is unspent. Submission is blocked until then too.
-4. **A TestFlight build from `main`, on Shane's go (given 2026-11-03)** (`ios/CLAUDE.md`: uploading publishes):
+   (developer.apple.com → Account). Until he does, Apple refuses signing profiles, so CI cannot
+   archive a build: the 2026-11-03 TestFlight run from `main` at 6fe45505 (Actions run
+   41706007034) failed at the archive with "Shane Haynes, must agree to the latest Program
+   License Agreement" and "No profiles for 'com.shanehaynes.apextraining'". Nothing was
+   uploaded, so no build number was burned and no `build_number` override is needed. The next
+   run stamps the commit count (659 or later); a What to Test note that names the number must
+   use the new one. Submission is blocked until then too.
+4. **A TestFlight build from `main`, on Shane's go** (`ios/CLAUDE.md`: uploading publishes):
    the first 1.1.0 build carrying #493, since 604 predates it. #477 has been on `main`, and so
    in production, since 2026-10-20, so the order rule above holds. Beyond 604, the build adds
    Create account (#493), the write-queue fixes #455 and #495 (never on a device yet), and
