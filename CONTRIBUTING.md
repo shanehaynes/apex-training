@@ -279,7 +279,10 @@ makes granting it a small decision rather than a large one:
   `lockfileHold` in the policy), the iOS release surface (`ios/fastlane/` and
   `ios/scripts/` ship a build; `ios/project.yml`, `ios/Config/`, the
   entitlements, the `Info.plist`s and `PrivacyInfo.xcprivacy` decide what Apple
-  receives), or any file of the automation itself — the policy,
+  receives), the terms and privacy policy (`legal/` and
+  `src/lib/legal/versions.ts`: wording CI cannot prove true, and a version
+  change that makes every athlete accept again), or any file of the
+  automation itself — the policy,
   the babysitter, the guard hooks, `.claude/settings.json`, every script such a
   grant would cover — is `HOLD`ed, never merged. The first principle of the
   held list: **the agent must never be able to merge an expansion of its own

@@ -252,7 +252,9 @@ in `.claude/settings.json` and run without a prompt: `scripts/merge-babysit.sh
 is Shane's call. Migrations, `.github/`, `scripts/ci-guards.sh`, `vercel.json`,
 dependency manifests, the iOS release surface (`ios/fastlane/`, `ios/scripts/`,
 `ios/project.yml`, `ios/Config/`, the entitlements, the `Info.plist`s and
-`PrivacyInfo.xcprivacy`), every file of the automation itself, and the constitution (`MISSION.md`, `TECHSTACK.md`, `ROADMAP.md`) with the files that load it (`CLAUDE.md`, `.claude/CLAUDE.md`, `CLAUDE.local.md`, `.claude/rules/`) are HELD for
+`PrivacyInfo.xcprivacy`), the terms and privacy policy (`legal/`, and
+`src/lib/legal/versions.ts`, whose change makes every athlete accept again),
+every file of the automation itself, and the constitution (`MISSION.md`, `TECHSTACK.md`, `ROADMAP.md`) with the files that load it (`CLAUDE.md`, `.claude/CLAUDE.md`, `CLAUDE.local.md`, `.claude/rules/`) are HELD for
 Shane, who grants one PR with the `shipit` label; the guard hook blocks
 `gh pr merge` and self-applied `shipit`, so the babysitter is the only merge
 path. Kill switch: `touch .claude/AUTOMERGE_OFF` in the primary checkout.

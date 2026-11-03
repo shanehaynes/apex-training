@@ -37,8 +37,10 @@ merging". Use `gh` by absolute path: `"$HOME/bin/gh"` — harness shells can mis
 - Only PRs based on `main` are mergeable. A PR pointing at another branch is
   the stacked-PR trap that once merged #23 into its base and took production
   down — report and skip, never merge, never retarget on your own.
-- HOLD is Shane's alone. `scripts/merge-policy.mjs` HOLDs migrations,
-  `.github/`, `vercel.json`, dependency manifests, and the automation itself;
+- HOLD is Shane's alone. `scripts/merge-policy.mjs` HOLDs every path in its
+  `HELD` list: among them migrations, `.github/`, `vercel.json`, dependency
+  manifests, the iOS release surface, the constitution, the terms and privacy
+  policy, and the automation itself;
   a human grants exactly one PR at a time with the `shipit` label. Never apply
   `shipit`, never run `gh pr merge` directly — the guard hook blocks both, and
   the babysitter is the only merge path. Report HOLDs with the policy's stated

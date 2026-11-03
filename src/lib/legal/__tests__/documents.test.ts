@@ -244,14 +244,26 @@ describe('LEGAL_DOCUMENTS', () => {
     for (const doc of LEGAL_DOCUMENTS) expect(read(doc.version).length).toBeGreaterThan(0);
   });
 
+  // The repo-root legal/ only: it is held for Shane, so a copy elsewhere (a
+  // src/lib/legal/terms-v2.md, say) would let unreviewed wording reach /terms
+  // under a version name athletes have already accepted.
+  const boundVersion = (page: string, slug: string) => page.match(
+    new RegExp(`^import ${slug}Source from '\\.\\./\\.\\./\\.\\./legal/([\\w-]+)\\.md\\?raw';$`, 'm'),
+  )?.[1];
+
   it('the pages bundle the current files', () => {
     // Static ?raw imports cannot be built from the constants, so a bump edits
     // them by hand; this is what catches one that forgets.
     const page = readFileSync(join(ROOT, 'src/components/legal/LegalPage.tsx'), 'utf8');
     for (const doc of LEGAL_DOCUMENTS) {
-      const bound = page.match(new RegExp(`^import ${doc.slug}Source from '[^']*/legal/([\\w-]+)\\.md\\?raw';$`, 'm'));
-      expect(bound?.[1], `${doc.slug}Source must import legal/${doc.version}.md`).toBe(doc.version);
+      expect(boundVersion(page, doc.slug), `${doc.slug}Source must import legal/${doc.version}.md`).toBe(doc.version);
     }
+  });
+
+  it('binds a page only to the repo-root legal/ directory', () => {
+    expect(boundVersion("import termsSource from '../../../legal/terms-v2.md?raw';", 'terms')).toBe('terms-v2');
+    expect(boundVersion("import termsSource from '../../lib/legal/terms-v2.md?raw';", 'terms')).toBeUndefined();
+    expect(boundVersion("import termsSource from '../../../docs/legal/terms-v2.md?raw';", 'terms')).toBeUndefined();
   });
 });
 
