@@ -81,4 +81,17 @@ describe('exerciseOrderOf', () => {
     expect(order).toEqual({ exercise: ['a', 'b'] });
     expect(parseExerciseOrder(order)).toEqual(order);
   });
+
+  it('leaves out ids the server refuses, so one entry with an empty id does not cost the whole order', () => {
+    // A library exercise named 'Становая тяга' slugs to '' and is its own entry id.
+    const long = 'x'.repeat(201);
+    const groups = [group('warmup', ['band', '']), group('exercise', ['row', long, 'squat'])];
+    const order = exerciseOrderOf(groups);
+    expect(order).toEqual({ warmup: ['band'], exercise: ['row', 'squat'] });
+    expect(parseExerciseOrder(order)).toEqual(order);
+    expect(ids(applyExerciseOrder(groups, order), 'warmup')).toEqual(['band', '']);
+    const many = exerciseOrderOf([group('exercise', Array.from({ length: 501 }, (_, i) => `e${i}`))]);
+    expect(many.exercise).toHaveLength(500);
+    expect(parseExerciseOrder(many)).not.toBeNull();
+  });
 });

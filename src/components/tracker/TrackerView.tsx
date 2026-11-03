@@ -97,7 +97,7 @@ export default function TrackerView() {
   // its ghost tapped) starts it from the exercise's rest text (lib/tracking/rest.ts).
   const rest = useTrackerRestTimer({ groups, sessionKey: event?.id ?? null, finished: isFinished });
   // Reordering mid-workout: this sitting's order only (useWorkoutSession).
-  const sensors = useReorderSensors();
+  const { sensors, restoreFocus } = useReorderSensors();
   const setDragging = useClaimEscapeWhileDragging();
 
   const color = event ? getWorkoutColor(event.type) : null;
@@ -298,7 +298,7 @@ export default function TrackerView() {
                 sensors={sensors}
                 collisionDetection={closestCenter}
                 modifiers={[verticalOnly]}
-                accessibility={{ announcements: reorderAnnouncements(group.exercises.map(t => ({ id: t.exercise.id, name: t.exercise.name }))) }}
+                accessibility={{ announcements: reorderAnnouncements(group.exercises.map(t => ({ id: t.exercise.id, name: t.exercise.name }))), restoreFocus }}
                 onDragStart={() => setDragging(true)}
                 onDragCancel={() => setDragging(false)}
                 onDragEnd={({ active, over }: DragEndEvent) => {

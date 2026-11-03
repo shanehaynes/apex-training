@@ -129,6 +129,34 @@ test('the keyboard moves a card, and Escape cancels the move without closing the
   expect(saved?.[8]).toBe('Band External Rotation');
 });
 
+// A card held from the keyboard, then a click into a field: the move is
+// cancelled, and the keys that follow are typed into the field instead of
+// dropping the card (dnd-kit's sensor otherwise reads Space and Enter from
+// the whole page while it holds an item).
+test('clicking into a field while a card is held from the keyboard cancels the move and keeps the typing', async ({ page }) => {
+  await openSessionB(page);
+  const before = await mainNames(page);
+  const lastGrip = mainCards(page).last().locator('.editor-card__grip');
+  await lastGrip.focus();
+  await page.keyboard.press('Space');
+  await expect(mainCards(page).last()).toHaveClass(/editor-card--dragging/);
+  await page.waitForTimeout(150);
+  await page.keyboard.press('ArrowUp');
+
+  const reps = mainCards(page).first().locator('.editor-field', { hasText: 'Reps' }).locator('input');
+  const value = await reps.inputValue();
+  await reps.click();
+  await expect(page.locator('.editor-card--dragging'), 'focus off the grip cancels the move').toHaveCount(0);
+  // The caret to the end (End does not move it in a macOS text field), then
+  // real key presses, Space among them.
+  await reps.evaluate((el: HTMLInputElement) => el.setSelectionRange(el.value.length, el.value.length));
+  await page.keyboard.type(' x 2');
+  await expect(reps).toBeFocused();
+  await expect(reps).toHaveValue(`${value} x 2`);
+  expect(await mainNames(page), 'the cancelled move left the order alone').toEqual(before);
+  await expect(page.locator('.exercise-editor')).toBeVisible();
+});
+
 // Mid-workout: the rack is free, so the last exercise moves to the top of
 // the live tracker. The order saves with this session only (exerciseOrder on
 // the save op), never as an edit to the plan.

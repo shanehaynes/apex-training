@@ -63,9 +63,14 @@ export function applyExerciseOrder(
 /** The order the tracker shows now, every section, for saving. */
 export function exerciseOrderOf(groups: TrackedSectionGroup[]): ExerciseOrder {
   const order: ExerciseOrder = {};
-  // Distinct ids only: a plan carrying a duplicate entry id would otherwise
-  // send an order the server refuses, and every later save with it.
-  for (const group of groups) order[group.section] = [...new Set(group.exercises.map(t => t.exercise.id))];
+  // Only ids parseExerciseOrder takes: one duplicate, empty (a library name
+  // with no Latin letters slugs to '') or over-long id would otherwise get
+  // the whole order refused, and every later save with it. An entry left out
+  // keeps its place after the named ones, as an unnamed id does on reload.
+  for (const group of groups) {
+    const sendable = group.exercises.map(t => t.exercise.id).filter(id => id.length > 0 && id.length <= MAX_ORDER_ID_LENGTH);
+    order[group.section] = [...new Set(sendable)].slice(0, MAX_ORDER_IDS);
+  }
   return order;
 }
 

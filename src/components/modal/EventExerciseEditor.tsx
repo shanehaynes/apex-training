@@ -226,7 +226,7 @@ export function ExerciseSectionsEditor({ lists, onChange, errors, pickerCategory
   };
 
   const setDragging = useClaimEscapeWhileDragging();
-  const sensors = useReorderSensors();
+  const { sensors, restoreFocus } = useReorderSensors();
 
   const onDragEnd = (key: SectionKey) => ({ active, over }: DragEndEvent) => {
     setDragging(false);
@@ -274,7 +274,7 @@ export function ExerciseSectionsEditor({ lists, onChange, errors, pickerCategory
             sensors={sensors}
             collisionDetection={closestCenter}
             modifiers={[verticalOnly]}
-            accessibility={{ announcements: reorderAnnouncements(lists[key]) }}
+            accessibility={{ announcements: reorderAnnouncements(lists[key]), restoreFocus }}
             onDragStart={() => setDragging(true)}
             onDragCancel={() => setDragging(false)}
             onDragEnd={onDragEnd(key)}

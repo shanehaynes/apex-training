@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
-import type { Announcements, KeyboardCoordinateGetter, Modifier, UniqueIdentifier } from '@dnd-kit/core';
+import type {
+  Announcements, KeyboardCoordinateGetter, KeyboardSensorOptions, Modifier, SensorProps, UniqueIdentifier,
+} from '@dnd-kit/core';
 
 // Shared pieces of the two exercise reorderers: the editor's cards
 // (modal/EventExerciseEditor) and the live tracker's exercises
@@ -37,20 +39,73 @@ export const stepKeyboardCoordinates: KeyboardCoordinateGetter = (event, { conte
 };
 
 /**
+ * A keyboard pick-up that ends when focus leaves its grip. dnd-kit's sensor
+ * reads every keydown on the document while an item is held, so after a click
+ * into a set input or a note, Space and Enter dropped the held item and never
+ * reached the field. Here focus landing anywhere but the grip cancels the
+ * move, the way Escape does, and the keys that follow are the field's.
+ * dnd-kit keeps its cancel and teardown private, so they are reached by name;
+ * e2e/mock/reorder-exercises.spec.ts fails if an upgrade renames them.
+ */
+export interface GripKeyboardSensorOptions extends KeyboardSensorOptions {
+  /** Focus left the grip; called just before the move is cancelled. */
+  onFocusLeave?(): void;
+}
+
+export class GripKeyboardSensor extends KeyboardSensor {
+  constructor(props: SensorProps<GripKeyboardSensorOptions>) {
+    super(props);
+    const self = this as unknown as { handleCancel(event: Event): void; detach(): void };
+    const grip = props.activeNode.activatorNode.current;
+    const doc = grip?.ownerDocument;
+    if (!grip || !doc) return;
+    const leave = (event: FocusEvent) => {
+      if (event.target === grip) return;
+      props.options.onFocusLeave?.();
+      self.handleCancel(event);
+    };
+    doc.addEventListener('focusin', leave, true);
+    const detach = self.detach.bind(this);
+    self.detach = () => {
+      doc.removeEventListener('focusin', leave, true);
+      detach();
+    };
+  }
+}
+
+/**
  * Pointer serves mouse and touch alike (the grip sets touch-action: none, so
  * a finger on it drags instead of scrolling); the keyboard picks up with
- * Space, moves with the arrows, drops with Space and cancels with Escape.
+ * Space, moves with the arrows, drops with Space and cancels with Escape or
+ * by moving focus off the grip.
+ *
+ * `restoreFocus` goes on the DndContext's accessibility prop. dnd-kit puts
+ * focus back on the grip after a keyboard move ends, which is right after a
+ * drop or Escape but not after focus leaving the grip cancelled the move:
+ * focus is then where the athlete put it. The flag is off for the render
+ * that cancel makes and back on the frame after.
  */
 export function useReorderSensors() {
-  return useSensors(
+  const [restoreFocus, setRestoreFocus] = useState(true);
+  useEffect(() => {
+    if (restoreFocus) return;
+    const frame = requestAnimationFrame(() => setRestoreFocus(true));
+    return () => cancelAnimationFrame(frame);
+  }, [restoreFocus]);
+  const sensors = useSensors(
     useSensor(PointerSensor),
     // Instant, not smooth: when the next place is past the middle of the
     // scroll container, the keyboard sensor scrolls the list under the held
     // item instead of moving it, and the target only updates once the scroll
     // lands. A smooth scroll is still running when a quick second press
     // reads the target, so that press steps from the old place and is lost.
-    useSensor(KeyboardSensor, { coordinateGetter: stepKeyboardCoordinates, scrollBehavior: 'auto' }),
+    useSensor(GripKeyboardSensor, {
+      coordinateGetter: stepKeyboardCoordinates,
+      scrollBehavior: 'auto',
+      onFocusLeave: () => setRestoreFocus(false),
+    }),
   );
+  return { sensors, restoreFocus };
 }
 
 /**
