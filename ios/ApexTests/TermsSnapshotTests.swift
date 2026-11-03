@@ -24,28 +24,41 @@ final class TermsSnapshotTests: XCTestCase {
     }
 
     @MainActor
-    private func view(_ status: TermsStatus) -> TermsUpdateView {
+    private func view(_ status: TermsStatus, unfolded: Bool = false) -> TermsUpdateView {
         TermsUpdateView(
             status: status, email: "agent@apex.local",
             termsURL: URL(string: "https://apex-training.app/terms")!, privacyURL: URL(string: "https://apex-training.app/privacy")!,
+            you: makeYouModel(YouTransport.healthy()), accountDataUnfolded: unfolded,
             onAccept: { nil }, onSignOut: {}
         )
     }
 
+    private let returning = TermsStatus(
+        accepted: .init(termsVersion: "terms-v1", privacyVersion: "privacy-v1", acceptedAt: "2026-08-29T12:00:00.000Z"),
+        current: false, termsVersion: "terms-v2", privacyVersion: "privacy-v2"
+    )
+
     /// A returning user: what they accepted before, and the versions now.
     @MainActor
     func testReturningUser() {
-        let status = TermsStatus(
-            accepted: .init(termsVersion: "terms-v1", privacyVersion: "privacy-v1", acceptedAt: "2026-08-29T12:00:00.000Z"),
-            current: false, termsVersion: "terms-v1", privacyVersion: "privacy-v2"
+        snapshot(view(returning), named: "terms-returning")
+        snapshot(view(returning).environment(\.sizeCategory, .accessibilityExtraExtraExtraLarge), named: "terms-returning-axxxl", size: CGSize(width: 393, height: 2600))
+    }
+
+    /// Terms §12: export and delete, unfolded under Sign out — the You tab's
+    /// own row and link, reachable without accepting.
+    @MainActor
+    func testExportAndDeleteUnfolded() {
+        snapshot(view(returning, unfolded: true), named: "terms-data", size: CGSize(width: 393, height: 1100))
+        snapshot(
+            view(returning, unfolded: true).environment(\.sizeCategory, .accessibilityExtraExtraExtraLarge),
+            named: "terms-data-axxxl", size: CGSize(width: 393, height: 3400)
         )
-        snapshot(view(status), named: "terms-returning")
-        snapshot(view(status).environment(\.sizeCategory, .accessibilityExtraExtraExtraLarge), named: "terms-returning-axxxl", size: CGSize(width: 393, height: 2600))
     }
 
     /// No acceptance on record at all (an account from before the ledger).
     @MainActor
     func testNoAcceptanceOnRecord() {
-        snapshot(view(TermsStatus(accepted: nil, current: false, termsVersion: "terms-v1", privacyVersion: "privacy-v2")), named: "terms-first")
+        snapshot(view(TermsStatus(accepted: nil, current: false, termsVersion: "terms-v2", privacyVersion: "privacy-v2")), named: "terms-first")
     }
 }

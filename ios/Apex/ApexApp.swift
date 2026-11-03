@@ -149,6 +149,7 @@ struct RootView: View {
                             status: status, email: email,
                             termsURL: AppConfig.publicOrigin.appendingPathComponent("terms"),
                             privacyURL: AppConfig.publicOrigin.appendingPathComponent("privacy"),
+                            you: model.you,
                             onAccept: { await model.acceptUpdatedTerms() },
                             onSignOut: { model.signOut() }
                         )

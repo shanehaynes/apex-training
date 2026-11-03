@@ -168,6 +168,11 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
    (`printf` the two ids back after a tidy) — both git-ignored, so never from the primary checkout.
 
 ## Recent sessions
+- 2026-11-03 · Terms screen export and delete · Mac. #527's follow-up 4: the updated-terms screen
+  folds *Export or delete your data instead* under Sign out, like the web gate, so an athlete can
+  leave with their data or delete the account without accepting (terms §12, 5.1.1(v)). iOS had
+  no export; `ExportDataRow` saves `GET /api/account` through Files and also sits in You → Data
+  (D-060). Delete pushes the You tab's own screen. In the next 1.1.0 TestFlight build (step 3).
 - 2026-11-01 · App Store build decision · docs only. Shane chose a 1.1.0 build with Create account
   over 509 and App Store Connect's Active Devices as the objective's measure; ROADMAP Now 1 and the
   Objective record both, Now 3 (measurement) is struck, and app-store.md §7 gains the remaining

@@ -100,6 +100,40 @@ final class YouModelTests: XCTestCase {
         XCTAssertEqual(r11, "Deletion failed. Nothing was removed — try again, or get in touch.")
     }
 
+    /// The export is the server's bytes, untouched, from one bodiless
+    /// `GET /api/account`; offline says so, anything else is the web's line.
+    @MainActor
+    func testExportReturnsTheServersBytesAndNamesTheDayInTheAthletesZone() async {
+        let transport = YouTransport.healthy()
+        let payload = Data(#"{"userId":"u","data":{"workout_events":[]}}"#.utf8)
+        transport.set("GET /api/account", .json(200, payload))
+        let model = makeYouModel(transport)
+
+        let ready = await model.exportData()
+        XCTAssertEqual(ready, .ready(payload))
+        let sent = transport.requests("/api/account")
+        XCTAssertEqual(sent.map(\.method), ["GET"])
+        XCTAssertNil(sent.first?.body)
+
+        transport.set("GET /api/account", .fail)
+        let offline = await model.exportData()
+        XCTAssertEqual(offline, .failed("You're offline — try again when connected."))
+
+        transport.set("GET /api/account", status: 500, body: "Failed to build export")
+        let failed = await model.exportData()
+        XCTAssertEqual(failed, .failed("Export failed. Try again, or get in touch."))
+
+        // The web's download name, dated where the athlete is: noon UTC on the
+        // 8th is already the 9th at UTC+14.
+        XCTAssertEqual(model.exportFilename, "apex-training-export-2026-09-08.json")
+        let client = ApexClient(baseURL: URL(string: "http://127.0.0.1:1")!, transport: transport, tokens: CoachTestTokens())
+        let ahead = YouModel(services: YouServices(
+            client: client, publicOrigin: URL(string: "https://x.test")!, email: "a@b.c",
+            timeZone: TimeZone(identifier: "Pacific/Kiritimati")!, clock: TestClock(now: coachTestNow)
+        ))
+        XCTAssertEqual(ahead.exportFilename, "apex-training-export-2026-09-09.json")
+    }
+
     // MARK: - COROS
 
     @MainActor

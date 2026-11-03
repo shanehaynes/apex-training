@@ -1,4 +1,5 @@
 import ApexCore
+import ApexFeatures
 import XCTest
 @testable import Apex
 
@@ -59,6 +60,40 @@ final class TermsGateTests: XCTestCase {
         try await Task.sleep(for: .milliseconds(300))
         let checks = await env.transport.requests.filter { $0.method == "GET" && $0.path == "/api/terms-acceptance" }.count
         XCTAssertEqual(checks, 1, "every tab's first read meets the gate; the app asks once")
+    }
+
+    /// Terms §12: export and delete keep working while an athlete decides.
+    /// Behind the gate (the mock 403s every route the server does not exempt),
+    /// the You model the terms screen is handed exports and deletes, nothing
+    /// posts an acceptance, and deleting signs the device out.
+    @MainActor
+    func testExportAndDeleteWorkBehindTheGateWithoutAccepting() async throws {
+        let env = MockEnvironment(termsStale: true)
+        let model = await signedIn(env)
+        let shown = await waitFor { model.termsUpdate != nil }
+        XCTAssertTrue(shown, "the gate is up")
+        let you = try XCTUnwrap(model.you, "the terms screen is handed the You model")
+
+        guard case .ready(let data) = await you.exportData() else {
+            return XCTFail("the export is exempt from the gate")
+        }
+        let export = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        XCTAssertEqual(export["userId"] as? String, "ios-fixture-user")
+
+        let deleteError = await you.deleteAccount()
+        XCTAssertNil(deleteError, "the delete is exempt from the gate")
+        let signedOut = await waitFor {
+            if case .signedOut = model.state { return true }
+            return false
+        }
+        XCTAssertTrue(signedOut, "deleting the account signs the device out")
+
+        let requests = await env.transport.requests
+        XCTAssertEqual(requests.filter { $0.path == "/api/account" }.map(\.method), ["GET", "DELETE"])
+        XCTAssertFalse(
+            requests.contains { $0.method == "POST" && $0.path == "/api/terms-acceptance" },
+            "no acceptance was posted on the way out"
+        )
     }
 
     /// The set-password race: the acceptance POST lands, then a read that set

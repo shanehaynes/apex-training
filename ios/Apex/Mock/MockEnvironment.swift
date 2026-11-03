@@ -383,6 +383,10 @@ actor FixtureTransport: HTTPTransport {
                 }
                 revokedTokens.insert(queryValue("id", in: query))
                 return ok(Data(#"{"ok":true}"#.utf8))
+            // The export's outer shape (`buildExport` in account.ts), with no
+            // rows: what the app saves is the bytes, never parsed.
+            case ("GET", "/api/account"):
+                return ok(Data(#"{"exportedAt":"2026-09-08T12:00:00.000Z","userId":"ios-fixture-user","notes":{},"mcpTokenSummary":[],"providerConnectionSummary":[],"data":{"profiles":null}}"#.utf8))
             case ("DELETE", "/api/account"):
                 return ok(Data(#"{"ok":true,"deleted":"ios-fixture-user"}"#.utf8))
             case ("POST", "/api/provider-sync"):

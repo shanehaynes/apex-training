@@ -1084,6 +1084,57 @@ final class SmokeUITests: XCTestCase {
         attach(app, name: "w16-mt-02-accepted")
     }
 
+    /// Terms §12 and App Store 5.1.1(v): with updated terms unaccepted, the
+    /// screen's fold → Export my data → saved in Files → Delete account → the
+    /// You tab's own confirmation → signed out. Signing back in meets the
+    /// screen again: the mock's terms are still stale, so nothing on the way
+    /// out posted an acceptance.
+    func testExportAndDeleteFromTheTermsScreenWithoutAccepting() {
+        let app = XCUIApplication()
+        app.launchArguments += ["-apexUITest", "-apexMockClient", "-apexMockTermsStale"]
+        app.launch()
+        signIn(app)
+
+        let title = app.staticTexts["terms.title"]
+        XCTAssertTrue(title.waitForExistence(timeout: 20), "the gate covers the tabs")
+        XCTAssertFalse(app.buttons["terms.accept"].isEnabled, "the box stays unticked throughout")
+        XCTAssertFalse(app.buttons["terms.data.export"].exists, "folded until asked for")
+        app.buttons["terms.data"].tap()
+
+        let export = app.buttons["terms.data.export"]
+        XCTAssertTrue(export.waitForExistence(timeout: 5))
+        attach(app, name: "terms-data-01-unfolded")
+        export.tap()
+        let save = app.buttons["Save"].firstMatch
+        XCTAssertTrue(save.waitForExistence(timeout: 15), "the export opens Files to save it")
+        attach(app, name: "terms-data-02-files")
+        save.tap()
+        // Files may ask to replace a copy a previous run left on the simulator.
+        let replace = app.buttons["Replace"].firstMatch
+        if replace.waitForExistence(timeout: 2) { replace.tap() }
+        let saved = app.staticTexts["terms.data.export.saved"]
+        XCTAssertTrue(saved.waitForExistence(timeout: 15), "the screen says where it went")
+        XCTAssertTrue(saved.label.contains("apex-training-export-2026-09-08"), saved.label)
+
+        app.buttons["terms.data.delete"].tap()
+        let field = app.textFields["you.delete.field"]
+        XCTAssertTrue(field.waitForExistence(timeout: 5), "the You tab's delete screen, pushed")
+        // Not `type(_:into:)`: this field's placeholder is the address itself,
+        // so an empty field reads back as already typed. The button is the
+        // check — it enables only on an exact match.
+        field.tap()
+        field.typeText("agent@apex.local")
+        let confirm = app.buttons["you.delete.confirm"]
+        XCTAssertTrue(confirm.isEnabled, "the typed address matches")
+        attach(app, name: "terms-data-03-delete")
+        confirm.tap()
+
+        let email = app.textFields["signin.email"]
+        XCTAssertTrue(email.waitForExistence(timeout: 15), "deleting signs the device out")
+        signIn(app)
+        XCTAssertTrue(title.waitForExistence(timeout: 20), "still unaccepted: nothing posted an acceptance")
+    }
+
     // MARK: - W11 · the You tab
 
     /// sign in → You → the header names the fixture user → AI connector → mint a

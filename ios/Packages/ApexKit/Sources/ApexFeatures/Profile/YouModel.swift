@@ -195,6 +195,37 @@ public final class YouModel {
         return nil
     }
 
+    /// What `exportData()` hands the row: the server's JSON to save, or the
+    /// line to show under it.
+    nonisolated public enum ExportOutcome: Equatable, Sendable {
+        case ready(Data)
+        case failed(String)
+    }
+
+    /// `GET /api/account`: everything the account holds, as one JSON document
+    /// (`buildExport` in `account.ts`). The server exempts the route from the
+    /// terms gate, like the delete below, so both work while updated terms
+    /// wait unaccepted (terms §12).
+    public func exportData() async -> ExportOutcome {
+        do {
+            return .ready(try await services.client.data(for: .accountExport))
+        } catch APIError.network {
+            return .failed("You're offline — try again when connected.")
+        } catch {
+            return .failed("Export failed. Try again, or get in touch.")
+        }
+    }
+
+    /// `apex-training-export-2026-09-08.json`: the web's download name, dated
+    /// in the athlete's zone rather than UTC.
+    public var exportFilename: String {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.timeZone = services.timeZone
+        f.dateFormat = "yyyy-MM-dd"
+        return "apex-training-export-\(f.string(from: services.clock.now)).json"
+    }
+
     /// Irreversible. The typed confirmation is the view's; the server has its
     /// own (`confirm: "DELETE"` in the body). On success the session is gone
     /// with the user, so the app signs out.

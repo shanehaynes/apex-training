@@ -60,6 +60,8 @@ final class YouSnapshotTests: XCTestCase {
             NavigationStack { YouRootView(model: model) }.environment(\.sizeCategory, .accessibilityExtraExtraExtraLarge),
             named: "root-axxxl", size: CGSize(width: 393, height: 1400)
         )
+        // Down to Data: Export my data above Delete account (D-060).
+        snapshot(NavigationStack { YouRootView(model: model) }, named: "root-data", size: CGSize(width: 393, height: 1700))
     }
 
     /// The AI Coach screens: goal & context, the model picker, and the key

@@ -1262,3 +1262,24 @@ and a deterministic Swift parser turns the transcript into a set. Brief: [W17](w
   tracker); server-side recognition (the offline premise); Web Speech on the web (no Home Screen
   support on iOS); the iOS 26 `SpeechAnalyzer` adapter in v1 (`DictationTranscriber` uses the same
   on-device models; an M3 candidate for its `.phrase` preset and the custom language model).
+
+## D-060 · Export and delete on the terms screen: the You tab's controls, with export added to both
+**Status:** decided · session call · 2026-11-03
+Terms §12 promises export and deletion keep working while an athlete decides on updated terms,
+and the server exempts `/api/account` from the gate (`account.ts`, `skipTermsGate`). The web gate
+folds `AccountData.tsx` under Sign out (#527). iOS had deletion (W11) but no export: About sent
+athletes to the web for it.
+- **One export row, two places.** `ExportDataRow` (`AccountDataViews.swift`) sits in You → Data
+  and in the terms screen's fold, as `AccountData.tsx` serves the web's profile and its gate. A
+  terms-screen-only export would have let an athlete who had not accepted export from the phone
+  while one who had could not. About and the delete screen now point at it instead of the web.
+- **Saved through Files (`fileExporter`), not the share sheet.** It is the web's download on a
+  phone: one tap, then a folder. The bytes stay in memory until saved, so no copy of the whole
+  account sits in the app's temporary folder, and the completion says whether it saved. Rejected:
+  `ShareLink` over a lazily fetching `Transferable` (opens before the fetch, swallows failures,
+  and a share target may ask for the file more than once, each a full export); a
+  `UIActivityViewController` wrapper (a temp file to clean up, and a UIKit presentation for a
+  row Files already covers, since the share sheet's own Save to Files is the same destination).
+- **Delete is pushed, not re-built.** The terms screen holds a `NavigationStack` with its bar
+  hidden, and Delete account pushes the You tab's `DeleteAccountView` on `YouRoute.deleteAccount`:
+  the same typed-address confirmation, back button and copy.
