@@ -1084,6 +1084,101 @@ final class SmokeUITests: XCTestCase {
         attach(app, name: "w16-mt-02-accepted")
     }
 
+    /// Terms §12 and App Store 5.1.1(v): with updated terms unaccepted, the
+    /// screen's fold → Export my data → saved in Files → Delete account → the
+    /// You tab's own confirmation → signed out. Signing back in meets the
+    /// screen again: the mock's terms are still stale, so nothing on the way
+    /// out posted an acceptance.
+    func testExportAndDeleteFromTheTermsScreenWithoutAccepting() {
+        let app = XCUIApplication()
+        app.launchArguments += ["-apexUITest", "-apexMockClient", "-apexMockTermsStale"]
+        app.launch()
+        signIn(app)
+
+        let title = app.staticTexts["terms.title"]
+        XCTAssertTrue(title.waitForExistence(timeout: 20), "the gate covers the tabs")
+        XCTAssertFalse(app.buttons["terms.accept"].isEnabled, "the box stays unticked throughout")
+        XCTAssertFalse(app.buttons["terms.data.export"].exists, "folded until asked for")
+        app.buttons["terms.data"].tap()
+
+        let export = app.buttons["terms.data.export"]
+        XCTAssertTrue(export.waitForExistence(timeout: 5))
+        attach(app, name: "terms-data-01-unfolded")
+        export.tap()
+        saveInFiles(app, screenshot: "terms-data-02-files")
+        let saved = app.staticTexts["terms.data.export.saved"]
+        XCTAssertTrue(saved.waitForExistence(timeout: 15), "the screen says where it went")
+        XCTAssertTrue(saved.label.contains("apex-training-export-2026-09-08"), saved.label)
+
+        app.buttons["terms.data.delete"].tap()
+        let field = app.textFields["you.delete.field"]
+        XCTAssertTrue(field.waitForExistence(timeout: 5), "the You tab's delete screen, pushed")
+        // Not `type(_:into:)`: this field's placeholder is the address itself,
+        // so an empty field reads back as already typed. The button is the
+        // check — it enables only on an exact match.
+        field.tap()
+        field.typeText("agent@apex.local")
+        let confirm = app.buttons["you.delete.confirm"]
+        XCTAssertTrue(confirm.isEnabled, "the typed address matches")
+        attach(app, name: "terms-data-03-delete")
+        confirm.tap()
+
+        let email = app.textFields["signin.email"]
+        XCTAssertTrue(email.waitForExistence(timeout: 15), "deleting signs the device out")
+        signIn(app)
+        XCTAssertTrue(title.waitForExistence(timeout: 20), "still unaccepted: nothing posted an acceptance")
+    }
+
+    /// The gate as most athletes will meet it: terms published while the app
+    /// is open, over a You tab already mounted with its own export row
+    /// (`-apexMockTermsStaleOn /api/mutations-log`). You → Export my data →
+    /// saved → Activity log meets the gate → the terms screen's export still
+    /// opens Files and saves: two rows, one exporter each, neither shadowing
+    /// the other.
+    func testExportFromTheYouTabThenFromTermsPublishedMidSession() {
+        let app = XCUIApplication()
+        app.launchArguments += ["-apexUITest", "-apexMockClient", "-apexMockTermsStaleOn", "/api/mutations-log"]
+        app.launch()
+        signIn(app)
+
+        let youTab = app.tabBars.buttons["You"]
+        XCTAssertTrue(youTab.waitForExistence(timeout: 20))
+        youTab.tap()
+        let export = app.buttons["you.row.export"]
+        XCTAssertTrue(export.waitForExistence(timeout: 10))
+        var swipes = 0
+        while !export.isHittable, swipes < 4 { app.scrollViews.firstMatch.swipeUp(); swipes += 1 }
+        export.tap()
+        saveInFiles(app, screenshot: "you-export-01-files")
+        let saved = app.staticTexts["you.row.export.saved"]
+        XCTAssertTrue(saved.waitForExistence(timeout: 15), "the You tab's row saves too")
+        XCTAssertTrue(saved.label.contains("apex-training-export-2026-09-08"), saved.label)
+        attach(app, name: "you-export-02-saved")
+
+        app.buttons["you.row.activity"].tap()
+        let title = app.staticTexts["terms.title"]
+        XCTAssertTrue(title.waitForExistence(timeout: 20), "the log's read meets the newly published terms")
+        app.buttons["terms.data"].tap()
+        let termsExport = app.buttons["terms.data.export"]
+        XCTAssertTrue(termsExport.waitForExistence(timeout: 5))
+        termsExport.tap()
+        saveInFiles(app, screenshot: "you-export-03-terms-files")
+        let termsSaved = app.staticTexts["terms.data.export.saved"]
+        XCTAssertTrue(termsSaved.waitForExistence(timeout: 15), "the terms screen's exporter is not shadowed by the You tab's")
+        attach(app, name: "you-export-04-terms-saved")
+    }
+
+    /// Files' save sheet: Save, then Replace when a previous run left the
+    /// same file on the simulator.
+    private func saveInFiles(_ app: XCUIApplication, screenshot name: String) {
+        let save = app.buttons["Save"].firstMatch
+        XCTAssertTrue(save.waitForExistence(timeout: 15), "the export opens Files to save it")
+        attach(app, name: name)
+        save.tap()
+        let replace = app.buttons["Replace"].firstMatch
+        if replace.waitForExistence(timeout: 2) { replace.tap() }
+    }
+
     // MARK: - W11 · the You tab
 
     /// sign in → You → the header names the fixture user → AI connector → mint a

@@ -102,6 +102,13 @@ final class W11EndpointTests: XCTestCase {
         XCTAssertEqual(body(Endpoint.deleteAccount), #"{"confirm":"DELETE"}"#)
     }
 
+    func testAccountExportIsAPlainReadOfTheSameRoute() {
+        XCTAssertEqual(Endpoint.accountExport.method, .get)
+        XCTAssertEqual(Endpoint.accountExport.url(relativeTo: base)?.absoluteString,
+                       "http://127.0.0.1:5314/api/account")
+        XCTAssertNil(Endpoint.accountExport.body)
+    }
+
     // MARK: - COROS
 
     func testStatusIsTheOneActionWithoutAProvider() {

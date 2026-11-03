@@ -233,6 +233,8 @@ public struct YouRootView: View {
             SettingsDivider()
             SettingsLink("About", to: YouRoute.about, identifier: "you.row.about")
             SettingsDivider()
+            ExportDataRow(model: model)
+            SettingsDivider()
             SettingsLink("Delete account", tone: .destructive, to: YouRoute.deleteAccount, identifier: "you.row.delete")
         }
 

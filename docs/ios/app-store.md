@@ -219,7 +219,7 @@ carry a 2026-09-08 date. No text overlays, no device frames: Apple's own frame i
 | Risk | Where it is handled |
 |---|---|
 | 5.1.1 — sign-up required but no way to get an account | the sign-in screen states invite-only and links "Request an invite"; the demo account is in the review form |
-| 5.1.1(v) — no in-app account deletion | You → Data → Delete account, since W11 |
+| 5.1.1(v) — no in-app account deletion | You → Data → Delete account, since W11; from 1.1.0 also on the updated-terms screen, under *Export or delete your data instead*, without accepting (D-060) |
 | 3.1.1 — "paying" for a feature outside IAP | the key is a credential, not a purchase; no price, no purchase flow, the app works without it — the notes say so |
 | 2.1 — a crash or an empty screen on review | the demo account has a starter plan and one logged workout (§3 step 3) |
 | 2.3.3 — screenshots that do not match the app | the fixture screenshots are the app; prefer device shots from a real account |
@@ -406,7 +406,8 @@ account screen links to the Terms.
    in production, since 2026-10-20, so the order rule above holds. Beyond 604, the build adds
    Create account (#493), the write-queue fixes #455 and #495 (never on a device yet), and
    W17's You › Training rows *Share voice log* and *Clear voice log*, which show even with
-   voice off. Whether those go public as they are is Shane's call.
+   voice off, and export plus delete on the updated-terms screen (terms §12, D-060), with
+   *Export my data* in You › Data. Whether those go public as they are is Shane's call.
 4. **One real sign-up on that build** (open-signup M3's last box): a fresh inbox; the Cloudflare
    check passes; the email comes from invites@; its link's *Open in the Apex app* lands on
    set-password; the password signs in on the app and the web; `age_confirmed_at` is set in

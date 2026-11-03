@@ -532,6 +532,11 @@ public struct Endpoint: Sendable, Equatable {
         Endpoint(method: .delete, path: "api/mcp-tokens", query: [URLQueryItem(name: "client_id", value: clientId)])
     }
 
+    /// Everything the account holds, as one JSON document (`buildExport` in
+    /// `api/_lib/handlers/account.ts`). Exempt from the terms gate, like the
+    /// delete below.
+    public static let accountExport = Endpoint(path: "api/account")
+
     /// Delete the account and everything that cascades from it (App Store
     /// guideline 5.1.1(v)). The confirmation string is the server's guard
     /// against a stray DELETE — the typed confirmation in the UI is separate.

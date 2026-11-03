@@ -35,6 +35,10 @@ import Foundation
 ///                                   every gated route answers 403
 ///                                   `terms-acceptance-required` until
 ///                                   POST /api/terms-acceptance
+///   -apexMockTermsStaleOn <route>   the same, from the first request whose
+///                                   path ends in <route>: the terms are
+///                                   published mid-session, over screens
+///                                   already open (that request meets the gate)
 ///   -apexMockHealth authorized      Apple Health (W16) is a fake store that has
 ///                                   granted writing, with the toggle on (or
 ///                                   `denied`: on but refused; `unavailable`);
@@ -84,7 +88,8 @@ struct MockEnvironment {
             corosStatus: Self.argument("-apexMockCoros") ?? "connected",
             freshUser: CommandLine.arguments.contains("-apexMockFreshUser"),
             dense: CommandLine.arguments.contains("-apexMockDense"),
-            termsStale: termsStale ?? CommandLine.arguments.contains("-apexMockTermsStale")
+            termsStale: termsStale ?? CommandLine.arguments.contains("-apexMockTermsStale"),
+            termsStaleOn: Self.argument("-apexMockTermsStaleOn")
         )
         streams = FixtureStreams()
     }
@@ -189,6 +194,8 @@ actor FixtureTransport: HTTPTransport {
     private var onboardingDismissed: Bool
     /// `-apexMockTermsStale` until the session accepts (W16 MT).
     private var termsStale: Bool
+    /// `-apexMockTermsStaleOn`: the route whose first request publishes them.
+    private var termsStaleOn: String?
     private var templateCopied = false
     /// Checklist rows skipped this session (`tip_seen: setup-skip:<id>`).
     private var skippedRows: [String] = []
@@ -237,9 +244,10 @@ actor FixtureTransport: HTTPTransport {
         var deletedFavorites: Set<String> = []
     }
 
-    init(failingRoute: String?, failOnce: (route: String, count: Int)? = nil, clock: any ApexClock, hasKey: Bool = false, corosStatus: String = "connected", freshUser: Bool = false, dense: Bool = false, termsStale: Bool = false) {
+    init(failingRoute: String?, failOnce: (route: String, count: Int)? = nil, clock: any ApexClock, hasKey: Bool = false, corosStatus: String = "connected", freshUser: Bool = false, dense: Bool = false, termsStale: Bool = false, termsStaleOn: String? = nil) {
         self.dense = dense
         self.termsStale = termsStale
+        self.termsStaleOn = termsStaleOn
         self.failingRoute = failingRoute
         self.failOnce = failOnce
         self.clock = clock
@@ -297,6 +305,10 @@ actor FixtureTransport: HTTPTransport {
                                    // Unauthenticated: the launch's build check (G8)
                                    // and open sign-up (no account yet).
                                    "GET /api/version", "POST /api/signup"]
+        if let route = termsStaleOn, path.hasSuffix(route) {
+            termsStale = true
+            termsStaleOn = nil
+        }
         if termsStale, !exempt.contains("\(method) \(path)") {
             await holdIfMarked(request)
             return HTTPResponse(status: 403, headers: [:], body: Data("terms-acceptance-required".utf8))
@@ -383,6 +395,10 @@ actor FixtureTransport: HTTPTransport {
                 }
                 revokedTokens.insert(queryValue("id", in: query))
                 return ok(Data(#"{"ok":true}"#.utf8))
+            // The export's outer shape (`buildExport` in account.ts), with no
+            // rows: what the app saves is the bytes, never parsed.
+            case ("GET", "/api/account"):
+                return ok(Data(#"{"exportedAt":"2026-09-08T12:00:00.000Z","userId":"ios-fixture-user","notes":{},"mcpTokenSummary":[],"providerConnectionSummary":[],"data":{"profiles":null}}"#.utf8))
             case ("DELETE", "/api/account"):
                 return ok(Data(#"{"ok":true,"deleted":"ios-fixture-user"}"#.utf8))
             case ("POST", "/api/provider-sync"):

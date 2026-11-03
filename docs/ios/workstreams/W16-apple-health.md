@@ -127,7 +127,9 @@ unmounting them, so a workout open in the tracker keeps its state; the screen me
 when the tracker closes. A 403 that lands after the user is already current (set-password's
 acceptance racing the first reads) re-reads the status and shows nothing; a burst of 403s asks once. The write queue **pauses** on the 403
 instead of refusing the op (`RetryPolicy`), and accepting resumes it — a set logged in the gap
-lands, an outbox write is not dropped.
+lands, an outbox write is not dropped. Since 2026-11-03 (D-060) the screen also folds *Export or
+delete your data instead* under Sign out, as the web gate does since #527: the You tab's export
+row and its delete screen, both exempt from the gate (terms §12).
 
 Acceptance:
 - [x] Unit test: a 403 `terms-acceptance-required` from any endpoint raises the sheet once, and
@@ -425,6 +427,11 @@ acceptance endpoint MT calls (read the web's re-acceptance modal first).
   takes `terms-v2` / `privacy-v2` and the Health bump above becomes `privacy-v3`. Shane's
   2026-10-14 approval stands; only the number moved. #527 is the first `PRIVACY_VERSION` move
   MT's release box guards.
+
+- 2026-11-03 · Mac · MT follow-up (#534, `feat/ios-terms-export-delete`): export and delete folded
+  under Sign out on the terms screen, through the You tab's own controls; iOS export is new and
+  also lands in You → Data (D-060). Unit (behind the mock's gate), smoke and snapshot tests. It
+  reaches athletes in the next TestFlight build, which is Shane's go.
 
 ## Next brief
 **M1 — Write finished sessions to Health.** Goal: a tracker finish writes an Apex-branded
