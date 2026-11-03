@@ -1,4 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import type { Database } from '../../../src/lib/db/database.types.js';
 import { getSupabaseAdmin } from '../supabaseAdmin.js';
 import { requireUser } from '../auth.js';
 import { enforceRateLimit } from '../rateLimit.js';
@@ -88,6 +89,27 @@ export const EXPORT_ORDER: Partial<Record<(typeof EXPORTED_TABLES)[number], read
   daily_metrics: ['date', 'provider'],
 };
 
+type Column<T extends keyof Database['public']['Tables']> = keyof Database['public']['Tables'][T]['Row'] & string;
+
+/**
+ * The secret-holding tables, summarised: the named columns only, never the
+ * secrets. Paged like any table, by `order` (the primary key without
+ * user_id, checked against the migrations like EXPORT_ORDER): every OAuth
+ * refresh adds two mcp_tokens rows and none is ever deleted, so a long-used
+ * connector passes PostgREST's 1000-row cap.
+ */
+export const SUMMARIES = {
+  mcp_tokens: {
+    columns: ['name', 'token_last4', 'kind', 'created_at', 'last_used_at', 'revoked_at', 'expires_at'],
+    order: ['id'],
+  },
+  provider_connections: {
+    columns: ['provider', 'status', 'connected_at', 'last_synced_at', 'auto_sync', 'categories'],
+    order: ['provider'],
+  },
+  // A misspelled column is a 42703 on every export: make it a type error.
+} as const satisfies { [T in 'mcp_tokens' | 'provider_connections']: { columns: readonly Column<T>[]; order: readonly Column<T>[] } };
+
 /**
  * Tables holding secret material. Their existence is disclosed in the
  * export; their contents are not. Exporting an encrypted OAuth token or a
@@ -110,7 +132,7 @@ function isTableMissing(error: { code?: string }): boolean {
   return error.code === 'PGRST205' || error.code === '42P01';
 }
 
-/** Rows per page: PostgREST's cap on a single select. */
+/** Rows asked for per page; PostgREST's max_rows may answer fewer. */
 const PAGE_SIZE = 1000;
 
 /** A PostgREST filter value, quoted so commas, dots, colons and parentheses stay data. */
@@ -144,12 +166,22 @@ export function afterKey(order: readonly string[], last: Record<string, unknown>
  * read. A row whose key itself changes mid-read (relabelTrackedEventId) can
  * still appear twice or not at all; only one snapshot, a single SQL function,
  * prevents that.
+ *
+ * Done at the first empty page, not the first short one: PostgREST's max_rows
+ * caps every page, and a cap below PAGE_SIZE would make the first full page
+ * look like the last. The empty page costs one read per non-empty table.
  */
-async function readTable(supabase: Admin, table: (typeof EXPORTED_TABLES)[number], userId: string) {
-  const order = EXPORT_ORDER[table] ?? ['id'];
+async function readTable(
+  supabase: Admin,
+  table: (typeof EXPORTED_TABLES)[number] | keyof typeof SUMMARIES,
+  userId: string,
+  order: readonly string[],
+  columns = '*',
+) {
   const rows: Record<string, unknown>[] = [];
+  const seen = new Set<string>();
   for (let last: Record<string, unknown> | undefined; ;) {
-    let query = supabase.from(table).select('*').eq('user_id', userId);
+    let query = supabase.from(table).select(columns).eq('user_id', userId);
     if (last) {
       query = order.length === 1
         ? query.gt(order[0] as never, last[order[0]] as never)
@@ -166,15 +198,26 @@ async function readTable(supabase: Admin, table: (typeof EXPORTED_TABLES)[number
     if (error && isTableMissing(error) && !last) return [];
     if (error) throw new Error(`${table} fetch failed: ${error.message}`);
     const page = (data ?? []) as unknown as Record<string, unknown>[];
+    if (page.length === 0) break;
+    // A key cursor cannot read a key twice. If it does, the order is not the
+    // table's key or the cursor stopped advancing: fail on this page rather
+    // than copy wrong or read until the function times out.
+    for (const row of page) {
+      const key = JSON.stringify(order.map(column => row[column]));
+      if (seen.has(key)) throw new Error(`${table}: a key was read twice; its export order is not its key`);
+      seen.add(key);
+    }
     rows.push(...page);
-    if (page.length < PAGE_SIZE) break;
     last = page[page.length - 1];
   }
-  // A key cursor cannot read a key twice; if it ever does, the order is not
-  // the table's key, and the copy would be wrong.
-  const keys = new Set(rows.map(row => JSON.stringify(order.map(column => row[column]))));
-  if (keys.size !== rows.length) throw new Error(`${table}: a key was read twice; its export order is not its key`);
   return rows;
+}
+
+/** A summary's rows, with its named columns and nothing else. */
+async function readSummary(supabase: Admin, table: keyof typeof SUMMARIES, userId: string) {
+  const { columns, order } = SUMMARIES[table];
+  const rows = await readTable(supabase, table, userId, order, [...new Set([...order, ...columns])].join(', '));
+  return rows.map(row => Object.fromEntries(columns.map(column => [column, row[column]])));
 }
 
 async function buildExport(supabase: Admin, userId: string) {
@@ -221,29 +264,25 @@ async function buildExport(supabase: Admin, userId: string) {
   // Sequential rather than Promise.all: one export is a rare, unbounded read
   // over every table a user owns, and firing all of them at once is how a
   // single click becomes a database incident.
-  for (const table of EXPORTED_TABLES) data[table] = await readTable(supabase, table, userId);
+  for (const table of EXPORTED_TABLES) {
+    data[table] = await readTable(supabase, table, userId, EXPORT_ORDER[table] ?? ['id']);
+  }
 
   // Token metadata is genuinely the user's — which clients they connected
-  // and when — even though the hashes are not.
-  const { data: tokens } = await supabase
-    .from('mcp_tokens')
-    .select('name, token_last4, kind, created_at, last_used_at, revoked_at, expires_at')
-    .eq('user_id', userId);
-
-  // Connections without their tokens: which providers, since when, and the
-  // Health categories the athlete consented to (phase59) — theirs to see.
-  const { data: connections } = await supabase
-    .from('provider_connections')
-    .select('provider, status, connected_at, last_synced_at, auto_sync, categories')
-    .eq('user_id', userId);
+  // and when — even though the hashes are not. Connections without their
+  // tokens: which providers, since when, and the Health categories the
+  // athlete consented to (phase59). A failed read fails the export, like any
+  // table's: an empty summary would be a wrong record presented as a download.
+  const mcpTokenSummary = await readSummary(supabase, 'mcp_tokens', userId);
+  const providerConnectionSummary = await readSummary(supabase, 'provider_connections', userId);
 
   return {
     exportedAt: new Date().toISOString(),
     userId,
     account,
     notes: REDACTED_TABLES,
-    mcpTokenSummary: tokens ?? [],
-    providerConnectionSummary: connections ?? [],
+    mcpTokenSummary,
+    providerConnectionSummary,
     data,
   };
 }

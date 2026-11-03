@@ -2,7 +2,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import handler, { afterKey, EXPORT_ORDER, EXPORTED_TABLES, NON_CASCADING_TABLES, USER_DATA_TABLES } from '../_lib/handlers/account';
+import handler, { afterKey, EXPORT_ORDER, EXPORTED_TABLES, NON_CASCADING_TABLES, SUMMARIES, USER_DATA_TABLES } from '../_lib/handlers/account';
 import { getSupabaseAdmin } from '../_lib/supabaseAdmin';
 import { requireUser } from '../_lib/auth';
 
@@ -34,6 +34,13 @@ interface AdminState {
   onPage?: (table: string, n: number) => void;
   /** Pages served per table so far. */
   pages: Record<string, number>;
+  /** PostgREST's max_rows, when lower than MAX_ROWS: caps every select, limit or not. */
+  maxRows?: number;
+  /** A table whose cursor filters (gt, or) are ignored: a cursor that never advances. */
+  stalled?: string;
+  /** Paged reads in flight now, and the most ever at once. */
+  inFlight: number;
+  maxInFlight: number;
 }
 
 type Condition = { column: string; op: 'eq' | 'gt'; value: string };
@@ -141,24 +148,27 @@ function makeAdmin(state: AdminState) {
         const leaf: Record<string, unknown> = {
           eq: (column: string, value: unknown) => { filters.push(row => row[column] === value); return leaf; },
           gt: (column: string, value: unknown) => {
-            filters.push(row => holds(row, { column, op: 'gt', value: String(value) }));
+            if (state.stalled !== table) filters.push(row => holds(row, { column, op: 'gt', value: String(value) }));
             return leaf;
           },
           or: (expr: string) => {
             const any = parseOr(expr);
-            filters.push(row => any.some(all => all.every(c => holds(row, c))));
+            if (state.stalled !== table) filters.push(row => any.some(all => all.every(c => holds(row, c))));
             return leaf;
           },
           order: (column: string) => { state.orderedBy[table].push(column); return leaf; },
           limit: async (n: number) => {
             const page = state.pages[table] = (state.pages[table] ?? -1) + 1;
             state.onPage?.(table, page);
-            return answer(matching().slice(0, n));
+            state.maxInFlight = Math.max(state.maxInFlight, ++state.inFlight);
+            await new Promise(resolve => setTimeout(resolve, 0));
+            state.inFlight--;
+            return answer(matching().slice(0, Math.min(n, state.maxRows ?? MAX_ROWS)));
           },
           // profiles uses .select().eq().maybeSingle()
           maybeSingle: async () => ({ data: matching()[0] ?? null, error: null }),
           then: (resolve: (v: unknown) => unknown) =>
-            Promise.resolve(answer(matching().slice(0, MAX_ROWS))).then(resolve),
+            Promise.resolve(answer(matching().slice(0, state.maxRows ?? MAX_ROWS))).then(resolve),
         };
         return leaf;
       };
@@ -200,7 +210,7 @@ function makeRes() {
 let state: AdminState;
 
 beforeEach(() => {
-  state = { deletedFrom: [], selectedFrom: [], orderedBy: {}, calls: [], pages: {} };
+  state = { deletedFrom: [], selectedFrom: [], orderedBy: {}, calls: [], pages: {}, inFlight: 0, maxInFlight: 0 };
   mockedAdmin.mockReset();
   mockedAdmin.mockReturnValue(makeAdmin(state));
   mockedRequireUser.mockReset();
@@ -242,12 +252,25 @@ describe('GET /api/account — export', () => {
     expect(new Set(exported.map(r => r.id)).size).toBe(sets.length);
   });
 
+  // Production's max_rows is a dashboard setting, not code: a cap below the
+  // page size must not make the first full page look like the last.
+  it('pages past a server cap lower than the page size', async () => {
+    state.maxRows = 400;
+    const sets = Array.from({ length: MAX_ROWS + 5 }, (_, i) => ({ id: `set-${String(i).padStart(5, '0')}`, user_id: 'user-123' }));
+    state.rows = { workout_set_logs: sets };
+    const { res, body } = makeRes();
+    await handler(makeReq('GET'), res);
+    const exported = JSON.parse(body() as string).data.workout_set_logs as { id: string }[];
+    expect(exported.map(r => r.id)).toEqual(sets.map(r => r.id));
+  });
+
   it('pages every table in a total order: its key, user_id aside', async () => {
     const { res } = makeRes();
     await handler(makeReq('GET'), res);
     for (const table of EXPORTED_TABLES) {
       expect(state.orderedBy[table], table).toEqual([...(EXPORT_ORDER[table] ?? ['id'])]);
     }
+    for (const [table, { order }] of Object.entries(SUMMARIES)) expect(state.orderedBy[table], table).toEqual([...order]);
   });
 
   it('carries the sign-in record, the email and the 18+ stamp, but never the password', async () => {
@@ -436,6 +459,54 @@ describe('GET /api/account — export', () => {
     expect(payload.providerConnectionSummary).toEqual([{ provider: 'apple', status: 'connected', categories: { workoutsRead: true } }]);
     expect(body() as string).not.toContain('tok-secret');
     expect(payload.data).not.toHaveProperty('provider_connections');
+  });
+
+  // Every OAuth refresh adds two mcp_tokens rows and none is ever deleted.
+  it('summarises every token past the 1000-row cap, without its hash or id', async () => {
+    const tokens = Array.from({ length: MAX_ROWS + 5 }, (_, i) => ({
+      id: `tok-${String(i).padStart(5, '0')}`, user_id: 'user-123', token_hash: `hash-${i}`,
+      token_last4: 'a1b2', name: 'Claude', kind: i % 2 ? 'refresh' : 'oauth', created_at: '2026-10-01T00:00:00Z',
+    }));
+    state.rows = { mcp_tokens: tokens };
+    const { res, body } = makeRes();
+    await handler(makeReq('GET'), res);
+    const summary = JSON.parse(body() as string).mcpTokenSummary as Record<string, unknown>[];
+    expect(summary).toHaveLength(tokens.length);
+    expect(summary[0]).toEqual({ name: 'Claude', token_last4: 'a1b2', kind: 'oauth', created_at: '2026-10-01T00:00:00Z' });
+    expect(body() as string).not.toContain('hash-');
+    expect(body() as string).not.toContain('tok-0');
+  });
+
+  // One export reads every table a user owns: all at once, one click becomes
+  // a burst of unbounded queries.
+  it('reads one page at a time, never in parallel', async () => {
+    state.rows = Object.fromEntries(EXPORTED_TABLES.map(table => [table, [{ id: `${table}-1`, user_id: 'user-123' }]]));
+    const { res, statusCode } = makeRes();
+    await handler(makeReq('GET'), res);
+    expect(statusCode()).toBe(200);
+    expect(state.maxInFlight).toBe(1);
+  });
+
+  // Paging ends at an empty page, so only the cursor moving forward ends it.
+  it('fails fast, naming the table, when its cursor stops advancing', async () => {
+    state.stalled = 'workout_set_logs';
+    state.rows = { workout_set_logs: ['a', 'b', 'c'].map(id => ({ id, user_id: 'user-123' })) };
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const { res, statusCode } = makeRes();
+    await handler(makeReq('GET'), res);
+    expect(statusCode()).toBe(500);
+    expect(state.pages.workout_set_logs).toBe(1);
+    expect(String(errors.mock.calls[0]?.[1])).toContain('workout_set_logs');
+  });
+
+  it('fails rather than export an empty summary when its read fails', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    for (const table of Object.keys(SUMMARIES)) {
+      state.selectErrors = { [table]: { code: '57014', message: 'canceling statement due to statement timeout' } };
+      const { res, statusCode } = makeRes();
+      await handler(makeReq('GET'), res);
+      expect(statusCode(), table).toBe(500);
+    }
   });
 
   it('serves as a downloadable attachment', async () => {
@@ -694,10 +765,16 @@ describe('the export pages each table in a total order', () => {
         ? []
         : [`${table}: key (${key?.join(', ') ?? 'not found'}), paged by (${order.join(', ')})`];
     });
+    for (const [table, { order }] of Object.entries(SUMMARIES)) {
+      const key = keys.get(table)?.filter(c => c !== 'user_id');
+      if (!key || [...key].sort().join() !== [...order].sort().join()) {
+        wrong.push(`${table}: key (${key?.join(', ') ?? 'not found'}), summary paged by (${order.join(', ')})`);
+      }
+    }
     expect(
       wrong,
       'a page range over a non-unique order repeats or skips rows — set EXPORT_ORDER '
-      + 'in api/_lib/handlers/account.ts to the table\'s primary key without user_id',
+      + '(or SUMMARIES) in api/_lib/handlers/account.ts to the table\'s primary key without user_id',
     ).toEqual([]);
   });
 });

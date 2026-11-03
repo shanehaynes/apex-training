@@ -64,7 +64,7 @@
 - [ ] **P2** · *SRP / duplication (G5)* · `api/_lib/handlers/mcpTokens.ts:139` — GET/POST/DELETE (24–186) all query `mcp_tokens` inline; the revoke update is duplicated for client disconnect (139–145) and single revoke (165–171). **Fix:** `listTokens`, `mintPat`, `revokeTokens(userId, { id } | { clientId })` in `mcp/tokens.ts`; the handler maps results.
 
 ### `api/_lib/handlers/account.ts`
-- [ ] **P2** · *Error handling — swallowed error / inconsistency (G11)* · `api/_lib/handlers/account.ts:106` — `buildExport` throws on every table read (92, 100) but ignores the `mcp_tokens` query's error, so a failed read exports `mcpTokenSummary: []` as if the user had no tokens. **Fix:** destructure `error` and throw like the other reads.
+- [x] **P2** · *Error handling — swallowed error / inconsistency (G11)* · `api/_lib/handlers/account.ts:106` — `buildExport` throws on every table read (92, 100) but ignores the `mcp_tokens` query's error, so a failed read exports `mcpTokenSummary: []` as if the user had no tokens. **Fix:** destructure `error` and throw like the other reads. — fixed in #540 (both summaries read through `readTable`: paged, and a failed read is a 500)
 
 ### `api/_lib/handlers/blockCycle.ts`
 - [ ] **P2** · *Duplication (G5) — data access in the door* · `api/_lib/handlers/blockCycle.ts:112` — The `training_blocks` select-all-ordered + `rowToBlock` mapping (112–122) is repeated in analyticsCompute.ts:98/104, and `coach/context.ts` already exports `fetchBlocksAndObjectives` (used by coachTool.ts:94). **Fix:** one `fetchBlocks(supabase, userId)` in the blocks service, used by all three.
