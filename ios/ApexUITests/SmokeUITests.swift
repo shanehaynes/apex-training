@@ -1105,8 +1105,8 @@ final class SmokeUITests: XCTestCase {
         XCTAssertTrue(export.waitForExistence(timeout: 5))
         attach(app, name: "terms-data-01-unfolded")
         export.tap()
-        saveInFiles(app, screenshot: "terms-data-02-files")
         let saved = app.staticTexts["terms.data.export.saved"]
+        saveInFiles(app, screenshot: "terms-data-02-files", until: saved)
         XCTAssertTrue(saved.waitForExistence(timeout: 15), "the screen says where it went")
         XCTAssertTrue(saved.label.contains("apex-training-export-2026-09-08"), saved.label)
 
@@ -1149,8 +1149,8 @@ final class SmokeUITests: XCTestCase {
         var swipes = 0
         while !export.isHittable, swipes < 4 { app.scrollViews.firstMatch.swipeUp(); swipes += 1 }
         export.tap()
-        saveInFiles(app, screenshot: "you-export-01-files")
         let saved = app.staticTexts["you.row.export.saved"]
+        saveInFiles(app, screenshot: "you-export-01-files", until: saved)
         XCTAssertTrue(saved.waitForExistence(timeout: 15), "the You tab's row saves too")
         XCTAssertTrue(saved.label.contains("apex-training-export-2026-09-08"), saved.label)
         attach(app, name: "you-export-02-saved")
@@ -1162,21 +1162,29 @@ final class SmokeUITests: XCTestCase {
         let termsExport = app.buttons["terms.data.export"]
         XCTAssertTrue(termsExport.waitForExistence(timeout: 5))
         termsExport.tap()
-        saveInFiles(app, screenshot: "you-export-03-terms-files")
         let termsSaved = app.staticTexts["terms.data.export.saved"]
+        saveInFiles(app, screenshot: "you-export-03-terms-files", until: termsSaved)
         XCTAssertTrue(termsSaved.waitForExistence(timeout: 15), "the terms screen's exporter is not shadowed by the You tab's")
         attach(app, name: "you-export-04-terms-saved")
     }
 
-    /// Files' save sheet: Save, then Replace when a previous run left the
-    /// same file on the simulator.
-    private func saveInFiles(_ app: XCUIApplication, screenshot name: String) {
+    /// Files' save sheet: Save, then Replace when the file is already there.
+    /// It always is in the second export test, because the first saves the
+    /// same name, and on a slow runner Replace can come later than any fixed
+    /// wait. So wait on the outcome: the row's saved label, or Replace, which
+    /// is tapped once (no hidden retries, ci.yml #192/#195). The caller still
+    /// asserts the label.
+    private func saveInFiles(_ app: XCUIApplication, screenshot name: String, until saved: XCUIElement) {
         let save = app.buttons["Save"].firstMatch
         XCTAssertTrue(save.waitForExistence(timeout: 15), "the export opens Files to save it")
         attach(app, name: name)
         save.tap()
         let replace = app.buttons["Replace"].firstMatch
-        if replace.waitForExistence(timeout: 2) { replace.tap() }
+        let settled = XCTNSPredicateExpectation(
+            predicate: NSPredicate { _, _ in replace.exists || saved.exists }, object: nil
+        )
+        XCTAssertEqual(XCTWaiter().wait(for: [settled], timeout: 20), .completed, "Files neither saved nor asked to replace")
+        if !saved.exists, replace.exists { replace.tap() }
     }
 
     // MARK: - W11 · the You tab
