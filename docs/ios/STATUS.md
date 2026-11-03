@@ -32,9 +32,9 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
 0. **App Store resubmission — 1.1.0 with Create account (ROADMAP Now 1).** 509 is not going back.
    The order is [app-store.md](app-store.md) §7, "The resubmission, in order". Done: the legal
    text (#527, terms-v2 and privacy-v2 live 2026-11-02) and export plus delete on the iOS terms
-   screen (#534). Proposed and held: the Turnstile App Privacy row (Identifiers → Device ID,
-   not linked, App Functionality) in §1 and `PrivacyInfo.xcprivacy`; Shane's `shipit` decides it.
-   In review: the account export paged past 1000 rows and carrying the sign-in record (the
+   screen (#534). App Privacy: §1 and `PrivacyInfo.xcprivacy` declare Turnstile and the
+   acceptance record's IP address (Device ID and Product Interaction, linked; app-store.md §1
+   says why). The account export pages past 1000 rows and carries the sign-in record (the
    delete screens say to export first). Then a TestFlight build from `main` on Shane's go (the
    first carrying #493 and #534), one real sign-up on it, Apple's 2026-10-13 agreement, the
    version number, the recording and the reply; those are his. The APNs key (D-051) is still
