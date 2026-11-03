@@ -35,9 +35,10 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
    screen (#534). App Privacy: §1 and `PrivacyInfo.xcprivacy` declare Turnstile and the
    acceptance record's IP address (Device ID and Product Interaction, linked; app-store.md §1
    says why). The account export pages past 1000 rows and carries the sign-in record (the
-   delete screens say to export first). Then a TestFlight build from `main` on Shane's go (the
-   first carrying #493 and #534), one real sign-up on it, Apple's 2026-10-13 agreement, the
-   version number, the recording and the reply; those are his. The APNs key (D-051) is still
+   delete screens say to export first). Next, Shane accepts Apple's 2026-10-13 agreement: it
+   blocks signing, and the 2026-11-03 TestFlight run (his go given) failed at the archive for
+   that reason, with nothing uploaded. Then the build from `main` (the first carrying #493 and
+   #534), one real sign-up on it, the version number, the recording and the reply; those are his. The APNs key (D-051) is still
    listed as his, below.
 0. **W17 M3 — the device run on TestFlight 1.1.0 (604), then ApexCore PRs.** All three lanes are on
    `main` (PR-H #480 and M1 #483 on 2026-10-20, M2 #484 on 2026-10-21) and build 604, uploaded
@@ -169,11 +170,15 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
    (`printf` the two ids back after a tidy) — both git-ignored, so never from the primary checkout.
 
 ## Recent sessions
+- 2026-11-03 · TestFlight 1.1.0 attempt · CI. On Shane's go, `testflight.yml` from `main` at
+  6fe45505 (run 41706007034) failed at the archive: the Program License Agreement update is not
+  accepted, so Apple issued no signing profiles. Nothing uploaded; no build number burned. The
+  agreement moves to app-store.md §7 step 3, ahead of the build.
 - 2026-11-03 · Terms screen export and delete (#534) · Mac. #527's follow-up 4: the updated-terms screen
   folds *Export or delete your data instead* under Sign out, like the web gate, so an athlete can
   leave with their data or delete the account without accepting (terms §12, 5.1.1(v)). iOS had
   no export; `ExportDataRow` saves `GET /api/account` through Files and also sits in You → Data
-  (D-060). Delete pushes the You tab's own screen. In the next 1.1.0 TestFlight build (step 3).
+  (D-060). Delete pushes the You tab's own screen. In the next 1.1.0 TestFlight build (step 4).
 - 2026-11-01 · App Store build decision · docs only. Shane chose a 1.1.0 build with Create account
   over 509 and App Store Connect's Active Devices as the objective's measure; ROADMAP Now 1 and the
   Objective record both, Now 3 (measurement) is struck, and app-store.md §7 gains the remaining

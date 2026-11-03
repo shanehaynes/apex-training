@@ -407,7 +407,7 @@ account screen links to the Terms.
   (ITMS-90683); this version asks only to write, so the read prompt never appears."
 - **Recording**: after the tracker's Finish, You › Apple Health: turn it on, allow the write
   sheet, and show the finished workout in the Health app. Step 6's throwaway account is the real
-  sign-up from step 4 of the order below, not a Supabase invite.
+  sign-up from step 5 of the order below, not a Supabase invite.
 - **§6**: read "1.0" as the first App Store version (1.1.0) and "1.0.1" as the next (1.1.1).
 
 ### The resubmission, in order
@@ -429,19 +429,26 @@ account screen links to the Terms.
 2. **App Privacy (§1):** the Device ID and Product Interaction rows, in the build's manifest
    (`PrivacyInfo.xcprivacy`, held for Shane). Enter §1's table in App Store Connect at step 6,
    row for row.
-3. **A TestFlight build from `main`, on Shane's go** (`ios/CLAUDE.md`: uploading publishes):
+3. **Apple's agreement, before any build:** Shane accepts the Program License Agreement update
+   (developer.apple.com → Account). Until he does, Apple refuses signing profiles, so CI cannot
+   archive a build: the 2026-11-03 TestFlight run from `main` at 6fe45505 (Actions run
+   41706007034) failed at the archive with "Shane Haynes, must agree to the latest Program
+   License Agreement" and "No profiles for 'com.shanehaynes.apextraining'". Nothing was
+   uploaded, so no build number was burned and no `build_number` override is needed. The next
+   run stamps the commit count (659 or later); a What to Test note that names the number must
+   use the new one. Submission is blocked until then too.
+4. **A TestFlight build from `main`, on Shane's go** (`ios/CLAUDE.md`: uploading publishes):
    the first 1.1.0 build carrying #493, since 604 predates it. #477 has been on `main`, and so
    in production, since 2026-10-20, so the order rule above holds. Beyond 604, the build adds
    Create account (#493), the write-queue fixes #455 and #495 (never on a device yet), and
    W17's You › Training rows *Share voice log* and *Clear voice log*, which show even with
    voice off, and export plus delete on the updated-terms screen (terms §12, D-060), with
-   *Export my data* in You › Data. Whether those go public as they are is Shane's call.
-4. **One real sign-up on that build** (open-signup M3's last box): a fresh inbox; the Cloudflare
+   *Export my data* in You › Data. Shane gave the go on 2026-11-03. Once the agreement is
+   accepted: `gh workflow run testflight.yml --ref main -f changelog="…"` from a green `main`.
+5. **One real sign-up on that build** (open-signup M3's last box): a fresh inbox; the Cloudflare
    check passes; the email comes from invites@; its link's *Open in the Apex app* lands on
    set-password; the password signs in on the app and the web; `age_confirmed_at` is set in
    `raw_app_meta_data`.
-5. **Apple's agreement:** Shane accepts the agreement update Apple emailed on 2026-10-13. App
-   Store Connect blocks submission until then.
 6. **App Store Connect:** the version number matches the build (1.1.0), the new build is
    selected, App Privacy matches §1 (Device ID and Product Interaction are new), and China mainland stays
    unticked (decided 2026-10-12).
