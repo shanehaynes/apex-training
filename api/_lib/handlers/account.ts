@@ -4,7 +4,7 @@ import { requireUser } from '../auth.js';
 import { enforceRateLimit } from '../rateLimit.js';
 
 // Account export and deletion — the two capabilities the Privacy Policy
-// (legal/privacy-v1.md §6) promises, and which did not exist before it.
+// (legal/privacy-v2.md §6) promises, and which did not exist before it.
 //
 // EXEMPT FROM THE TERMS GATE (see RequireUserOptions in auth.ts). Taking
 // your data out and closing your account are the things a user who declines
@@ -69,6 +69,25 @@ export const USER_DATA_TABLES = [
  */
 export const NON_CASCADING_TABLES = ['phase32_quarantine'] as const;
 
+/** Every table the export reads by user_id: the swept ones are records too. */
+export const EXPORTED_TABLES = [...USER_DATA_TABLES, ...NON_CASCADING_TABLES] as const;
+
+/**
+ * The key each table is paged by, when it is not just `id`: its primary key
+ * without `user_id`, which every read already filters on. A page starts after
+ * the last key read, so the key must be unique and total.
+ * api/__tests__/account.test.ts checks every table's key against its primary
+ * key in the migrations.
+ */
+export const EXPORT_ORDER: Partial<Record<(typeof EXPORTED_TABLES)[number], readonly string[]>> = {
+  workout_completions: ['event_id'],
+  workout_exercise_notes: ['event_id', 'event_date', 'section', 'exercise_id'],
+  activity_streams: ['event_id', 'event_date'],
+  provider_activity_imports: ['provider', 'activity_id'],
+  api_request_counts: ['bucket', 'window_start'],
+  daily_metrics: ['date', 'provider'],
+};
+
 /**
  * Tables holding secret material. Their existence is disclosed in the
  * export; their contents are not. Exporting an encrypted OAuth token or a
@@ -81,6 +100,7 @@ const REDACTED_TABLES = {
   provider_connections: 'Watch-provider OAuth tokens are stored encrypted and are deliberately not exported. Each connection — the provider, its status, its dates and, for Apple Health, the categories you switched on — is in the summary below.',
   oauth_clients: 'OAuth client registrations belong to the connecting application, not to your account data.',
   oauth_codes: 'Short-lived OAuth authorization codes; they expire within minutes and are not exported.',
+  password: 'Your password is stored only as a hash by Supabase Auth. Apex never sees it, and it is not exported.',
 } as const;
 
 type Admin = NonNullable<ReturnType<typeof getSupabaseAdmin>>;
@@ -90,7 +110,107 @@ function isTableMissing(error: { code?: string }): boolean {
   return error.code === 'PGRST205' || error.code === '42P01';
 }
 
+/** Rows per page: PostgREST's cap on a single select. */
+const PAGE_SIZE = 1000;
+
+/** A PostgREST filter value, quoted so commas, dots, colons and parentheses stay data. */
+function literal(value: unknown): string {
+  return `"${String(value).replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
+}
+
+/**
+ * The PostgREST `or` filter for "after this key" over a composite key, as
+ * (a > x) or (a = x and b > y) or …: a row comparison in filter syntax.
+ */
+export function afterKey(order: readonly string[], last: Record<string, unknown>): string {
+  return order.map((column, i) => {
+    const gt = `${column}.gt.${literal(last[column])}`;
+    if (i === 0) return gt;
+    const equal = order.slice(0, i).map(c => `${c}.eq.${literal(last[c])}`);
+    return `and(${[...equal, gt].join(',')})`;
+  }).join(',');
+}
+
+/**
+ * Every row of the user's in one table, paged by key.
+ *
+ * Paged: PostgREST caps a select at 1000 rows, and the delete screens tell the
+ * athlete to export first, so a capped export would lose their history for
+ * good once the account goes. By key, not by offset: an insert or delete while
+ * the table is read (a write-queue flush, a Health import, another device)
+ * would shift an offset page and skip or repeat a row that never changed. A
+ * key cursor reads every row that exists throughout, with its key unchanged,
+ * exactly once. Rows written mid-read appear or not, as of when their page was
+ * read. A row whose key itself changes mid-read (relabelTrackedEventId) can
+ * still appear twice or not at all; only one snapshot, a single SQL function,
+ * prevents that.
+ */
+async function readTable(supabase: Admin, table: (typeof EXPORTED_TABLES)[number], userId: string) {
+  const order = EXPORT_ORDER[table] ?? ['id'];
+  const rows: Record<string, unknown>[] = [];
+  for (let last: Record<string, unknown> | undefined; ;) {
+    let query = supabase.from(table).select('*').eq('user_id', userId);
+    if (last) {
+      query = order.length === 1
+        ? query.gt(order[0] as never, last[order[0]] as never)
+        : query.or(afterKey(order, last));
+    }
+    for (const column of order) query = query.order(column as never, { ascending: true });
+    const { data, error } = await query.limit(PAGE_SIZE);
+    // A table whose migration has not reached this database yet holds no rows
+    // for anyone: export it empty rather than fail the whole export.
+    // Migrations are pasted into production by hand and can trail the code
+    // that lists their tables here (phase59's daily_metrics). Only on the
+    // first page: after it, the table existed, and an empty answer would be a
+    // failure presented as a download.
+    if (error && isTableMissing(error) && !last) return [];
+    if (error) throw new Error(`${table} fetch failed: ${error.message}`);
+    const page = (data ?? []) as unknown as Record<string, unknown>[];
+    rows.push(...page);
+    if (page.length < PAGE_SIZE) break;
+    last = page[page.length - 1];
+  }
+  // A key cursor cannot read a key twice; if it ever does, the order is not
+  // the table's key, and the copy would be wrong.
+  const keys = new Set(rows.map(row => JSON.stringify(order.map(column => row[column]))));
+  if (keys.size !== rows.length) throw new Error(`${table}: a key was read twice; its export order is not its key`);
+  return rows;
+}
+
 async function buildExport(supabase: Admin, userId: string) {
+  // The authentication record first: if it cannot be read there is no
+  // complete export, and nothing else is worth reading. The email address and
+  // the 18+ confirmation (app_metadata.age_confirmed_at) are records we hold
+  // too (privacy-v2 §2). Never the password hash, identity tokens or MFA
+  // secrets: the fields below are named, not spread.
+  const { data: auth, error: authErr } = await supabase.auth.admin.getUserById(userId);
+  if (authErr || !auth.user) throw new Error(`auth user: ${authErr?.message ?? 'not found'}`);
+  const user = auth.user;
+  const account = {
+    email: user.email ?? null,
+    pendingEmail: user.new_email ?? null,
+    phone: user.phone || null,
+    createdAt: user.created_at,
+    updatedAt: user.updated_at ?? null,
+    invitedAt: user.invited_at ?? null,
+    confirmationSentAt: user.confirmation_sent_at ?? null,
+    emailConfirmedAt: user.email_confirmed_at ?? null,
+    recoverySentAt: user.recovery_sent_at ?? null,
+    lastSignInAt: user.last_sign_in_at ?? null,
+    appMetadata: user.app_metadata ?? {},
+    userMetadata: user.user_metadata ?? {},
+    identities: (user.identities ?? []).map(i => ({
+      provider: i.provider,
+      createdAt: i.created_at ?? null,
+      lastSignInAt: i.last_sign_in_at ?? null,
+    })),
+    factors: (user.factors ?? []).map(f => ({
+      type: f.factor_type,
+      status: f.status,
+      createdAt: f.created_at,
+    })),
+  };
+
   const data: Record<string, unknown> = {};
 
   const { data: profile, error: profileErr } = await supabase
@@ -99,21 +219,9 @@ async function buildExport(supabase: Admin, userId: string) {
   data.profiles = profile ?? null;
 
   // Sequential rather than Promise.all: one export is a rare, unbounded read
-  // over every table a user owns, and firing 23 of them at once is how a
+  // over every table a user owns, and firing all of them at once is how a
   // single click becomes a database incident.
-  for (const table of USER_DATA_TABLES) {
-    const { data: rows, error } = await supabase.from(table).select('*').eq('user_id', userId);
-    // A table whose migration has not reached this database yet holds no
-    // rows for anyone: export it empty rather than fail the whole export.
-    // Migrations are pasted into production by hand and can trail the code
-    // that lists their tables here (phase59's daily_metrics).
-    if (error && isTableMissing(error)) {
-      data[table] = [];
-      continue;
-    }
-    if (error) throw new Error(`${table}: ${error.message}`);
-    data[table] = rows ?? [];
-  }
+  for (const table of EXPORTED_TABLES) data[table] = await readTable(supabase, table, userId);
 
   // Token metadata is genuinely the user's — which clients they connected
   // and when — even though the hashes are not.
@@ -132,12 +240,16 @@ async function buildExport(supabase: Admin, userId: string) {
   return {
     exportedAt: new Date().toISOString(),
     userId,
+    account,
     notes: REDACTED_TABLES,
     mcpTokenSummary: tokens ?? [],
     providerConnectionSummary: connections ?? [],
     data,
   };
 }
+
+/** Bytes per res.write: the export streams, so no single body has to fit. */
+const CHUNK_BYTES = 256 * 1024;
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'GET' && req.method !== 'DELETE') {
@@ -157,10 +269,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   if (req.method === 'GET') {
     try {
-      const payload = await buildExport(supabase, userId);
+      // Every read finishes before the first byte, so any failure is still a
+      // clean 500 rather than a cut-off file presented as a download.
+      // Encoded once, then sliced as bytes: slicing the string could split a
+      // surrogate pair, and each half would be written as U+FFFD.
+      const body = Buffer.from(JSON.stringify(await buildExport(supabase, userId)), 'utf8');
       res.setHeader('Content-Type', 'application/json; charset=utf-8');
       res.setHeader('Content-Disposition', 'attachment; filename="apex-training-export.json"');
-      res.status(200).send(JSON.stringify(payload, null, 2));
+      // Everything the account holds: never kept by a browser, proxy or URLCache.
+      res.setHeader('Cache-Control', 'no-store');
+      // Streamed in chunks: Vercel refuses a buffered function response over
+      // 4.5 MB, and one long history with watch streams passes that; a
+      // streamed response has no such limit. Compact, for the same reason.
+      res.status(200);
+      for (let at = 0; at < body.length; at += CHUNK_BYTES) res.write(body.subarray(at, at + CHUNK_BYTES));
+      res.end();
     } catch (err) {
       console.error('[api/account] export failed:', err instanceof Error ? err.message : err);
       res.status(500).send('Failed to build export');
