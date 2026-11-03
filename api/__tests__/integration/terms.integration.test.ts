@@ -35,12 +35,15 @@ interface CapturedResponse {
 
 function makeRes(): CapturedResponse {
   const captured: CapturedResponse = { statusCode: 200, body: undefined, res: undefined as never };
+  // The export streams (res.write per chunk, then res.end).
+  const written: Buffer[] = [];
   const res = {
     setHeader: () => res,
     status(code: number) { captured.statusCode = code; return res; },
     json(body: unknown) { captured.body = body; return res; },
     send(body: unknown) { captured.body = body; return res; },
-    end: () => res,
+    write(chunk: string | Buffer) { written.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)); return true; },
+    end() { if (written.length) captured.body = Buffer.concat(written).toString('utf8'); return res; },
   } as unknown as VercelResponse;
   captured.res = res;
   return captured;
@@ -162,6 +165,11 @@ describe.skipIf(!RUN)('terms acceptance against the local stack', () => {
     const exported = makeRes();
     await accountHandler(makeReq({ method: 'GET', token: prior.token }), exported.res);
     expect(exported.statusCode).toBe(200);
+    // Against real PostgREST: the key-paged reads and the sign-in record.
+    const file = JSON.parse(exported.body as string);
+    expect(file.userId).toBe(prior.userId);
+    expect(file.account.email).toBe(PRIOR_EMAIL);
+    expect(file.data.terms_acceptances.length).toBeGreaterThan(0);
 
     const accept = makeRes();
     await acceptanceHandler(makeReq({ method: 'POST', token: prior.token }), accept.res);
