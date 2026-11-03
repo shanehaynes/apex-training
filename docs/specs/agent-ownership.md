@@ -31,11 +31,16 @@ Shane reads the note, not the PRs. The one thing that stays his is any change to
 automation's own authority, because the loop can rewrite every other safeguard.
 
 ## The line, stated once
-Two kinds of HELD path, two grants:
+Three kinds of HELD path:
 - **Authority chain** — the policy, the babysitter, the guard hooks,
   `.claude/settings.json`, every script those cover, the migration classifier and
   applier, the owner preflight, and the prompt of record. Only Shane's `shipit` merges these. The loop may open PRs here as
   proposals, and the note lists them under "Needs Shane".
+- **Shane's decisions** — the constitution (`MISSION.md`, `TECHSTACK.md`,
+  `ROADMAP.md`) and the files that load it, and the terms and privacy policy
+  (`legal/`, `src/lib/legal/versions.ts`). CI cannot prove a mission, a plan or
+  legal wording right, so only Shane's `shipit` merges these, like the authority
+  chain.
 - **Provability holds** — everything else in `HELD`: `.github/`, `ci-guards.sh`,
   `vercel.json`, the iOS release surface, migrations the classifier rejects,
   manifests the content check rejects, and `evals/baseline/`. The loop may apply

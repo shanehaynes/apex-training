@@ -2,7 +2,7 @@
 // legal/terms-v2.md, legal/privacy-v2.md, the acceptance handler
 // (api/_lib/handlers/termsAcceptance.ts), the requireUser gate, and the
 // re-acceptance modal all read from here — one bump moves everything
-// together, and src/lib/legal/__tests__/versions.test.ts pins these against
+// together, and src/lib/legal/__tests__/documents.test.ts pins these against
 // the documents' own frontmatter so the two can never disagree about what
 // was accepted.
 //
