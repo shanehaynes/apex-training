@@ -15,7 +15,9 @@ import { sendWriteFailure } from '../pgError.js';
 import { upsertByShape } from '../upsertByShape.js';
 import { endLiveActivities } from '../services/liveActivity.js';
 import { buildQuickCompleteLogs, isAddedExerciseId } from '../../../src/lib/tracking/plan.js';
+import { toJson } from '../../../src/lib/db/types.js';
 import type { CardioLogRow, SetLogRow, TablesInsert, TrackedSection, WorkoutSessionRow } from '../../../src/lib/db/types.js';
+import { MAX_ORDER_IDS, parseExerciseOrder, type ExerciseOrder } from '../../../src/lib/tracking/order.js';
 import type { AscentStyle } from '../../../src/types/workout.js';
 import { sessionScoreFromRow } from '../../../src/lib/tracking/records.js';
 
@@ -60,6 +62,9 @@ interface Body {
   /** save only: the note on the whole session (workout_sessions.note,
    *  phase55); an empty string clears it. Absent = untouched. */
   sessionNote?: unknown;
+  /** save only: this sitting's exercise order, per section (phase60,
+   *  lib/tracking/order.ts). Absent = untouched; null clears it. */
+  exerciseOrder?: unknown;
   /** swap-exercise only: which logged exercise to relabel, and to what. */
   section?: TrackedSection;
   exerciseId?: string;
@@ -324,6 +329,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       res.status(400).send(`sessionNote must be a string under ${MAX_NOTE_LENGTH} characters`);
       return;
     }
+    // undefined = untouched, null = back to the plan's order.
+    let exerciseOrder: ExerciseOrder | null | undefined;
+    if (body.exerciseOrder === null) exerciseOrder = null;
+    else if (body.exerciseOrder !== undefined) {
+      exerciseOrder = parseExerciseOrder(body.exerciseOrder) ?? undefined;
+      if (!exerciseOrder) {
+        res.status(400).send(`exerciseOrder must map warmup, exercise or cooldown to at most ${MAX_ORDER_IDS} distinct entry ids`);
+        return;
+      }
+    }
 
     const now = new Date().toISOString();
     // `code` rides along so sendWriteFailure can read the SQLSTATE class.
@@ -379,6 +394,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       ops.push(supabase
         .from('workout_sessions')
         .update({ note: sessionNote.trim() || null, updated_at: now })
+        .eq('user_id', userId).eq('event_id', eventId)
+        .eq('event_date', eventDate));
+    }
+    // This sitting's exercise order (phase60): an update like the note.
+    if (exerciseOrder !== undefined) {
+      ops.push(supabase
+        .from('workout_sessions')
+        .update({ exercise_order: exerciseOrder === null ? null : toJson(exerciseOrder), updated_at: now })
         .eq('user_id', userId).eq('event_id', eventId)
         .eq('event_date', eventDate));
     }

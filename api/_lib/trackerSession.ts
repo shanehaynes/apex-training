@@ -23,6 +23,7 @@ import {
   setExerciseNames,
   type TrackedSectionGroup,
 } from '../../src/lib/tracking/plan.js';
+import { applyExerciseOrder, parseExerciseOrder } from '../../src/lib/tracking/order.js';
 import {
   computeSessionPRs,
   computeWorkoutScorePR,
@@ -232,7 +233,11 @@ export async function buildBootstrap(
   // actually holds: a guessed lb would put a kg lifter's 80 kg on the bar
   // as 177.5. Unknown unit, the raw "80%" shows.
   const known = hasPercentTargets(model) ? await readWeightContext(supabase, userId) : null;
-  const groups = known ? resolvePercentTargets(model, hist.history, known) : model;
+  // The order the athlete arranged this sitting in (phase60), over the plan's.
+  const groups = applyExerciseOrder(
+    known ? resolvePercentTargets(model, hist.history, known) : model,
+    parseExerciseOrder(session?.exercise_order),
+  );
   let prs: WirePersonalRecord[] = [];
   let scoreRecord: WireScoreRecord | null = null;
   if (session?.finished_at) {

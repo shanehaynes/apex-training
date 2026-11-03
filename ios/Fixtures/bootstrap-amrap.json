@@ -14,7 +14,8 @@
     "score_time_seconds": null,
     "score_rounds": 6,
     "score_reps": 3,
-    "note": null
+    "note": null,
+    "exercise_order": null
   },
   "event": {
     "id": "ios-fixture-amrap",

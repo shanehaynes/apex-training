@@ -1589,6 +1589,7 @@ export type Database = {
           coach_summary: string | null
           event_date: string
           event_id: string
+          exercise_order: Json | null
           finished_at: string | null
           id: string
           note: string | null
@@ -1606,6 +1607,7 @@ export type Database = {
           coach_summary?: string | null
           event_date: string
           event_id: string
+          exercise_order?: Json | null
           finished_at?: string | null
           id?: string
           note?: string | null
@@ -1623,6 +1625,7 @@ export type Database = {
           coach_summary?: string | null
           event_date?: string
           event_id?: string
+          exercise_order?: Json | null
           finished_at?: string | null
           id?: string
           note?: string | null

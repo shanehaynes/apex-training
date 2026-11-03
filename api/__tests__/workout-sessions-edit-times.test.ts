@@ -293,4 +293,31 @@ describe('POST /api/workout-sessions save — phase55 row validation', () => {
     await save([row({})]);
     expect(state.updates.filter(u => u.table === 'workout_sessions')).toEqual([]);
   });
+
+  it("writes this sitting's exercise order on the session, and null clears it (phase60)", async () => {
+    await save([], { exerciseOrder: { exercise: ['squat', 'bench'], warmup: [] } });
+    await save([], { exerciseOrder: null });
+    const orders = state.updates.filter(u => u.table === 'workout_sessions').map(u => u.row.exercise_order);
+    expect(orders).toEqual([{ exercise: ['squat', 'bench'], warmup: [] }, null]);
+  });
+
+  it('refuses an exercise order that is not a section → distinct ids map', async () => {
+    for (const exerciseOrder of [
+      ['squat'],
+      { exercises: ['squat'] },
+      { exercise: ['squat', 'squat'] },
+      { exercise: [42] },
+      { exercise: [''] },
+      { exercise: Array.from({ length: 501 }, (_, i) => `e${i}`) },
+    ]) {
+      expect((await save([], { exerciseOrder })).statusCode(), JSON.stringify(exerciseOrder).slice(0, 60)).toBe(400);
+    }
+    expect(state.updates).toEqual([]);
+  });
+
+  it('leaves the order alone when the save does not mention it', async () => {
+    await save([row({})], { sessionNote: 'ok' });
+    expect(state.updates.filter(u => u.table === 'workout_sessions').map(u => Object.keys(u.row).sort()))
+      .toEqual([['note', 'updated_at']]);
+  });
 });

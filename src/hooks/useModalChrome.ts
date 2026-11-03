@@ -2,7 +2,9 @@ import { useEffect, useRef } from 'react';
 
 /**
  * The shared chrome of every full-screen overlay and modal: Escape invokes
- * the handler, and body scroll is locked while mounted. The handler is read
+ * the handler, and body scroll is locked while mounted. An Escape some inner
+ * widget already claimed (preventDefault — e.g. cancelling a drag in the
+ * exercise editor) is left to that widget. The handler is read
  * through a ref, so callers can pass an inline closure (with fresh state)
  * without re-running the effect.
  *
@@ -15,7 +17,7 @@ export function useModalChrome(onEscape: () => void) {
   useEffect(() => { escapeRef.current = onEscape; });
 
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') escapeRef.current(); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && !e.defaultPrevented) escapeRef.current(); };
     document.addEventListener('keydown', onKey);
     document.body.style.overflow = 'hidden';
     return () => {
