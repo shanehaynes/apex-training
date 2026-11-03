@@ -160,8 +160,10 @@ async function readTable(supabase: Admin, table: (typeof EXPORTED_TABLES)[number
     // A table whose migration has not reached this database yet holds no rows
     // for anyone: export it empty rather than fail the whole export.
     // Migrations are pasted into production by hand and can trail the code
-    // that lists their tables here (phase59's daily_metrics).
-    if (error && isTableMissing(error)) return [];
+    // that lists their tables here (phase59's daily_metrics). Only on the
+    // first page: after it, the table existed, and an empty answer would be a
+    // failure presented as a download.
+    if (error && isTableMissing(error) && !last) return [];
     if (error) throw new Error(`${table} fetch failed: ${error.message}`);
     const page = (data ?? []) as unknown as Record<string, unknown>[];
     rows.push(...page);

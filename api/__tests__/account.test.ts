@@ -322,43 +322,69 @@ describe('GET /api/account — export', () => {
   it('reads every untouched row exactly once while other rows are written mid-export', async () => {
     const original = Array.from({ length: 2 * MAX_ROWS + 500 }, (_, i) => ({ id: `set-${String(i).padStart(5, '0')}`, user_id: 'user-123' }));
     state.rows = { workout_set_logs: [...original] };
+    // A delete before the page boundary and an insert after it: offset paging
+    // would skip set-01000, the first row of page 2, which nobody touched.
     state.onPage = (table, n) => {
       if (table !== 'workout_set_logs' || n !== 1) return;
       const rows = state.rows!.workout_set_logs as { id: string }[];
       rows.splice(rows.findIndex(r => r.id === 'set-00010'), 1);
-      rows.push({ id: 'set-00005a', user_id: 'user-123' } as never, { id: 'set-01200a', user_id: 'user-123' } as never);
+      rows.push({ id: 'set-01200a', user_id: 'user-123' } as never);
     };
     const { res, body, statusCode } = makeRes();
     await handler(makeReq('GET'), res);
     expect(statusCode()).toBe(200);
     const exported = (JSON.parse(body() as string).data.workout_set_logs as { id: string }[]).map(r => r.id);
+    expect(exported.filter(id => id === 'set-01000')).toHaveLength(1);
     const untouched = original.map(r => r.id).filter(id => id !== 'set-00010');
     for (const id of untouched) expect(exported.filter(e => e === id), id).toHaveLength(1);
     expect(new Set(exported).size).toBe(exported.length);
   });
 
-  it('pages a composite key the same way', async () => {
-    const original = Array.from({ length: MAX_ROWS + 300 }, (_, i) => ({
-      user_id: 'user-123', event_id: `ev-${String(i % 400).padStart(3, '0')}`, event_date: `2026-10-${String(1 + (i % 3)).padStart(2, '0')}`,
-      section: 'main', exercise_id: `ex,(${i}).x"q`,
-    }));
-    state.rows = { workout_exercise_notes: [...original] };
+  // The page boundary inside a group sharing the leading key columns: only
+  // the and(…) terms of the cursor select the rest of the group.
+  for (const [shared, make] of [
+    ['event_id, event_date and section', (i: number) => ({ event_id: 'ev-1', event_date: '2026-10-01', section: 'main', exercise_id: `ex,(${String(i).padStart(4, '0')}).x"q` })],
+    ['event_id and event_date', (i: number) => ({ event_id: 'ev-1', event_date: '2026-10-01', section: `s-${String(i % 7)}`, exercise_id: `ex-${String(i).padStart(4, '0')}` })],
+    ['event_id', (i: number) => ({ event_id: 'ev-1', event_date: `2026-10-${String(1 + (i % 28)).padStart(2, '0')}`, section: 'main', exercise_id: `ex-${String(i).padStart(4, '0')}` })],
+  ] as const) {
+    it(`pages a composite key whose page boundary falls inside a shared ${shared}`, async () => {
+      const original = Array.from({ length: MAX_ROWS + 300 }, (_, i) => ({ user_id: 'user-123', ...make(i) }));
+      const key = (r: Record<string, unknown>) => [r.event_id, r.event_date, r.section, r.exercise_id].join('|');
+      const sorted = [...original].sort((a, b) => (key(a) < key(b) ? -1 : 1));
+      const removed = key(sorted[3]);
+      state.rows = { workout_exercise_notes: [...original] };
+      state.onPage = (table, n) => {
+        if (table !== 'workout_exercise_notes' || n !== 1) return;
+        const rows = state.rows!.workout_exercise_notes as Record<string, unknown>[];
+        rows.splice(rows.findIndex(r => key(r) === removed), 1);
+      };
+      const { res, body, statusCode } = makeRes();
+      await handler(makeReq('GET'), res);
+      expect(statusCode()).toBe(200);
+      const exported = (JSON.parse(body() as string).data.workout_exercise_notes as Record<string, unknown>[]).map(key);
+      for (const k of sorted.map(key).filter(k => k !== removed)) expect(exported.filter(e => e === k), k).toHaveLength(1);
+    });
+  }
+
+  // After page 1 the table existed: an unmigrated-table answer now is a
+  // failure, not an empty table.
+  it('fails rather than export a table empty when it goes missing after its first page', async () => {
+    state.rows = { workout_set_logs: Array.from({ length: MAX_ROWS + 10 }, (_, i) => ({ id: `set-${String(i).padStart(5, '0')}`, user_id: 'user-123' })) };
     state.onPage = (table, n) => {
-      if (table === 'workout_exercise_notes' && n === 1) (state.rows!.workout_exercise_notes as unknown[]).splice(3, 1);
+      if (table === 'workout_set_logs' && n === 1) state.selectErrors = { workout_set_logs: { code: 'PGRST205', message: 'gone' } };
     };
-    const { res, body, statusCode } = makeRes();
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const { res, statusCode } = makeRes();
     await handler(makeReq('GET'), res);
-    expect(statusCode()).toBe(200);
-    const key = (r: Record<string, unknown>) => [r.event_id, r.event_date, r.section, r.exercise_id].join('|');
-    const exported = (JSON.parse(body() as string).data.workout_exercise_notes as Record<string, unknown>[]).map(key);
-    const sorted = [...original].sort((a, b) => (key(a) < key(b) ? -1 : 1));
-    const untouched = sorted.filter((_, i) => i !== 3).map(key);
-    for (const k of untouched) expect(exported.filter(e => e === k), k).toHaveLength(1);
+    expect(statusCode()).toBe(500);
   });
 
   it('builds the after-key filter as a row comparison, quoting every value', () => {
     expect(afterKey(['event_id', 'event_date'], { event_id: 'ev-1', event_date: '2026-10-01' }))
       .toBe('event_id.gt."ev-1",and(event_id.eq."ev-1",event_date.gt."2026-10-01")');
+    expect(afterKey(['event_id', 'event_date', 'section', 'exercise_id'], { event_id: 'e', event_date: 'd', section: 's', exercise_id: 'x' }))
+      .toBe('event_id.gt."e",and(event_id.eq."e",event_date.gt."d"),and(event_id.eq."e",event_date.eq."d",section.gt."s"),'
+        + 'and(event_id.eq."e",event_date.eq."d",section.eq."s",exercise_id.gt."x")');
     expect(afterKey(['a'], { a: 'x,y.(z):"q"\\' })).toBe('a.gt."x,y.(z):\\"q\\"\\\\"');
     expect(parseOr(afterKey(['a', 'b'], { a: 'x,"y"', b: 'p)q' }))).toEqual([
       [{ column: 'a', op: 'gt', value: 'x,"y"' }],
