@@ -27,7 +27,7 @@ its own with the reason; dependency manifests are already held for Shane.
 | Data | Supabase Postgres, RLS on every table, `supabase-js` typed by generated types | Clients read PostgREST directly, so RLS is the authorization layer | No ORM. Migrations are append-only `phaseN` files, applied to production by hand |
 | AI | Claude via `@anthropic-ai/sdk`; the athlete's own key and model; NDJSON streaming | Apex pays no inference while it earns nothing | Every coach change passes the eval gate. **Exit:** bring-your-own-key is a bootstrap phase; a managed tier replaces it when Apex charges |
 | iOS | SwiftUI, iOS 17+, GRDB read cache and write queue, XcodeGen | `docs/ios/decisions.md` D-000, D-001, D-003, D-004, D-005, D-007 | Android is deferred and planned, not ruled out |
-| Supporting libraries | `date-fns`, `framer-motion`, `react-grid-layout`, `lucide-react`, `@garmin/fitsdk` (COROS FIT decode), `@dnd-kit/core` + `sortable` + `utilities` (exercise reorder: keeps sorting while a long list auto-scrolls, with keyboard moves) | The baseline a new runtime dependency is judged against | — |
+| Supporting libraries | `date-fns`, `framer-motion`, `react-grid-layout`, `lucide-react`, `@garmin/fitsdk` (COROS FIT decode), `@dnd-kit/core`, `@dnd-kit/sortable`, `@dnd-kit/utilities` (sortable lists, in place of framer-motion's `Reorder`: keeps sorting while a long list auto-scrolls, and from the keyboard) | The baseline a new runtime dependency is judged against | — |
 | Email | Resend SMTP via `nodemailer` | Invite and review mail on the `apex-training.app` domain | — |
 | Tests | Vitest, Playwright (mock and live), XCTest with snapshots, coach evals | `npm run agent:check` is the gate, same as CI | — |
 
