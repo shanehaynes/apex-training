@@ -81,6 +81,9 @@ public struct DeleteAccountView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: Spacing.lg) {
                 Hint("Deleting your account removes your schedule, logs, meals, imported watch activities, and review history permanently. It cannot be undone, and we cannot recover it for you. Export a copy first if you want one.")
+                // `COROS_DELETE_NOTICE` (corosRevocation.ts): the grant lives at
+                // COROS, and no account is left afterwards to tell.
+                Hint("If you connected a COROS account, deletion removes Apex’s copy of your watch tokens, but it cannot withdraw the permission you granted at COROS — remove Apex from your connected apps in the COROS app as well.")
                 FormField("Type \(email) to confirm", text: $typed, placeholder: email, keyboard: .emailAddress, identifier: "you.delete.field")
                     .textInputAutocapitalization(.never)
                     .disabled(isDeleting)
@@ -88,7 +91,7 @@ public struct DeleteAccountView: View {
                 ApexButton(isDeleting ? "Deleting…" : "Delete permanently", kind: .destructive, isLoading: isDeleting) {
                     Task { await run() }
                 }
-                .disabled(!matches)
+                .disabled(!matches || isDeleting)
                 .opacity(matches ? 1 : 0.5)
                 .accessibilityIdentifier("you.delete.confirm")
             }
@@ -97,10 +100,16 @@ public struct DeleteAccountView: View {
         .youScreen("Delete account")
     }
 
+    /// Success leaves the button spinning until sign-out takes the screen
+    /// away: a second tap would DELETE a user who no longer exists and
+    /// report a failure that is not one.
     private func run() async {
         isDeleting = true
-        error = await model.deleteAccount()
-        isDeleting = false
+        error = nil
+        if let failure = await model.deleteAccount() {
+            error = failure
+            isDeleting = false
+        }
     }
 }
 

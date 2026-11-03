@@ -1105,13 +1105,7 @@ final class SmokeUITests: XCTestCase {
         XCTAssertTrue(export.waitForExistence(timeout: 5))
         attach(app, name: "terms-data-01-unfolded")
         export.tap()
-        let save = app.buttons["Save"].firstMatch
-        XCTAssertTrue(save.waitForExistence(timeout: 15), "the export opens Files to save it")
-        attach(app, name: "terms-data-02-files")
-        save.tap()
-        // Files may ask to replace a copy a previous run left on the simulator.
-        let replace = app.buttons["Replace"].firstMatch
-        if replace.waitForExistence(timeout: 2) { replace.tap() }
+        saveInFiles(app, screenshot: "terms-data-02-files")
         let saved = app.staticTexts["terms.data.export.saved"]
         XCTAssertTrue(saved.waitForExistence(timeout: 15), "the screen says where it went")
         XCTAssertTrue(saved.label.contains("apex-training-export-2026-09-08"), saved.label)
@@ -1133,6 +1127,56 @@ final class SmokeUITests: XCTestCase {
         XCTAssertTrue(email.waitForExistence(timeout: 15), "deleting signs the device out")
         signIn(app)
         XCTAssertTrue(title.waitForExistence(timeout: 20), "still unaccepted: nothing posted an acceptance")
+    }
+
+    /// The gate as most athletes will meet it: terms published while the app
+    /// is open, over a You tab already mounted with its own export row
+    /// (`-apexMockTermsStaleOn /api/mutations-log`). You → Export my data →
+    /// saved → Activity log meets the gate → the terms screen's export still
+    /// opens Files and saves: two rows, one exporter each, neither shadowing
+    /// the other.
+    func testExportFromTheYouTabThenFromTermsPublishedMidSession() {
+        let app = XCUIApplication()
+        app.launchArguments += ["-apexUITest", "-apexMockClient", "-apexMockTermsStaleOn", "/api/mutations-log"]
+        app.launch()
+        signIn(app)
+
+        let youTab = app.tabBars.buttons["You"]
+        XCTAssertTrue(youTab.waitForExistence(timeout: 20))
+        youTab.tap()
+        let export = app.buttons["you.row.export"]
+        XCTAssertTrue(export.waitForExistence(timeout: 10))
+        var swipes = 0
+        while !export.isHittable, swipes < 4 { app.scrollViews.firstMatch.swipeUp(); swipes += 1 }
+        export.tap()
+        saveInFiles(app, screenshot: "you-export-01-files")
+        let saved = app.staticTexts["you.row.export.saved"]
+        XCTAssertTrue(saved.waitForExistence(timeout: 15), "the You tab's row saves too")
+        XCTAssertTrue(saved.label.contains("apex-training-export-2026-09-08"), saved.label)
+        attach(app, name: "you-export-02-saved")
+
+        app.buttons["you.row.activity"].tap()
+        let title = app.staticTexts["terms.title"]
+        XCTAssertTrue(title.waitForExistence(timeout: 20), "the log's read meets the newly published terms")
+        app.buttons["terms.data"].tap()
+        let termsExport = app.buttons["terms.data.export"]
+        XCTAssertTrue(termsExport.waitForExistence(timeout: 5))
+        termsExport.tap()
+        saveInFiles(app, screenshot: "you-export-03-terms-files")
+        let termsSaved = app.staticTexts["terms.data.export.saved"]
+        XCTAssertTrue(termsSaved.waitForExistence(timeout: 15), "the terms screen's exporter is not shadowed by the You tab's")
+        attach(app, name: "you-export-04-terms-saved")
+    }
+
+    /// Files' save sheet: Save, then Replace when a previous run left the
+    /// same file on the simulator.
+    private func saveInFiles(_ app: XCUIApplication, screenshot name: String) {
+        let save = app.buttons["Save"].firstMatch
+        XCTAssertTrue(save.waitForExistence(timeout: 15), "the export opens Files to save it")
+        attach(app, name: name)
+        save.tap()
+        let replace = app.buttons["Replace"].firstMatch
+        if replace.waitForExistence(timeout: 2) { replace.tap() }
     }
 
     // MARK: - W11 · the You tab

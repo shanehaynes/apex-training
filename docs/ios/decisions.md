@@ -1282,4 +1282,9 @@ athletes to the web for it.
   row Files already covers, since the share sheet's own Save to Files is the same destination).
 - **Delete is pushed, not re-built.** The terms screen holds a `NavigationStack` with its bar
   hidden, and Delete account pushes the You tab's `DeleteAccountView` on `YouRoute.deleteAccount`:
-  the same typed-address confirmation, back button and copy.
+  the same typed-address confirmation, back button and copy. Now reachable before acceptance, it
+  gains the web's COROS notice (`COROS_DELETE_NOTICE`: the grant at COROS outlives the account)
+  and stays disabled once a delete succeeds, so a second tap cannot report a failure about an
+  account already gone.
+- **Known gap, its own PR:** `buildExport` reads each table unpaginated, so a table past
+  PostgREST's 1000-row cap exports truncated, on the web and here alike.

@@ -191,7 +191,8 @@ each launch. `-apexMockTermsStale` (W16 MT) publishes updated terms the fixture 
 accepted: every gated route answers 403 `terms-acceptance-required` until
 `POST /api/terms-acceptance`, and the app shows its re-acceptance screen. `GET /api/account`
 (the export) and `DELETE /api/account` stay open behind it, as on the server; the export
-answers its outer shape with no rows. `-apexFrameLog` (DEBUG, any mode) runs a `CADisplayLink` and logs every late frame under
+answers its outer shape with no rows. `-apexMockTermsStaleOn <route>` publishes them mid-session
+instead, from the first request whose path ends in `<route>`, over screens already open. `-apexFrameLog` (DEBUG, any mode) runs a `CADisplayLink` and logs every late frame under
 category `frames` — the simulator has no Hitches instrument, so this is how a scroll is measured
 there: `xcrun simctl spawn <udid> log show --last 2m --info --predicate 'subsystem ==
 "com.shanehaynes.apextraining" AND category == "frames"'`.
