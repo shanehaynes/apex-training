@@ -1168,15 +1168,21 @@ final class SmokeUITests: XCTestCase {
         attach(app, name: "you-export-04-terms-saved")
     }
 
-    /// Files' save sheet: Save, then Replace when a previous run left the
-    /// same file on the simulator.
+    /// Files' save sheet: Save, then Replace when the file is already there.
+    /// It always is in the second export test, because the first saves the
+    /// same name, and on a slow runner Replace can take longer than a fixed
+    /// wait: so wait for either Replace or the sheet closing, whichever comes.
     private func saveInFiles(_ app: XCUIApplication, screenshot name: String) {
         let save = app.buttons["Save"].firstMatch
         XCTAssertTrue(save.waitForExistence(timeout: 15), "the export opens Files to save it")
         attach(app, name: name)
         save.tap()
         let replace = app.buttons["Replace"].firstMatch
-        if replace.waitForExistence(timeout: 2) { replace.tap() }
+        let settled = XCTNSPredicateExpectation(
+            predicate: NSPredicate { _, _ in replace.exists || !save.exists }, object: nil
+        )
+        XCTAssertEqual(XCTWaiter().wait(for: [settled], timeout: 20), .completed, "Files neither saved nor asked to replace")
+        if replace.exists { replace.tap() }
     }
 
     // MARK: - W11 · the You tab
