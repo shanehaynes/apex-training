@@ -2,9 +2,10 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getSupabaseAdmin } from '../supabaseAdmin.js';
 import { requireUser } from '../auth.js';
 import { enforceRateLimit } from '../rateLimit.js';
+import { fetchAllPages } from '../pagination.js';
 
 // Account export and deletion — the two capabilities the Privacy Policy
-// (legal/privacy-v1.md §6) promises, and which did not exist before it.
+// (legal/privacy-v2.md §6) promises, and which did not exist before it.
 //
 // EXEMPT FROM THE TERMS GATE (see RequireUserOptions in auth.ts). Taking
 // your data out and closing your account are the things a user who declines
@@ -70,6 +71,22 @@ export const USER_DATA_TABLES = [
 export const NON_CASCADING_TABLES = ['phase32_quarantine'] as const;
 
 /**
+ * The columns each table is paged in, when they are not just `id`: its primary
+ * key without `user_id`, which every read already filters on. Pages are
+ * ranges, and a range over rows with no total order can repeat some rows and
+ * skip others. api/__tests__/account.test.ts checks every table's order
+ * against its primary key in the migrations.
+ */
+export const EXPORT_ORDER: Partial<Record<(typeof USER_DATA_TABLES)[number], readonly string[]>> = {
+  workout_completions: ['event_id'],
+  workout_exercise_notes: ['event_id', 'event_date', 'section', 'exercise_id'],
+  activity_streams: ['event_id', 'event_date'],
+  provider_activity_imports: ['provider', 'activity_id'],
+  api_request_counts: ['bucket', 'window_start'],
+  daily_metrics: ['date', 'provider'],
+};
+
+/**
  * Tables holding secret material. Their existence is disclosed in the
  * export; their contents are not. Exporting an encrypted OAuth token or a
  * token hash would hand a copy of credential material to whatever the user
@@ -81,6 +98,7 @@ const REDACTED_TABLES = {
   provider_connections: 'Watch-provider OAuth tokens are stored encrypted and are deliberately not exported. Each connection — the provider, its status, its dates and, for Apple Health, the categories you switched on — is in the summary below.',
   oauth_clients: 'OAuth client registrations belong to the connecting application, not to your account data.',
   oauth_codes: 'Short-lived OAuth authorization codes; they expire within minutes and are not exported.',
+  password: 'Your password is stored only as a hash by Supabase Auth. Apex never sees it, and it is not exported.',
 } as const;
 
 type Admin = NonNullable<ReturnType<typeof getSupabaseAdmin>>;
@@ -101,19 +119,44 @@ async function buildExport(supabase: Admin, userId: string) {
   // Sequential rather than Promise.all: one export is a rare, unbounded read
   // over every table a user owns, and firing 23 of them at once is how a
   // single click becomes a database incident.
+  //
+  // Paged: PostgREST caps a select at 1000 rows, and the delete screens tell
+  // the athlete to export first, so a capped export would lose their history
+  // for good once the account goes.
   for (const table of USER_DATA_TABLES) {
-    const { data: rows, error } = await supabase.from(table).select('*').eq('user_id', userId);
-    // A table whose migration has not reached this database yet holds no
-    // rows for anyone: export it empty rather than fail the whole export.
-    // Migrations are pasted into production by hand and can trail the code
-    // that lists their tables here (phase59's daily_metrics).
-    if (error && isTableMissing(error)) {
-      data[table] = [];
-      continue;
-    }
-    if (error) throw new Error(`${table}: ${error.message}`);
-    data[table] = rows ?? [];
+    const order = EXPORT_ORDER[table] ?? ['id'];
+    data[table] = await fetchAllPages<Record<string, unknown>>(table, async (from, to) => {
+      let query = supabase.from(table).select('*').eq('user_id', userId);
+      for (const column of order) query = query.order(column as never, { ascending: true });
+      const page = await query.range(from, to);
+      // A table whose migration has not reached this database yet holds no
+      // rows for anyone: export it empty rather than fail the whole export.
+      // Migrations are pasted into production by hand and can trail the code
+      // that lists their tables here (phase59's daily_metrics).
+      if (page.error && isTableMissing(page.error)) return { data: [], error: null };
+      return page;
+    });
   }
+
+  // The authentication record: the email address and the 18+ confirmation
+  // (app_metadata.age_confirmed_at) are records we hold too (privacy-v2 §2).
+  const { data: auth, error: authErr } = await supabase.auth.admin.getUserById(userId);
+  if (authErr || !auth.user) throw new Error(`auth user: ${authErr?.message ?? 'not found'}`);
+  const user = auth.user;
+  const account = {
+    email: user.email ?? null,
+    phone: user.phone || null,
+    createdAt: user.created_at,
+    emailConfirmedAt: user.email_confirmed_at ?? null,
+    lastSignInAt: user.last_sign_in_at ?? null,
+    appMetadata: user.app_metadata ?? {},
+    userMetadata: user.user_metadata ?? {},
+    identities: (user.identities ?? []).map(i => ({
+      provider: i.provider,
+      createdAt: i.created_at ?? null,
+      lastSignInAt: i.last_sign_in_at ?? null,
+    })),
+  };
 
   // Token metadata is genuinely the user's — which clients they connected
   // and when — even though the hashes are not.
@@ -132,6 +175,7 @@ async function buildExport(supabase: Admin, userId: string) {
   return {
     exportedAt: new Date().toISOString(),
     userId,
+    account,
     notes: REDACTED_TABLES,
     mcpTokenSummary: tokens ?? [],
     providerConnectionSummary: connections ?? [],
@@ -160,6 +204,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const payload = await buildExport(supabase, userId);
       res.setHeader('Content-Type', 'application/json; charset=utf-8');
       res.setHeader('Content-Disposition', 'attachment; filename="apex-training-export.json"');
+      // Everything the account holds: never kept by a browser, proxy or URLCache.
+      res.setHeader('Cache-Control', 'no-store');
       res.status(200).send(JSON.stringify(payload, null, 2));
     } catch (err) {
       console.error('[api/account] export failed:', err instanceof Error ? err.message : err);

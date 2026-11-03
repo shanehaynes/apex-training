@@ -2,7 +2,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import handler, { NON_CASCADING_TABLES, USER_DATA_TABLES } from '../_lib/handlers/account';
+import handler, { EXPORT_ORDER, NON_CASCADING_TABLES, USER_DATA_TABLES } from '../_lib/handlers/account';
 import { getSupabaseAdmin } from '../_lib/supabaseAdmin';
 import { requireUser } from '../_lib/auth';
 
@@ -24,7 +24,27 @@ interface AdminState {
   rows?: Record<string, unknown[]>;
   /** A select on this table answers with this error (e.g. a table not migrated yet). */
   selectErrors?: Record<string, { code: string; message: string }>;
+  /** The .order() columns of the latest select on each table. */
+  orderedBy: Record<string, string[]>;
+  /** What auth.admin.getUserById answers; an Error makes it fail. */
+  authUser?: Record<string, unknown> | Error;
 }
+
+/** PostgREST's max-rows: a select with no range answers at most this many. */
+const MAX_ROWS = 1000;
+
+const AUTH_USER = {
+  id: 'user-123',
+  email: 'athlete@example.com',
+  phone: '',
+  created_at: '2026-10-20T09:00:00Z',
+  email_confirmed_at: '2026-10-20T09:05:00Z',
+  last_sign_in_at: '2026-11-02T07:00:00Z',
+  app_metadata: { provider: 'email', providers: ['email'], age_confirmed_at: '2026-10-20T09:00:00Z' },
+  user_metadata: {},
+  identities: [{ provider: 'email', created_at: '2026-10-20T09:00:00Z', last_sign_in_at: '2026-11-02T07:00:00Z', identity_data: { sub: 'user-123' } }],
+  encrypted_password: '$2a$10$never-exported',
+};
 
 function makeAdmin(state: AdminState) {
   return {
@@ -34,26 +54,30 @@ function makeAdmin(state: AdminState) {
           state.deleteUserCalled = id;
           return { error: state.deleteUserError ? { message: state.deleteUserError } : null };
         },
+        getUserById: async () => state.authUser instanceof Error
+          ? { data: { user: null }, error: { message: state.authUser.message } }
+          : { data: { user: state.authUser ?? AUTH_USER }, error: null },
       },
     },
     from(table: string) {
       const builder: Record<string, unknown> = {};
       builder.select = () => {
         state.selectedFrom.push(table);
-        builder.eq = async () => ({ data: state.rows?.[table] ?? [], error: null });
-        builder.maybeSingle = async () => ({ data: null, error: null });
-        // profiles uses .select().eq().maybeSingle()
-        builder.eq = (() => {
-          const leaf: Record<string, unknown> = {
-            maybeSingle: async () => ({ data: state.rows?.[table]?.[0] ?? null, error: null }),
-            then: (resolve: (v: unknown) => unknown) =>
-              Promise.resolve(state.selectErrors?.[table]
-                ? { data: null, error: state.selectErrors[table] }
-                : { data: state.rows?.[table] ?? [], error: null }).then(resolve),
-          };
-          return () => leaf;
-        })();
-        return builder;
+        state.orderedBy[table] = [];
+        const answer = (rows: unknown[]) => state.selectErrors?.[table]
+          ? { data: null, error: state.selectErrors[table] }
+          : { data: rows, error: null };
+        const all = () => state.rows?.[table] ?? [];
+        const leaf: Record<string, unknown> = {
+          eq: () => leaf,
+          order: (column: string) => { state.orderedBy[table].push(column); return leaf; },
+          range: async (from: number, to: number) => answer(all().slice(from, to + 1)),
+          // profiles uses .select().eq().maybeSingle()
+          maybeSingle: async () => ({ data: all()[0] ?? null, error: null }),
+          then: (resolve: (v: unknown) => unknown) =>
+            Promise.resolve(answer(all().slice(0, MAX_ROWS))).then(resolve),
+        };
+        return leaf;
       };
       builder.delete = () => ({
         eq: async () => {
@@ -88,7 +112,7 @@ function makeRes() {
 let state: AdminState;
 
 beforeEach(() => {
-  state = { deletedFrom: [], selectedFrom: [] };
+  state = { deletedFrom: [], selectedFrom: [], orderedBy: {} };
   mockedAdmin.mockReset();
   mockedAdmin.mockReturnValue(makeAdmin(state));
   mockedRequireUser.mockReset();
@@ -116,6 +140,58 @@ describe('GET /api/account — export', () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
     await handler(makeReq('GET'), failed.res);
     expect(failed.statusCode()).toBe(500);
+  });
+
+  // The delete screens say "export a copy first": an export capped at 1000
+  // rows would lose the rest of a long history for good.
+  it('pages past PostgREST\'s 1000-row cap, so a long history exports whole', async () => {
+    const sets = Array.from({ length: 2 * MAX_ROWS + 500 }, (_, i) => ({ id: `set-${i}`, user_id: 'user-123' }));
+    state.rows = { workout_set_logs: sets };
+    const { res, body } = makeRes();
+    await handler(makeReq('GET'), res);
+    const exported = JSON.parse(body() as string).data.workout_set_logs as { id: string }[];
+    expect(exported).toHaveLength(sets.length);
+    expect(new Set(exported.map(r => r.id)).size).toBe(sets.length);
+  });
+
+  it('pages every table in a total order: its key, user_id aside', async () => {
+    const { res } = makeRes();
+    await handler(makeReq('GET'), res);
+    for (const table of USER_DATA_TABLES) {
+      expect(state.orderedBy[table], table).toEqual([...(EXPORT_ORDER[table] ?? ['id'])]);
+    }
+  });
+
+  it('carries the sign-in record, the email and the 18+ stamp, but never the password', async () => {
+    const { res, body } = makeRes();
+    await handler(makeReq('GET'), res);
+    const text = body() as string;
+    const payload = JSON.parse(text);
+    expect(payload.account).toMatchObject({
+      email: 'athlete@example.com',
+      phone: null,
+      createdAt: '2026-10-20T09:00:00Z',
+      emailConfirmedAt: '2026-10-20T09:05:00Z',
+      appMetadata: { age_confirmed_at: '2026-10-20T09:00:00Z' },
+      identities: [{ provider: 'email', createdAt: '2026-10-20T09:00:00Z' }],
+    });
+    expect(Object.keys(payload.notes)).toContain('password');
+    expect(text).not.toContain('never-exported');
+    expect(text).not.toContain('identity_data');
+  });
+
+  it('fails rather than export without the sign-in record', async () => {
+    state.authUser = new Error('User not found');
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const { res, statusCode } = makeRes();
+    await handler(makeReq('GET'), res);
+    expect(statusCode()).toBe(500);
+  });
+
+  it('is never cached', async () => {
+    const { res, headers } = makeRes();
+    await handler(makeReq('GET'), res);
+    expect(headers['Cache-Control']).toBe('no-store');
   });
 
   it('summarises provider connections without their tokens', async () => {
@@ -304,5 +380,61 @@ describe('account deletion covers every table holding user data', () => {
 
   it('exports no table twice', () => {
     expect(new Set(USER_DATA_TABLES).size).toBe(USER_DATA_TABLES.length);
+  });
+});
+
+/**
+ * Each table's primary key at the end of the migrations: a table-level
+ * PRIMARY KEY (…), a column marked PRIMARY KEY, or a later ALTER TABLE … ADD
+ * PRIMARY KEY (…), which replaces what came before. Files run in phase order.
+ */
+function primaryKeys(): Map<string, string[]> {
+  const phase = (f: string) => Number(/^phase(\d+)/.exec(f)?.[1] ?? -1);
+  const files = [SCHEMA_SQL, ...readdirSync(MIGRATIONS_DIR)
+    .filter(f => f.endsWith('.sql'))
+    .sort((a, b) => phase(a) - phase(b) || a.localeCompare(b))
+    .map(f => join(MIGRATIONS_DIR, f))];
+  const columns = (list: string) => list.split(',').map(c => c.trim().toLowerCase());
+  const keys = new Map<string, string[]>();
+
+  for (const file of files) {
+    const sql = readFileSync(file, 'utf8').replace(/--[^\n]*/g, '');
+    for (const m of sql.matchAll(/CREATE TABLE (?:IF NOT EXISTS )?(?:public\.)?([a-z_0-9]+)\s*\(([\s\S]*?)\n\);/gi)) {
+      const [, name, body] = m;
+      if (keys.has(name)) continue;
+      const tableLevel = /PRIMARY KEY\s*\(([^)]+)\)/i.exec(body);
+      const inline = body.split('\n').find(l => /^\s*[a-z_0-9]+\s[^\n]*\bPRIMARY KEY\b/i.test(l));
+      if (tableLevel) keys.set(name, columns(tableLevel[1]));
+      else if (inline) keys.set(name, [inline.trim().split(/\s+/)[0].toLowerCase()]);
+    }
+    for (const m of sql.matchAll(/ALTER TABLE (?:ONLY )?(?:public\.)?([a-z_0-9]+)\s+ADD PRIMARY KEY\s*\(([^)]+)\)/gi)) {
+      keys.set(m[1], columns(m[2]));
+    }
+  }
+  return keys;
+}
+
+describe('the export pages each table in a total order', () => {
+  const keys = primaryKeys();
+
+  it('finds the keys at all (guards the parser itself)', () => {
+    expect(keys.get('workout_events')).toEqual(['user_id', 'id']);
+    expect(keys.get('workout_exercise_notes')).toEqual(['user_id', 'event_id', 'event_date', 'section', 'exercise_id']);
+    expect(keys.get('coach_runs')).toEqual(['id']);
+  });
+
+  it('orders every exported table by its primary key, user_id aside', () => {
+    const wrong = USER_DATA_TABLES.flatMap(table => {
+      const key = keys.get(table)?.filter(c => c !== 'user_id');
+      const order = [...(EXPORT_ORDER[table] ?? ['id'])];
+      return key && [...key].sort().join() === [...order].sort().join()
+        ? []
+        : [`${table}: key (${key?.join(', ') ?? 'not found'}), paged by (${order.join(', ')})`];
+    });
+    expect(
+      wrong,
+      'a page range over a non-unique order repeats or skips rows — set EXPORT_ORDER '
+      + 'in api/_lib/handlers/account.ts to the table\'s primary key without user_id',
+    ).toEqual([]);
   });
 });
