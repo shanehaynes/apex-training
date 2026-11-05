@@ -3,8 +3,8 @@
 //
 //   node scripts/ci-headroom.mjs <ios|evals>
 //
-// Each cap is the slowest legitimate run seen plus 15 minutes (ios: #503;
-// evals: the comment above the job), and each job grows on its own: ios by
+// Each cap is meant to be the slowest legitimate run seen plus 15 minutes
+// (ios: #503; evals: #542), and each job grows on its own: ios by
 // 1–2 minutes a week as UI tests are added, evals with every case and every
 // round trip the coach learns to make. Once any run gets within 15 minutes of
 // its cap, the fix is to shorten the job, not raise the cap again
@@ -28,10 +28,17 @@
 // or the key is not set and the step skipped itself, and either way the job
 // went green. Every attempt of a re-run is looked at; the count is of runs.
 //
+// The evals all-clear names the slowest run and how many there were, so it
+// counts only runs that finished green: a cancelled one stopped short (by
+// hand, or under an older, lower cap) and a failed one did not run the suite
+// cleanly. A week with none is skipped, not all-clear. One gap remains: a
+// night whose credit ran out part-way still ends green, and reads here as a
+// short finished run, until errored cases fail the job.
+//
 // Prints its own lines in the report's style (ACTION at column 0, status
 // indented). Exit codes follow scripts/signup-cap-check.mjs: 0 nothing near
 // the cap; 1 an ACTION was printed; 2 could not check (gh missing or
-// unauthenticated, API down, nothing timed); 64 no such watch.
+// unauthenticated, API down, no evals run finished); 64 no such watch.
 // scripts/supervisor-report.sh runs it once per watch.
 
 import { execFile, execFileSync } from 'node:child_process';
@@ -52,7 +59,7 @@ const DAY_MS = 86400 * 1000;
  * `events` null: the job runs on every event, hundreds of runs a week, so only
  * runs long enough to hold a slow job are fetched. A list: the job runs on
  * those events only, about one run a night, so every one is fetched and the
- * all-clear line can say how many were timed and the slowest.
+ * all-clear line can say how many finished and the slowest.
  */
 export const WATCHES = {
   ios: {
@@ -70,7 +77,7 @@ export const WATCHES = {
     noun: 'evals run',
     runs: 'scheduled or dispatched run(s)',
     fix: 'shorten the suite rather than raise the cap (evals/README.md)',
-    untimed: 'an eval step under a minute is a credit-out or a missing key',
+    unfinished: 'an eval step under a minute is a credit-out or a missing key; a cancelled or failed run did not finish',
   },
 };
 
@@ -272,23 +279,21 @@ export async function main({ key = 'ios', gh = ghCli, now = Date.now(), workflow
     return 0;
   }
   // Every run of the watch's events was fetched, so the line can say what was
-  // measured. None timed is not an all-clear: nothing was measured.
+  // measured. None finished is not an all-clear: nothing was measured. The
+  // word "skipped" is what supervisor.yml turns into a warning.
   const mine = watched(runs, key).length;
+  const finished = all.filter((j) => j.conclusion === 'success');
   if (!mine) {
-    console.log(`   no ${watch.runs} in ${WINDOW_DAYS} days — ${label} unmeasured`);
+    console.log(`   no ${watch.runs} in ${WINDOW_DAYS} days — ${label} skipped`);
     return 2;
   }
-  if (!all.length) {
-    console.log(`   no timed ${watch.noun} in ${WINDOW_DAYS} days (${mine} ${watch.runs}; ${watch.untimed}) — ${label} unmeasured`);
+  if (!finished.length) {
+    console.log(`   no ${watch.noun} finished in ${WINDOW_DAYS} days (${mine} ${watch.runs}; ${watch.unfinished}) — ${label} skipped`);
     return 2;
   }
-  // A slowest run that was cancelled (by an older, lower cap, or by hand) is a
-  // floor on how long the job takes, not a timing, so the line says so.
-  const slowest = slowestOf(all);
-  const how = slowest.conclusion === 'success' ? '' : `, ${slowest.conclusion}`;
   console.log(
     `   no ${watch.noun} within ${HEADROOM_MIN} min of the ${cap}-minute cap in ${WINDOW_DAYS} days ` +
-      `(slowest ${minutes(slowest.seconds)} min${how}; ${runsIn(all)} of ${mine} ${watch.runs} timed)`,
+      `(slowest ${minutes(slowestOf(finished).seconds)} min; ${runsIn(finished)} of ${mine} ${watch.runs} finished)`,
   );
   return 0;
 }

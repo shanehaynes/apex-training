@@ -349,6 +349,12 @@ describe('evals: timed', () => {
       .toEqual([expect.objectContaining({ cut: true })]);
   });
 
+  it('cut off means cancelled at or past the cap, to the second', () => {
+    const at = (seconds: number) => timed([evalsJob(1, seconds - 25, { conclusion: 'cancelled', jobSeconds: seconds })], 70, 'evals')[0].cut;
+    expect(at(70 * 60)).toBe(true);
+    expect(at(70 * 60 - 1)).toBe(false);
+  });
+
   it('a hand-cancel short of the cap is near but not cut off', () => {
     expect(nearCap([evalsJob(1, 60 * 60, { conclusion: 'cancelled' })], 70, 'evals'))
       .toEqual([expect.objectContaining({ conclusion: 'cancelled', cut: false })]);
@@ -375,35 +381,51 @@ describe('evals: main', () => {
     expect(calls.slice(1).map((c) => c[1].match(/runs\/(\d+)/)![1])).toEqual(['201', '202', '203']);
   });
 
-  it('nothing near the cap: the slowest timed run and how many were timed', async () => {
-    const runs = [nightly(1, 45), nightly(2, 50), nightly(3, 25)];
-    const { gh } = fakeGh(runs, { 1: [evalsJob(1, 38 * 60)], 2: [evalsJob(2, 41 * 60)], 3: [evalsJob(3, 9)] });
+  it('nothing near the cap: the slowest finished run and how many finished', async () => {
+    const runs = [nightly(1, 45), nightly(2, 50), nightly(3, 25), nightly(4, 50)];
+    const { gh } = fakeGh(runs, {
+      1: [evalsJob(1, 38 * 60)],
+      2: [evalsJob(2, 41 * 60)],
+      3: [evalsJob(3, 9)],
+      // Longer than either, but cancelled by hand: not how long the suite takes.
+      4: [evalsJob(4, 44 * 60, { conclusion: 'cancelled' })],
+    });
     expect(await main({ key: 'evals', gh, now: NOW, workflow: evalsWorkflow() })).toBe(0);
-    expect(log).toEqual(['   no evals run within 15 min of the 70-minute cap in 7 days (slowest 41 min; 2 of 3 scheduled or dispatched run(s) timed)']);
+    expect(log).toEqual(['   no evals run within 15 min of the 70-minute cap in 7 days (slowest 41 min; 2 of 4 scheduled or dispatched run(s) finished)']);
   });
 
   // The week after a raise: the old cap's kills are below the new line, and
-  // the line does not pass a kill off as a timing.
-  it('a cancelled slowest run is named as cancelled', async () => {
+  // none of them is how long the suite takes.
+  it("a week of an older cap's kills is skipped, not all-clear", async () => {
     const killed = (id: number) => [evalsJob(id, 29 * 60 + 56, { conclusion: 'cancelled', jobSeconds: 30 * 60 + 19 })];
     const { gh } = fakeGh([nightly(1, 41), nightly(2, 41)], { 1: killed(1), 2: killed(2) });
-    expect(await main({ key: 'evals', gh, now: NOW, workflow: evalsWorkflow() })).toBe(0);
-    expect(log).toEqual(['   no evals run within 15 min of the 70-minute cap in 7 days (slowest 30 min, cancelled; 2 of 2 scheduled or dispatched run(s) timed)']);
+    expect(await main({ key: 'evals', gh, now: NOW, workflow: evalsWorkflow() })).toBe(2);
+    expect(log).toEqual([
+      '   no evals run finished in 7 days (2 scheduled or dispatched run(s); an eval step under a minute is a credit-out or a missing key; a cancelled or failed run did not finish) — evals CI headroom skipped',
+    ]);
   });
 
-  it('a week of credit-outs is unmeasured, not all-clear: exit 2', async () => {
+  // What a night that ran out of credit part-way ends as once errored cases
+  // fail the job.
+  it('a failed run is not a finished one', async () => {
+    const { gh } = fakeGh([nightly(1, 25)], { 1: [evalsJob(1, 212, { conclusion: 'failure' })] });
+    expect(await main({ key: 'evals', gh, now: NOW, workflow: evalsWorkflow() })).toBe(2);
+    expect(log[0]).toMatch(/^   no evals run finished in 7 days \(1 scheduled or dispatched run\(s\);.* — evals CI headroom skipped$/);
+  });
+
+  it('a week of credit-outs is skipped, not all-clear: exit 2', async () => {
     const runs = [nightly(1, 25), nightly(2, 25), nightly(3, 25)];
     const { gh } = fakeGh(runs, { 1: [evalsJob(1, 9)], 2: [evalsJob(2, 11)], 3: [evalsJob(3, 8)] });
     expect(await main({ key: 'evals', gh, now: NOW, workflow: evalsWorkflow() })).toBe(2);
     expect(log).toEqual([
-      '   no timed evals run in 7 days (3 scheduled or dispatched run(s); an eval step under a minute is a credit-out or a missing key) — evals CI headroom unmeasured',
+      '   no evals run finished in 7 days (3 scheduled or dispatched run(s); an eval step under a minute is a credit-out or a missing key; a cancelled or failed run did not finish) — evals CI headroom skipped',
     ]);
   });
 
-  it('no nightly at all is unmeasured, and fetches nothing', async () => {
+  it('no nightly at all is skipped, and fetches nothing', async () => {
     const { gh, calls } = fakeGh([nightly(1, 120, 'push')], {});
     expect(await main({ key: 'evals', gh, now: NOW, workflow: evalsWorkflow() })).toBe(2);
-    expect(log).toEqual(['   no scheduled or dispatched run(s) in 7 days — evals CI headroom unmeasured']);
+    expect(log).toEqual(['   no scheduled or dispatched run(s) in 7 days — evals CI headroom skipped']);
     expect(calls).toHaveLength(1);
   });
 
