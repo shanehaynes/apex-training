@@ -59,6 +59,10 @@ describe('coach model catalog', () => {
     expect(tiered.map(m => m.id)).toEqual(['claude-haiku-5-5']);
     for (const model of tiered) {
       expect(model.longPrompt!.overTokens).toBeGreaterThan(0);
+      // Both price labels print the threshold in whole thousands (the web
+      // divides, Swift's Int division truncates), so a threshold off the
+      // thousand would read differently on each client.
+      expect(model.longPrompt!.overTokens % 1000).toBe(0);
       expect(model.longPrompt!.inputPerMTok).toBeGreaterThan(model.inputPerMTok);
       expect(model.longPrompt!.outputPerMTok).toBeGreaterThan(model.outputPerMTok);
     }

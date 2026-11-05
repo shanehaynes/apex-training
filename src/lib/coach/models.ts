@@ -83,7 +83,7 @@ export const COACH_MODELS: readonly CoachModelOption[] = [
     id: 'claude-opus-5-5',
     label: 'Opus 5.5',
     badge: 'claude opus 5.5',
-    blurb: 'Newest and sharpest, and 20% cheaper than Opus 5. The default.',
+    blurb: 'The newest and sharpest Opus, 20% cheaper than Opus 5. The default.',
     inputPerMTok: 4,
     outputPerMTok: 20,
     params: { thinking: { type: 'adaptive' }, output_config: { effort: 'high' } },
