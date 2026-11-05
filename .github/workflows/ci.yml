@@ -533,10 +533,23 @@ jobs:
   # every push. Needs the ANTHROPIC_API_KEY repo secret; without it the job
   # reports itself skipped rather than failing, so the schedule stays green
   # until the secret is configured.
+  #
+  # 70 minutes: the suite runs one case at a time and outgrew 30 when the
+  # coach began reading before it answers (#348, 2026-09-27), which roughly
+  # doubled its model round trips, and the same week added a dozen cases. No
+  # 59-case run has finished in CI yet. Projected from the cut-off nights, a
+  # full run takes about 37 minutes at the median and 55 on the slowest
+  # night; five cases (four planner ones and doctrine-block-reads-first) were
+  # never reached and are estimated. The cap is there to stop a hung job, so,
+  # like the ios job's, it sits 15 minutes above the slowest run. A run cut
+  # off at the cap keeps its transcripts but writes no result file (verdicts,
+  # cost, tokens). It stays serial on purpose: parallel cases would share the
+  # key's rate limit, and a 429 the SDK cannot retry away is recorded as a
+  # case ERROR, which today does not fail the job.
   evals:
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 70
     env:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
     steps:
