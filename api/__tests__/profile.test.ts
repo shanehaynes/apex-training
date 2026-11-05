@@ -295,6 +295,14 @@ describe('GET /api/profile', () => {
       outputPerMTok: COACH_MODELS[0].outputPerMTok,
     });
     expect(models.every(m => !('params' in m))).toBe(true);
+    // A model priced by prompt length carries its long-prompt rate, so a
+    // native picker can show the whole price; a flat-priced one has no key.
+    expect(models.filter(m => 'longPrompt' in m)).toEqual([
+      expect.objectContaining({
+        id: 'claude-haiku-5-5',
+        longPrompt: { overTokens: 100_000, inputPerMTok: 0.5, outputPerMTok: 2.5 },
+      }),
+    ]);
   });
 });
 

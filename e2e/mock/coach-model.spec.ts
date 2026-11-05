@@ -22,7 +22,9 @@ test('the coach header offers the model catalog, priced', async ({ page }) => {
     'Opus 5.5 · $4/$20 per Mtok',
     'Opus 5 · $5/$25 per Mtok',
     'Opus 4.8 · $5/$25 per Mtok',
+    'Sonnet 5.5 · $2/$10 per Mtok',
     'Sonnet 5 · $2/$10 per Mtok',
+    'Haiku 5.5 · $0.1/$0.5 per Mtok, $0.5/$2.5 over 100K-token prompts',
     'Haiku 4.5 · $1/$5 per Mtok',
   ]);
 

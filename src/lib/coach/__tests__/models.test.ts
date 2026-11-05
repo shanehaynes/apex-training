@@ -44,21 +44,38 @@ describe('coach model catalog', () => {
       expect(model.params.thinking).toEqual({ type: 'adaptive' });
     }
   });
-  it('pins Opus 5.5 to high effort — its own default is medium', () => {
-    const opus55 = COACH_MODELS.find(m => m.id === 'claude-opus-5-5');
-    expect(opus55?.params.output_config).toEqual({ effort: 'high' });
+  it('pins effort to high exactly where the model defaults to medium', () => {
+    // Opus 5.5 and Haiku 5.5 default to `medium`; every other entry runs at
+    // its own default, `high`, the level the coach is tuned at.
+    const pinned = COACH_MODELS.filter(m => m.params.output_config).map(m => m.id);
+    expect(pinned).toEqual(['claude-opus-5-5', 'claude-haiku-5-5']);
+    for (const id of pinned) {
+      expect(COACH_MODELS.find(m => m.id === id)?.params.output_config).toEqual({ effort: 'high' });
+    }
+  });
+
+  it('prices the long-prompt rate only where the model charges one, above its base rate', () => {
+    const tiered = COACH_MODELS.filter(m => m.longPrompt);
+    expect(tiered.map(m => m.id)).toEqual(['claude-haiku-5-5']);
+    for (const model of tiered) {
+      expect(model.longPrompt!.overTokens).toBeGreaterThan(0);
+      expect(model.longPrompt!.inputPerMTok).toBeGreaterThan(model.inputPerMTok);
+      expect(model.longPrompt!.outputPerMTok).toBeGreaterThan(model.outputPerMTok);
+    }
   });
 
   it('claims mid-turn system messages only where a live call has confirmed them', () => {
     // A wrong `true` is a 400 on every chat turn, so the flag is opt-in per
-    // model. Opus 5.5 — the default — stays false until the orchestrator
-    // verifies it live; Sonnet 5 and Haiku 4.5 reject the role.
+    // model. Opus 5.5 — the default — Sonnet 5.5 and Haiku 5.5 stay false
+    // until a live call verifies them; Sonnet 5 and Haiku 4.5 reject the role.
     const byId = Object.fromEntries(COACH_MODELS.map(m => [m.id, m.midTurnSystem]));
     expect(byId).toEqual({
       'claude-opus-5-5': false,
       'claude-opus-5': true,
       'claude-opus-4-8': true,
+      'claude-sonnet-5-5': false,
       'claude-sonnet-5': false,
+      'claude-haiku-5-5': false,
       'claude-haiku-4-5-20251001': false,
     });
   });
@@ -98,5 +115,10 @@ describe('priceLabel', () => {
   it('renders the $/MTok pair shown in the picker', () => {
     expect(priceLabel({ ...defaultCoachModel(), inputPerMTok: 3, outputPerMTok: 15 }))
       .toBe('$3/$15 per Mtok');
+  });
+
+  it('shows the long-prompt rate beside the base rate', () => {
+    const haiku55 = COACH_MODELS.find(m => m.id === 'claude-haiku-5-5')!;
+    expect(priceLabel(haiku55)).toBe('$0.1/$0.5 per Mtok, $0.5/$2.5 over 100K-token prompts');
   });
 });
