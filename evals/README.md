@@ -98,7 +98,7 @@ The nightly API run stays the production-shaped measurement. The SDK backend ans
 
 A not-logged-in or erroring SDK answers with a synthetic assistant message (`model: "<synthetic>"`, e.g. `Not logged in · Please run /login`). That is a broken harness, not coach output: it fails the case with an `error` rather than being scored as a refusal.
 
-CI runs the suite nightly (and on `workflow_dispatch`) once the `ANTHROPIC_API_KEY` repo secret is set; until then the job reports itself skipped.
+CI runs the suite nightly (and on `workflow_dispatch`) once the `ANTHROPIC_API_KEY` repo secret is set; until then the job reports itself skipped. `npm run eval` exits 0 whatever its cases did, so the job checks the result file afterwards: one case with an `error` (its model or judge call threw: no credit, a bad key, a 429 the SDK could not retry away) fails the job, and failed verdicts do not ([scripts/eval-errors-check.mjs](../scripts/eval-errors-check.mjs)).
 
 ### Reads and doctrine
 

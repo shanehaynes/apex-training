@@ -532,7 +532,9 @@ jobs:
   # only — it calls the Anthropic API, so per-PR runs would spend tokens on
   # every push. Needs the ANTHROPIC_API_KEY repo secret; without it the job
   # reports itself skipped rather than failing, so the schedule stays green
-  # until the secret is configured.
+  # until the secret is configured. With it, a case that errors (no credit, a
+  # bad key, a 429 the SDK could not retry away) fails the job; a case that
+  # fails its checks does not.
   evals:
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
@@ -552,7 +554,12 @@ jobs:
             echo "::notice::ANTHROPIC_API_KEY secret not set — evals skipped."
             exit 0
           fi
-          npm run eval
+          # npm run eval exits 0 whatever its cases did, so the check reads
+          # the result file: 23 nights when the credit had run out went green
+          # this way with every case errored (scripts/eval-errors-check.mjs).
+          result="evals/results/nightly-${GITHUB_RUN_ID}.json"
+          npm run eval -- --out "$result"
+          node scripts/eval-errors-check.mjs "$result"
       - uses: actions/upload-artifact@v7
         if: always()
         with:
