@@ -1,4 +1,5 @@
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -8,6 +9,7 @@ import { buildRunResult, writeRunResult } from '../../evals/src/report';
 import type { CaseResult } from '../../evals/src/types';
 
 const ciYml = readFileSync(fileURLToPath(new URL('../../.github/workflows/ci.yml', import.meta.url)), 'utf8');
+const SCRIPT = fileURLToPath(new URL('../eval-errors-check.mjs', import.meta.url));
 
 // The message every case returned on the credit-out nights (run 40724712885).
 const CREDIT_OUT = '400 {"type":"error","error":{"type":"invalid_request_error","message":' +
@@ -55,8 +57,10 @@ beforeEach(() => {
 });
 afterEach(() => rmSync(dir, { recursive: true, force: true }));
 
-/** Through the runner's own writer, so a rename of the field it records
- *  errors under fails here rather than going quietly green in CI. */
+/** Through the runner's own writer, so the file has the shape CI reads (a
+ *  top-level `cases` array). The `error` field itself comes from the fixture
+ *  above, which mirrors evals/run.ts's catch block by hand: no tsc project
+ *  includes this file, so renaming that field would not fail here. */
 function resultFile(cases: CaseResult[]): string {
   return writeRunResult(buildRunResult('claude-sonnet-5', 'claude-haiku-5', 'api', cases), join(dir, 'run.json'));
 }
@@ -126,26 +130,98 @@ describe('eval-errors-check', () => {
   });
 });
 
-describe('the nightly evals job runs the check', () => {
+describe('as a process', () => {
+  it('the exit code reaches the shell: 1 for an errored run, 0 for a measured one', () => {
+    const bad = resultFile([errored('a')]);
+    const r = spawnSync(process.execPath, [SCRIPT, bad], { encoding: 'utf8' });
+    expect(r.status).toBe(1);
+    expect(r.stdout).toMatch(/^::error /);
+    const good = writeRunResult(buildRunResult('m', 'j', 'api', [measured('a', 'fail')]), join(dir, 'good.json'));
+    expect(spawnSync(process.execPath, [SCRIPT, good], { encoding: 'utf8' }).status).toBe(0);
+    expect(spawnSync(process.execPath, [SCRIPT, join(dir, 'absent.json')], { encoding: 'utf8' }).status).toBe(2);
+  });
+});
+
+describe('the nightly evals job', () => {
   const start = ciYml.search(/^ {2}evals:\s*$/m);
   const rest = ciYml.slice(start + 1);
   const next = rest.search(/^ {2}[^\s#]/m);
   const job = next < 0 ? rest : rest.slice(0, next);
-  const step = job.slice(job.indexOf('- name: Run coach evals'));
+  const stepLines = job.slice(job.indexOf('      - name: Run coach evals')).split('\n');
+  const runAt = stepLines.findIndex(l => /^ {8}run: \|\s*$/.test(l));
+  const body: string[] = [];
+  for (const l of stepLines.slice(runAt + 1)) {
+    if (l.trim() && !l.startsWith(' '.repeat(10))) break;
+    body.push(l.slice(10));
+  }
+  const script = body.join('\n');
 
-  it('writes the result where the check reads it, after the skip-without-secret exit', () => {
+  // The step's own script, under the shell GitHub runs it with (`bash -e`
+  // when ci.yml names no shell), with `npm` replaced by a stub that writes a
+  // fixture to --out. The stub comes first on PATH and the real key is
+  // stripped, so this can never start a real eval.
+  function runStep(o: { key?: string; fixture?: CaseResult[]; npmExit?: number }) {
+    const work = mkdtempSync(join(dir, 'step-'));
+    mkdirSync(join(work, 'scripts'));
+    copyFileSync(SCRIPT, join(work, 'scripts', 'eval-errors-check.mjs'));
+    const bin = join(work, 'bin');
+    mkdirSync(bin);
+    const npmLog = join(work, 'npm.log');
+    writeFileSync(join(bin, 'npm'), [
+      '#!/bin/sh',
+      'echo "$@" >> "$STUB_LOG"',
+      '[ -n "$STUB_NPM_EXIT" ] && exit "$STUB_NPM_EXIT"',
+      'while [ $# -gt 0 ]; do [ "$1" = "--out" ] && out="$2"; shift; done',
+      'mkdir -p "$(dirname "$out")" && cp "$STUB_FIXTURE" "$out"',
+    ].join('\n'), { mode: 0o755 });
+    const fixture = join(work, 'fixture.json');
+    writeRunResult(buildRunResult('m', 'j', 'api', o.fixture ?? []), fixture);
+    const env: NodeJS.ProcessEnv = { ...process.env };
+    delete env.ANTHROPIC_API_KEY;
+    Object.assign(env, {
+      PATH: `${bin}:${process.env.PATH}`,
+      GITHUB_RUN_ID: '4242',
+      ANTHROPIC_API_KEY: o.key ?? '',
+      STUB_LOG: npmLog,
+      STUB_FIXTURE: fixture,
+      STUB_NPM_EXIT: o.npmExit === undefined ? '' : String(o.npmExit),
+    });
+    const r = spawnSync('bash', ['-e', '-c', script], { cwd: work, env, encoding: 'utf8' });
+    const npmCalls = existsSync(npmLog) ? readFileSync(npmLog, 'utf8').trim().split('\n') : [];
+    return { status: r.status, out: `${r.stdout}${r.stderr}`, npmCalls };
+  }
+
+  it('is found where the tests look for it', () => {
     expect(start).toBeGreaterThan(0);
-    const out = step.match(/npm run eval -- --out "(\$\w+)"/);
-    const checked = step.match(/node scripts\/eval-errors-check\.mjs "(\$\w+)"/);
-    expect(out?.[1]).toBeDefined();
-    expect(checked?.[1]).toBe(out?.[1]);
-    expect(step.indexOf('exit 0')).toBeGreaterThan(0);
-    expect(step.indexOf('exit 0')).toBeLessThan(step.indexOf('npm run eval'));
-    expect(step.indexOf('npm run eval')).toBeLessThan(step.indexOf('eval-errors-check.mjs "'));
+    expect(runAt).toBeGreaterThan(0);
+    expect(script).toContain('eval-errors-check.mjs');
   });
 
-  it('the result file lands under evals/results/, which the artifact uploads', () => {
-    expect(step).toMatch(/result="evals\/results\/[^"]+\.json"/);
-    expect(job).toMatch(/path: evals\/results\/\n/);
+  it('every case errored: the step fails, naming the count', () => {
+    const r = runStep({ key: 'sk-test', fixture: ['a', 'b'].map(id => errored(id)) });
+    expect(r.status).not.toBe(0);
+    expect(r.out).toContain('::error title=Coach evals errored::2 of 2');
+    expect(r.npmCalls).toEqual(['run eval -- --out evals/results/nightly-4242.json']);
+  });
+
+  it('fail verdicts and no errors: the step passes', () => {
+    expect(runStep({ key: 'sk-test', fixture: [measured('a', 'fail'), measured('b')] }).status).toBe(0);
+  });
+
+  it('the runner itself fails: the step fails', () => {
+    expect(runStep({ key: 'sk-test', npmExit: 1 }).status).not.toBe(0);
+  });
+
+  it('no secret: the step passes with a notice and never runs the eval', () => {
+    const r = runStep({ fixture: [errored('a')] });
+    expect(r.status).toBe(0);
+    expect(r.out).toContain('::notice::ANTHROPIC_API_KEY secret not set');
+    expect(r.npmCalls).toEqual([]);
+  });
+
+  it('nothing lets the step\'s failure through, and the artifact still uploads', () => {
+    expect(job).not.toMatch(/continue-on-error/);
+    expect(script).toMatch(/result="evals\/results\/[^"]+\.json"/);
+    expect(job).toMatch(/- uses: actions\/upload-artifact@\S+\n\s+if: always\(\)\n(\s+.*\n)*?\s+path: evals\/results\/\n/);
   });
 });
