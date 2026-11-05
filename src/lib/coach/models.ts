@@ -21,9 +21,22 @@ export interface CoachModelParams {
   thinking?: { type: 'adaptive' };
   /**
    * Effort, where the model's own default is not the level the coach is tuned
-   * at. Opus 5.5 defaults to `medium`, one below every other entry's `high`.
+   * at. Opus 5.5 and Haiku 5.5 default to `medium`, one below every other
+   * entry's `high`.
    */
   output_config?: { effort: 'high' };
+}
+
+/**
+ * The higher rate a model charges when one request's prompt is long. The
+ * prompt counts every input token, cache reads and writes included, and each
+ * request is priced on its own.
+ */
+export interface LongPromptPrice {
+  /** A prompt over this many tokens pays the prices below. */
+  overTokens: number;
+  inputPerMTok: number;
+  outputPerMTok: number;
 }
 
 export interface CoachModelOption {
@@ -34,8 +47,11 @@ export interface CoachModelOption {
   badge: string;
   /** One line on what you trade away by picking it. */
   blurb: string;
+  /** $/MTok, or, where `longPrompt` is set, the rate up to its threshold. */
   inputPerMTok: number;
   outputPerMTok: number;
+  /** Set only on models priced by prompt length (Haiku 5.5). */
+  longPrompt?: LongPromptPrice;
   params: CoachModelParams;
   /**
    * Whether the model accepts a mid-conversation `{ role: 'system' }` entry
@@ -49,7 +65,9 @@ export interface CoachModelOption {
   midTurnSystem: boolean;
 }
 
-// Ordered most → least capable, so the picker reads as a cost ladder.
+// Ordered by tier (Opus, Sonnet, Haiku), newest first within a tier, so the
+// picker reads as a cost ladder. Within a tier a newer model can be the
+// cheaper one (Opus 5.5, Haiku 5.5).
 //
 // Adaptive thinking is the main request-shape difference, and it is a hard
 // one: `thinking: {type:'adaptive'}` is REJECTED WITH A 400 on models
@@ -65,7 +83,7 @@ export const COACH_MODELS: readonly CoachModelOption[] = [
     id: 'claude-opus-5-5',
     label: 'Opus 5.5',
     badge: 'claude opus 5.5',
-    blurb: 'Newest and sharpest, and 20% cheaper than Opus 5. The default.',
+    blurb: 'The newest and sharpest Opus, 20% cheaper than Opus 5. The default.',
     inputPerMTok: 4,
     outputPerMTok: 20,
     params: { thinking: { type: 'adaptive' }, output_config: { effort: 'high' } },
@@ -96,13 +114,43 @@ export const COACH_MODELS: readonly CoachModelOption[] = [
     midTurnSystem: true,
   },
   {
-    id: 'claude-sonnet-5',
-    label: 'Sonnet 5',
-    badge: 'claude sonnet 5',
-    blurb: 'Half the price. Handles most coaching turns well.',
+    // Effort defaults to `high`, as on Sonnet 5, but Anthropic recalibrated
+    // the levels, so this `high` is not Sonnet 5's.
+    id: 'claude-sonnet-5-5',
+    label: 'Sonnet 5.5',
+    badge: 'claude sonnet 5.5',
+    blurb: 'Half the price. The newest Sonnet.',
     inputPerMTok: 2,
     outputPerMTok: 10,
     params: { thinking: { type: 'adaptive' } },
+    // UNVERIFIED: Anthropic's docs list mid-conversation system messages for
+    // Sonnet 5.5, but no live call has confirmed it here.
+    midTurnSystem: false,
+  },
+  {
+    id: 'claude-sonnet-5',
+    label: 'Sonnet 5',
+    badge: 'claude sonnet 5',
+    blurb: 'The previous Sonnet, at the same price.',
+    inputPerMTok: 2,
+    outputPerMTok: 10,
+    params: { thinking: { type: 'adaptive' } },
+    midTurnSystem: false,
+  },
+  {
+    // The only entry priced by prompt length: a prompt over 100K tokens pays
+    // five times the rate. Effort defaults to `medium`, as on Opus 5.5, so it
+    // is pinned to the coach's `high`.
+    id: 'claude-haiku-5-5',
+    label: 'Haiku 5.5',
+    badge: 'claude haiku 5.5',
+    blurb: 'A fortieth of the price, or an eighth on prompts over 100K tokens.',
+    inputPerMTok: 0.1,
+    outputPerMTok: 0.5,
+    longPrompt: { overTokens: 100_000, inputPerMTok: 0.5, outputPerMTok: 2.5 },
+    params: { thinking: { type: 'adaptive' }, output_config: { effort: 'high' } },
+    // UNVERIFIED: Anthropic's docs list mid-conversation system messages for
+    // Haiku 5.5, but no live call has confirmed it here.
     midTurnSystem: false,
   },
   {
@@ -160,7 +208,13 @@ export function isCoachModelId(id: unknown): id is string {
   return typeof id === 'string' && COACH_MODELS.some(m => m.id === id);
 }
 
-/** e.g. "$3/$15 per Mtok" — shown in the picker so the saving is visible at the point of choice. */
+/**
+ * e.g. "$3/$15 per Mtok" — shown in the picker so the saving is visible at the
+ * point of choice. A long-prompt rate is part of the price, so it is shown too.
+ */
 export function priceLabel(model: CoachModelOption): string {
-  return `$${model.inputPerMTok}/$${model.outputPerMTok} per Mtok`;
+  const base = `$${model.inputPerMTok}/$${model.outputPerMTok} per Mtok`;
+  const long = model.longPrompt;
+  if (!long) return base;
+  return `${base}, $${long.inputPerMTok}/$${long.outputPerMTok} over ${long.overTokens / 1000}K-token prompts`;
 }

@@ -362,7 +362,13 @@ final class FixtureContractTests: XCTestCase {
         let models = try XCTUnwrap(profile.coachModels)
         XCTAssertEqual(models.first?.id, "claude-opus-5-5")
         XCTAssertEqual(models.first?.priceLabel, "$4/$20 per Mtok")
-        XCTAssertEqual(models.map(\.label), ["Opus 5.5", "Opus 5", "Opus 4.8", "Sonnet 5", "Haiku 4.5"])
+        XCTAssertEqual(models.map(\.label), ["Opus 5.5", "Opus 5", "Opus 4.8", "Sonnet 5.5", "Sonnet 5", "Haiku 5.5", "Haiku 4.5"])
+        // A model priced by prompt length shows both rates, in the web's words.
+        XCTAssertEqual(
+            models.first { $0.id == "claude-haiku-5-5" }?.priceLabel,
+            "$0.1/$0.5 per Mtok, $0.5/$2.5 over 100K-token prompts"
+        )
+        XCTAssertEqual(models.filter { $0.longPrompt != nil }.map(\.id), ["claude-haiku-5-5"])
     }
 
     // MARK: - W13
