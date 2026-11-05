@@ -18,7 +18,7 @@
 #   covered nightly here        only on Shane's box (run the sweep by hand)
 #   ────────────────────        ──────────────────────────────────────────
 #   main's latest CI run        the shared local Supabase stack's schema
-#   ios CI job vs its cap       the primary checkout: on main, and clean
+#   ios, evals jobs vs caps     the primary checkout: on main, and clean
 #   coach model catalog         git-tidy's dry run (merged branches)
 #   production auth config      worktree age
 #   production DB schema        session claims (.claude/state/claims.tsv)

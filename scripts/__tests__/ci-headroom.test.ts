@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { candidates, jobFrom, main, nearCap } from '../ios-ci-headroom.mjs';
+import { candidates, jobFrom, main, nearCap, timed, watched } from '../ci-headroom.mjs';
 
 const ciYml = readFileSync(fileURLToPath(new URL('../../.github/workflows/ci.yml', import.meta.url)), 'utf8');
 const NOW = Date.parse('2026-10-28T12:00:00Z');
@@ -32,7 +32,8 @@ ${extra}    steps:
 
 type Job = {
   name: string; run_id: number; run_attempt: number; status: string; conclusion: string | null;
-  started_at: string | null; completed_at: string | null; steps: { name: string; conclusion: string | null }[];
+  started_at: string | null; completed_at: string | null;
+  steps: { name: string; conclusion: string | null; started_at?: string | null; completed_at?: string | null }[];
 };
 
 function job(run: number, seconds: number, o: Partial<{ conclusion: string; build: string | null; attempt: number; name: string; at: number }> = {}): Job {
@@ -117,7 +118,7 @@ describe('nearCap', () => {
 
   it('counts a cap kill: cancelled at or past the cap', () => {
     expect(nearCap([job(1, 75 * 60 + 9, { conclusion: 'cancelled', build: 'cancelled' })], 75))
-      .toEqual([{ run: 1, attempt: 1, conclusion: 'cancelled', seconds: 75 * 60 + 9 }]);
+      .toEqual([{ run: 1, attempt: 1, conclusion: 'cancelled', seconds: 75 * 60 + 9, cut: true }]);
   });
 
   it('skips jobs whose Build and test did not run, other jobs, and unfinished ones', () => {
@@ -146,13 +147,13 @@ describe('main', () => {
     });
     expect(await main({ gh, now: NOW, workflow: workflow() })).toBe(1);
     expect(log).toEqual([
-      'ACTION ios CI: 2 run(s) within 15 min of the 75-minute cap (slowest 75 min, run 102) — shorten the job rather than raise the cap (docs/ios/testing-and-ci.md)',
+      'ACTION ios CI: 2 run(s) within 15 min of the 75-minute cap, 1 cut off by it (slowest 75 min, run 102) — shorten the job rather than raise the cap (docs/ios/testing-and-ci.md)',
     ]);
 
     // Seven days back from now, ci.yml only, and the short run never fetched.
     expect(calls[0]).toEqual([
       'run', 'list', '--workflow', 'ci.yml', '--created', '>=2026-10-21T12:00:00Z', '--limit', '1000',
-      '--json', 'databaseId,status,createdAt,updatedAt',
+      '--json', 'databaseId,status,createdAt,updatedAt,event',
     ]);
     const fetched = calls.slice(1).map(c => c[1]);
     expect(fetched).toEqual([
@@ -167,7 +168,7 @@ describe('main', () => {
       7: [job(7, 75 * 60 + 5, { conclusion: 'cancelled', attempt: 1 }), job(7, 35 * 60, { attempt: 2, at: T0 + 80 * 60_000 })],
     });
     expect(await main({ gh, now: NOW, workflow: workflow() })).toBe(1);
-    expect(log[0]).toContain('1 run(s) within 15 min of the 75-minute cap (slowest 75 min, run 7)');
+    expect(log[0]).toContain('1 run(s) within 15 min of the 75-minute cap, 1 cut off by it (slowest 75 min, run 7)');
   });
 
   // "Re-run failed jobs" copies a passed job into the new attempt with the
@@ -184,13 +185,13 @@ describe('main', () => {
   it('a matrix job is still watched', async () => {
     const { gh } = fakeGh([run(6, 90)], { 6: [job(6, 41 * 60, { conclusion: 'cancelled', name: 'ios (iPhone 17)' })] });
     expect(await main({ gh, now: NOW, workflow: workflow('40') })).toBe(1);
-    expect(log[0]).toContain('1 run(s) within 15 min of the 40-minute cap (slowest 41 min, run 6)');
+    expect(log[0]).toContain('1 run(s) within 15 min of the 40-minute cap, 1 cut off by it (slowest 41 min, run 6)');
   });
 
   it('reads against whatever cap the workflow has today', async () => {
     const { gh } = fakeGh([run(5, 45)], { 5: [job(5, 41 * 60, { conclusion: 'cancelled' })] });
     expect(await main({ gh, now: NOW, workflow: workflow('40') })).toBe(1);
-    expect(log[0]).toMatch(/^ACTION ios CI: 1 run\(s\) within 15 min of the 40-minute cap \(slowest 41 min, run 5\)/);
+    expect(log[0]).toMatch(/^ACTION ios CI: 1 run\(s\) within 15 min of the 40-minute cap, 1 cut off by it \(slowest 41 min, run 5\)/);
   });
 
   it('nothing near the cap: a status line and exit 0, no ACTION', async () => {
@@ -235,5 +236,191 @@ describe('main', () => {
     expect(await main({ gh, now: NOW, workflow: workflow().replace('Build and test', 'Test') })).toBe(1);
     expect(log[0]).toMatch(/^ACTION ios CI headroom is unwatched: .*no "Build and test" step/);
     expect(gh).not.toHaveBeenCalled();
+  });
+});
+
+// The evals job as ci.yml has it: gated on the event, an env block, unnamed
+// steps before the watched one, and the last job in the file.
+const evalsWorkflow = (cap = '70', step = 'Run coach evals') => `name: CI
+jobs:
+  ios:
+    timeout-minutes: 75
+    steps:
+      - name: Build and test
+        run: xcodebuild test
+  # Coach eval suite. Nightly and dispatch only.
+  evals:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: ${cap}
+    env:
+      ANTHROPIC_API_KEY: \${{ secrets.ANTHROPIC_API_KEY }}
+    steps:
+      - uses: actions/checkout@v7
+      - run: npm ci
+      - name: ${step}
+        timeout-minutes: 65
+        run: npm run eval
+      - uses: actions/upload-artifact@v7
+        if: always()
+`;
+
+/**
+ * An evals job: 20 s of setup, the eval step, 5 s after it, the shape of the
+ * 2026-11-04 night (job 30:19, eval step 29:56, both cancelled).
+ */
+function evalsJob(run: number, stepSeconds: number, o: Partial<{ conclusion: string; attempt: number; at: number; jobSeconds: number; openStep: boolean }> = {}): Job {
+  const at = o.at ?? T0;
+  const stepStart = at + 20_000;
+  const end = o.jobSeconds !== undefined ? at + o.jobSeconds * 1000 : stepStart + stepSeconds * 1000 + 5_000;
+  const conclusion = o.conclusion ?? 'success';
+  return {
+    name: 'evals', run_id: run, run_attempt: o.attempt ?? 1, status: 'completed', conclusion,
+    started_at: iso(at), completed_at: iso(end),
+    steps: [
+      { name: 'Run npm ci', conclusion: 'success', started_at: iso(at), completed_at: iso(stepStart) },
+      {
+        name: 'Run coach evals', conclusion, started_at: iso(stepStart),
+        completed_at: o.openStep ? null : iso(stepStart + stepSeconds * 1000),
+      },
+    ],
+  };
+}
+
+/** What a push or PR run reports for evals: skipped at job level, no steps. */
+const skippedEvals = (run: number): Job => ({
+  name: 'evals', run_id: run, run_attempt: 1, status: 'completed', conclusion: 'skipped',
+  started_at: iso(T0), completed_at: iso(T0), steps: [],
+});
+
+const nightly = (id: number, wallMinutes: number, event = 'schedule') => ({ ...run(id, wallMinutes), event });
+
+describe('evals: jobFrom', () => {
+  it("reads the evals job's cap past its if: and env block, not the step's", () => {
+    expect(jobFrom(evalsWorkflow(), 'evals')).toEqual({ cap: 70, name: 'evals' });
+  });
+
+  it('throws when the eval step is renamed, rather than reporting all-clear', () => {
+    expect(() => jobFrom(evalsWorkflow('70', 'Coach evals'), 'evals')).toThrow(/no "Run coach evals" step/);
+  });
+
+  it("parses this repository's own ci.yml", () => {
+    const { cap, name } = jobFrom(ciYml, 'evals');
+    expect(name).toBe('evals');
+    expect(Number.isInteger(cap) && cap > 15).toBe(true);
+  });
+
+  it('refuses a watch it does not know', () => {
+    expect(() => jobFrom(evalsWorkflow(), 'nope')).toThrow(/no CI headroom watch named "nope"/);
+    expect(() => jobFrom(evalsWorkflow(), 'toString')).toThrow(/no CI headroom watch/);
+  });
+});
+
+describe('evals: which runs', () => {
+  it('watches scheduled and dispatched runs only, and fetches every one however short', () => {
+    const runs = [
+      nightly(1, 3), nightly(2, 1, 'workflow_dispatch'),
+      nightly(3, 200, 'push'), nightly(4, 200, 'pull_request'), nightly(5, 200, 'merge_group'),
+    ];
+    expect(watched(runs, 'evals').map((r) => r.databaseId)).toEqual([1, 2]);
+    expect(candidates(runs, 70, 'evals')).toEqual([1, 2]);
+  });
+});
+
+describe('evals: timed', () => {
+  it('a credit-out night is not a timing: an eval step under a minute', () => {
+    expect(timed([evalsJob(1, 9), evalsJob(2, 59)], 70, 'evals')).toEqual([]);
+    expect(timed([evalsJob(3, 60)], 70, 'evals')).toHaveLength(1);
+  });
+
+  it('measures the job, as the cap does, so setup counts against it', () => {
+    // 20 s before the step and 5 s after: a job of exactly 55 minutes.
+    expect(nearCap([evalsJob(1, 55 * 60 - 25)], 70, 'evals')).toHaveLength(1);
+    expect(nearCap([evalsJob(1, 55 * 60 - 26)], 70, 'evals')).toHaveLength(0);
+  });
+
+  it('a run the cap killed is near the cap and cut off by it', () => {
+    expect(nearCap([evalsJob(1, 29 * 60 + 56, { conclusion: 'cancelled', jobSeconds: 30 * 60 + 19 })], 30, 'evals'))
+      .toEqual([{ run: 1, attempt: 1, conclusion: 'cancelled', seconds: 30 * 60 + 19, cut: true }]);
+  });
+
+  it("a step the cancel caught with no end of its own runs to the job's end", () => {
+    expect(timed([evalsJob(1, 5, { conclusion: 'cancelled', openStep: true, jobSeconds: 70 * 60 + 19 })], 70, 'evals'))
+      .toEqual([expect.objectContaining({ cut: true })]);
+  });
+
+  it('a hand-cancel short of the cap is near but not cut off', () => {
+    expect(nearCap([evalsJob(1, 60 * 60, { conclusion: 'cancelled' })], 70, 'evals'))
+      .toEqual([expect.objectContaining({ conclusion: 'cancelled', cut: false })]);
+  });
+
+  it('a job the event skipped is not a timing', () => {
+    expect(timed([skippedEvals(1)], 70, 'evals')).toEqual([]);
+  });
+});
+
+describe('evals: main', () => {
+  it('prints the ACTION with the cut-off count and fetches only scheduled and dispatched runs', async () => {
+    const runs = [nightly(201, 80), nightly(202, 70, 'workflow_dispatch'), nightly(203, 30), nightly(204, 120, 'push')];
+    const { gh, calls } = fakeGh(runs, {
+      201: [evalsJob(201, 69 * 60 + 54, { conclusion: 'cancelled', jobSeconds: 70 * 60 + 19 })],
+      202: [evalsJob(202, 58 * 60)],
+      203: [evalsJob(203, 9)],
+      204: [skippedEvals(204)],
+    });
+    expect(await main({ key: 'evals', gh, now: NOW, workflow: evalsWorkflow() })).toBe(1);
+    expect(log).toEqual([
+      'ACTION evals CI: 2 run(s) within 15 min of the 70-minute cap, 1 cut off by it (slowest 70 min, run 201) — shorten the suite rather than raise the cap (evals/README.md)',
+    ]);
+    expect(calls.slice(1).map((c) => c[1].match(/runs\/(\d+)/)![1])).toEqual(['201', '202', '203']);
+  });
+
+  it('nothing near the cap: the slowest timed run and how many were timed', async () => {
+    const runs = [nightly(1, 45), nightly(2, 50), nightly(3, 25)];
+    const { gh } = fakeGh(runs, { 1: [evalsJob(1, 38 * 60)], 2: [evalsJob(2, 41 * 60)], 3: [evalsJob(3, 9)] });
+    expect(await main({ key: 'evals', gh, now: NOW, workflow: evalsWorkflow() })).toBe(0);
+    expect(log).toEqual(['   no evals run within 15 min of the 70-minute cap in 7 days (slowest 41 min; 2 of 3 scheduled or dispatched run(s) timed)']);
+  });
+
+  // The week after a raise: the old cap's kills are below the new line, and
+  // the line does not pass a kill off as a timing.
+  it('a cancelled slowest run is named as cancelled', async () => {
+    const killed = (id: number) => [evalsJob(id, 29 * 60 + 56, { conclusion: 'cancelled', jobSeconds: 30 * 60 + 19 })];
+    const { gh } = fakeGh([nightly(1, 41), nightly(2, 41)], { 1: killed(1), 2: killed(2) });
+    expect(await main({ key: 'evals', gh, now: NOW, workflow: evalsWorkflow() })).toBe(0);
+    expect(log).toEqual(['   no evals run within 15 min of the 70-minute cap in 7 days (slowest 30 min, cancelled; 2 of 2 scheduled or dispatched run(s) timed)']);
+  });
+
+  it('a week of credit-outs is unmeasured, not all-clear: exit 2', async () => {
+    const runs = [nightly(1, 25), nightly(2, 25), nightly(3, 25)];
+    const { gh } = fakeGh(runs, { 1: [evalsJob(1, 9)], 2: [evalsJob(2, 11)], 3: [evalsJob(3, 8)] });
+    expect(await main({ key: 'evals', gh, now: NOW, workflow: evalsWorkflow() })).toBe(2);
+    expect(log).toEqual([
+      '   no timed evals run in 7 days (3 scheduled or dispatched run(s); an eval step under a minute is a credit-out or a missing key) — evals CI headroom unmeasured',
+    ]);
+  });
+
+  it('no nightly at all is unmeasured, and fetches nothing', async () => {
+    const { gh, calls } = fakeGh([nightly(1, 120, 'push')], {});
+    expect(await main({ key: 'evals', gh, now: NOW, workflow: evalsWorkflow() })).toBe(2);
+    expect(log).toEqual(['   no scheduled or dispatched run(s) in 7 days — evals CI headroom unmeasured']);
+    expect(calls).toHaveLength(1);
+  });
+
+  it('a run whose jobs cannot be read is partly skipped, never all-clear', async () => {
+    const { gh } = fakeGh([nightly(1, 45), nightly(2, 45)], { 1: new Error('HTTP 502'), 2: [evalsJob(2, 38 * 60)] });
+    expect(await main({ key: 'evals', gh, now: NOW, workflow: evalsWorkflow() })).toBe(2);
+    expect(log).toEqual(['   1 of 2 scheduled or dispatched run(s) could not be read — evals CI headroom partly skipped']);
+  });
+
+  it('a workflow it cannot read is an ACTION naming the evals watch, before any API call', async () => {
+    const { gh } = fakeGh([], {});
+    expect(await main({ key: 'evals', gh, now: NOW, workflow: evalsWorkflow('70', 'Coach evals') })).toBe(1);
+    expect(log[0]).toMatch(/^ACTION evals CI headroom is unwatched: .*no "Run coach evals" step/);
+    expect(gh).not.toHaveBeenCalled();
+  });
+
+  it('an unknown watch is refused', async () => {
+    await expect(main({ key: 'nope', gh: fakeGh([], {}).gh, now: NOW, workflow: evalsWorkflow() })).rejects.toThrow(/no CI headroom watch/);
   });
 });

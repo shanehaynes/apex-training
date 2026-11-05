@@ -100,6 +100,8 @@ A not-logged-in or erroring SDK answers with a synthetic assistant message (`mod
 
 CI runs the suite nightly (and on `workflow_dispatch`) once the `ANTHROPIC_API_KEY` repo secret is set; until then the job reports itself skipped.
 
+**The job's time cap.** `timeout-minutes` sits 15 minutes above the slowest full run, as the ios job's does; the comment above the job in `ci.yml` has the numbers. The suite grows with every case and every round trip the coach learns to make: it outgrew a 30-minute cap on 2026-09-29, and every real run after that was cancelled for five weeks before anyone looked. The supervisor sweep (`scripts/ci-headroom.mjs evals`) now prints an ACTION when a scheduled or dispatched run comes within 15 minutes of the cap or is cut off by it. Then shorten the suite rather than raise the cap. The first lever is running cases concurrently (`--concurrency`), once an errored case fails the job; until then a rate-limited case is a silent ERROR. A night whose eval step took under a minute (credit out, or no key) measured nothing and is left out.
+
 ### Reads and doctrine
 
 Since the sight loop shipped (#345, #348) the production coach carries eleven read tools and `read_doctrine` next to the eight write tools, runs read-only rounds server-side inside one user turn, has the doctrine index and a "read before you prescribe" rule in its stable prompt, and a physiology panel in its live half. The harness measures that coach, not the one before it:
