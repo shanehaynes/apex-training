@@ -1,4 +1,4 @@
-import type { Page } from '@playwright/test';
+import type { Locator, Page } from '@playwright/test';
 import { test, expect, gotoCalendar, shot } from '../lib/fixtures';
 
 // Reordering a long section in the exercise editor. Weights — Session B has
@@ -30,6 +30,36 @@ async function openSessionB(page: Page) {
   await page.locator('.modal-edit-exercises').click();
   await expect(mainCards(page)).toHaveCount(12);
   expect((await mainNames(page))[11]).toBe('Band External Rotation');
+}
+
+const LAST = 'Band External Rotation';
+
+// What dnd-kit's live region says while a card is held, the words a screen
+// reader hears: "Band External Rotation is over position 11 of 12."
+const heldOver = (page: Page, name: string, place: number) =>
+  page.getByRole('status').filter({ hasText: `${name} is over position ${place} of 12.` });
+
+/**
+ * Pick a card up from the keyboard and wait until the next key reaches it.
+ * Two things trail the Space press. dnd-kit measures the list in a render
+ * after the pick-up, and until then an arrow has nothing to move to; the card
+ * announced over its own place says that render has happened. Its sensor also
+ * starts reading the arrows, Space and Escape only in a setTimeout. A key
+ * pressed before that timer runs goes nowhere, so Escape leaves the card held
+ * and the next Space drops it instead of picking it up. A timer queued after
+ * the sensor's runs after it.
+ */
+async function pickUp(page: Page, grip: Locator, name: string, place: number) {
+  await grip.focus();
+  await page.keyboard.press('Space');
+  await expect(heldOver(page, name, place)).toBeAttached();
+  await page.evaluate(() => new Promise(resolve => setTimeout(resolve)));
+}
+
+/** One arrow press, and the card announced over its new place. */
+async function moveUp(page: Page, name: string, place: number) {
+  await page.keyboard.press('ArrowUp');
+  await expect(heldOver(page, name, place)).toBeAttached();
 }
 
 async function saveWholeSeries(page: Page) {
@@ -102,27 +132,19 @@ test('the keyboard moves a card, and Escape cancels the move without closing the
   await reps.fill('5');
 
   const lastGrip = mainCards(page).last().locator('.editor-card__grip');
-  await lastGrip.focus();
-  await page.keyboard.press('Space');
-  await page.keyboard.press('ArrowUp');
+  await pickUp(page, lastGrip, LAST, 12);
+  await moveUp(page, LAST, 11);
   await page.keyboard.press('Escape');
+  await expect(page.locator('.editor-card--dragging'), 'Escape cancels the move').toHaveCount(0);
   await expect(page.locator('.exercise-editor'), 'Escape cancels the drag, not the editor').toBeVisible();
   expect(await mainNames(page)).toEqual(before);
   await expect(reps).toHaveValue('5');
 
-  // Pick up, move up three places, drop. dnd-kit measures the list in the
-  // render that follows the pick-up; an arrow pressed before that render has
-  // nothing to move to and is dropped, so wait until the card shows as held.
-  await lastGrip.focus();
+  // Pick up, move up three places, drop.
+  await pickUp(page, lastGrip, LAST, 12);
+  for (const place of [11, 10, 9]) await moveUp(page, LAST, place);
   await page.keyboard.press('Space');
-  await expect(mainCards(page).last()).toHaveClass(/editor-card--dragging/);
-  await page.waitForTimeout(150);
-  for (let i = 0; i < 3; i++) {
-    await page.keyboard.press('ArrowUp');
-    await page.waitForTimeout(150);
-  }
-  await page.keyboard.press('Space');
-  await expect.poll(() => mainNames(page).then(n => n.indexOf('Band External Rotation'))).toBe(8);
+  await expect.poll(() => mainNames(page).then(n => n.indexOf(LAST))).toBe(8);
 
   await saveWholeSeries(page);
   const saved = patches.at(-1)?.body.fields?.exercises?.map(e => e.name);
@@ -137,11 +159,8 @@ test('clicking into a field while a card is held from the keyboard cancels the m
   await openSessionB(page);
   const before = await mainNames(page);
   const lastGrip = mainCards(page).last().locator('.editor-card__grip');
-  await lastGrip.focus();
-  await page.keyboard.press('Space');
-  await expect(mainCards(page).last()).toHaveClass(/editor-card--dragging/);
-  await page.waitForTimeout(150);
-  await page.keyboard.press('ArrowUp');
+  await pickUp(page, lastGrip, LAST, 12);
+  await moveUp(page, LAST, 11);
 
   const reps = mainCards(page).first().locator('.editor-field', { hasText: 'Reps' }).locator('input');
   const value = await reps.inputValue();
