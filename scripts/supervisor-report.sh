@@ -63,12 +63,32 @@ epoch_utc() {
 echo "── main"
 if [ -n "$GH" ]; then
   latest=$("$GH" run list --workflow CI --branch main --limit 1 \
-    --json conclusion,status,updatedAt,displayTitle \
-    --jq '.[0] | "\(.conclusion // .status)  \(.updatedAt)  \(.displayTitle)"' 2>/dev/null || true)
+    --json databaseId,conclusion,status,updatedAt,displayTitle \
+    --jq '.[0] | "\(.databaseId) \(.conclusion // .status)  \(.updatedAt)  \(.displayTitle)"' 2>/dev/null || true)
+  run_id=${latest%% *}
+  latest=${latest#* }
   case "$latest" in
     success*) echo "   green: $latest" ;;
     "")       echo "   no CI runs found (gh auth?)" ;;
-    *)        echo "ACTION main's latest CI run is not green: $latest" ;;
+    *)
+      # The nightly runs on main too, and its evals job is the one job whose
+      # red says nothing about main's code: it fails when the API key's credit
+      # runs out, the key is revoked or rate limits outlast the retries, and it
+      # is cancelled when the suite outruns the job's cap. Read as a broken
+      # main, that stopped merging (merge-shepherd: "stop merging entirely")
+      # until some push replaced the run. So when evals is the only job that
+      # neither passed nor skipped, the line says so. Any other job, or no job
+      # list, keeps the not-green line.
+      failed=$("$GH" run view "$run_id" --json jobs \
+        --jq '[.jobs[] | select(.conclusion != "success" and .conclusion != "skipped" and .conclusion != "neutral") | "\(.name)=\(.conclusion)"] | join(" ")' 2>/dev/null || true)
+      case "$failed" in
+        evals=failure)
+          echo "ACTION nightly coach evals red, main's code not implicated (no other job failed): $latest — top up or rotate the ANTHROPIC_API_KEY repo secret (credit out, revoked key, rate limits); gh run view $run_id --log-failed" ;;
+        evals=cancelled|evals=timed_out)
+          echo "ACTION nightly coach evals red, main's code not implicated (no other job failed): $latest — the evals job was cut off at its timeout-minutes cap, or cancelled by hand; check the cap against the suite's runtime: gh run view $run_id" ;;
+        *)
+          echo "ACTION main's latest CI run is not green: $latest" ;;
+      esac ;;
   esac
 else
   echo "   gh not found — skipped"

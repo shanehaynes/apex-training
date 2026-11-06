@@ -55,6 +55,11 @@ merging". Use `gh` by absolute path: `"$HOME/bin/gh"` — harness shells can mis
 ## Interpreting ACTION lines
 
 - "main's latest CI run is not green" → stop merging entirely; report first.
+- "nightly coach evals red, main's code not implicated" → merging may
+  continue: `evals` is the run's only failed job, and every job that tests
+  main's code passed. For Shane: on a failure, the ANTHROPIC_API_KEY repo secret (credit out,
+  revoked key, rate limits); on a cancel, the evals job's timeout-minutes cap.
+  Relay the line. Never dispatch the evals workflow to check: it spends tokens.
 - "local stack lags main" → for Shane (auto-mode sessions are refused the
   reset); merging may continue, but say the `full` CI job covers what the
   local stack cannot.
