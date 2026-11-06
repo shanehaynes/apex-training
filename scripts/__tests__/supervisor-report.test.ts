@@ -18,20 +18,24 @@ const repo = fileURLToPath(new URL('../../', import.meta.url));
 const run = promisify(execFile);
 const RUN_ID = 42077346149;
 const NOT_GREEN = "ACTION main's latest CI run is not green";
-const EVALS_RED = "ACTION nightly coach evals red, main's code not implicated";
+const EVALS_RED = 'ACTION nightly coach evals red, no other job failed';
 
 // Two calls: CI's run list (fixture.runs) and one run's jobs (fixture.jobs, or
 // a failed call when it is absent). Anything else (backup runs, PR lists)
-// answers nothing, which the script reports as none found.
+// answers nothing, which the script reports as none found. Like gh, an object
+// carries only the fields --json names, so a script that stops asking for one
+// it reads (databaseId) sees null here as it would from GitHub.
 const GH_STUB = `#!/usr/bin/env node
 const { spawnSync } = require('node:child_process');
 const { appendFileSync, readFileSync } = require('node:fs');
 const fixture = JSON.parse(readFileSync(process.env.GH_FIXTURE, 'utf8'));
 const args = process.argv.slice(2);
 appendFileSync(process.env.GH_FIXTURE + '.calls', JSON.stringify(args) + '\\n');
+const fields = args.includes('--json') ? args[args.indexOf('--json') + 1].split(',') : [];
+const pick = (o) => Object.fromEntries(fields.filter((f) => f in o).map((f) => [f, o[f]]));
 let data;
-if (args[0] === 'run' && args[1] === 'list' && args[args.indexOf('--workflow') + 1] === 'CI') data = fixture.runs;
-else if (args[0] === 'run' && args[1] === 'view' && fixture.jobs && args[2] === String(fixture.runs[0].databaseId)) data = { jobs: fixture.jobs };
+if (args[0] === 'run' && args[1] === 'list' && args[args.indexOf('--workflow') + 1] === 'CI') data = fixture.runs.map(pick);
+else if (args[0] === 'run' && args[1] === 'view' && fixture.jobs && args[2] === String(fixture.runs[0].databaseId)) data = pick({ jobs: fixture.jobs });
 else if (args[0] === 'run' && args[1] === 'view') { process.stderr.write('HTTP 404: Not Found'); process.exit(1); }
 else process.exit(0);
 const out = spawnSync('jq', ['-r', args[args.indexOf('--jq') + 1]], { input: JSON.stringify(data), encoding: 'utf8' });
@@ -94,19 +98,21 @@ describe("supervisor-report.sh: a nightly red only in evals is not a broken main
     return { stdout, main: lines.slice(start + 1, end).join('\n'), calls };
   };
 
-  it('evals failed and nothing else did: the evals line names the key, and the not-green line is absent', async () => {
+  it('evals failed and nothing else did: the evals line sorts the key from main by first error, and the not-green line is absent', async () => {
     const { stdout, main, calls } = await sweep('failure', nightly('failure'));
-    expect(main).toContain(EVALS_RED);
-    expect(main).toContain('ANTHROPIC_API_KEY');
+    expect(main).toContain(`${EVALS_RED}: failure  2026-11-05T18:25:02Z  CI`);
     expect(main).toContain(`gh run view ${RUN_ID} --log-failed`);
+    expect(main).toContain('ANTHROPIC_API_KEY');
+    expect(main).toContain('src/lib/coach/models.ts');
     expect(stdout).not.toContain(NOT_GREEN);
-    expect(calls).toContainEqual(expect.arrayContaining(['run', 'view', String(RUN_ID), '--json', 'jobs']));
+    expect(calls).toContainEqual(['run', 'view', String(RUN_ID), '--json', 'jobs', '--jq', expect.any(String)]);
   });
 
-  it('evals cut off at its cap (cancelled): the evals line names the cap, and the not-green line is absent', async () => {
-    const { stdout, main } = await sweep('cancelled', nightly('cancelled'));
-    expect(main).toContain(EVALS_RED);
+  it.each(['cancelled', 'timed_out'])('evals cut off at its cap (%s): the evals line names the cap, and the not-green line is absent', async (evals) => {
+    const { stdout, main } = await sweep('cancelled', nightly(evals));
+    expect(main).toContain(`${EVALS_RED}: cancelled  2026-11-05T18:25:02Z  CI`);
     expect(main).toContain('timeout-minutes cap');
+    expect(main).toContain(`gh run view ${RUN_ID}`);
     expect(stdout).not.toContain(NOT_GREEN);
   });
 
