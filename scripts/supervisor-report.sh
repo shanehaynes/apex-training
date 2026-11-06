@@ -63,12 +63,35 @@ epoch_utc() {
 echo "── main"
 if [ -n "$GH" ]; then
   latest=$("$GH" run list --workflow CI --branch main --limit 1 \
-    --json conclusion,status,updatedAt,displayTitle \
-    --jq '.[0] | "\(.conclusion // .status)  \(.updatedAt)  \(.displayTitle)"' 2>/dev/null || true)
+    --json databaseId,conclusion,status,updatedAt,displayTitle \
+    --jq '.[0] | "\(.databaseId) \(.conclusion // .status)  \(.updatedAt)  \(.displayTitle)"' 2>/dev/null || true)
+  run_id=${latest%% *}
+  latest=${latest#* }
   case "$latest" in
     success*) echo "   green: $latest" ;;
     "")       echo "   no CI runs found (gh auth?)" ;;
-    *)        echo "ACTION main's latest CI run is not green: $latest" ;;
+    *)
+      # The nightly runs on main too, and its evals job usually goes red for
+      # reasons outside main's code: the API key's credit runs out, the key is
+      # revoked, rate limits outlast the retries, or the suite outruns the
+      # job's cap and is cancelled. Read as a broken main, that stopped merging
+      # (merge-shepherd: "stop merging entirely") until some push replaced the
+      # run. So when evals is the only job that neither passed nor skipped, the
+      # line says so. It does not clear main outright: evals is also the only
+      # job that sends main's coach request to the real API, so a request
+      # shape the API rejects shows up here and nowhere else. The line says
+      # which first errors mean which. Any other job, or no job list, keeps
+      # the not-green line.
+      failed=$("$GH" run view "$run_id" --json jobs \
+        --jq '[.jobs[] | select(.conclusion != "success" and .conclusion != "skipped" and .conclusion != "neutral") | "\(.name)=\(.conclusion)"] | join(" ")' 2>/dev/null || true)
+      case "$failed" in
+        evals=failure)
+          echo "ACTION nightly coach evals red, no other job failed: $latest — read its first error (gh run view $run_id --log-failed): a credit balance, 401 or 429 is the ANTHROPIC_API_KEY repo secret (top up or rotate it); any other error is main's code, the coach's request shape (src/lib/coach/models.ts) or the eval runner" ;;
+        evals=cancelled|evals=timed_out)
+          echo "ACTION nightly coach evals red, no other job failed: $latest — the evals job was cut off at its timeout-minutes cap, or cancelled by hand; check the cap against the suite's runtime: gh run view $run_id" ;;
+        *)
+          echo "ACTION main's latest CI run is not green: $latest" ;;
+      esac ;;
   esac
 else
   echo "   gh not found — skipped"
