@@ -52,6 +52,7 @@ const heldOver = (page: Page, name: string, place: number) =>
 async function pickUp(page: Page, grip: Locator, name: string, place: number) {
   await grip.focus();
   await page.keyboard.press('Space');
+  await expect(page.locator('.editor-card--dragging .editor-card__name'), 'the card shows as held').toHaveText(name);
   await expect(heldOver(page, name, place)).toBeAttached();
   await page.evaluate(() => new Promise(resolve => setTimeout(resolve)));
 }
