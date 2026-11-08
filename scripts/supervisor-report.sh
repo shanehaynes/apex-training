@@ -5,8 +5,8 @@
 #
 #   scripts/supervisor-report.sh [--no-local]
 #
-# Covers: is main green, is the ios CI job running close to its timeout
-# cap, is the shared local stack current, do production's
+# Covers: is main green, are the ios and nightly evals CI jobs running
+# close to their timeout caps, is the shared local stack current, do production's
 # auth redirects still reach the public app, does production's database have
 # every table, column and function main's code expects, how close open
 # sign-up is to its daily mail cap, is the primary checkout
@@ -74,26 +74,33 @@ else
   echo "   gh not found — skipped"
 fi
 
-echo
-echo "── ios CI headroom"
-# The ios job's timeout-minutes is the slowest legitimate run plus 15 (#503),
-# and the job grows 1–2 minutes a week as UI tests land. Once a run gets
-# within 15 minutes of the cap, docs/ios/testing-and-ci.md says shorten the
-# job rather than raise the cap — this is what notices. The script prints its
-# own ACTION and status lines; 2 is "could not check", status only.
-if [ ! -f scripts/ios-ci-headroom.mjs ]; then
-  echo "   ios-ci-headroom.mjs not in this checkout — skipped"
-elif [ -z "$GH" ]; then
-  echo "   gh not found — skipped"
-else
-  headroom_out=$(GH="$GH" node scripts/ios-ci-headroom.mjs 2>&1); headroom_code=$?
-  case $headroom_code in
-    0|1|2) printf '%s\n' "$headroom_out" ;;
-    *)
-      printf '%s\n' "$headroom_out" | sed 's/^/   /'
-      echo "ACTION scripts/ios-ci-headroom.mjs failed (exit $headroom_code) — the ios job's headroom under its cap goes unwatched until it is fixed" ;;
-  esac
-fi
+# The ios and evals jobs' timeout-minutes are each the slowest legitimate run
+# plus 15, and both jobs grow on their own: ios 1–2 minutes a week as UI tests
+# land, evals with every case. Once a run gets within 15 minutes of its cap,
+# shorten the job rather than raise the cap (docs/ios/testing-and-ci.md,
+# evals/README.md) — this is what notices. The evals cap had no watch and
+# cancelled every real nightly for five weeks (2026-09-29 to 11-04) before
+# anyone traced it. The script prints its own ACTION and status lines; 2 is
+# "could not check", status only.
+ci_headroom() {
+  echo
+  echo "── $1 CI headroom"
+  if [ ! -f scripts/ci-headroom.mjs ]; then
+    echo "   ci-headroom.mjs not in this checkout — skipped"
+  elif [ -z "$GH" ]; then
+    echo "   gh not found — skipped"
+  else
+    headroom_out=$(GH="$GH" node scripts/ci-headroom.mjs "$1" 2>&1); headroom_code=$?
+    case $headroom_code in
+      0|1|2) printf '%s\n' "$headroom_out" ;;
+      *)
+        printf '%s\n' "$headroom_out" | sed 's/^/   /'
+        echo "ACTION scripts/ci-headroom.mjs $1 failed (exit $headroom_code) — the $1 job's headroom under its cap goes unwatched until it is fixed" ;;
+    esac
+  fi
+}
+ci_headroom ios
+ci_headroom evals
 
 if [ "$local_sections" = 1 ]; then
 echo
