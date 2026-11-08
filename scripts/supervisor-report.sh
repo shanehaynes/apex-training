@@ -62,14 +62,34 @@ epoch_utc() {
 
 echo "── main"
 if [ -n "$GH" ]; then
-  latest=$("$GH" run list --workflow CI --branch main --limit 1 \
-    --json databaseId,conclusion,status,updatedAt,displayTitle \
-    --jq '.[0] | "\(.databaseId) \(.conclusion // .status)  \(.updatedAt)  \(.displayTitle)"' 2>/dev/null || true)
+  # Newest first. A run that has not finished (queued, in_progress, waiting)
+  # has no verdict yet, and gh reports its conclusion as "", not null, so a
+  # sweep during a nightly read it as not green and stopped merging until the
+  # nightly ended. Each unfinished run now prints as status, and the verdict
+  # is the run that finished last before them: main's CI never cancels a
+  # running run (ci.yml's concurrency), so runs finish in order, but a run
+  # waiting its turn is cancelled, without running a job, when a newer push
+  # takes its place, and that run can be newer than the one that ran. Among
+  # the runs created before the oldest unfinished one, the one that finished
+  # last is the one that ran.
+  runs=$("$GH" run list --workflow CI --branch main --limit 20 \
+    --json databaseId,conclusion,status,createdAt,startedAt,updatedAt,displayTitle \
+    --jq 'def verdict: "\(.databaseId) \(.conclusion // .status)  \(.updatedAt)  \(.displayTitle)";
+      if .[0].status == "completed" then .[0] | verdict
+      else ([.[] | select(.status != "completed")] | min_by(.createdAt).createdAt) as $first
+        | (.[] | select(.status != "completed") | "   not finished: \(.status) since \(.startedAt)  \(.displayTitle)"),
+          ([.[] | select(.status == "completed" and .createdAt < $first)] | max_by(.updatedAt) // empty | verdict)
+      end' 2>/dev/null || true)
+  unfinished=$(printf '%s\n' "$runs" | grep '^   ' || true)
+  latest=$(printf '%s\n' "$runs" | grep -v '^   ' || true)
+  [ -n "$unfinished" ] && printf '%s\n' "$unfinished"
   run_id=${latest%% *}
   latest=${latest#* }
   case "$latest" in
     success*) echo "   green: $latest" ;;
-    "")       echo "   no CI runs found (gh auth?)" ;;
+    "")
+      if [ -n "$unfinished" ]; then echo "   no finished CI run among main's last 20"
+      else echo "   no CI runs found (gh auth?)"; fi ;;
     *)
       # The nightly runs on main too, and its evals job usually goes red for
       # reasons outside main's code: the API key's credit runs out, the key is
