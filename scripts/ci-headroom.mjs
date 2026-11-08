@@ -24,16 +24,17 @@
 // schedule or a dispatch) and the job took at least cap − 15 minutes. A run
 // the cap killed ends `cancelled` at or past the cap, so it counts too, and is
 // reported as cut off. An evals run whose eval step took under a minute is not
-// a timing and is left out: every case came back "credit balance is too low",
-// or the key is not set and the step skipped itself, and either way the job
-// went green. Every attempt of a re-run is looked at; the count is of runs.
+// a timing and is left out: every case came back "credit balance is too low"
+// (the job fails on that, scripts/eval-errors-check.mjs), or the key is not
+// set and the step skipped itself (green). Every attempt of a re-run is
+// looked at; the count is of runs.
 //
 // The evals all-clear names the slowest run and how many there were, so it
 // counts only runs that finished green: a cancelled one stopped short (by
 // hand, or under an older, lower cap) and a failed one did not run the suite
-// cleanly. A week with none is skipped, not all-clear. One gap remains: a
-// night whose credit ran out part-way still ends green, and reads here as a
-// short finished run, until errored cases fail the job.
+// cleanly. A week with none is skipped, not all-clear. A night whose credit
+// ran out part-way fails on its errored cases (scripts/eval-errors-check.mjs),
+// so it is not read as a short finished run.
 //
 // Prints its own lines in the report's style (ACTION at column 0, status
 // indented). Exit codes follow scripts/signup-cap-check.mjs: 0 nothing near
