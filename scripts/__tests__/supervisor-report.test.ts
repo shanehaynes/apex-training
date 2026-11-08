@@ -14,7 +14,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 // a nightly whose only failed job is `evals` (a key or a cap, not main's code)
 // must not print it, and every other failure still must. Nor may a run that
 // has not finished print it (gh gives its conclusion as "", not null): it is
-// status, and the verdict is the run that finished last before it.
+// status, and the verdict is the newest finished run that ran.
 
 const repo = fileURLToPath(new URL('../../', import.meta.url));
 const run = promisify(execFile);
@@ -22,8 +22,8 @@ const RUN_ID = 42077346149;
 const NOT_GREEN = "ACTION main's latest CI run is not green";
 const EVALS_RED = 'ACTION nightly coach evals red, no other job failed';
 
-// Two calls: CI's run list (fixture.runs) and one run's jobs (fixture.jobs for
-// run fixture.jobsRun, by default the first, or a failed call for any other).
+// Two calls: CI's run list (fixture.runs, cut to --limit) and one run's jobs
+// (that run's own `jobs`, or fixture.jobs for the first run, or a failed call).
 // Anything else (backup runs, PR lists) answers nothing, which the script
 // reports as none found. Like gh, an object carries only the fields --json
 // names, so a script that stops asking for one it reads (databaseId) sees null
@@ -36,9 +36,12 @@ const args = process.argv.slice(2);
 appendFileSync(process.env.GH_FIXTURE + '.calls', JSON.stringify(args) + '\\n');
 const fields = args.includes('--json') ? args[args.indexOf('--json') + 1].split(',') : [];
 const pick = (o) => Object.fromEntries(fields.filter((f) => f in o).map((f) => [f, o[f]]));
+const limit = args.includes('--limit') ? Number(args[args.indexOf('--limit') + 1]) : 20;
+const viewed = args[1] === 'view' && fixture.runs.find((r) => String(r.databaseId) === args[2]);
+const jobs = viewed && (viewed.jobs ?? (viewed === fixture.runs[0] ? fixture.jobs : undefined));
 let data;
-if (args[0] === 'run' && args[1] === 'list' && args[args.indexOf('--workflow') + 1] === 'CI') data = fixture.runs.map(pick);
-else if (args[0] === 'run' && args[1] === 'view' && fixture.jobs && args[2] === String(fixture.jobsRun ?? fixture.runs[0].databaseId)) data = pick({ jobs: fixture.jobs });
+if (args[0] === 'run' && args[1] === 'list' && args[args.indexOf('--workflow') + 1] === 'CI') data = fixture.runs.slice(0, limit).map(pick);
+else if (args[0] === 'run' && args[1] === 'view' && jobs) data = pick({ jobs });
 else if (args[0] === 'run' && args[1] === 'view') { process.stderr.write('HTTP 404: Not Found'); process.exit(1); }
 else process.exit(0);
 const out = spawnSync('jq', ['-r', args[args.indexOf('--jq') + 1]], { input: JSON.stringify(data), encoding: 'utf8' });
@@ -63,10 +66,14 @@ function nightly(evals: string, check = 'success'): Job[] {
 type Run = {
   databaseId: number; status: string; conclusion: string;
   createdAt: string; startedAt: string; updatedAt: string; displayTitle: string;
+  jobs?: Job[];
 };
-/** A run that ran to its end. Pending-then-superseded runs are finished too: cancelled, with no jobs. */
-const finished = (databaseId: number, conclusion: string, createdAt: string, updatedAt: string, displayTitle: string): Run =>
-  ({ databaseId, status: 'completed', conclusion, createdAt, startedAt: createdAt, updatedAt, displayTitle });
+/** A run that ran to its end; startedAt is later than createdAt only for a re-run. */
+const finished = (databaseId: number, conclusion: string, createdAt: string, updatedAt: string, displayTitle: string, startedAt = createdAt): Run =>
+  ({ databaseId, status: 'completed', conclusion, createdAt, startedAt, updatedAt, displayTitle });
+/** A run cancelled while it waited its turn behind another: finished, but it never started a job. */
+const superseded = (databaseId: number, createdAt: string, updatedAt: string, displayTitle: string): Run =>
+  ({ ...finished(databaseId, 'cancelled', createdAt, updatedAt, displayTitle), jobs: [] });
 /** A run with no verdict yet: gh reports its conclusion as "", not null. */
 const unfinished = (databaseId: number, status: string, createdAt: string, displayTitle: string, startedAt = createdAt): Run =>
   ({ databaseId, status, conclusion: '', createdAt, startedAt, updatedAt: startedAt, displayTitle });
@@ -94,9 +101,9 @@ describe('supervisor-report.sh: a nightly red only in evals, or a run not finish
   });
 
   /** The whole report, its `── main` block, and every gh call the run made, for main's runs newest first. */
-  const sweepRuns = async (runs: object[], jobs: Job[] | undefined, jobsRun?: number) => {
+  const sweepRuns = async (runs: object[], jobs: Job[] | undefined) => {
     const fixture = join(tmp, `gh-${Math.random().toString(36).slice(2)}.json`);
-    writeFileSync(fixture, JSON.stringify({ runs, jobs, jobsRun }));
+    writeFileSync(fixture, JSON.stringify({ runs, jobs }));
     const { stdout } = await run('bash', [join(work, 'scripts/supervisor-report.sh'), '--no-local'], {
       cwd: work,
       // HOME points at the scratch dir so no real credentials file is in reach.
@@ -200,32 +207,88 @@ describe('supervisor-report.sh: a nightly red only in evals, or a run not finish
   });
 
   it('a run still going over an evals-only red nightly: the evals line, not the not-green line', async () => {
-    const nightlyCut = finished(RUN_ID, 'cancelled', '2026-11-05T17:43:09Z', '2026-11-05T18:25:02Z', 'CI');
+    // Cancelled at its cap after its jobs ran, so it is the verdict, not passed over.
+    const nightlyCut = { ...finished(RUN_ID, 'cancelled', '2026-11-05T17:43:09Z', '2026-11-05T18:25:02Z', 'CI'), jobs: nightly('cancelled') };
     const pushRunning = unfinished(42080000000, 'in_progress', '2026-11-05T19:00:00Z', 'Supervisor: evals-only');
-    const { main, stdout } = await sweepRuns([pushRunning, nightlyCut], nightly('cancelled'), RUN_ID);
+    const { main, stdout } = await sweepRuns([pushRunning, nightlyCut], undefined);
     expect(main).toContain('   not finished: in_progress since 2026-11-05T19:00:00Z  Supervisor: evals-only');
     expect(main).toContain(`${EVALS_RED}: cancelled  2026-11-05T18:25:02Z  CI`);
     expect(stdout).not.toContain(NOT_GREEN);
   });
 
-  // The cancelled runs here have no jobs, so if the verdict fell on one, the
-  // job list would be empty and the not-green line would print.
+  // The superseded runs here have no jobs, so if the verdict fell on one, its
+  // job list would clear nothing and the not-green line would print.
   it.each([
     ['older than the running run', [
       unfinished(42490971500, 'in_progress', '2026-11-08T14:40:37Z', 'Nightly evals: go red'),
-      finished(42487074004, 'cancelled', '2026-11-08T13:53:10Z', '2026-11-08T13:53:16Z', 'Supervisor: headroom'),
+      superseded(42487074004, '2026-11-08T13:53:10Z', '2026-11-08T13:53:16Z', 'Supervisor: headroom'),
       PUSH_GREEN,
     ]],
     ['newer than the running run', [
       unfinished(42491100000, 'pending', '2026-11-08T15:00:00Z', 'Third push'),
-      finished(42491050000, 'cancelled', '2026-11-08T14:50:00Z', '2026-11-08T15:00:01Z', 'Second push'),
+      superseded(42491050000, '2026-11-08T14:50:00Z', '2026-11-08T15:00:01Z', 'Second push'),
       NIGHTLY_RUNNING,
       PUSH_GREEN,
     ]],
-  ])('a run cancelled while waiting its turn (%s) is not the verdict: the run that finished last before the running one is', async (_, runs) => {
+  ])('a run cancelled while waiting its turn (%s) is passed over: the newest run that ran is the verdict', async (_, runs) => {
     const { main } = await sweepRuns(runs, undefined);
     expect(main).toContain('   green: success  2026-11-08T14:32:09Z  CI evals: 70-minute cap');
     expect(main).not.toMatch(/^ACTION/m);
+  });
+
+  it('a cancelled run whose job list cannot be read is not passed over: nothing proves it never ran', async () => {
+    const unreadable = finished(42487074004, 'cancelled', '2026-11-08T13:53:10Z', '2026-11-08T13:53:16Z', 'Supervisor: headroom');
+    const { main } = await sweepRuns([NIGHTLY_RUNNING, unreadable, PUSH_GREEN], undefined);
+    expect(main).toContain(`${NOT_GREEN}: cancelled  2026-11-08T13:53:16Z  Supervisor: headroom`);
+    expect(main).not.toContain('   green:');
+  });
+
+  it('only runs cancelled while waiting have finished: no verdict, and no ACTION', async () => {
+    const waited = superseded(42487074004, '2026-11-08T13:53:10Z', '2026-11-08T13:53:16Z', 'Supervisor: headroom');
+    const { main } = await sweepRuns([NIGHTLY_RUNNING, waited], undefined);
+    expect(main).toBe([
+      '   not finished: in_progress since 2026-11-08T14:40:37Z  CI',
+      "   no finished CI run among main's last 20",
+    ].join('\n'));
+  });
+
+  // A re-run keeps its old createdAt and finishes when it finishes, so the
+  // newest finished run by creation is the verdict, never the last to finish.
+  it('an older run re-running under a newer failed run: the not-green line names the failed run', async () => {
+    const pushE = unfinished(42100000000, 'pending', '2026-11-04T12:40:00Z', 'Push E');
+    const nightlyRed = finished(41900000000, 'failure', '2026-11-04T10:00:12Z', '2026-11-04T10:48:00Z', 'CI');
+    const rerun = unfinished(41710592089, 'in_progress', '2026-11-03T20:13:37Z', 'App Store order', '2026-11-04T12:32:23Z');
+    const before = finished(41695721949, 'success', '2026-11-03T18:38:20Z', '2026-11-03T19:43:16Z', 'App Privacy');
+    const { main } = await sweepRuns([pushE, nightlyRed, rerun, before], undefined);
+    expect(main).toBe([
+      '   not finished: pending since 2026-11-04T12:40:00Z  Push E',
+      '   not finished: in_progress since 2026-11-04T12:32:23Z  App Store order',
+      `${NOT_GREEN}: failure  2026-11-04T10:48:00Z  CI`,
+    ].join('\n'));
+  });
+
+  it('an older run whose re-run finished after a newer failed run: the same not-green verdict with or without a run going on top', async () => {
+    const pushD = finished(42200000000, 'failure', '2026-11-05T09:00:00Z', '2026-11-05T09:40:00Z', 'Push D');
+    const pushB = finished(42150000000, 'success', '2026-11-04T18:00:00Z', '2026-11-05T10:15:00Z', 'Push B (re-run green)', '2026-11-05T09:50:00Z');
+    const nightlyOnTop = unfinished(42210000000, 'in_progress', '2026-11-05T10:00:00Z', 'CI', '2026-11-05T10:15:05Z');
+    const verdict = `${NOT_GREEN}: failure  2026-11-05T09:40:00Z  Push D`;
+    expect((await sweepRuns([pushD, pushB], undefined)).main).toBe(verdict);
+    expect((await sweepRuns([nightlyOnTop, pushD, pushB], undefined)).main).toBe([
+      '   not finished: in_progress since 2026-11-05T10:15:05Z  CI',
+      verdict,
+    ].join('\n'));
+  });
+
+  it("a finished newest run over an older run re-running: #546's line alone, no status line", async () => {
+    const pushD = finished(42200000000, 'failure', '2026-11-05T09:00:00Z', '2026-11-05T09:40:00Z', 'Push D');
+    const rerun = unfinished(42150000000, 'in_progress', '2026-11-04T18:00:00Z', 'Push B', '2026-11-05T09:50:00Z');
+    const { main } = await sweepRuns([pushD, rerun, PUSH_GREEN], undefined);
+    expect(main).toBe(`${NOT_GREEN}: failure  2026-11-05T09:40:00Z  Push D`);
+  });
+
+  it("a finished newest run cancelled with no jobs, nothing running: #546's not-green line, not passed over", async () => {
+    const { main } = await sweepRuns([superseded(42487074004, '2026-11-08T13:53:10Z', '2026-11-08T13:53:16Z', 'Supervisor: headroom'), PUSH_GREEN], undefined);
+    expect(main).toBe(`${NOT_GREEN}: cancelled  2026-11-08T13:53:16Z  Supervisor: headroom`);
   });
 
   it('a re-run in progress counts from when it restarted, not from when the run was first created', async () => {

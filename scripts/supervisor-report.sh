@@ -66,23 +66,38 @@ if [ -n "$GH" ]; then
   # has no verdict yet, and gh reports its conclusion as "", not null, so a
   # sweep during a nightly read it as not green and stopped merging until the
   # nightly ended. Each unfinished run now prints as status, and the verdict
-  # is the run that finished last before them: main's CI never cancels a
-  # running run (ci.yml's concurrency), so runs finish in order, but a run
-  # waiting its turn is cancelled, without running a job, when a newer push
-  # takes its place, and that run can be newer than the one that ran. Among
-  # the runs created before the oldest unfinished one, the one that finished
-  # last is the one that ran.
+  # is the newest finished run that ran. Main's CI runs one run at a time
+  # (ci.yml's concurrency), and a run waiting its turn is cancelled, before
+  # any job starts, when a newer push takes its place; such a run is newer
+  # than the one that ran and says nothing about main, so a cancelled run
+  # with no jobs is passed over. Newest means created last, not finished
+  # last: a re-run keeps its old creation time and can finish after a newer
+  # run, and its verdict is about older code.
   runs=$("$GH" run list --workflow CI --branch main --limit 20 \
     --json databaseId,conclusion,status,createdAt,startedAt,updatedAt,displayTitle \
     --jq 'def verdict: "\(.databaseId) \(.conclusion // .status)  \(.updatedAt)  \(.displayTitle)";
       if .[0].status == "completed" then .[0] | verdict
-      else ([.[] | select(.status != "completed")] | min_by(.createdAt).createdAt) as $first
-        | (.[] | select(.status != "completed") | "   not finished: \(.status) since \(.startedAt)  \(.displayTitle)"),
-          ([.[] | select(.status == "completed" and .createdAt < $first)] | max_by(.updatedAt) // empty | verdict)
+      else (.[] | select(.status != "completed") | "   not finished: \(.status) since \(.startedAt)  \(.displayTitle)"),
+           (.[] | select(.status == "completed") | verdict)
       end' 2>/dev/null || true)
   unfinished=$(printf '%s\n' "$runs" | grep '^   ' || true)
-  latest=$(printf '%s\n' "$runs" | grep -v '^   ' || true)
   [ -n "$unfinished" ] && printf '%s\n' "$unfinished"
+  # Only behind an unfinished run can the newest finished run be one that was
+  # cancelled while it waited; a job list that cannot be read keeps the run.
+  latest=
+  while IFS= read -r candidate; do
+    [ -n "$candidate" ] || continue
+    latest=$candidate
+    [ -n "$unfinished" ] || break
+    case "${candidate#* }" in
+      "cancelled "*)
+        jobs=$("$GH" run view "${candidate%% *}" --json jobs --jq '.jobs | length' 2>/dev/null || true)
+        [ "$jobs" = 0 ] && { latest=; continue; } ;;
+    esac
+    break
+  done <<EOF
+$(printf '%s\n' "$runs" | grep -v '^   ' || true)
+EOF
   run_id=${latest%% *}
   latest=${latest#* }
   case "$latest" in
