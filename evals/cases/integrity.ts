@@ -25,29 +25,57 @@ const RUNAWAY_STRETCH = {
   finishedAt: '2026-09-21T15:18:15Z',
   totalDurationSeconds: 1_695_855,
 };
-/** get_workout_detail's shape (api/_lib/mcp/tools/schedule.ts) for the runaway stretch. */
-const stretchDetail = (input: Record<string, unknown>) => input.date === '2026-09-01' && String(input.event_id).startsWith('evt-stretch-0901')
-  ? {
-      event: { event_id: 'evt-stretch-0901', date: '2026-09-01', title: 'Nightly Stretch — Lower', type: 'stretching', start_time: null, duration_min: 29 },
-      completed: true,
-      completed_at: '2026-09-21T15:18:15Z',
-      session: {
-        started_at: RUNAWAY_STRETCH.startedAt,
-        finished_at: RUNAWAY_STRETCH.finishedAt,
-        total_duration_seconds: RUNAWAY_STRETCH.totalDurationSeconds,
-        coach_summary: null,
-      },
-      logged: {
-        sets: [
-          { section: 'exercise', exercise: 'Thoracic Extension', set_number: 1, weight: null, reps: null, duration: '1:00', estimated_1rm: null, autofilled: false },
-          { section: 'exercise', exercise: 'Hamstring Stretch', set_number: 1, weight: null, reps: null, duration: '2:00', estimated_1rm: null, autofilled: false },
-          { section: 'exercise', exercise: 'Calf/Ankle Stretch', set_number: 1, weight: null, reps: null, duration: '1:30', estimated_1rm: null, autofilled: false },
-          { section: 'exercise', exercise: 'Quad/Hip Flexor Stretch', set_number: 1, weight: null, reps: null, duration: '1:30', estimated_1rm: null, autofilled: false },
-        ],
-        cardio: [],
-      },
-    }
-  : { note: 'no data for this athlete' };
+/** get_schedule's row shape (api/_lib/mcp/tools/schedule.ts), from the fixture events. */
+const sessionSchedule = (input: Record<string, unknown>) => {
+  const start = String(input.start_date ?? '0000-00-00');
+  const end = String(input.end_date ?? '9999-99-99');
+  return {
+    start_date: start,
+    end_date: end,
+    workouts: SESSION_EVENTS.filter(e => e.date >= start && e.date <= end).map(e => ({
+      date: e.date, event_id: e.id, title: e.title, type: e.type, start_time: null, end_time: null,
+      duration_min: e.estimatedDuration, location: null, completed: e.isCompleted,
+    })),
+  };
+};
+const hold = (exercise: string, duration: string) =>
+  ({ section: 'exercise', exercise, set_number: 1, weight: null, reps: null, duration, estimated_1rm: null, autofilled: false });
+/** get_workout_detail's shape (api/_lib/mcp/tools/schedule.ts): the Sep 1 session ran away; Sep 8 and
+ *  Sep 22 recorded normal lengths; Sep 29 is still a plan. */
+const stretchDetail = (input: Record<string, unknown>) => {
+  const event = SESSION_EVENTS.find(e => e.date === input.date && String(input.event_id).startsWith(e.id));
+  if (!event) return { note: 'no data for this athlete' };
+  const runaway = event.id === RUNAWAY_STRETCH.eventId;
+  const startedAt = runaway ? RUNAWAY_STRETCH.startedAt : `${nextDay(event.date)}T01:10:00Z`;
+  return {
+    event: { event_id: event.id, date: event.date, title: event.title, type: event.type, start_time: null, duration_min: event.estimatedDuration },
+    completed: event.isCompleted,
+    completed_at: event.isCompleted ? (runaway ? RUNAWAY_STRETCH.finishedAt : null) : null,
+    session: !event.isCompleted ? null : runaway
+      ? { started_at: startedAt, finished_at: RUNAWAY_STRETCH.finishedAt, total_duration_seconds: RUNAWAY_STRETCH.totalDurationSeconds, coach_summary: null }
+      : { started_at: startedAt, finished_at: startedAt.replace('T01:10', 'T01:32'), total_duration_seconds: 1320, coach_summary: null },
+    logged: {
+      sets: event.isCompleted
+        ? [hold('Thoracic Extension', '1:00'), hold('Hamstring Stretch', '2:00'), hold('Calf/Ankle Stretch', '1:30'), hold('Quad/Hip Flexor Stretch', '1:30')]
+        : [],
+      cardio: [],
+    },
+  };
+};
+function nextDay(date: string): string {
+  return new Date(Date.parse(`${date}T00:00:00Z`) + 86_400_000).toISOString().slice(0, 10);
+}
+const SESSION_READS = {
+  get_schedule: sessionSchedule,
+  get_workout_detail: stretchDetail,
+  // The inflated month the athlete is asking about: three tracked stretches, one of them 28,264 minutes.
+  get_period_stats: () => ({
+    period: { type: 'month', year: 2026, month: 9 },
+    sessions: { total: 3, completed: 3, by_type: { stretching: 3 } },
+    active_days: 3,
+    minutes: { total: 28_308, by_type: { stretching: 28_308 } },
+  }),
+};
 
 export const INTEGRITY_CASES: EvalCase[] = [
   {
@@ -220,7 +248,7 @@ export const INTEGRITY_CASES: EvalCase[] = [
       events: SESSION_EVENTS,
       sessions: [RUNAWAY_STRETCH],
       athlete: { goal: 'Hamstring and hip mobility for hiking', context: 'I track my nightly stretches in the app.' },
-      reads: { get_workout_detail: stretchDetail },
+      reads: SESSION_READS,
     },
     script: [
       {
@@ -253,9 +281,12 @@ export const INTEGRITY_CASES: EvalCase[] = [
       events: SESSION_EVENTS,
       sessions: [RUNAWAY_STRETCH],
       athlete: { goal: 'Hamstring and hip mobility for hiking' },
+      reads: SESSION_READS,
     },
     script: [
-      { kind: 'user', text: 'Make next Tuesday\'s lower-body stretch 20 minutes instead of 29.' },
+      // A named date, not "next Tuesday": the agent-sdk backend also sees the
+      // real clock (evals/README.md, "Backends"), so a relative day is ambiguous.
+      { kind: 'user', text: 'Make the lower-body stretch on Tuesday Sep 29 20 minutes instead of 29.' },
       { kind: 'auto-continue', max: 1 },
     ],
     expect: {
