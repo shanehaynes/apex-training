@@ -1,0 +1,96 @@
+/* The exercise picker's "Adding" list, for adding several exercises to an
+   event at once. The picker's card, search and result rows live in app.css
+   (.exercise-picker). */
+
+.exercise-picker {
+  /* The results and the list share the card's height; each scrolls alone. */
+  min-height: 0;
+}
+
+.exercise-picker__results {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.exercise-picker__hint {
+  margin: 0;
+  padding: 14px;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.exercise-picker__queue {
+  flex: 0 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px 12px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.exercise-picker__queue-label {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.exercise-picker__queue-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  max-height: 220px;
+  display: flex;
+  flex-direction: column;
+}
+
+.exercise-picker__queue-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 4px 6px 10px;
+  border-radius: var(--radius-md);
+}
+
+.exercise-picker__queue-row .exercise-picker__row-name {
+  flex: 1;
+  min-width: 0;
+}
+
+.exercise-picker__queue-row .library-row__category {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.exercise-picker__queue-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.exercise-picker__queue-remove:hover { background: var(--bg-elevated); color: var(--text-primary); }
+
+.exercise-picker__done {
+  align-self: flex-end;
+  height: 32px;
+  padding: 0 16px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+  background: transparent;
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.exercise-picker__done:hover { background: var(--bg-elevated); }
