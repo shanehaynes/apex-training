@@ -91,7 +91,7 @@ if [ -n "$GH" ]; then
     [ -n "$unfinished" ] || break
     case "${candidate#* }" in
       "cancelled "*)
-        jobs=$("$GH" run view "${candidate%% *}" --json jobs --jq '.jobs | length' 2>/dev/null || true)
+        jobs=$("$GH" run view "${candidate%% *}" --json jobs --jq '.jobs | length' </dev/null 2>/dev/null || true)
         [ "$jobs" = 0 ] && { latest=; continue; } ;;
     esac
     break
