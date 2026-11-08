@@ -147,6 +147,7 @@ cites them rather than deriving its own.
 | `set_event_exercises` | Replace a workout's warmup, main or cooldown list (a series changes every occurrence) |
 | `log_workout` | Record the sets and cardio actually done against the plan, then mark it complete — reports any PRs |
 | `complete_workout`, `uncomplete_workout` | The calendar's "Mark as Complete" and its undo |
+| `edit_session_times` | Correct when a finished, tracked session started and ended (a timer left running); totals and reviews read the new duration |
 | `log_meal`, `update_meal`, `delete_meal` | Track meals with macros (the composer's own validation applies) |
 | `create_exercise_definition`, `update_exercise_definition` | Add or edit a library exercise (renames keep history through aliases) |
 | `create_training_block`, `update_training_block`, `delete_training_block` | Monday-to-Monday blocks with weekly targets |
@@ -156,7 +157,7 @@ cites them rather than deriving its own.
 | `propose_contract_edit` | Replace the coaching contract (refused if it changed since it was read) |
 | `update_profile` | Display name, coach goal and context, max and threshold HR |
 
-The event, exercise, meal, note, memory and contract tools are the in-app
+The event, session-time, exercise, meal, note, memory and contract tools are the in-app
 coach's own executors — the ones the coach evals test — reached without the
 confirmation card. That is the trade a full connection makes: the assistant's
 own confirmation prompt stands in for Apex's card, so look at what it is about

@@ -142,6 +142,17 @@ const COACH_BACKED_TOOLS: readonly McpToolDef[] = [
       'block, not a reply.',
     annotations: { title: 'Leave note', destructiveHint: false, idempotentHint: false },
   }),
+  coachBacked('edit_session_times', {
+    description:
+      'Correct when a FINISHED, tracked session actually started and ended — what was recorded, not the plan ' +
+      '(update_event changes the plan). Use it for a session left running: list_sessions and get_workout_detail ' +
+      'show its started_at, finished_at and duration. Give finished_at OR duration_minutes, not both; ' +
+      'duration_minutes ends the session that many minutes after its start, and the start stays as recorded ' +
+      'unless started_at is given. Timestamps are ISO 8601 with a UTC offset or Z. The app recomputes the ' +
+      'duration that totals and reviews read. Refused for a session still running, one marked complete without ' +
+      'tracking, and one whose time came from a synced device. Confirm the new times with the user first.',
+    annotations: { title: 'Edit session times', destructiveHint: true, idempotentHint: true },
+  }),
 ];
 
 // ─── Coach memory ────────────────────────────────────────────────────────────

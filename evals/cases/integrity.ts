@@ -7,6 +7,48 @@ import { makeEvent } from '../src/fixtures';
 
 const TODAY = '2026-08-03'; // Monday
 
+// edit_session_times (docs/specs/coach-session-times): one nightly stretch,
+// started Tue Sep 1 at 9:14 PM EDT and left running until Sep 21. Today is
+// the Wednesday after, so Sep 1 sits inside the prompt's schedule window.
+const SESSION_TODAY = '2026-09-23';
+const SESSION_EVENTS = [
+  makeEvent({ id: 'evt-stretch-0901', date: '2026-09-01', title: 'Nightly Stretch — Lower', type: 'stretching', estimatedDuration: 29, isCompleted: true }),
+  makeEvent({ id: 'evt-stretch-0908', date: '2026-09-08', title: 'Nightly Stretch — Lower', type: 'stretching', estimatedDuration: 29, isCompleted: true }),
+  makeEvent({ id: 'evt-stretch-0922', date: '2026-09-22', title: 'Nightly Stretch — Lower', type: 'stretching', estimatedDuration: 29, isCompleted: true }),
+  makeEvent({ id: 'evt-stretch-0929', date: '2026-09-29', title: 'Nightly Stretch — Lower', type: 'stretching', estimatedDuration: 29 }),
+];
+const RUNAWAY_STRETCH = {
+  eventId: 'evt-stretch-0901',
+  date: '2026-09-01',
+  title: 'Nightly Stretch — Lower',
+  startedAt: '2026-09-02T01:14:00Z',
+  finishedAt: '2026-09-21T15:18:15Z',
+  totalDurationSeconds: 1_695_855,
+};
+/** get_workout_detail's shape (api/_lib/mcp/tools/schedule.ts) for the runaway stretch. */
+const stretchDetail = (input: Record<string, unknown>) => input.date === '2026-09-01' && String(input.event_id).startsWith('evt-stretch-0901')
+  ? {
+      event: { event_id: 'evt-stretch-0901', date: '2026-09-01', title: 'Nightly Stretch — Lower', type: 'stretching', start_time: null, duration_min: 29 },
+      completed: true,
+      completed_at: '2026-09-21T15:18:15Z',
+      session: {
+        started_at: RUNAWAY_STRETCH.startedAt,
+        finished_at: RUNAWAY_STRETCH.finishedAt,
+        total_duration_seconds: RUNAWAY_STRETCH.totalDurationSeconds,
+        coach_summary: null,
+      },
+      logged: {
+        sets: [
+          { section: 'exercise', exercise: 'Thoracic Extension', set_number: 1, weight: null, reps: null, duration: '1:00', estimated_1rm: null, autofilled: false },
+          { section: 'exercise', exercise: 'Hamstring Stretch', set_number: 1, weight: null, reps: null, duration: '2:00', estimated_1rm: null, autofilled: false },
+          { section: 'exercise', exercise: 'Calf/Ankle Stretch', set_number: 1, weight: null, reps: null, duration: '1:30', estimated_1rm: null, autofilled: false },
+          { section: 'exercise', exercise: 'Quad/Hip Flexor Stretch', set_number: 1, weight: null, reps: null, duration: '1:30', estimated_1rm: null, autofilled: false },
+        ],
+        cardio: [],
+      },
+    }
+  : { note: 'no data for this athlete' };
+
 export const INTEGRITY_CASES: EvalCase[] = [
   {
     id: 'recurring-regimen-one-series',
@@ -164,6 +206,62 @@ export const INTEGRITY_CASES: EvalCase[] = [
     expect: {
       integrity: {
         forbidToolCalls: ['delete_event', 'update_event', 'set_event_exercises'],
+      },
+    },
+  },
+  {
+    id: 'session-times-runaway-fix',
+    description:
+      'A session left running is corrected with edit_session_times on its own occurrence, at the length the ' +
+      'athlete gives — never by changing the plan (update_event). The 2026-11-08 report: the coach found a ' +
+      'stretch recorded at 28,264 minutes and could only tell the athlete to fix it by hand.',
+    fixture: {
+      today: SESSION_TODAY,
+      events: SESSION_EVENTS,
+      sessions: [RUNAWAY_STRETCH],
+      athlete: { goal: 'Hamstring and hip mobility for hiking', context: 'I track my nightly stretches in the app.' },
+      reads: { get_workout_detail: stretchDetail },
+    },
+    script: [
+      {
+        kind: 'user',
+        text: 'My September time totals look insane. I think I left the lower-body stretch on Tuesday Sep 1 ' +
+          'running. It only took about 15 minutes. Can you fix it?',
+      },
+      { kind: 'auto-continue', max: 1 },
+      { kind: 'user', text: 'Yes, go ahead.' },
+      { kind: 'auto-continue', max: 1 },
+    ],
+    expect: {
+      integrity: {
+        requireToolCall: {
+          name: 'edit_session_times',
+          inputMatches: { event_id: 'evt-stretch-0901', date: '2026-09-01' },
+          resultMatches: '— 15 min \\(was 28,264 min\\)',
+        },
+        forbidToolCalls: ['update_event', 'delete_event', 'create_event'],
+      },
+    },
+  },
+  {
+    id: 'session-times-plan-control',
+    description:
+      'Shortening a planned workout is a plan change (update_event); edit_session_times is for what a ' +
+      'finished session recorded, and must not be reached for here.',
+    fixture: {
+      today: SESSION_TODAY,
+      events: SESSION_EVENTS,
+      sessions: [RUNAWAY_STRETCH],
+      athlete: { goal: 'Hamstring and hip mobility for hiking' },
+    },
+    script: [
+      { kind: 'user', text: 'Make next Tuesday\'s lower-body stretch 20 minutes instead of 29.' },
+      { kind: 'auto-continue', max: 1 },
+    ],
+    expect: {
+      integrity: {
+        requireToolCall: { name: 'update_event', inputMatches: { event_id: 'evt-stretch-0929' } },
+        forbidToolCalls: ['edit_session_times'],
       },
     },
   },

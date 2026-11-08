@@ -12,6 +12,7 @@ import { computePhysiology, describePhysiology } from '../../../src/lib/physiolo
 import { fetchPhysiologyInputs } from './physiology.js';
 import { listConfirmed, toPromptEntries } from './memory.js';
 import { readCoachContract } from '../reflection/contract.js';
+import { effectiveTimezone } from '../userTimezone.js';
 import type { MemoryPromptEntry } from '../../../src/lib/coach/memory.js';
 import type { CoachToolContext } from '../../../src/lib/coach/tools.js';
 import { describeDraft, type WorkoutDraft } from '../../../src/lib/builder/draft.js';
@@ -298,7 +299,7 @@ export async function buildChatContext(
   const [completions, todayMeals, profileRes, physiology, memories, contract] = await Promise.all([
     fetchCompletionsInRange(supabase, userId, windowStart, windowEnd),
     loadMealsForDate(supabase, userId, todayIso).catch((): Meal[] => []),
-    supabase.from('profiles').select('coach_goal, coach_context').eq('id', userId).maybeSingle(),
+    supabase.from('profiles').select('coach_goal, coach_context, timezone').eq('id', userId).maybeSingle(),
     physiologyBlock(supabase, userId, todayIso),
     memoryEntries(supabase, userId),
     coachContract(supabase, userId),
@@ -328,6 +329,8 @@ export async function buildChatContext(
     ),
     // The contract rides in the label context so a propose_contract_edit
     // card can show the real "before" rather than the model's copy of it.
-    toolContext: { definitions, events, meals: todayMeals, contract },
+    // The zone too, so an edit_session_times card states its times in the
+    // athlete's zone rather than this server's UTC (named either way).
+    toolContext: { definitions, events, meals: todayMeals, contract, timeZone: effectiveTimezone(profile?.timezone) },
   };
 }

@@ -4,6 +4,7 @@ import {
   createExerciseDefinitionSchema,
   deleteEventSchema,
   deleteMealSchema,
+  editSessionTimesSchema,
   leaveNoteSchema,
   logMealSchema,
   proposeContractEditSchema,
@@ -22,6 +23,14 @@ import { isSeverity, isTargetKind, normalizeBody, targetProblem, type NewCoachAn
 import { validateFatSplit } from '../nutrition/mapping.js';
 import { collidingDefinition, parseNewDefinition } from './newDefinition.js';
 import { parseRepeatInput } from './eventRepeat.js';
+import {
+  describeSessionTimes,
+  formatDurationMinutes,
+  parseSessionTimesInput,
+  recordedSeconds,
+  resolveSessionTimes,
+  type RecordedSessionTimes,
+} from './sessionTimes.js';
 import type { CreateDefinitionInput, CreateEventInput, OccurrenceOverride, UpdateDefinitionInput, UpdateEventInput } from '../schedule/types.js';
 import type { CreateMealInput, Meal, MealType, UpdateMealInput } from '../../types/nutrition.js';
 import type { Exercise, ExerciseDefinition, WorkoutEvent, WorkoutType } from '../../types/workout.js';
@@ -61,6 +70,25 @@ export interface CoachToolDeps {
    *  lands with created_by 'coach' through the service-role client. Optional,
    *  like memory. */
   createAnnotation?(note: NewCoachAnnotation): Promise<{ id: string } | null>;
+  /** The recorded session for edit_session_times: found by the session's own
+   *  event id, or by a recurring series' base id plus the date. null = none
+   *  tracked. Optional, like memory. */
+  getSessionTimes?(eventId: string, date: string): Promise<RecordedSessionTimes | null>;
+  /** The confirmed edit (api/_lib/trackerSession.ts applyEditTimes, which
+   *  re-checks every bound) plus its 'ai' mutation-log row. `reason` is the
+   *  refusal as the athlete's own edit would read it. */
+  editSessionTimes?(edit: SessionTimesEdit): Promise<{ ok: true; totalDurationSeconds: number } | { ok: false; reason: string }>;
+}
+
+export interface SessionTimesEdit {
+  /** The session row's own event id (RecordedSessionTimes.eventId). */
+  eventId: string;
+  date: string;
+  startedAt: string;
+  finishedAt: string;
+  /** For the mutation log, which names the workout. */
+  title: string;
+  before: RecordedSessionTimes;
 }
 
 /**
@@ -78,6 +106,9 @@ export interface CoachToolContext {
    *  server does (api/_lib/coach/context.ts); a card built without it shows
    *  the model's copy of the "before" instead. */
   contract?: string;
+  /** IANA zone a card states times in. The server passes profiles.timezone
+   *  (UTC when unset); the web leaves it unset, so the browser's zone applies. */
+  timeZone?: string;
 }
 
 // ─── Confirmation-card target resolution ─────────────────────────────────────
@@ -750,6 +781,60 @@ const leaveNoteTool: CoachToolDef = {
   },
 };
 
+// ─── Recorded session times ──────────────────────────────────────────────────
+
+/**
+ * edit_session_times: correct when a finished, tracked session started and
+ * ended (docs/specs/coach-session-times). update_event changes the plan; this
+ * changes the record every total reads. The executor checks the input's
+ * shape, reads the recorded session for the start it keeps, and hands the
+ * resolved instants to the same applyEditTimes the athlete's own edit uses,
+ * which refuses a running, untracked or device-synced session. The label
+ * states the new times in the athlete's zone, computed here, never by the
+ * model.
+ */
+const editSessionTimesTool: CoachToolDef = {
+  schema: editSessionTimesSchema,
+  displayLabel(input, ctx) {
+    const event = resolveEvent(ctx, input.event_id, input.date);
+    const date = typeof input.date === 'string' ? sanitizeInlineText(input.date, 10) : '';
+    const target = event ? `${event.title} · ${event.date}`
+      : ctx ? unresolvedTarget(input.event_id)
+      : `${cut(input.event_title, 60) || String(input.event_id)}${date ? ` · ${date}` : ''}`;
+    return `Fix recorded times: ${target} (${describeSessionTimes(input, ctx?.timeZone)})`;
+  },
+  async execute(input, deps) {
+    const parsed = parseSessionTimesInput(input);
+    if (!parsed.ok) return parsed.reason;
+    const request = parsed.value;
+    if (!deps.getSessionTimes || !deps.editSessionTimes) {
+      return 'Session times cannot be edited here; nothing was changed.';
+    }
+    const recorded = await deps.getSessionTimes(request.eventId, request.date);
+    if (!recorded) {
+      return `No tracked session for "${request.eventId}" on ${request.date}. get_workout_detail shows whether one ` +
+        'was recorded; a workout only marked complete has no times to correct.';
+    }
+    const resolved = resolveSessionTimes(request, recorded);
+    if (!resolved.ok) return resolved.reason;
+    const { startedAt, finishedAt } = resolved.value;
+    const title = recorded.title ?? recorded.eventId;
+    const result = await deps.editSessionTimes({
+      eventId: recorded.eventId,
+      date: request.date,
+      startedAt: startedAt.toISOString(),
+      finishedAt: finishedAt.toISOString(),
+      title,
+      before: recorded,
+    });
+    if (!result.ok) return `Could not change the times: ${result.reason}. Nothing was changed.`;
+    const was = recordedSeconds(recorded);
+    return `Changed the recorded times of "${title}" (${request.date}) [${recorded.eventId}]: started ` +
+      `${startedAt.toISOString()}, finished ${finishedAt.toISOString()} — ${formatDurationMinutes(result.totalDurationSeconds)}` +
+      `${was == null ? '' : ` (was ${formatDurationMinutes(was)})`}. Totals and reviews now read the new duration.`;
+  },
+};
+
 export const COACH_TOOLS: CoachToolDef[] = [
   deleteEventTool,
   createEventTool,
@@ -762,6 +847,7 @@ export const COACH_TOOLS: CoachToolDef[] = [
   deleteMealTool,
   proposeContractEditTool,
   leaveNoteTool,
+  editSessionTimesTool,
   memoryTool,
 ];
 
