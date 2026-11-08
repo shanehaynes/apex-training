@@ -49,8 +49,8 @@ export const stepKeyboardCoordinates: KeyboardCoordinateGetter = (event, { conte
  * cancelled before that timer runs (focus leaving the grip at once, or
  * dnd-kit's own cancel on a resize or a hidden tab) is torn down first, and
  * the timer would still add a keydown listener for it: one that claims the
- * arrows and eats the next Space, Enter or Escape. Once torn down, the
- * sensor adds no listeners.
+ * up and down arrows and eats the next Space, Enter, Tab or Escape. Once
+ * torn down, the sensor adds no listeners.
  *
  * dnd-kit keeps its cancel, teardown and listener list private, so they are
  * reached by name; src/components/reorder/__tests__/sortable.test.ts and

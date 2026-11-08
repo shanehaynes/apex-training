@@ -58,7 +58,9 @@ describe('stepKeyboardCoordinates', () => {
 // target (a node that is an HTMLElement of its window), the window from the
 // document's defaultView or, for the document itself, the global, and reads a
 // key only when it is that window's KeyboardEvent. The document counts the
-// keydown listeners left on it.
+// keydown listeners left on it. There is no tree for focusin to travel
+// through, so focus landing on an element is handed to the document's
+// listeners with that element as its target.
 class FakeKeyboardEvent extends Event {
   readonly code: string;
   constructor(code: string) {
@@ -104,6 +106,7 @@ function pickUp() {
   const win = new FakeWindow();
   const doc = new FakeDocument(win);
   const grip = new FakeElement(doc);
+  const field = new FakeElement(doc);
   vi.stubGlobal('window', win);
   const props = {
     active: 'e0',
@@ -120,7 +123,12 @@ function pickUp() {
     doc.dispatchEvent(event);
     return event.defaultPrevented;
   };
-  return { sensor, win, doc, props, press };
+  const focus = (to: FakeElement) => {
+    const event = new Event('focusin');
+    Object.defineProperty(event, 'target', { value: to });
+    doc.dispatchEvent(event);
+  };
+  return { sensor, win, doc, grip, field, props, press, focus };
 }
 
 describe('GripKeyboardSensor', () => {
@@ -137,15 +145,25 @@ describe('GripKeyboardSensor', () => {
     expect(press('Space')).toBe(false);
   });
 
+  it('keeps the move while focus stays on the grip', () => {
+    const { grip, props, press, focus } = pickUp();
+    focus(grip);
+    vi.runAllTimers();
+    expect(props.onCancel).not.toHaveBeenCalled();
+    expect(press('Space')).toBe(true);
+    expect(props.onEnd).toHaveBeenCalledTimes(1);
+  });
+
   it.each<[string, (picked: ReturnType<typeof pickUp>) => void]>([
-    ['focus leaves the grip', ({ doc }) => doc.dispatchEvent(new Event('focusin'))],
+    ['focus moves to a field', ({ field, focus }) => focus(field)],
     ['the window resizes', ({ win }) => win.dispatchEvent(new Event('resize'))],
   ])('leaves the keys alone when the move is cancelled before they are armed: %s', (_, cancel) => {
     const picked = pickUp();
     cancel(picked);
     expect(picked.props.onCancel).toHaveBeenCalledTimes(1);
     vi.runAllTimers();
-    expect(['ArrowUp', 'Space', 'Enter', 'Escape'].map(code => picked.press(code))).toEqual([false, false, false, false]);
+    expect(['ArrowUp', 'Space', 'Enter', 'Tab', 'Escape'].map(code => picked.press(code)))
+      .toEqual([false, false, false, false, false]);
     expect(picked.props.onEnd).not.toHaveBeenCalled();
     expect(picked.props.onCancel).toHaveBeenCalledTimes(1);
     expect(picked.doc.keydownListeners.size).toBe(0);
