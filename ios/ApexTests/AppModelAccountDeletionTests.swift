@@ -30,9 +30,10 @@ final class AppModelAccountDeletionTests: XCTestCase {
         ))
 
         model.accountDeleted()
-        // Two chained tasks of on-disk purges before the state flips. On a cold
-        // CI simulator the setup above took 11 s and 3 s was not enough
-        // (2026-11-08); a pass still returns as soon as it is signed out.
+        // Two chained tasks before the state flips, and sign-out's teardown ends
+        // the real Live Activities this host builds. As the first AppModel test
+        // on a cold CI simulator the whole test took 14 s and the old 3 s ran
+        // out (2026-11-08); a pass still returns as soon as it is signed out.
         let signedOut = await waitFor({
             if case .signedOut = model.state { return true }
             return false
