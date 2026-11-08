@@ -396,7 +396,7 @@ account screen links to the Terms.
 - **Order**: production must be running PR #477 (the server's 18+ check and stamp) before any
   build with M3 goes to TestFlight. Main's handler before #477 ignores `ageConfirmed`, so an app
   sign-up would go through with nothing recorded.
-- **Build line** (review notes item 1 and the recording): "build 1.1.0 (<build>)" in place of
+- **Build line** (review notes item 1 and the recording): "build 1.1.0 (659)" in place of
   "build 1.0.0 (509)".
 - **External services** (review notes item 4): "Resend: delivers account emails (sign-up links
   and password resets)" and "Cloudflare: DNS, support email routing, and the bot check on
@@ -430,9 +430,10 @@ account screen links to the Terms.
    (`PrivacyInfo.xcprivacy`, held for Shane). Enter §1's table in App Store Connect at step 6,
    row for row.
 3. **Apple's agreement, before any build. Done 2026-11-08: Shane accepted it (the banner on
-   developer.apple.com → Account is gone); the two 2026-11-04 reruns had failed the same way
+   developer.apple.com → Account is gone, and step 4's run signed with no "PLA Update" line);
+   attempts 1 and 2 of run 41830146297, from 51718353 on 2026-11-04, had failed the same way
    before then.** The Program License Agreement update is accepted at developer.apple.com →
-   Account, not under App Store Connect's Agreements, Tax, and Banking. Until it is, Apple
+   Account, with its *Review agreement* button, not on App Store Connect's Business page. Until it is, Apple
    refuses signing profiles, so CI cannot archive a build: the 2026-11-03 TestFlight run from `main` at 6fe45505 (Actions run
    41706007034) failed at the archive with "Shane Haynes, must agree to the latest Program
    License Agreement" and "No profiles for 'com.shanehaynes.apextraining'". Nothing was
@@ -446,8 +447,9 @@ account screen links to the Terms.
    Create account (#493), the write-queue fixes #455 and #495 (never on a device yet), and
    W17's You › Training rows *Share voice log* and *Clear voice log*, which show even with
    voice off, and export plus delete on the updated-terms screen (terms §12, D-060), with
-   *Export my data* in You › Data. Shane gave the go on 2026-11-03. A rebuild, if review asks
-   for one: `gh workflow run testflight.yml --ref main -f changelog="…"` from a green `main`.
+   *Export my data* in You › Data. Shane gave the go on 2026-11-03, and 659 used it. A rebuild
+   (step 5's sign-up or App Review finds a defect) needs a new go from him, then
+   `gh workflow run testflight.yml --ref main -f changelog="…"` from a green `main`.
 5. **One real sign-up on that build** (open-signup M3's last box): a fresh inbox; the Cloudflare
    check passes; the email comes from invites@; its link's *Open in the Apex app* lands on
    set-password; the password signs in on the app and the web; `age_confirmed_at` is set in

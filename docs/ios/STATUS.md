@@ -38,7 +38,8 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
    delete screens say to export first). Shane accepted Apple's 2026-10-13 agreement on
    2026-11-08, and TestFlight 1.1.0 (659), the first build carrying #493 and #534, uploaded the
    same day. Next, all his: one real sign-up on 659, then App Store Connect (version 1.1.0, build
-   659, §1's privacy table), the recording and the reply. The APNs key (D-051) is still
+   659, §1's privacy table), the demo account (re-accepted terms-v2) and the recording, and the
+   reply. The APNs key (D-051) is still
    listed as his, below.
 0. **W17 M3 — the device run on TestFlight 1.1.0 (604), then ApexCore PRs.** All three lanes are on
    `main` (PR-H #480 and M1 #483 on 2026-10-20, M2 #484 on 2026-10-21) and build 604, uploaded
@@ -171,7 +172,7 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
 
 ## Recent sessions
 - 2026-11-08 · TestFlight 1.1.0 (659) · CI. Shane accepted the Program License Agreement update
-  (the 2026-11-04 reruns had failed on it); attempt 3 of run 41830146297, from `main` at
+  (attempts 1 and 2 of run 41830146297 had failed on it on 2026-11-04); attempt 3, from `main` at
   51718353, uploaded 1.1.0 (659) and App Store Connect processed it. Next: his real sign-up on
   659 (app-store.md §7 step 5).
 - 2026-11-03 · TestFlight 1.1.0 attempt · CI. On Shane's go, `testflight.yml` from `main` at
