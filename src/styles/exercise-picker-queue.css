@@ -20,8 +20,8 @@
 }
 
 .exercise-picker__queue {
-  flex: 0 1 auto;
-  min-height: 0;
+  /* Never squeezed by a long result list: Done stays in reach while typing. */
+  flex: 0 0 auto;
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -42,7 +42,7 @@
   margin: 0;
   padding: 0;
   overflow-y: auto;
-  max-height: 220px;
+  max-height: min(220px, 28vh);
   display: flex;
   flex-direction: column;
 }
@@ -94,3 +94,9 @@
 }
 
 .exercise-picker__done:hover { background: var(--bg-elevated); }
+
+/* Touch-sized on phones: Done is the control the whole flow ends on. */
+@media (pointer: coarse) {
+  .exercise-picker__done { height: 44px; padding: 0 20px; }
+  .exercise-picker__queue-remove { width: 40px; height: 40px; }
+}

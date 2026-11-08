@@ -210,7 +210,7 @@ export default function ExercisePicker({ onSelect, onDone, onClose, initialCateg
               categories={categories}
               initialCategory={[initialCategory, createCategory].find(c => c && categories.includes(c)) ?? categories[0]}
               anyway={nearMatches.length > 0 || results.length > 0}
-              confirmLabel="Create & add"
+              confirmLabel={queueing ? 'Create & add to list' : 'Create & add'}
               onCreated={pick}
             />
           )}
