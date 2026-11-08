@@ -54,10 +54,33 @@ Delivers: R1, R2, R3, R4, R5, R6, R7, R8, R9, R10, R11
   fetching one per label would put a query in the stream's send path.
 - 2026-11-08 · The mutation-log row uses the base event id, like every other
   coach update; `event_date` names the occurrence.
+- 2026-11-08 · The card names the date the edit lands on, not the resolved
+  row's: a series' base id matches its anchor row (reviewer finding).
+- 2026-11-08 · Durations are capped at a week, so no input overflows a Date.
+- 2026-11-08 · `sessionTimes.ts` joins `BEHAVIOR_FILES`: it holds the regex,
+  refusals and label text the model reads, so an edit there must re-attest.
 
 ## Session log
-- 2026-11-08 · Spec written from the 2026-11-08 runaway-stretch report.
+- 2026-11-08 · Spec written from the 2026-11-08 runaway-stretch report. M1
+  built on `feat/coach-session-times`; reviewer findings fixed (one major:
+  the anchor-date label). The first eval run of the new cases failed on the
+  fixture, not the coach: unscripted `get_schedule` answered "no data" and
+  the coach refused to guess an id; the control's "next Tuesday" read the
+  agent-sdk backend's real clock. Both scripted, both pass. Not verified:
+  a real device or browser confirm of the card.
 
 ## Learned
+- An eval case for a write the coach must look up needs the reads that find
+  it scripted; the prompt lists only this week.
 
 ## Next brief
+**Runaway sessions stopped at Finish.** This feature repairs bad durations;
+the next stops new ones. When an athlete finishes a session that has run far
+past its plan (say more than 4× the planned length and over 3 hours), the
+tracker asks when it really ended before it records the finish, defaulting
+to the last logged set's time, with "it really ran this long" one tap away
+(Article V: the athlete's number wins). Same on iOS (`TrackerModel.swift`)
+and web (`TrackerView.tsx`); the server's `finish` action takes the chosen
+`finishedAt` as it already does for offline queues. Spec under
+`docs/specs/tracker-runaway-finish/`; one milestone per client. Check the
+threshold against real data first: `list_sessions` durations versus plan.
