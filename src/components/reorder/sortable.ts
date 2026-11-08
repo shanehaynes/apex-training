@@ -44,8 +44,17 @@ export const stepKeyboardCoordinates: KeyboardCoordinateGetter = (event, { conte
  * into a set input or a note, Space and Enter dropped the held item and never
  * reached the field. Here focus landing anywhere but the grip cancels the
  * move, the way Escape does, and the keys that follow are the field's.
- * dnd-kit keeps its cancel and teardown private, so they are reached by name;
- * e2e/mock/reorder-exercises.spec.ts fails if an upgrade renames them.
+ *
+ * dnd-kit starts reading keys from a setTimeout after the pick-up. A move
+ * cancelled before that timer runs (focus leaving the grip at once, or
+ * dnd-kit's own cancel on a resize or a hidden tab) is torn down first, and
+ * the timer would still add a keydown listener for it: one that claims the
+ * arrows and eats the next Space, Enter or Escape. Once torn down, the
+ * sensor adds no listeners.
+ *
+ * dnd-kit keeps its cancel, teardown and listener list private, so they are
+ * reached by name; src/components/reorder/__tests__/sortable.test.ts and
+ * e2e/mock/reorder-exercises.spec.ts fail if an upgrade renames them.
  */
 export interface GripKeyboardSensorOptions extends KeyboardSensorOptions {
   /** Focus left the grip; called just before the move is cancelled. */
@@ -55,19 +64,26 @@ export interface GripKeyboardSensorOptions extends KeyboardSensorOptions {
 export class GripKeyboardSensor extends KeyboardSensor {
   constructor(props: SensorProps<GripKeyboardSensorOptions>) {
     super(props);
-    const self = this as unknown as { handleCancel(event: Event): void; detach(): void };
+    const self = this as unknown as {
+      handleCancel(event: Event): void;
+      detach(): void;
+      listeners: { add(...listener: unknown[]): void };
+    };
     const grip = props.activeNode.activatorNode.current;
     const doc = grip?.ownerDocument;
-    if (!grip || !doc) return;
     const leave = (event: FocusEvent) => {
       if (event.target === grip) return;
       props.options.onFocusLeave?.();
       self.handleCancel(event);
     };
-    doc.addEventListener('focusin', leave, true);
+    doc?.addEventListener('focusin', leave, true);
+    let detached = false;
+    const add = self.listeners.add.bind(self.listeners);
+    self.listeners.add = (...listener) => { if (!detached) add(...listener); };
     const detach = self.detach.bind(this);
     self.detach = () => {
-      doc.removeEventListener('focusin', leave, true);
+      detached = true;
+      doc?.removeEventListener('focusin', leave, true);
       detach();
     };
   }
