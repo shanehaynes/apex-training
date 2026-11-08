@@ -35,10 +35,11 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
    screen (#534). App Privacy: §1 and `PrivacyInfo.xcprivacy` declare Turnstile and the
    acceptance record's IP address (Device ID and Product Interaction, linked; app-store.md §1
    says why). The account export pages past 1000 rows and carries the sign-in record (the
-   delete screens say to export first). Next, Shane accepts Apple's 2026-10-13 agreement: it
-   blocks signing, and the 2026-11-03 TestFlight run (his go given) failed at the archive for
-   that reason, with nothing uploaded. Then the build from `main` (the first carrying #493 and
-   #534), one real sign-up on it, the version number, the recording and the reply; those are his. The APNs key (D-051) is still
+   delete screens say to export first). Shane accepted Apple's 2026-10-13 agreement on
+   2026-11-08, and TestFlight 1.1.0 (659), the first build carrying #493 and #534, uploaded the
+   same day. Next, all his: one real sign-up on 659, then App Store Connect (version 1.1.0, build
+   659, §1's privacy table), the demo account (re-accepted terms-v2) and the recording, and the
+   reply. The APNs key (D-051) is still
    listed as his, below.
 0. **W17 M3 — the device run on TestFlight 1.1.0 (604), then ApexCore PRs.** All three lanes are on
    `main` (PR-H #480 and M1 #483 on 2026-10-20, M2 #484 on 2026-10-21) and build 604, uploaded
@@ -170,6 +171,10 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
    (`printf` the two ids back after a tidy) — both git-ignored, so never from the primary checkout.
 
 ## Recent sessions
+- 2026-11-08 · TestFlight 1.1.0 (659) · CI. Shane accepted the Program License Agreement update
+  (attempts 1 and 2 of run 41830146297 had failed on it on 2026-11-04); attempt 3, from `main` at
+  51718353, uploaded 1.1.0 (659) and App Store Connect processed it. Next: his real sign-up on
+  659 (app-store.md §7 step 5).
 - 2026-11-03 · TestFlight 1.1.0 attempt · CI. On Shane's go, `testflight.yml` from `main` at
   6fe45505 (run 41706007034) failed at the archive: the Program License Agreement update is not
   accepted, so Apple issued no signing profiles. Nothing uploaded; no build number burned. The
