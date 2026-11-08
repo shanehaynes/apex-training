@@ -9,6 +9,17 @@
 const ZONED_ISO = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d{1,9})?)?(?:Z|[+-]\d{2}:\d{2})$/i;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
+/** A week: longer than any session one sitting holds, short enough that no
+ *  duration overflows a Date or reads as anything but a mistake. */
+export const MAX_SESSION_MINUTES = 7 * 24 * 60;
+
+/** True for a YYYY-MM-DD that names a real day; Date.parse rolls Feb 30 into March. */
+function isCalendarDate(value: string): boolean {
+  if (!DATE_RE.test(value)) return false;
+  const ms = Date.parse(`${value}T00:00:00Z`);
+  return !Number.isNaN(ms) && new Date(ms).toISOString().slice(0, 10) === value;
+}
+
 /** A session as it is recorded now. */
 export interface RecordedSessionTimes {
   /** The session row's own event id: the occurrence id (base__date) for a recurring workout. */
@@ -33,7 +44,7 @@ export type Parsed<T> = { ok: true; value: T } | { ok: false; reason: string };
 
 function zonedInstant(value: unknown, field: string): Parsed<number | undefined> {
   if (value === undefined || value === null) return { ok: true, value: undefined };
-  if (typeof value !== 'string' || !ZONED_ISO.test(value.trim())) {
+  if (typeof value !== 'string' || !ZONED_ISO.test(value.trim()) || !isCalendarDate(value.trim().slice(0, 10))) {
     return {
       ok: false,
       reason: `${field} must be an ISO 8601 timestamp with a UTC offset or Z (e.g. 2026-09-02T01:30:00Z). ` +
@@ -50,7 +61,7 @@ export function parseSessionTimesInput(input: Record<string, unknown>): Parsed<S
   const eventId = typeof input.event_id === 'string' ? input.event_id.trim() : '';
   if (!eventId) return { ok: false, reason: 'event_id is required: the bracketed id of the workout.' };
   const date = typeof input.date === 'string' ? input.date.trim() : '';
-  if (!DATE_RE.test(date)) return { ok: false, reason: "date is required: the session's workout date, YYYY-MM-DD." };
+  if (!isCalendarDate(date)) return { ok: false, reason: "date is required: the session's workout date, YYYY-MM-DD." };
 
   const started = zonedInstant(input.started_at, 'started_at');
   if (!started.ok) return started;
@@ -64,13 +75,13 @@ export function parseSessionTimesInput(input: Record<string, unknown>): Parsed<S
   let durationMinutes: number | undefined;
   if (hasDuration) {
     const d = input.duration_minutes;
-    if (typeof d !== 'number' || !Number.isFinite(d) || d <= 0) {
-      return { ok: false, reason: 'duration_minutes must be a number of minutes greater than zero.' };
+    if (typeof d !== 'number' || !Number.isFinite(d) || d <= 0 || d > MAX_SESSION_MINUTES) {
+      return { ok: false, reason: `duration_minutes must be a number of minutes greater than zero and at most ${MAX_SESSION_MINUTES}.` };
     }
     durationMinutes = d;
   }
-  if (started.value !== undefined && finished.value !== undefined && finished.value < started.value) {
-    return { ok: false, reason: 'finished_at is before started_at. Nothing was changed.' };
+  if (started.value !== undefined && finished.value !== undefined && finished.value <= started.value) {
+    return { ok: false, reason: 'finished_at must be after started_at. Nothing was changed.' };
   }
   return {
     ok: true,
@@ -91,9 +102,9 @@ export function resolveSessionTimes(
 ): Parsed<ResolvedSessionTimes> {
   const start = request.startedAt ?? Date.parse(recorded.startedAt);
   if (Number.isNaN(start)) return { ok: false, reason: 'The recorded start is unreadable; send started_at.' };
-  const finish = request.finishedAt ?? start + Math.round((request.durationMinutes ?? 0) * 60_000);
-  if (finish < start) {
-    return { ok: false, reason: 'That finish is before the session\'s start. Nothing was changed.' };
+  const finish = endOf(request, start);
+  if (Math.round((finish - start) / 1000) < 1) {
+    return { ok: false, reason: 'That finish is not after the session\'s start. Nothing was changed.' };
   }
   return {
     ok: true,
@@ -103,6 +114,11 @@ export function resolveSessionTimes(
       totalDurationSeconds: Math.round((finish - start) / 1000),
     },
   };
+}
+
+/** The finish a request names: its own, or the start plus its duration. */
+function endOf(request: Pick<SessionTimesRequest, 'finishedAt' | 'durationMinutes'>, start: number): number {
+  return request.finishedAt ?? start + Math.round((request.durationMinutes ?? 0) * 60_000);
 }
 
 /** What the recorded duration reads as today: the stored total, else finish − start. */
@@ -147,16 +163,25 @@ export function formatTimeRange(start: number, finish: number, timeZone?: string
  * line, and the refusal reaches the coach once confirmed.
  */
 export function describeSessionTimes(input: Record<string, unknown>, timeZone?: string): string {
+  const REJECTED = 'times the app will reject';
   const parsed = parseSessionTimesInput(input);
-  if (!parsed.ok) return 'times the app will reject';
+  if (!parsed.ok) return REJECTED;
   const r = parsed.value;
-  if (r.startedAt !== undefined) {
-    const finish = r.finishedAt ?? r.startedAt + Math.round((r.durationMinutes ?? 0) * 60_000);
-    return `${formatTimeRange(r.startedAt, finish, timeZone)} · ${formatDurationMinutes((finish - r.startedAt) / 1000)}`;
+  try {
+    if (r.startedAt !== undefined) {
+      const finish = endOf(r, r.startedAt);
+      // Seconds rounded first, as resolveSessionTimes stores them, so the card
+      // and the record never land on different sides of a half minute.
+      return `${formatTimeRange(r.startedAt, finish, timeZone)} · ${formatDurationMinutes(Math.round((finish - r.startedAt) / 1000))}`;
+    }
+    if (r.finishedAt !== undefined) {
+      const finish = formatter(timeZone, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZoneName: 'short' });
+      // The duration needs the recorded start, which the card does not hold;
+      // the tool result states it once the edit lands.
+      return `recorded start kept, finish ${finish.format(r.finishedAt)}`;
+    }
+    return `recorded start kept · ${formatDurationMinutes(Math.round((r.durationMinutes ?? 0) * 60))}`;
+  } catch {
+    return REJECTED;
   }
-  if (r.finishedAt !== undefined) {
-    const finish = formatter(timeZone, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZoneName: 'short' });
-    return `recorded start kept, finish ${finish.format(r.finishedAt)}`;
-  }
-  return `recorded start kept · ${formatDurationMinutes((r.durationMinutes ?? 0) * 60)}`;
 }

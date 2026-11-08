@@ -793,12 +793,26 @@ const leaveNoteTool: CoachToolDef = {
  * states the new times in the athlete's zone, computed here, never by the
  * model.
  */
+/** The workout a session edit names: its occurrence on `date` first (by id or
+ *  series), then resolveEvent's id rules. Only the title is read from it. */
+function resolveSessionEvent(ctx: CoachToolContext | undefined, id: unknown, date: unknown): WorkoutEvent | undefined {
+  if (!ctx || typeof id !== 'string') return undefined;
+  if (typeof date === 'string') {
+    const onDate = ctx.events.find(e => e.date === date && (e.id === id || baseIdOf(e.id) === baseIdOf(id)));
+    if (onDate) return onDate;
+  }
+  return resolveEvent(ctx, id, date);
+}
+
 const editSessionTimesTool: CoachToolDef = {
   schema: editSessionTimesSchema,
   displayLabel(input, ctx) {
-    const event = resolveEvent(ctx, input.event_id, input.date);
+    // The card names the date the edit lands on (the session key is id + date),
+    // never the resolved row's own date: a series' base id matches its anchor
+    // row, which sits on the first occurrence, not the one being corrected.
+    const event = resolveSessionEvent(ctx, input.event_id, input.date);
     const date = typeof input.date === 'string' ? sanitizeInlineText(input.date, 10) : '';
-    const target = event ? `${event.title} · ${event.date}`
+    const target = event ? `${event.title}${date ? ` · ${date}` : ''}`
       : ctx ? unresolvedTarget(input.event_id)
       : `${cut(input.event_title, 60) || String(input.event_id)}${date ? ` · ${date}` : ''}`;
     return `Fix recorded times: ${target} (${describeSessionTimes(input, ctx?.timeZone)})`;
@@ -831,7 +845,8 @@ const editSessionTimesTool: CoachToolDef = {
     const was = recordedSeconds(recorded);
     return `Changed the recorded times of "${title}" (${request.date}) [${recorded.eventId}]: started ` +
       `${startedAt.toISOString()}, finished ${finishedAt.toISOString()} — ${formatDurationMinutes(result.totalDurationSeconds)}` +
-      `${was == null ? '' : ` (was ${formatDurationMinutes(was)})`}. Totals and reviews now read the new duration.`;
+      `${was == null ? '' : ` (was ${formatDurationMinutes(was)})`}. Totals and stats read the new duration from now ` +
+      'on; a review already written for that period keeps its old numbers.';
   },
 };
 

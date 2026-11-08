@@ -355,7 +355,7 @@ export const editSessionTimesSchema: Anthropic.Tool = {
     'the session that many minutes after its start. The start stays as recorded unless you give started_at. ' +
     'Timestamps are ISO 8601 with a UTC offset or Z, the form get_workout_detail returns ' +
     '(2026-09-02T01:30:00Z); when you do not know the athlete\'s UTC offset, use duration_minutes rather than ' +
-    'guess one. The app computes the new duration, and every total and review reads it. Refused for a session ' +
+    'guess one. The app computes the new duration, which totals and stats read from then on. Refused for a session ' +
     'still running, one marked complete without tracking, and one whose time came from a synced device. The ' +
     'athlete confirms the card before it lands.',
   input_schema: {

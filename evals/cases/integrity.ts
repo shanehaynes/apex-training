@@ -8,8 +8,9 @@ import { makeEvent } from '../src/fixtures';
 const TODAY = '2026-08-03'; // Monday
 
 // edit_session_times (docs/specs/coach-session-times): one nightly stretch,
-// started Tue Sep 1 at 9:14 PM EDT and left running until Sep 21. Today is
-// the Wednesday after, so Sep 1 sits inside the prompt's schedule window.
+// started Tue Sep 1 at 9:14 PM EDT and left running until Sep 21. The prompt
+// lists only this week, so the coach finds Sep 1 and Sep 29 through the
+// scripted get_schedule and get_workout_detail reads (SESSION_READS).
 const SESSION_TODAY = '2026-09-23';
 const SESSION_EVENTS = [
   makeEvent({ id: 'evt-stretch-0901', date: '2026-09-01', title: 'Nightly Stretch — Lower', type: 'stretching', estimatedDuration: 29, isCompleted: true }),
@@ -265,7 +266,8 @@ export const INTEGRITY_CASES: EvalCase[] = [
         requireToolCall: {
           name: 'edit_session_times',
           inputMatches: { event_id: 'evt-stretch-0901', date: '2026-09-01' },
-          resultMatches: '— 15 min \\(was 28,264 min\\)',
+          // The recorded start kept, and the athlete's 15 minutes landed.
+          resultMatches: 'started 2026-09-02T01:14:00\\.000Z, finished 2026-09-02T01:29:00\\.000Z — 15 min \\(was 28,264 min\\)',
         },
         forbidToolCalls: ['update_event', 'delete_event', 'create_event'],
       },

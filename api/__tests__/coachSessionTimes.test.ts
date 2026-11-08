@@ -162,6 +162,15 @@ describe('edit_session_times through POST /api/coach-tool', () => {
     });
   });
 
+  it('reads the recorded session for this user only, and prefers the exact id over the occurrence id (R8)', async () => {
+    sessions = [{ ...RUNAWAY, event_id: 'evt-x' }, { ...RUNAWAY, event_id: 'evt-x__2026-09-01' }];
+    await post({ event_id: 'evt-x', date: '2026-09-01', duration_minutes: 16 });
+    const read = calls.find(c => c.table === 'workout_sessions' && c.filters.some(([op]) => op === 'in'))!;
+    expect(read.filters).toContainEqual(['eq', 'user_id', 'user-123']);
+    expect(read.filters).toContainEqual(['in', 'event_id', ['evt-x', 'evt-x__2026-09-01']]);
+    expect(writes('workout_sessions')[0].filters).toContainEqual(['eq', 'event_id', 'evt-x']);
+  });
+
   it('finds a recurring occurrence\'s session from its base id and the date, and logs the base id (R8)', async () => {
     sessions = [{ ...RUNAWAY, event_id: 'evt-stretch__2026-09-01' }];
     const { body } = await post({ event_id: 'evt-stretch', date: '2026-09-01', duration_minutes: 16 });
@@ -186,6 +195,9 @@ describe('edit_session_times through POST /api/coach-tool', () => {
     expect(synced.body.resultText).toMatch(/^Could not change the times: This workout’s time came from a synced activity/);
 
     syncedImports = 0;
+    const early = await post({ event_id: 'ext-2026-09-01-stretch', date: '2026-09-01', started_at: '2026-08-30T12:00:00Z', duration_minutes: 16 });
+    expect(early.body.resultText).toBe('Could not change the times: The start must be no earlier than the day before the workout. Nothing was changed.');
+
     const future = await post({ event_id: 'ext-2026-09-01-stretch', date: '2026-09-01', finished_at: '2099-01-01T00:00:00Z' });
     expect(future.body.resultText).toBe('Could not change the times: The finish cannot be in the future. Nothing was changed.');
 

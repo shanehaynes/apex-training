@@ -28,24 +28,31 @@ VII (nothing changes without the athlete).
   an optional `started_at`; omitted, the recorded start is kept.
   `duration_minutes` ends the session that many minutes after the start. The
   new duration is computed in code, never by the model.
-- **R3** A timestamp without an explicit UTC offset or `Z`, a non-positive or
-  non-finite duration, both or neither of `finished_at` / `duration_minutes`,
-  a finish before the start, and a session with no tracked record each return
-  an instructive refusal and change nothing.
+- **R3** A timestamp without an explicit UTC offset or `Z`, a day that does
+  not exist (Feb 30), a duration that is not a positive number of minutes up
+  to a week, both or neither of `finished_at` / `duration_minutes`, a finish
+  at or before the start (including a duration that rounds to no time), and a
+  session with no tracked record each return an instructive refusal and
+  change nothing.
 - **R4** `applyEditTimes`'s refusals reach the model as the tool result: a
   session still running, one marked complete without logging, one whose time
   came from a synced device, a start more than a day before the workout's
   date, a finish in the future.
-- **R5** The confirmation card's label names the workout as its id resolves,
-  the new start and finish in the athlete's time zone with the zone named
-  (the web uses the browser's zone; the server uses `profiles.timezone`, UTC
-  when unset), and the new duration. With `duration_minutes` and no
-  `started_at`, the label says the recorded start is kept.
+- **R5** The confirmation card's label names the workout as its id resolves
+  and the date the edit lands on (the occurrence, never a series' anchor
+  date), and states every new value the input fixes, in the athlete's time
+  zone with the zone named (the web uses the browser's zone; the server uses
+  `profiles.timezone`, UTC when unset or unknown): start, finish and duration
+  when `started_at` is given; the finish when only `finished_at` is; the
+  duration when only `duration_minutes` is. Without `started_at` it says the
+  recorded start is kept. The card's minutes round the way the record does,
+  and the label never throws.
 - **R6** A confirmed edit writes an `event_mutations_log` row stamped
   `triggered_by 'ai'` with the before and after times, so it counts toward the
   daily AI-change cap and appears in Profile → Coach activity.
 - **R7** The tool result states the new times and the duration before and
-  after, so the coach can report what changed without computing it.
+  after, so the coach can report what changed without computing it, and says
+  that a review already written for the period keeps its old numbers.
 - **R8** A recurring occurrence's session is found from either its occurrence
   id (`base__date`) or its base id plus the date.
 - **R9** The MCP connector exposes the same executor as a write tool,
@@ -71,6 +78,10 @@ VII (nothing changes without the athlete).
   carries the new values; the card's context holds no session rows to diff.
 - Editing times on a quick-completed or device-synced session; `applyEditTimes`
   refuses those by design.
+- Regenerating a stored review (`reviews.stats`) for the corrected period. A
+  review written before the fix keeps its numbers; the result says so.
+- The card's duration when only `finished_at` is given: it needs the recorded
+  start, which the card's context does not hold. The tool result states it.
 
 ## Open questions
 - None blocking. Whether the coach should proactively flag runaway sessions it

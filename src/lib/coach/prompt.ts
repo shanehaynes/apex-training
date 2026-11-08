@@ -11,7 +11,7 @@ import { memoryFileLabel, MEMORY_KIND_ORDER, MEMORY_PROMPT_CAP, MEMORY_CONTENT_M
 import { CONTRACT_MAX } from './contract.js';
 import { BLOCK_DRAFT_TEXT_MAX, EXISTING_BLOCKS_TEXT_MAX } from '../blocks/draft.js';
 
-// Bump on any behavior-visible edit to this file, schemas.ts or tools.ts.
+// Bump on any behavior-visible edit to this file, schemas.ts, tools.ts or sessionTimes.ts.
 // Date-dot-serial (YYYY.MM.DD-n), not semver: a prompt has no compatibility contract.
 export const PROMPT_VERSION = '2026.11.08-1';
 

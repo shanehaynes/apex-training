@@ -8,16 +8,16 @@
 
 | Req | Proof | Kind | Status |
 |---|---|---|---|
-| R1 | `src/lib/coach/__tests__/tools.test.ts` "edit_session_times": executor calls `editSessionTimes` with the resolved times; `api/__tests__/coach-tool.test.ts` "edit_session_times": the handler's deps update `workout_sessions` and `workout_completions` through `applyEditTimes` | unit, integration | not proven |
-| R2 | `tools.test.ts`: `finished_at` keeps the recorded start; `duration_minutes` ends start + N min; `started_at` + `duration_minutes` ends from the new start | unit | not proven |
-| R3 | `tools.test.ts`: naive timestamp, both, neither, zero and negative duration, finish before start, no session → refusal text and no `editSessionTimes` call | unit | not proven |
-| R4 | `coach-tool.test.ts`: a still-running session's refusal text is the tool result | integration | not proven |
-| R5 | `tools.test.ts` label cases: resolved title, times in a named zone with abbreviation, duration, "keeps recorded start" | unit | not proven |
-| R6 | `coach-tool.test.ts`: an `event_mutations_log` insert with `triggered_by 'ai'`, `operation 'update'` and the before/after diff | integration | not proven |
-| R7 | `tools.test.ts`: result text names both instants and both durations | unit | not proven |
-| R8 | `tools.test.ts` executor passes the id and date through; `coach-tool.test.ts` deps resolve a base id to `base__date` | unit, integration | not proven |
-| R9 | `api/__tests__/mcp*.test.ts`: `edit_session_times` is listed for a write token without `event_title`, refused for a read-only token | integration | not proven |
-| R10 | `tools.test.ts` (or schema test): `update_event`'s description names `edit_session_times` | unit | not proven |
+| R1 | `api/__tests__/coachSessionTimes.test.ts` "rewrites the session and the completion minutes through applyEditTimes (R1)"; `src/lib/coach/__tests__/sessionTimes.test.ts` "keeps the recorded start, hands the resolved instants to editSessionTimes…" | integration, unit | not proven |
+| R2 | `sessionTimes.test.ts` "resolveSessionTimes (R2)": `finished_at` and `duration_minutes` keep the recorded start; a duration ends from a given `started_at` | unit | not proven |
+| R3 | `sessionTimes.test.ts` "parseSessionTimesInput (R2, R3)" (no zone, Feb 30, both/neither, duration bounds, finish at or before start), "refuses … a duration that rounds to no time at all", executor "changes nothing for input it refuses", "says so when there is no tracked session"; `coachSessionTimes.test.ts` "answers a workout with no tracked session without writing (R3)" | unit, integration | not proven |
+| R4 | `coachSessionTimes.test.ts` "passes applyEditTimes's refusals through and writes nothing (R4)": running, untracked, synced, start too early, finish in the future | integration | not proven |
+| R5 | `sessionTimes.test.ts` "the card label (R5)": zone named, other-day finish, start-kept forms, unknown zone → UTC, never throws, minutes round as the record does, a series' base id names the occurrence's date; `api/__tests__/coach-context.test.ts` "the card label context carries the athlete's zone, UTC when unset or unknown" | unit | not proven |
+| R6 | `coachSessionTimes.test.ts` "logs the edit as an ai update with the before and after times (R6)" | integration | not proven |
+| R7 | `sessionTimes.test.ts` executor result text (both instants, both durations, the stored-review caveat) | unit | not proven |
+| R8 | `coachSessionTimes.test.ts` "reads the recorded session for this user only, and prefers the exact id…", "finds a recurring occurrence's session from its base id and the date…"; `sessionTimes.test.ts` "edits the session row the deps found…" | integration, unit | not proven |
+| R9 | `coachSessionTimes.test.ts` "is a write tool with the card-only title cut…"; `api/__tests__/mcp.test.ts` "tools/list for a read-only token hides every write tool" and "refuses a write tool for a read-only token" (generic over `MCP_WRITE_TOOLS`); `mcpWriteTools.test.ts` destructive list | integration | not proven |
+| R10 | `sessionTimes.test.ts` "update_event points at edit_session_times (R10)" | unit | not proven |
 | R11 | `evals/cases/integrity.ts` `session-times-runaway-fix` and `session-times-plan-control`, both passing in the attested `eval:gate` run | eval | not proven |
 
 ## Beyond the gate

@@ -8,6 +8,7 @@ import {
   resolveSessionTimes,
   type RecordedSessionTimes,
 } from '../sessionTimes';
+import { expandRecurringEvents } from '../../schedule/expand';
 import type { WorkoutEvent } from '../../../types/workout';
 
 // docs/specs/coach-session-times: the 2026-11-08 report — a stretch started
@@ -61,14 +62,21 @@ describe('parseSessionTimesInput (R2, R3)', () => {
     expect(parseSessionTimesInput({ ...BASE, started_at: '2026-09-02T01:14:00Z' }).ok).toBe(false);
   });
 
-  it('refuses a duration that is not a positive number', () => {
-    for (const d of [0, -5, Number.NaN, Number.POSITIVE_INFINITY, '16']) {
+  it('refuses a calendar day that does not exist, as a date or inside a timestamp', () => {
+    expect(parseSessionTimesInput({ ...BASE, date: '2026-02-30', duration_minutes: 16 }).ok).toBe(false);
+    expect(parseSessionTimesInput({ ...BASE, finished_at: '2026-02-30T10:00:00Z' }).ok).toBe(false);
+  });
+
+  it('refuses a duration that is not a positive number of minutes up to a week', () => {
+    expect(parseSessionTimesInput({ ...BASE, duration_minutes: 7 * 24 * 60 }).ok).toBe(true);
+    for (const d of [0, -5, Number.NaN, Number.POSITIVE_INFINITY, '16', 7 * 24 * 60 + 1, 1e12]) {
       expect(parseSessionTimesInput({ ...BASE, duration_minutes: d }).ok, String(d)).toBe(false);
     }
   });
 
-  it('refuses a finish before the start, and a missing id or date', () => {
+  it('refuses a finish at or before the start, and a missing id or date', () => {
     expect(parseSessionTimesInput({ ...BASE, started_at: '2026-09-02T01:30:00Z', finished_at: '2026-09-02T01:14:00Z' }).ok).toBe(false);
+    expect(parseSessionTimesInput({ ...BASE, started_at: '2026-09-02T01:14:00Z', finished_at: '2026-09-02T01:14:00Z' }).ok).toBe(false);
     expect(parseSessionTimesInput({ date: '2026-09-01', duration_minutes: 16 }).ok).toBe(false);
     expect(parseSessionTimesInput({ event_id: 'x', date: 'Sep 1', duration_minutes: 16 }).ok).toBe(false);
   });
@@ -99,8 +107,10 @@ describe('resolveSessionTimes (R2)', () => {
     });
   });
 
-  it('refuses a finish before the recorded start', () => {
+  it('refuses a finish before the recorded start, and a duration that rounds to no time at all', () => {
     expect(resolve({ finished_at: '2026-09-02T01:00:00Z' }).ok).toBe(false);
+    expect(resolve({ finished_at: '2026-09-02T01:14:00Z' }).ok).toBe(false);
+    expect(resolve({ duration_minutes: 0.001 }).ok).toBe(false);
   });
 });
 
@@ -130,6 +140,31 @@ describe('the card label (R5)', () => {
 
   it('labels a call the executor will refuse without throwing', () => {
     expect(describeSessionTimes({ ...BASE, finished_at: '9:30 PM' }, NY)).toBe('times the app will reject');
+    expect(describeSessionTimes({ ...BASE, started_at: '2026-09-02T01:14:00Z', duration_minutes: 1e12 }, NY)).toBe('times the app will reject');
+  });
+
+  it('rounds the card\'s minutes the way the record rounds them', () => {
+    // 89.6 s: seconds round to 90 first, which the record stores and the completion rounds to 2 min.
+    const input = { ...BASE, started_at: '2026-09-02T01:14:00Z', finished_at: '2026-09-02T01:15:29.600Z' };
+    expect(describeSessionTimes(input, 'UTC')).toMatch(/· 2 min$/);
+    const parsed = parseSessionTimesInput(input);
+    if (!parsed.ok) throw new Error(parsed.reason);
+    const resolved = resolveSessionTimes(parsed.value, RUNAWAY);
+    expect(resolved.ok && Math.round(resolved.value.totalDurationSeconds / 60)).toBe(2);
+  });
+
+  it('names the occurrence being edited when a series is addressed by its base id, not the anchor row\'s date', () => {
+    const series = {
+      id: 'evt-stretch', date: '2026-08-04', title: 'Nightly Stretch — Lower', type: 'stretching', estimatedDuration: 29,
+      description: '', exercises: [], difficulty: 3, tags: [], isCompleted: false,
+      isRecurring: true, recurrenceRule: 'FREQ=WEEKLY;BYDAY=TU;UNTIL=20261031',
+    } as WorkoutEvent;
+    const events = expandRecurringEvents([series], new Map(), new Date('2026-09-23T12:00:00Z'));
+    expect(events.find(e => e.id === 'evt-stretch')?.date).toBe('2026-08-04');
+    const ctx: CoachToolContext = { definitions: new Map(), events, meals: [], timeZone: NY };
+    const label = tool.displayLabel({ event_id: 'evt-stretch', date: '2026-09-01', duration_minutes: 16 }, ctx);
+    expect(label).toBe('Fix recorded times: Nightly Stretch — Lower · 2026-09-01 (recorded start kept · 16 min)');
+    expect(tool.displayLabel({ event_id: 'evt-stretch__2026-09-01', date: '2026-09-01', duration_minutes: 16 }, ctx)).toBe(label);
   });
 
   it('names the workout the id resolves to, an unresolved id as such, and the claimed title without context', () => {
@@ -158,7 +193,7 @@ describe('edit_session_times executor (R1, R3, R4, R7, R8)', () => {
     expect(result).toBe(
       'Changed the recorded times of "Nightly Stretch — Lower" (2026-09-01) [ext-2026-09-01-stretch]: started ' +
       '2026-09-02T01:14:00.000Z, finished 2026-09-02T01:30:00.000Z — 16 min (was 28,264 min). ' +
-      'Totals and reviews now read the new duration.',
+      'Totals and stats read the new duration from now on; a review already written for that period keeps its old numbers.',
     );
   });
 

@@ -70,7 +70,7 @@ npm run eval:diff -- evals/results/A.json evals/results/B.json
 
 All eval-infrastructure LLM calls default to `claude-sonnet-5`; the coach-model comparison (the suite run on both `claude-sonnet-5` and `claude-opus-4-8`) is the first decision this instrument exists to inform — whether production can move down a tier with quality held.
 
-Each result file records the model, **backend**, judge model, git commit, and a hash of the coach behavior surface (`prompt.ts`, `schemas.ts`, `tools.ts`, `model.ts` — so a prompt, schema, or executor edit between runs is visible in the diff), plus per-case cost, tokens, and latency. Full transcripts land in `results/transcripts/<runId>/` and are committed — they're the labeling substrate. Results written before the `backend` field existed do not carry it; readers fall back to `api`, which is what every one of them was.
+Each result file records the model, **backend**, judge model, git commit, and a hash of the coach behavior surface (`prompt.ts`, `schemas.ts`, `tools.ts`, `model.ts`, `sessionTimes.ts` — so a prompt, schema, or executor edit between runs is visible in the diff), plus per-case cost, tokens, and latency. Full transcripts land in `results/transcripts/<runId>/` and are committed — they're the labeling substrate. Results written before the `backend` field existed do not carry it; readers fall back to `api`, which is what every one of them was.
 
 ### Backends
 
@@ -150,7 +150,7 @@ It runs the suite six cases at a time (`--concurrency`, forwarded to the runner 
 
 It pins two hashes, and needs both:
 
-- **`promptFileHash`** — the coach behavior surface (`prompt.ts`, `schemas.ts`, `tools.ts`, `model.ts`). What the coach *is*.
+- **`promptFileHash`** — the coach behavior surface (`prompt.ts`, `schemas.ts`, `tools.ts`, `model.ts`, `sessionTimes.ts`). What the coach *is*.
 - **`evalSurfaceHash`** — sha256 over every file under `evals/cases/`, `evals/src/` and `evals/taxonomy/` (the constraints checker resolves exercise names through the taxonomy, so an entry there changes what a constraints verdict means), path and content, in sorted order. What the *question* was.
 
 Without the second, the gate could be satisfied by making the test easier: loosen a rubric, delete a case, and a stale attestation would still verify.
