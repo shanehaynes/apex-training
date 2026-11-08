@@ -429,22 +429,25 @@ account screen links to the Terms.
 2. **App Privacy (§1):** the Device ID and Product Interaction rows, in the build's manifest
    (`PrivacyInfo.xcprivacy`, held for Shane). Enter §1's table in App Store Connect at step 6,
    row for row.
-3. **Apple's agreement, before any build:** Shane accepts the Program License Agreement update
-   (developer.apple.com → Account). Until he does, Apple refuses signing profiles, so CI cannot
-   archive a build: the 2026-11-03 TestFlight run from `main` at 6fe45505 (Actions run
+3. **Apple's agreement, before any build. Done 2026-11-08: Shane accepted it (the banner on
+   developer.apple.com → Account is gone); the two 2026-11-04 reruns had failed the same way
+   before then.** The Program License Agreement update is accepted at developer.apple.com →
+   Account, not under App Store Connect's Agreements, Tax, and Banking. Until it is, Apple
+   refuses signing profiles, so CI cannot archive a build: the 2026-11-03 TestFlight run from `main` at 6fe45505 (Actions run
    41706007034) failed at the archive with "Shane Haynes, must agree to the latest Program
    License Agreement" and "No profiles for 'com.shanehaynes.apextraining'". Nothing was
-   uploaded, so no build number was burned and no `build_number` override is needed. The next
-   run stamps the commit count (659 or later); a What to Test note that names the number must
-   use the new one. Submission is blocked until then too.
-4. **A TestFlight build from `main`, on Shane's go** (`ios/CLAUDE.md`: uploading publishes):
+   uploaded, so no build number was burned; the build that followed is 659 (step 4).
+4. **A TestFlight build from `main`, on Shane's go** (`ios/CLAUDE.md`: uploading publishes).
+   **Done 2026-11-08: 1.1.0 (659)**, `testflight.yml` run 41830146297 (attempt 3) from `main` at
+   51718353, a production Release export, processed by App Store Connect with its What to Test
+   note set. `ios/` is unchanged from there to f3b9b3cc. It is
    the first 1.1.0 build carrying #493, since 604 predates it. #477 has been on `main`, and so
    in production, since 2026-10-20, so the order rule above holds. Beyond 604, the build adds
    Create account (#493), the write-queue fixes #455 and #495 (never on a device yet), and
    W17's You › Training rows *Share voice log* and *Clear voice log*, which show even with
    voice off, and export plus delete on the updated-terms screen (terms §12, D-060), with
-   *Export my data* in You › Data. Shane gave the go on 2026-11-03. Once the agreement is
-   accepted: `gh workflow run testflight.yml --ref main -f changelog="…"` from a green `main`.
+   *Export my data* in You › Data. Shane gave the go on 2026-11-03. A rebuild, if review asks
+   for one: `gh workflow run testflight.yml --ref main -f changelog="…"` from a green `main`.
 5. **One real sign-up on that build** (open-signup M3's last box): a fresh inbox; the Cloudflare
    check passes; the email comes from invites@; its link's *Open in the Apex app* lands on
    set-password; the password signs in on the app and the web; `age_confirmed_at` is set in
