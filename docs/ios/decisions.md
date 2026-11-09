@@ -1289,6 +1289,34 @@ athletes to the web for it.
 - **Known gap, its own PR:** `buildExport` reads each table unpaginated, so a table past
   PostgREST's 1000-row cap exports truncated, on the web and here alike.
 
+## D-061 · The runaway-finish rule is ported to ApexCore, proven on the web's vectors
+**Status:** decided · tracker-runaway-finish M2 session · 2026-11-08
+A tracked session left running asks at Finish when it really ended
+(`docs/specs/tracker-runaway-finish`): more than 4× its plan and more than 2 hours, defaulting to
+the last logged set, with "It ran …" one tap away. The rule is `src/lib/tracking/runawayFinish.ts`,
+which has tests, so D-008 would keep it server-side.
+- **Ported anyway, in the D-023/D-024/D-059 mould.** The question is asked at Finish, and an iOS
+  finish is queued and may be offline, so no request exists yet to ask the server. `RunawayFinish`
+  (`ApexCore/Tracker/RunawayFinish.swift`) ports `isRunaway`, `suggestFinish`, `detectRunaway`
+  and `formatRunawayLength`; `latestLoggedAt` stays server-side (the bootstrap's `lastLoggedAt`).
+- **Parity is one file, not a copy.** `Tests/ApexCoreTests/Fixtures/runaway-finish.json` is read
+  by both `runawayFinish.test.ts` and `RunawayFinishTests`, and each asserts its own constants
+  against the file's `rule`, so a threshold moved on one side fails the other until it follows.
+- **The suggestion's inputs:** the bootstrap's `lastLoggedAt` (cache or network, never stepping
+  back; a fresh one landing while the card is up re-detects) and every set or cardio value entered
+  this sitting (`scheduleSave(logged:)`; a removal and a voice Undo pass `false`). Edits replayed
+  from the queue at open carry no time and do not count.
+- **The chosen end is the session's end everywhere the phone writes one:** `FinishPayload`,
+  the summary, the cached session, the Live Activity's end and the Apple Health workout. The
+  completion row keeps the moment Finish was tapped. "It ran …" queues now, as before.
+- **`CompletionRows.isoTimestamp` rounds to the millisecond** in integer arithmetic. It used to
+  truncate a Double's nanoseconds, which put half of all parsed server stamps a millisecond early
+  (`…42.001` → `…42.000`): a finish clamped to the session's start was then refused as preceding
+  it, or, past a week, stripped by the queue and stamped now. Every millisecond round-trips now
+  (`IsoTimestampTests`).
+- Rejected: asking the server through a new endpoint (offline finish); hand-copied vectors
+  (D-023's mechanism, weaker than one shared file).
+
 ## D-062 · Export: a cancel and a save whose result Files loses arrive the same way, so the row says nothing for either (amends D-060)
 **Status:** decided · session call · 2026-11-08 · #557. Device check open (Shane).
 D-060 says "the completion says whether it saved". That holds for a success and a failure, but

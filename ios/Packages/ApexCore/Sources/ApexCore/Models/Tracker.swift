@@ -19,10 +19,14 @@ public struct TrackerBootstrap: Codable, Sendable, Equatable {
     public let scored: Bool
     public var prs: [PersonalRecord]?
     public var scoreRecord: ScoreRecord?
+    /// When the last set or cardio row reached the server (its `updated_at`):
+    /// the runaway Finish card's default (D-061). Nil from a server older
+    /// than the field, or with nothing logged.
+    public var lastLoggedAt: String?
 
     public init(
         session: Session?, event: WorkoutEventBase?, groups: [TrackedSectionGroup],
-        scored: Bool, prs: [PersonalRecord]? = nil, scoreRecord: ScoreRecord? = nil
+        scored: Bool, prs: [PersonalRecord]? = nil, scoreRecord: ScoreRecord? = nil, lastLoggedAt: String? = nil
     ) {
         self.session = session
         self.event = event
@@ -30,6 +34,7 @@ public struct TrackerBootstrap: Codable, Sendable, Equatable {
         self.scored = scored
         self.prs = prs
         self.scoreRecord = scoreRecord
+        self.lastLoggedAt = lastLoggedAt
     }
 
     public struct Session: Codable, Sendable, Equatable {
