@@ -947,6 +947,209 @@ final class TrackerModelTests: XCTestCase {
         XCTAssertEqual(model.nextField(after: .set(press2, .reps)), .cardio(row, .durationMinutes))
         XCTAssertNil(model.nextField(after: .cardio(row, .avgHeartRate)))
     }
+
+    // MARK: - Runaway finish (D-061, docs/specs/tracker-runaway-finish R11–R12)
+
+    /// 06:00Z against the 12:00Z clock: 6 h on the fixture's 60-minute plan.
+    private static let runawayStart = "2026-09-22T06:00:00.000Z"
+    private static func instant(_ iso: String) -> Date {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return formatter.date(from: iso)!
+    }
+
+    private func runawayTransport(lastLoggedAt: String?, scored: Bool = false) -> ScriptedTransport {
+        let t = healthy()
+        var body = Self.fixture("bootstrap-peek.json").replacingSessionWithStarted(at: Self.runawayStart).withLastLoggedAt(lastLoggedAt)
+        if scored { body = body.withScored() }
+        t.set("POST /api/workout-sessions bootstrap", body: body)
+        return t
+    }
+
+    @MainActor
+    func testARunawayFinishAsksWhenItEndedBeforeAnythingIsQueued() async throws {
+        let store = MemoryWriteQueueStore()
+        let health = HealthSpy()
+        let (model, _) = make(runawayTransport(lastLoggedAt: "2026-09-22T07:05:00.000Z"), store: store, health: health)
+        await model.open()
+
+        await model.requestFinish(force: true)
+
+        XCTAssertEqual(model.gate, .needsFinishTime(RunawayFinish(
+            elapsedSeconds: 6 * 3600, plannedMinutes: 60,
+            suggestion: .init(at: Self.instant("2026-09-22T07:05:00.000Z"), basis: .lastLogged)
+        )))
+        XCTAssertFalse(model.isFinished)
+        let actions = await store.all.map(\.payload.action)
+        XCTAssertFalse(actions.contains(.finish), "\(actions)")
+        XCTAssertTrue(health.calls.isEmpty)
+    }
+
+    @MainActor
+    func testTheUnloggedConfirmComesBeforeTheRunawayCard() async throws {
+        let (model, _) = make(runawayTransport(lastLoggedAt: nil))
+        await model.open()
+        await model.requestFinish()
+        XCTAssertEqual(model.gate, .needsConfirm(count: 2))
+        await model.requestFinish(force: true)
+        guard case .needsFinishTime(let runaway) = model.gate else { return XCTFail("\(model.gate)") }
+        XCTAssertEqual(runaway.suggestion, .init(at: Self.instant("2026-09-22T07:00:00.000Z"), basis: .plan), "nothing logged: the start plus the plan")
+    }
+
+    @MainActor
+    func testASetLoggedThisSittingMovesTheSuggestion() async throws {
+        let clock = TestClock(now: Self.now)
+        let (model, _) = make(runawayTransport(lastLoggedAt: "2026-09-22T07:05:00.000Z"), clock: clock)
+        await model.open()
+        let typedAt = clock.now
+        model.focusSet(at: press1)
+        await model.requestFinish(force: true)
+        guard case .needsFinishTime(let runaway) = model.gate else { return XCTFail("\(model.gate)") }
+        XCTAssertEqual(runaway.suggestion, .init(at: typedAt, basis: .lastLogged))
+    }
+
+    @MainActor
+    func testTheChosenEndIsQueuedAndEverythingElseUsesIt() async throws {
+        let transport = runawayTransport(lastLoggedAt: "2026-09-22T07:05:00.000Z")
+        let cache = MemoryCacheStore()
+        let store = MemoryWriteQueueStore()
+        let activity = ActivitySpy()
+        let health = HealthSpy()
+        let (model, queue) = make(transport, cache: cache, store: store, activity: activity, health: health)
+        await model.open()
+        await model.requestFinish(force: true)
+        // Offline, so the summary stays the phone's until the server answers.
+        transport.offline = true
+        let chosen = Self.instant("2026-09-22T07:10:00.000Z")
+        await model.finish(at: .at(chosen))
+
+        XCTAssertTrue(model.isFinished)
+        XCTAssertEqual(model.gate, .idle)
+        XCTAssertEqual(model.finishChoice, .notAsked, "spent by the finish")
+        XCTAssertEqual(model.totalDurationSeconds, 70 * 60)
+        XCTAssertEqual(model.summary?.durationSeconds, 70 * 60)
+        XCTAssertEqual(activity.calls.last, .end(model.session, 70 * 60))
+        guard case .finished(let draft)? = health.calls.first else { return XCTFail("\(health.calls)") }
+        XCTAssertEqual(draft.start, Self.instant(Self.runawayStart))
+        XCTAssertEqual(draft.end, chosen, "Health gets the real workout, not six hours")
+        let key = ScheduleCacheKey.trackerBootstrap(eventId: Self.event.id, eventDate: Self.event.date)
+        let entry = try await cache.read(kind: .trackerBootstrap, key: key)
+        let cached = try JSONDecoder().decode(TrackerBootstrap.self, from: try XCTUnwrap(entry).json)
+        XCTAssertEqual(cached.session?.finishedAt, "2026-09-22T07:10:00.000Z")
+        XCTAssertEqual(cached.session?.totalDurationSeconds, 70 * 60)
+        let queued = await store.all.compactMap { op -> FinishPayload? in
+            if case .finish(let payload) = op.payload { return payload } else { return nil }
+        }
+        XCTAssertEqual(queued.map(\.finishedAt), ["2026-09-22T07:10:00.000Z"])
+
+        transport.offline = false
+        await Self.drain(queue)
+        let finish = try XCTUnwrap(transport.requests(action: "finish").last)
+        XCTAssertTrue(finish.body!.contains(#""finishedAt":"2026-09-22T07:10:00.000Z""#), finish.body!)
+    }
+
+    @MainActor
+    func testAChosenEndOutsideTheSessionIsClampedToIt() async throws {
+        let store = MemoryWriteQueueStore()
+        let (model, _) = make(runawayTransport(lastLoggedAt: nil), store: store)
+        await model.open()
+        await model.requestFinish(force: true)
+        await model.finish(at: .at(Self.instant("2026-09-22T05:00:00.000Z")))
+        let queued = await store.all.compactMap { op -> FinishPayload? in
+            if case .finish(let payload) = op.payload { return payload } else { return nil }
+        }
+        XCTAssertEqual(queued.map(\.finishedAt), [Self.runawayStart])
+    }
+
+    @MainActor
+    func testItRanThisLongFinishesNowAsBefore() async throws {
+        let transport = runawayTransport(lastLoggedAt: "2026-09-22T07:05:00.000Z")
+        let health = HealthSpy()
+        let (model, queue) = make(transport, health: health)
+        await model.open()
+        await model.requestFinish(force: true)
+        let tappedAt = Self.now
+        await model.finish(at: .asRecorded)
+        await Self.settle(queue, model.session)
+
+        XCTAssertTrue(model.isFinished)
+        let finish = try XCTUnwrap(transport.requests(action: "finish").first)
+        // The test clock jumps on every debounce sleep, so only the minute is stable.
+        XCTAssertTrue(finish.body!.contains("\"finishedAt\":\"2026-09-22T12:00:"), finish.body!)
+        guard case .finished(let draft)? = health.calls.first else { return XCTFail("\(health.calls)") }
+        XCTAssertGreaterThanOrEqual(draft.end, tappedAt)
+    }
+
+    @MainActor
+    func testKeepGoingQueuesNothingAndTheNextFinishAsksAgain() async throws {
+        let store = MemoryWriteQueueStore()
+        let (model, _) = make(runawayTransport(lastLoggedAt: nil), store: store)
+        await model.open()
+        await model.requestFinish(force: true)
+        guard case .needsFinishTime = model.gate else { return XCTFail("\(model.gate)") }
+
+        model.keepGoing()
+
+        XCTAssertEqual(model.gate, .idle)
+        XCTAssertEqual(model.finishChoice, .notAsked)
+        XCTAssertFalse(model.isFinished)
+        let actions = await store.all.map(\.payload.action)
+        XCTAssertFalse(actions.contains(.finish), "\(actions)")
+        await model.requestFinish(force: true)
+        guard case .needsFinishTime = model.gate else { return XCTFail("asks again: \(model.gate)") }
+    }
+
+    /// Exactly 4× the plan (08:00 → 12:00 on 60 min) is not a runaway: Finish
+    /// goes straight through, stamped now, as it always has.
+    @MainActor
+    func testASessionAtTheThresholdFinishesWithNoCard() async throws {
+        let transport = healthy()
+        transport.set("POST /api/workout-sessions bootstrap", body: Self.fixture("bootstrap-peek.json")
+            .replacingSessionWithStarted(at: "2026-09-22T08:00:00.000Z").withLastLoggedAt("2026-09-22T08:40:00.000Z"))
+        let (model, queue) = make(transport)
+        await model.open()
+        await model.requestFinish(force: true)
+        await Self.settle(queue, model.session)
+        XCTAssertTrue(model.isFinished)
+        let finish = try XCTUnwrap(transport.requests(action: "finish").first)
+        XCTAssertTrue(finish.body!.contains("\"finishedAt\":\"2026-09-22T12:00:"), finish.body!)
+    }
+
+    @MainActor
+    func testAForTimeScoreAfterACorrectedFinishPrefillsTheCorrectedLength() async throws {
+        let transport = runawayTransport(lastLoggedAt: "2026-09-22T06:24:30.000Z", scored: true)
+        let (model, queue) = make(transport, event: Self.event(scoring: "for-time"))
+        await model.open()
+        await model.requestFinish(force: true)
+        guard case .needsFinishTime(let runaway) = model.gate else { return XCTFail("\(model.gate)") }
+        await model.finish(at: .at(runaway.suggestion.at))
+
+        XCTAssertEqual(model.gate, .needsScore, "the score comes after the end is settled")
+        XCTAssertEqual(model.scoreElapsed, 1470, "24:30, not six hours")
+        await model.requestFinish(force: true, score: .entered(.forTime(timeSeconds: 1470)))
+        await Self.settle(queue, model.session)
+        let finish = try XCTUnwrap(transport.requests(action: "finish").first)
+        XCTAssertTrue(finish.body!.contains(#""finishedAt":"2026-09-22T06:24:30.000Z""#), finish.body!)
+        XCTAssertTrue(finish.body!.contains(#""timeSeconds":1470"#), finish.body!)
+    }
+}
+
+private extension Data {
+    /// The peek fixture with a session started at `iso` (D-061's runaways).
+    func replacingSessionWithStarted(at iso: String) -> Data {
+        var object = try! JSONSerialization.jsonObject(with: replacingSessionWithStarted()) as! [String: Any]
+        var session = object["session"] as! [String: Any]
+        session["started_at"] = iso
+        object["session"] = session
+        return try! JSONSerialization.data(withJSONObject: object)
+    }
+
+    /// The bootstrap's `lastLoggedAt` (M1); nil sends null, as with nothing logged.
+    func withLastLoggedAt(_ iso: String?) -> Data {
+        var object = try! JSONSerialization.jsonObject(with: self) as! [String: Any]
+        object["lastLoggedAt"] = iso ?? NSNull()
+        return try! JSONSerialization.data(withJSONObject: object)
+    }
 }
 
 private extension Data {

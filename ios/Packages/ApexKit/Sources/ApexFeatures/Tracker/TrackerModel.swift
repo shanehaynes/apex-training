@@ -24,6 +24,8 @@ public final class TrackerModel {
     public enum Gate: Equatable {
         case idle
         case needsConfirm(count: Int)
+        /// The session ran far past its plan: when did it really end? (D-061)
+        case needsFinishTime(RunawayFinish)
         case needsScore
         case finishing
         case confirmCancel
@@ -67,6 +69,15 @@ public final class TrackerModel {
         case entered(SessionScore)
     }
 
+    /// The answer to `.needsFinishTime`, kept across the score step.
+    public enum FinishChoice: Equatable {
+        case notAsked
+        /// "It ran this long": finish now, as Finish always has.
+        case asRecorded
+        /// Finish at this instant.
+        case at(Date)
+    }
+
     public let event: ScheduleEvent
     public let session: SessionKey
 
@@ -77,6 +88,7 @@ public final class TrackerModel {
     public private(set) var totalDurationSeconds: Int?
     public private(set) var elapsed = 0
     public private(set) var gate: Gate = .idle
+    public private(set) var finishChoice: FinishChoice = .notAsked
     public private(set) var summary: Summary?
     public private(set) var sync: SessionSyncStatus = .idle
     public private(set) var scored = false
@@ -145,6 +157,9 @@ public final class TrackerModel {
     let deps: TrackerDependencies
     var services: TrackerServices { deps.services }
     private var saveGeneration = 0
+    /// When the athlete last logged a set or cardio row: the bootstrap's
+    /// `lastLoggedAt`, then every edit this sitting. A runaway Finish offers it.
+    private var lastLoggedAt: Date?
     private var timerTask: Task<Void, Never>?
     private var queueTask: Task<Void, Never>?
     /// The finish's Health save is in flight; a cancel confirmed meanwhile
@@ -259,6 +274,10 @@ public final class TrackerModel {
         scored = bootstrap.scored
         savedPRs = bootstrap.prs ?? []
         savedScoreRecord = bootstrap.scoreRecord
+        // The cache's copy can be older than the server's; never step back.
+        if let stamp = bootstrap.lastLoggedAt.flatMap(Self.parseISO) {
+            lastLoggedAt = max(lastLoggedAt ?? stamp, stamp)
+        }
     }
 
     private func handleOpenFailure(_ error: Error, cached: TrackerBootstrap?) async {
@@ -533,6 +552,9 @@ public final class TrackerModel {
     }
 
     func scheduleSave() {
+        // Every caller is a set or cardio edit the athlete just made.
+        let now = services.clock.now
+        lastLoggedAt = max(lastLoggedAt ?? now, now)
         saveGeneration += 1
         let mine = saveGeneration
         let clock = services.clock
@@ -670,9 +692,10 @@ public final class TrackerModel {
 
     // MARK: - Finish
 
-    /// The web's `requestFinish`: unlogged planned sets need a confirm, a scored
-    /// template needs its score, then the finish is queued along with the
-    /// calendar completion. `force` is the confirm bar's "Finish anyway".
+    /// The web's `requestFinish`: unlogged planned sets need a confirm, a
+    /// session far past its plan needs its real end (`finish(at:)` answers), a
+    /// scored template needs its score, then the finish is queued along with
+    /// the calendar completion. `force` is the confirm bar's "Finish anyway".
     public func requestFinish(force: Bool = false, score: ScoreChoice = .notAsked) async {
         guard phase == .ready, !isFinished, gate != .finishing else { return }
         cancelVoice()
@@ -683,6 +706,13 @@ public final class TrackerModel {
                 gate = .needsConfirm(count: count)
                 return
             }
+        }
+        if finishChoice == .notAsked, let startedAt, let runaway = RunawayFinish.detect(
+            startedAt: startedAt, now: services.clock.now,
+            plannedMinutes: event.base.estimatedDuration.map(Double.init), lastLoggedAt: lastLoggedAt
+        ) {
+            gate = .needsFinishTime(runaway)
+            return
         }
         var submission: ScoreSubmission?
         if scored {
@@ -701,14 +731,26 @@ public final class TrackerModel {
         await flushEdits()
 
         let now = services.clock.now
+        // A chosen end is the session's end everywhere below; otherwise now,
+        // and the timer's own count, exactly as before.
+        let end: Date
+        let total: Int
+        if case .at(let chosen) = finishChoice, let startedAt {
+            end = chosen
+            total = max(0, Int(chosen.timeIntervalSince(startedAt).rounded()))
+        } else {
+            end = now
+            total = elapsed
+        }
         let autofill = editor.collectUntouchedPlanned()
-        let finish = FinishPayload(autofillRows: autofill, finishedAt: CompletionRows.isoTimestamp(now), score: submission)
+        let finish = FinishPayload(autofillRows: autofill, finishedAt: CompletionRows.isoTimestamp(end), score: submission)
         let rows = CompletionRows.build(for: event, isNowCompleted: true, now: now)
         do {
             try await services.queue.enqueue(.finish(finish), for: session)
             try await services.queue.enqueue(.completion(completionRow: rows.completionRow, logRow: rows.logRow), for: session)
         } catch {
             gate = .idle
+            finishChoice = .notAsked
             ToastBus.shared.post("Could not finish: \(error.localizedDescription)", level: .failure)
             return
         }
@@ -716,24 +758,26 @@ public final class TrackerModel {
 
         editor.apply(SavePayload(setLogs: autofill))
         isFinished = true
-        totalDurationSeconds = elapsed
+        totalDurationSeconds = total
+        elapsed = total
         savedScore = submission?.score
         completedCount += 1
         summary = Summary(
             prs: [], scoreRecord: nil, score: submission?.score, coachText: nil,
-            coachStatus: .unavailable(Self.summaryPendingSync), pendingSync: true, durationSeconds: elapsed
+            coachStatus: .unavailable(Self.summaryPendingSync), pendingSync: true, durationSeconds: total
         )
         gate = .idle
+        finishChoice = .notAsked
         rest.reset()
         restRemaining = 0
-        await markCachedFinished(at: finish.finishedAt, total: elapsed)
-        await services.activity.end(session, totalSeconds: elapsed)
+        await markCachedFinished(at: finish.finishedAt, total: total)
+        await services.activity.end(session, totalSeconds: total)
         let queue = services.queue
         let session = session
         Task { await queue.flush(session) }
         // Apple Health (W16, D-056): from what the tracker holds, not the
         // server's answer, so an offline finish writes it too.
-        if let draft = HealthWorkoutDraft(event: event, groups: editor.groups, startedAt: startedAt, finishedAt: now) {
+        if let draft = HealthWorkoutDraft(event: event, groups: editor.groups, startedAt: startedAt, finishedAt: end) {
             isSavingToHealth = true
             await services.health.workoutFinished(draft)
             isSavingToHealth = false
@@ -742,7 +786,31 @@ public final class TrackerModel {
         }
     }
 
-    public func keepGoing() { gate = .idle }
+    public func keepGoing() {
+        gate = .idle
+        finishChoice = .notAsked
+    }
+
+    /// The `.needsFinishTime` card's answer: finish there (clamped to the
+    /// session's span), or as recorded. The confirm, if any, came before it.
+    public func finish(at choice: FinishChoice) async {
+        guard case .needsFinishTime = gate else { return }
+        if case .at(let chosen) = choice, let startedAt {
+            finishChoice = .at(min(max(chosen, startedAt), services.clock.now))
+        } else {
+            finishChoice = choice == .notAsked ? .asRecorded : choice
+        }
+        gate = .idle
+        await requestFinish(force: true)
+    }
+
+    /// The For Time card's prefill: the corrected length when one was chosen.
+    public var scoreElapsed: Int {
+        if case .at(let chosen) = finishChoice, let startedAt {
+            return max(0, Int(chosen.timeIntervalSince(startedAt).rounded()))
+        }
+        return elapsed
+    }
 
     /// `.finished` from the queue: the server's PRs and recap have arrived.
     private func finishLanded(_ response: FinishResponse?) async {

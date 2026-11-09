@@ -135,7 +135,10 @@ public struct TrackerScreen: View {
         }
         // The summary and the cancel confirm are modal moments: no input keeps the keyboard.
         .onChange(of: model.summary == nil) { _, hidden in if !hidden { focus = nil } }
-        .onChange(of: model.gate) { _, gate in if gate == .confirmCancel || gate == .needsScore { focus = nil } }
+        .onChange(of: model.gate) { _, gate in
+            if gate == .confirmCancel || gate == .needsScore { focus = nil }
+            if case .needsFinishTime = gate { focus = nil }
+        }
         .sensoryFeedback(.impact(weight: .light), trigger: model.loggedSetCount)
         .sensoryFeedback(.success, trigger: model.prCount)
         .sensoryFeedback(.success, trigger: model.completedCount)
@@ -295,6 +298,8 @@ public struct TrackerScreen: View {
                 primary: .init("Finish anyway") { Task { await model.requestFinish(force: true) } },
                 secondary: .init("Keep going") { model.keepGoing() }
             )
+        case .needsFinishTime(let runaway):
+            FinishTimeCard(model: model, runaway: runaway)
         case .needsScore:
             ScoreCard(model: model)
         case .confirmCancel, .cancelling:

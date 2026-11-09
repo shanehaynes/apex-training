@@ -58,7 +58,8 @@ struct ScoreCard: View {
         .overlay(alignment: .top) { Rectangle().fill(ApexColor.borderSubtle).frame(height: 1) }
         .onAppear {
             if isForTime {
-                time = DurationBuffer.formatElapsed(model.elapsed)
+                // A corrected finish (D-061) is the clock the score ran against.
+                time = DurationBuffer.formatElapsed(model.scoreElapsed)
                 focused = .time
             } else {
                 focused = .rounds
