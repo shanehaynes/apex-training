@@ -1290,7 +1290,7 @@ athletes to the web for it.
   PostgREST's 1000-row cap exports truncated, on the web and here alike.
 
 ## D-062 · Export: a cancel and a save whose result Files loses arrive the same way, so the row says nothing for either (amends D-060)
-**Status:** decided · session call · 2026-11-08 · PR_NUMBER. Device check open (Shane).
+**Status:** decided · session call · 2026-11-08 · #557. Device check open (Shane).
 D-060 says "the completion says whether it saved". That holds for a success and a failure, but
 not for this case. On the iOS 26.5 simulator, Replace in Files' "Replace Existing Items?" prompt
 sometimes loses track of the saved item:
