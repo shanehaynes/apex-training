@@ -112,6 +112,12 @@
       "expect": { "runaway": true, "suggestedAt": "2026-10-01T15:00:00Z", "basis": "last-logged", "elapsedLabel": "5 h", "plannedLabel": "30 min" }
     },
     {
+      "name": "stamps in PostgREST's shape (milliseconds, +00:00) are the same instants",
+      "startedAt": "2026-09-11T22:16:43.207+00:00", "now": "2026-09-12T01:40:41.991+00:00", "plannedMinutes": 29,
+      "lastLoggedAt": "2026-09-11T22:46:00.512+00:00",
+      "expect": { "runaway": true, "suggestedAt": "2026-09-11T22:46:00.512Z", "basis": "last-logged", "elapsedLabel": "3 h 23 min", "plannedLabel": "29 min" }
+    },
+    {
       "name": "the start plus the plan never lands after now",
       "startedAt": "2026-10-01T10:00:00Z", "now": "2026-10-01T10:30:00Z", "plannedMinutes": 60,
       "lastLoggedAt": null,

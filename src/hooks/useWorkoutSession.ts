@@ -278,7 +278,9 @@ export function useWorkoutSession(
       if (cancelled) return;
       setSession(data.session);
       recordsRef.current = { prs: data.prs, scoreRecord: data.scoreRecord };
-      lastLoggedMsRef.current = data.lastLoggedAt ? Date.parse(data.lastLoggedAt) : null;
+      // A stamp the browser cannot read is no stamp: NaN would poison every later max.
+      const stamp = data.lastLoggedAt ? Date.parse(data.lastLoggedAt) : NaN;
+      lastLoggedMsRef.current = Number.isFinite(stamp) ? stamp : null;
       sessionNoteRef.current = data.session.note ?? '';
       setSessionNote(sessionNoteRef.current);
       setGroups(data.groups);
