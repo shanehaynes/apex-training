@@ -186,7 +186,11 @@ A model is not a pure function, so one bad sample is a suspicion, not a finding.
 
 The suspect's verdict is the per-dimension majority of its looks (`compare.ts` `majorityCase`, the same function the baseline uses). An errored look casts no vote, and a case that errored in two looks stays errored. No majority is `fail`. Its transcript hash comes from a look that matches the majority, and the attestation lists every re-run file under `rerunFiles`. There is never a fourth look: the rule is fixed before the run, not sampled until the answer is convenient.
 
-The gate also fails on `missingCases` (a baseline case the run did not produce) and on a new case that did not pass on the majority of its looks. A new case is absent from the held baseline by construction, so there is nothing for it to regress from; it has to stand on its own.
+The majority is taken per dimension, not per look. So a case whose looks each fail a different gated dimension passes when each dimension passes two of three looks; a test pins this. On a single dimension the rule is stricter than the old one-re-run gate: a pass now needs two passing looks, not one. When no single look holds every majority verdict (three or more dimensions, or no majority at all), the attested transcript hash is `split:` followed by every look's hash. The attestation then never points at one transcript that disagrees with it.
+
+A source run is a distinct run. Promotion refuses the same file twice, the same `runId` twice, and two runs with identical transcripts, and the sources must agree on the judge model too. Known gap: `evals/results/` is neither held nor in the `coach-gate` path filter, so a PR that only deletes or edits a source run skips `eval:verify`. The next coach PR would then fail verify for a change it did not make.
+
+The gate also fails on `missingCases` (a baseline case the run did not produce) and on a new case that did not pass on the majority of its looks. A new case must pass every dimension, progression included, and is re-run like any suspect. A new case is absent from the held baseline by construction, so there is nothing for it to regress from; it has to stand on its own.
 
 ### Exit codes
 

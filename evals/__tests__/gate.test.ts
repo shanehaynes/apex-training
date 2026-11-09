@@ -10,6 +10,7 @@ import {
   parseConcurrency,
   promoteBaseline,
   runGate,
+  settleSuspect,
   suiteArgv,
   verifyAttestation,
   type Attestation,
@@ -41,12 +42,30 @@ beforeEach(() => {
 });
 afterEach(() => rmSync(root, { recursive: true, force: true }));
 
-/** Copy fixture runs into the temp tree's evals/results/, where a baseline's sources must live. */
+/**
+ * Fixture runs written into the temp tree's evals/results/, where a baseline's
+ * sources must live. Each is made a distinct run (its own runId and transcript
+ * hashes), as three real runs are: promotion refuses one run counted twice.
+ */
 function installRuns(...fixtures: string[]): string[] {
   const dir = join(root, 'evals', 'results');
   mkdirSync(dir, { recursive: true });
   return fixtures.map((fixture, i) => {
     const dest = join(dir, `source-${i + 1}__${fixture}`);
+    const run = JSON.parse(readFileSync(join(FIXTURES, fixture), 'utf8'));
+    run.runId = `${run.runId}-${i + 1}`;
+    for (const c of run.cases) if (c.transcriptHash) c.transcriptHash = `${c.transcriptHash}-${i + 1}`;
+    writeFileSync(dest, JSON.stringify(run, null, 2));
+    return dest;
+  });
+}
+
+/** Byte-for-byte copies of one fixture under different names: one run, three files. */
+function installRawCopies(fixture: string, n: number): string[] {
+  const dir = join(root, 'evals', 'results');
+  mkdirSync(dir, { recursive: true });
+  return Array.from({ length: n }, (_, i) => {
+    const dest = join(dir, `copy-${i + 1}.json`);
     copyFileSync(join(FIXTURES, fixture), dest);
     return dest;
   });
@@ -145,6 +164,15 @@ describe('runGate: before anything is spent', () => {
     expect(outcome.code).toBe(0);
   });
 
+  it('refuses a baseline whose source runs are missing, and never calls the model', async () => {
+    installBaseline();
+    rmSync(join(root, 'evals', 'results', 'source-1__baseline-clean.json'));
+    const outcome = await gate(suiteReturning('candidate-clean.json'));
+    expect(outcome.code).toBe(1);
+    expect(outcome.message).toMatch(/names source run\(s\) not in the tree/);
+    expect(requests).toEqual([]);
+  });
+
   it('refuses a single-sample baseline, and never calls the model', async () => {
     installSingleSampleBaseline();
     const outcome = await gate(suiteReturning('candidate-clean.json'));
@@ -207,8 +235,8 @@ describe('runGate: the majority re-run', () => {
     expect(existsSync(attestationPath())).toBe(false);
   });
 
-  it('passes when two of three looks pass, and attests a passing look and every re-run file', async () => {
-    const outcome = await gate(suiteReturning('candidate-regression.json', 'rerun-recovered.json', 'rerun-recovered.json'));
+  it('passes when two of three looks pass, and attests the first passing look and every re-run file', async () => {
+    const outcome = await gate(suiteReturning('candidate-regression.json', 'rerun-recovered.json', 'rerun-recovered-2.json'));
     expect(outcome.code).toBe(0);
     const a = readAttestation();
     expect(a.verdicts['buried-contraindication']).toEqual({ constraints: 'pass' });
@@ -217,10 +245,22 @@ describe('runGate: the majority re-run', () => {
     expect(a.rerunFile).toBeUndefined();
   });
 
-  it('fails when two of three looks fail', async () => {
+  it('fails when two of three looks fail, and says how the looks voted', async () => {
     const outcome = await gate(suiteReturning('candidate-regression.json', 'rerun-recovered.json', 'rerun-confirmed.json'));
     expect(outcome.code).toBe(1);
-    expect(outcome.message).toContain('buried-contraindication [constraints] pass → fail');
+    expect(outcome.message).toContain('buried-contraindication [constraints] pass → fail (looks: fail 2, pass 1)');
+  });
+
+  it('decides each dimension by its own majority, so looks that each fail a different dimension can pass', async () => {
+    // Intended (docs/specs/eval-gate-majority R3): refusal fails in look 1,
+    // integrity in look 2, look 3 is clean. Each dimension passes two of three
+    // looks, so the case passes; pinned so a future edit cannot change it quietly.
+    const outcome = await gate(suiteReturning('candidate-two-dim-split.json', 'rerun-two-dim-l2.json', 'rerun-two-dim-l3.json'));
+    expect(requests).toHaveLength(3);
+    expect(outcome.code).toBe(0);
+    const a = readAttestation();
+    expect(a.verdicts['unsafe-volume-insist']).toEqual({ refusal: 'pass', integrity: 'pass' });
+    expect(a.transcriptHashes['unsafe-volume-insist']).toBe('h-l3');
   });
 
   it('never takes a fourth look', async () => {
@@ -462,6 +502,28 @@ describe('verifyAttestation', () => {
     expect(outcome.message).toMatch(/not the majority of its sources: buried-contraindication \[constraints\] fail, majority pass/);
   });
 
+  it('exits 1 when the baseline names one run several times', () => {
+    const baselinePath = installBaseline();
+    const baseline = JSON.parse(readFileSync(baselinePath, 'utf8'));
+    baseline.majorityOf.runs = [baseline.majorityOf.runs[0], baseline.majorityOf.runs[0], baseline.majorityOf.runs[0]];
+    writeFileSync(baselinePath, JSON.stringify(baseline, null, 2));
+    writeAttestation();
+    const outcome = verify();
+    expect(outcome.code).toBe(1);
+    expect(outcome.message).toMatch(/one run counted twice \(the same file\)/);
+  });
+
+  it('exits 1 when the baseline swaps a case for a copy of another', () => {
+    const baselinePath = installBaseline();
+    const baseline = JSON.parse(readFileSync(baselinePath, 'utf8'));
+    baseline.cases[2] = { ...baseline.cases[0] };
+    writeFileSync(baselinePath, JSON.stringify(baseline, null, 2));
+    writeAttestation();
+    const outcome = verify();
+    expect(outcome.code).toBe(1);
+    expect(outcome.message).toMatch(/a different case set from its sources/);
+  });
+
   it('accepts what runGate just wrote — the two halves agree', async () => {
     installBaseline();
     const outcome = await gate(suiteReturning('candidate-clean.json'));
@@ -520,9 +582,9 @@ describe('promoteBaseline', () => {
   });
 
   it.each([
-    ['another model', { model: 'claude-haiku-5' }, /is claude-haiku-5/],
-    ['another PROMPT_VERSION', { promptVersion: '2026.10.01-1' }, /PROMPT_VERSION 2026\.10\.01-1/],
-    ['other coach bytes', { promptFileHash: 'PROMPT_HASH_B' }, /different coach bytes/],
+    ['another model', { model: 'claude-haiku-5', runId: 'odd' }, /is claude-haiku-5/],
+    ['another PROMPT_VERSION', { promptVersion: '2026.10.01-1', runId: 'odd' }, /PROMPT_VERSION 2026\.10\.01-1/],
+    ['other coach bytes', { promptFileHash: 'PROMPT_HASH_B', runId: 'odd' }, /different coach bytes/],
   ])('refuses runs of %s — votes on different coaches', (_label, patch, matcher) => {
     const [a, b] = installRuns('candidate-clean.json', 'candidate-clean.json');
     const odd = installVariant('candidate-clean.json', 'odd.json', patch);
@@ -536,6 +598,36 @@ describe('promoteBaseline', () => {
       .toMatch(/different case set/);
     expect(promoteBaseline(root, installRuns('candidate-clean.json', 'candidate-errored.json', 'candidate-clean.json')).message)
       .toMatch(/errored case\(s\): buried-contraindication — re-run it/);
+  });
+
+  it('refuses one run counted as several: the same path, the same run under other names, the same transcripts', () => {
+    const [a] = installRuns('candidate-clean.json');
+    expect(promoteBaseline(root, [a, a, a]).message).toMatch(/one run counted twice \(the same file\)/);
+    expect(promoteBaseline(root, installRawCopies('candidate-clean.json', 3)).message).toMatch(/one run counted twice \(the same runId\)/);
+    const renamed = installRawCopies('candidate-clean.json', 3).map((path, i) => {
+      const run = JSON.parse(readFileSync(path, 'utf8'));
+      run.runId = `renamed-${i}`;
+      writeFileSync(path, JSON.stringify(run));
+      return path;
+    });
+    expect(promoteBaseline(root, renamed).message).toMatch(/one run counted twice \(the same transcripts\)/);
+    expect(existsSync(baselinePath())).toBe(false);
+  });
+
+  it('refuses runs scored by different judges', () => {
+    const [a, b] = installRuns('candidate-clean.json', 'candidate-clean.json');
+    const other = installVariant('candidate-clean.json', 'other-judge.json', { runId: 'other', judgeModel: 'claude-haiku-5' });
+    expect(promoteBaseline(root, [a, b, other]).message).toMatch(/judged by claude-haiku-5/);
+  });
+
+  it('refuses a source outside evals/results/, such as the baseline it would overwrite', () => {
+    installBaseline();
+    const before = readFileSync(baselinePath(), 'utf8');
+    const [a, b] = installRuns('candidate-clean.json', 'candidate-clean.json');
+    const outcome = promoteBaseline(root, [baselinePath(), a, b]);
+    expect(outcome.code).toBe(1);
+    expect(outcome.message).toMatch(/under evals\/results\//);
+    expect(readFileSync(baselinePath(), 'utf8')).toBe(before);
   });
 
   it('refuses a source outside the tree, which eval:verify could never re-derive', () => {
@@ -678,5 +770,28 @@ describe('anthropicSdkVersion', () => {
   it('reads the repo lockfile\'s top-level entry', () => {
     const lock = JSON.parse(readFileSync(join(HERE, '..', '..', 'package-lock.json'), 'utf8'));
     expect(anthropicSdkVersion()).toBe(lock.packages['node_modules/@anthropic-ai/sdk'].version);
+  });
+});
+
+describe('settleSuspect', () => {
+  const look = (hash: string, verdicts: Record<string, string>) => ({
+    id: 'x', transcriptHash: hash,
+    verdicts: Object.fromEntries(Object.entries(verdicts).map(([d, status]) => [d, { status }])),
+  });
+
+  it('keeps the first look that holds every majority verdict', () => {
+    const c = settleSuspect([look('h1', { refusal: 'fail', integrity: 'pass' }), look('h2', { refusal: 'pass', integrity: 'fail' }), look('h3', { refusal: 'pass', integrity: 'pass' })]);
+    expect(c.transcriptHash).toBe('h3');
+  });
+
+  it('names every look when no single look holds every verdict, never one that disagrees', () => {
+    // Three dimensions, each failed by a different look: each passes 2 of 3, no look passes all three.
+    const c = settleSuspect([
+      look('h1', { constraints: 'fail', refusal: 'pass', integrity: 'pass' }),
+      look('h2', { constraints: 'pass', refusal: 'fail', integrity: 'pass' }),
+      look('h3', { constraints: 'pass', refusal: 'pass', integrity: 'fail' }),
+    ]);
+    expect(Object.values(c.verdicts).map(v => v?.status)).toEqual(['pass', 'pass', 'pass']);
+    expect(c.transcriptHash).toBe('split:h1+h2+h3');
   });
 });

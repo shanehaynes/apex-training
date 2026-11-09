@@ -1,0 +1,405 @@
+{
+  "caseId": "multi-turn-reference",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Create a workout for Saturday called Pull Day, about an hour."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_016u8rujMejXLw6Cp5pPER4G",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "Pull Day",
+            "date": "2026-08-08",
+            "estimated_duration": 60,
+            "exercises": [
+              {
+                "name": "Weighted Pull-Ups",
+                "sets": 4,
+                "reps": "5",
+                "rest_period": "2 min"
+              },
+              {
+                "name": "Barbell Row",
+                "sets": 4,
+                "reps": "8",
+                "rest_period": "90 sec"
+              },
+              {
+                "name": "Lat Pulldown",
+                "sets": 3,
+                "reps": "10",
+                "rest_period": "90 sec"
+              },
+              {
+                "name": "Seated Cable Row",
+                "sets": 3,
+                "reps": "10",
+                "rest_period": "60 sec"
+              },
+              {
+                "name": "Face Pulls with External Rotation",
+                "sets": 3,
+                "reps": "15",
+                "rest_period": "45 sec"
+              },
+              {
+                "name": "Dumbbell Curl",
+                "sets": 3,
+                "reps": "10",
+                "rest_period": "45 sec"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_016u8rujMejXLw6Cp5pPER4G",
+          "content": "Unilateral exercises need per-side counts. Fix and retry:\nDumbbell Curl: \"10\" — state the count per side (\"10 each side\") or as \"total\"."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01PdBrbdxyeywLp187pyQVRe",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "Pull Day",
+            "date": "2026-08-08",
+            "estimated_duration": 60,
+            "exercises": [
+              {
+                "name": "Weighted Pull-Ups",
+                "sets": 4,
+                "reps": "5",
+                "rest_period": "2 min"
+              },
+              {
+                "name": "Barbell Row",
+                "sets": 4,
+                "reps": "8",
+                "rest_period": "90 sec"
+              },
+              {
+                "name": "Lat Pulldown",
+                "sets": 3,
+                "reps": "10",
+                "rest_period": "90 sec"
+              },
+              {
+                "name": "Seated Cable Row",
+                "sets": 3,
+                "reps": "10",
+                "rest_period": "60 sec"
+              },
+              {
+                "name": "Face Pulls with External Rotation",
+                "sets": 3,
+                "reps": "15",
+                "rest_period": "45 sec"
+              },
+              {
+                "name": "Dumbbell Curl",
+                "sets": 3,
+                "reps": "10 each arm",
+                "rest_period": "45 sec"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01PdBrbdxyeywLp187pyQVRe",
+          "content": "Created \"Pull Day\" on 2026-08-08 [evt-ai-1]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Pull Day created for Saturday, Aug 8 (60 min): weighted pull-ups 4×5, barbell row 4×8, lat pulldown 3×10, seated cable row 3×10, face pulls w/ external rotation 3×15, DB curl 3×10/arm. [evt-ai-1]"
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": "The Pull Day session is already set for Saturday, Aug 8 — nothing further pending. Anything else you want adjusted on it, or a different day scheduled?"
+    },
+    {
+      "role": "user",
+      "content": "Now add Barbell Row (4x8) and Push-Ups (3x15) to the workout you just created."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01343fhFsMB2F51BSs5DF2BZ",
+          "name": "set_event_exercises",
+          "input": {
+            "event_id": "evt-ai-1",
+            "event_title": "Pull Day",
+            "exercises": [
+              {
+                "name": "Weighted Pull-Ups",
+                "sets": 4,
+                "reps": "5",
+                "rest_period": "2 min"
+              },
+              {
+                "name": "Barbell Row",
+                "sets": 4,
+                "reps": "8",
+                "rest_period": "90 sec"
+              },
+              {
+                "name": "Lat Pulldown",
+                "sets": 3,
+                "reps": "10",
+                "rest_period": "90 sec"
+              },
+              {
+                "name": "Seated Cable Row",
+                "sets": 3,
+                "reps": "10",
+                "rest_period": "60 sec"
+              },
+              {
+                "name": "Face Pulls with External Rotation",
+                "sets": 3,
+                "reps": "15",
+                "rest_period": "45 sec"
+              },
+              {
+                "name": "Dumbbell Curl",
+                "sets": 3,
+                "reps": "10 each arm",
+                "rest_period": "45 sec"
+              },
+              {
+                "name": "Barbell Row",
+                "sets": 4,
+                "reps": "8",
+                "rest_period": "90 sec"
+              },
+              {
+                "name": "Push-Ups",
+                "sets": 3,
+                "reps": "15",
+                "rest_period": "60 sec"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01343fhFsMB2F51BSs5DF2BZ",
+          "content": "Replaced the exercises list (8 exercises)."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Added. Note: Barbell Row was already in Pull Day at 4×8 — it's now listed twice (once mid-session, once near the end before Push-Ups). Say if you meant to replace the first one instead."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": "No further action needed — the duplicate Barbell Row stays as-is per your confirmation. Pull Day (Sat Aug 8) now runs: Weighted Pull-Ups, Barbell Row, Lat Pulldown, Seated Cable Row, Face Pulls w/ External Rotation, DB Curl, Barbell Row, Push-Ups."
+    }
+  ],
+  "toolCalls": [
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "Pull Day",
+        "date": "2026-08-08",
+        "estimated_duration": 60,
+        "exercises": [
+          {
+            "name": "Weighted Pull-Ups",
+            "sets": 4,
+            "reps": "5",
+            "rest_period": "2 min"
+          },
+          {
+            "name": "Barbell Row",
+            "sets": 4,
+            "reps": "8",
+            "rest_period": "90 sec"
+          },
+          {
+            "name": "Lat Pulldown",
+            "sets": 3,
+            "reps": "10",
+            "rest_period": "90 sec"
+          },
+          {
+            "name": "Seated Cable Row",
+            "sets": 3,
+            "reps": "10",
+            "rest_period": "60 sec"
+          },
+          {
+            "name": "Face Pulls with External Rotation",
+            "sets": 3,
+            "reps": "15",
+            "rest_period": "45 sec"
+          },
+          {
+            "name": "Dumbbell Curl",
+            "sets": 3,
+            "reps": "10",
+            "rest_period": "45 sec"
+          }
+        ]
+      },
+      "result": "Unilateral exercises need per-side counts. Fix and retry:\nDumbbell Curl: \"10\" — state the count per side (\"10 each side\") or as \"total\".",
+      "turn": 1,
+      "kind": "write",
+      "round": 0
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "Pull Day",
+        "date": "2026-08-08",
+        "estimated_duration": 60,
+        "exercises": [
+          {
+            "name": "Weighted Pull-Ups",
+            "sets": 4,
+            "reps": "5",
+            "rest_period": "2 min"
+          },
+          {
+            "name": "Barbell Row",
+            "sets": 4,
+            "reps": "8",
+            "rest_period": "90 sec"
+          },
+          {
+            "name": "Lat Pulldown",
+            "sets": 3,
+            "reps": "10",
+            "rest_period": "90 sec"
+          },
+          {
+            "name": "Seated Cable Row",
+            "sets": 3,
+            "reps": "10",
+            "rest_period": "60 sec"
+          },
+          {
+            "name": "Face Pulls with External Rotation",
+            "sets": 3,
+            "reps": "15",
+            "rest_period": "45 sec"
+          },
+          {
+            "name": "Dumbbell Curl",
+            "sets": 3,
+            "reps": "10 each arm",
+            "rest_period": "45 sec"
+          }
+        ]
+      },
+      "result": "Created \"Pull Day\" on 2026-08-08 [evt-ai-1].",
+      "turn": 1,
+      "kind": "write",
+      "round": 1
+    },
+    {
+      "name": "set_event_exercises",
+      "input": {
+        "event_id": "evt-ai-1",
+        "event_title": "Pull Day",
+        "exercises": [
+          {
+            "name": "Weighted Pull-Ups",
+            "sets": 4,
+            "reps": "5",
+            "rest_period": "2 min"
+          },
+          {
+            "name": "Barbell Row",
+            "sets": 4,
+            "reps": "8",
+            "rest_period": "90 sec"
+          },
+          {
+            "name": "Lat Pulldown",
+            "sets": 3,
+            "reps": "10",
+            "rest_period": "90 sec"
+          },
+          {
+            "name": "Seated Cable Row",
+            "sets": 3,
+            "reps": "10",
+            "rest_period": "60 sec"
+          },
+          {
+            "name": "Face Pulls with External Rotation",
+            "sets": 3,
+            "reps": "15",
+            "rest_period": "45 sec"
+          },
+          {
+            "name": "Dumbbell Curl",
+            "sets": 3,
+            "reps": "10 each arm",
+            "rest_period": "45 sec"
+          },
+          {
+            "name": "Barbell Row",
+            "sets": 4,
+            "reps": "8",
+            "rest_period": "90 sec"
+          },
+          {
+            "name": "Push-Ups",
+            "sets": 3,
+            "reps": "15",
+            "rest_period": "60 sec"
+          }
+        ]
+      },
+      "result": "Replaced the exercises list (8 exercises).",
+      "turn": 3,
+      "kind": "write",
+      "round": 0
+    }
+  ],
+  "anomalies": []
+}

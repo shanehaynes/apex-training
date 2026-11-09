@@ -1,0 +1,1054 @@
+{
+  "caseId": "recurring-regimen-one-series",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Make a recurring strength regimen for a single pitch trad climber"
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_018JtpS65c9eiW7DpEu6uP46",
+          "name": "read_doctrine",
+          "input": {
+            "topic": "strength"
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_018JtpS65c9eiW7DpEu6uP46",
+          "content": "Strength for a mountain athlete is the capacity to move the body and a load through the mountains for hours without breaking down, and to produce force when the terrain demands it. It is built in a fixed order, general then maximal then specific, and it is always the servant of the aerobic work rather than its rival.\n\n## What strength is for\n\nThe mountain athlete needs strength for four things: to protect joints and connective tissue under repeated loaded steps; to make every submaximal step cheaper, because a stronger muscle uses a smaller fraction of its capacity for the same work; to carry a pack up and, in hunting, a heavier one down; and to produce force on a hard move, a steep kick-turn or a mantle. None of these calls for large muscles. All of them call for high force relative to bodyweight, good coordination, and the ability to hold position under fatigue.\n\nThis sets the shape of the work: few exercises chosen for transfer, heavy loads when the goal is force, multi-joint and often unilateral movements because the mountains load one leg at a time, and a strict ceiling on strength volume because the recovery it costs is recovery the aerobic base needs.\n\n## Phase one: general strength in transition\n\nThe transition phase builds the movement quality and tissue tolerance that heavy loading will require. The goal is not to get strong yet; it is to earn the right to train heavy.\n\nContent, as a guideline:\n1. Movement quality first. Squat, hinge, lunge, push, pull and carry patterns performed well at moderate loads, with attention to position, depth and control. If a pattern cannot be done well unloaded, it is not loaded.\n2. Unilateral work. Step-ups, split squats, single-leg deadlifts and lunges, because they expose and correct left-right asymmetry and mimic the single-leg loading of steep terrain.\n3. Carries. Loaded carries in several positions build trunk stiffness, grip and the ability to walk under load, all of which transfer directly.\n4. Core and posterior chain, addressed below, at high frequency and moderate intensity.\n5. Two sessions per week, roughly eight to fifteen reps per set, moderate rest, moving toward heavier loads and lower reps as the phase closes.\n\nFour to eight weeks here, longer after a layoff or injury, until movement is clean and the athlete can handle moderate loads without soreness lasting into the next session.\n\n## Phase two: max strength in base\n\nMax strength raises the force ceiling. A higher ceiling makes every submaximal effort cheaper, which is the property mountain endurance actually uses. It is trained with heavy loads, few reps, long rests and few exercises, and it produces strength without size when done this way.\n\nRules, as guidelines:\n1. Heavy: loads at which roughly one to five clean reps are possible, progressing toward the heavier end as the phase continues.\n2. Low reps: sets of roughly one to five, with several sets per exercise. The last rep of each set is hard but clean; sets are not taken to failure, which costs recovery and teaches poor positions.\n3. Full recovery: roughly three to five minutes between heavy sets. This feels slow and it is the point. Short rest turns a strength session into a conditioning session and loses the adaptation.\n4. Few exercises: roughly three to five per session, all multi-joint, all with obvious transfer. A lower-body hinge or squat, a unilateral leg movement, a pull, a push, and a carry or core movement is a complete session.\n5. Twice a week, for roughly six to ten weeks, with at least two days between sessions.\n6. Progression by load, in small steps, when all sets are completed cleanly. When a step fails, hold the load rather than pushing.\n\nMax strength sessions are brief, often under an hour, and they should leave the athlete feeling strong rather than wrecked. Heavy soreness the next day means the session was too much or the transition was too short.\n\n## Phase three: conversion to muscular endurance\n\nMax strength is a ceiling; muscular endurance is the ability to work near a useful fraction of that ceiling for a long time. For the mountain athlete this means sustained uphill work under load: the capacity that decides the last two thousand feet of a big day. It is built in the specific phase by loading the actual movement pattern of the objective.\n\nForms, from most to least specific:\n1. Weighted uphill hiking or skinning. A pack heavier than the objective's, on steep terrain, for sustained periods at an effort the athlete can hold. This is the most specific form and the default for alpine, ski and hunting objectives.\n2. Hill repeats under load. Repeated steep climbs with a pack, with descents as recovery, when terrain or time limits a single long effort.\n3. High-rep loaded step-ups. Indoors, a box step-up with a loaded pack for many continuous reps or a fixed duration, progressing in load and duration week over week. This is the substitute when steep terrain is not available.\n\nProgression is by duration first, then load. One session per week replaces one max strength session; the other max strength session is kept as maintenance at reduced volume. The work is hard in a particular way, a deep local burn in the legs rather than breathlessness, and it produces significant fatigue, so it sits away from the long aerobic session and never on consecutive days. Four to eight weeks of this, on the platform of the max strength phase, turns a strong athlete into one who can climb for hours.\n\n## Core and posterior chain as prerequisites\n\nThe trunk and the posterior chain, meaning the glutes, hamstrings, spinal erectors and the muscles that hold the pelvis and spine in position, are not accessories. They are the structure everything else pushes against. A weak trunk leaks force on every step, a weak posterior chain shifts load to the knees and lower back, and both fail first under a heavy pack late in a day.\n\nFor this athlete they are the named current development focus, and the doctrine treats them accordingly:\n1. They are trained in every phase, at high frequency, as the first strength work in transition and never dropped.\n2. Posterior chain work is loaded and progressed like any other strength work: hinges, single-leg hinges, bridges and their loaded variants, moving toward heavy in base.\n3. Trunk work emphasizes holding position against load, resisting rotation and extension, and transferring force between the legs and the arms, rather than flexion for its own sake. Carries and unilateral lifts do much of this.\n4. No max strength or muscular endurance progression is allowed to outrun the trunk's ability to hold position under it. A lift that breaks position is reduced.\n\n## Strength never replaces aerobic work\n\nThe most common error in a strong athlete's plan is to let strength work grow until it steals from the aerobic base. Strength is a smaller, faster adaptation. The aerobic base is the larger, slower one, and it is the one the objective depends on. When the two compete, the base wins in every phase except the specific phase of a rock objective.\n\nScheduling rules:\n1. Two strength sessions per week is the ceiling in base and specific. More is decoration.\n2. Heavy strength sits on a day with only easy aerobic work, or on its own, and at least two days before the long session, because heavy legs ruin the long session and the long session is more important.\n3. When both must happen on one day, the easy aerobic work comes first and strength second; that order compromises neither much, and the reverse compromises the aerobic session.\n4. Muscular endurance and objective-specific intensity are never on consecutive days, and neither sits the day before the long session.\n5. In the taper, strength drops to a light maintenance dose and is removed in the final week.\n6. Strength volume never grows in the same week as aerobic volume. One variable at a time.\n\n## How the coach applies this\n\n- Program strength in the fixed order of general work in transition, max strength in base and muscular endurance conversion in the specific phase, and do not skip ahead.\n- Hold heavy loading until squat, hinge, lunge, push, pull and carry patterns are clean at moderate loads, and reduce any lift that breaks position.\n- Build max strength sessions from roughly three to five multi-joint exercises at loads allowing roughly one to five clean reps, with roughly three to five minutes of rest, twice a week, as guidelines.\n- Stop each heavy set short of failure and progress load in small steps only when all sets were completed cleanly.\n- Convert to muscular endurance in the specific phase with weighted uphill hiking, hill repeats under load or high-rep loaded step-ups, progressing duration before load, one session per week.\n- Keep core and posterior chain work in every phase and at high frequency, because they are the athlete's named development focus and the foundation every other lift depends on.\n- Cap strength at two sessions per week, place heavy strength at least two days before the long session, and never grow strength volume in the same week as aerobic volume.\n- Reduce strength to a light dose in the taper and remove it in the final week before the objective.\n\n## Signals that contradict this\n\n- Soreness that lasts into the next session after a max strength workout indicates the transition was too short or the load too high, and the coach should hold or reduce load rather than progress.\n- A long aerobic session logged with unusually high heart rate for its pace, or a completion rate on long sessions that falls once heavy strength begins, indicates the strength work is blunting the aerobic base and should be moved or reduced.\n- A lift that fails or loses position at a load that was previously clean, with no illness or missed sleep reported, indicates accumulated fatigue and calls for a reduced week rather than a heavier attempt.\n- An athlete already carrying high strength numbers relative to their bodyweight but a slow easy pace is one whose limiting capacity is aerobic, and the coach should not let a strength focus displace aerobic volume.\n- Any reported joint pain, swelling or named injury in a region a lift loads stops loading that region and points to a clinician, and no progression rule in this topic overrides that.\n- A rock objective in its specific phase is the one case where climbing-specific strength takes priority over muscular endurance, and the alpine default here does not apply."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01Ju2VwV2KVdFpCnEtUXCF47",
+          "name": "read_doctrine",
+          "input": {
+            "topic": "climbing"
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01Ju2VwV2KVdFpCnEtUXCF47",
+          "content": "Climbing performance is limited by finger and contact strength, by power, and by the capacity to keep climbing for hours, and none of these improves reliably by just climbing more. Yaniro's view, which this doctrine adopts, is that a climber trains strength first and on purpose, then goes climbing to use it.\n\n## Strength first, and on purpose\n\nClimbing a lot builds skill, and skill is real. But strength gained by climbing arrives slowly, unevenly and at the mercy of the routes available, and a climber who is not strong enough for the next grade plateaus while accumulating fatigue and finger wear. The alternative is to treat climbing strength like any other strength: isolate the quality, load it progressively, rest fully, measure it, then take it to the rock where technique and tactics turn it into sends. This inverts the common habit of climbing hard often and hoping strength follows; the doctrine treats structured strength as the base and hard climbing as the expression of it.\n\n## Finger and contact strength\n\nFinger strength is the ceiling on what a climber can hold; contact strength is the ability to latch a hold on the move, with force rising fast. Both are trained on a hangboard with a structure, not by hanging until tired.\n\nMax hangs, as the guideline pattern:\n1. Warm up thoroughly, on easy climbing and then on progressively harder hangs, for longer than feels necessary.\n2. Hang at a load near the limit for a short duration, roughly seven to twelve seconds, on a defined edge and grip position. Add or remove weight to hit the load, rather than shrinking the edge below a safe size.\n3. Rest fully, roughly three to five minutes, between hangs. Short rest turns strength work into endurance work and loses the adaptation.\n4. Few total hangs per session, roughly three to six per grip position, and few grip positions, roughly two to three.\n5. Two sessions per week at most, never on consecutive days, and never the day before or after limit climbing.\n6. Progress by small load increments when every hang in a session is clean and the fingers feel fresh. Hold the load otherwise.\n\nContact strength is trained by the same structure at slightly shorter durations with a faster, more explosive latch, and by limit bouldering on holds that demand it. It sits on top of max finger strength and follows it in the plan.\n\n## Power, when the base exists\n\nPower is force produced fast: the dynamic move, the deadpoint, the drive through a steep sequence. It is trained by campus boarding and limit bouldering. Both are high-stress, high-reward tools that require a base of finger strength and tendon tolerance, and both should be earned rather than assumed.\n\nGuidelines:\n1. Campus work enters only after a period of structured finger strength, when the athlete has a training age of at least a few seasons, and never during an injury or a fatigue accumulation.\n2. Sessions are short, fully rested between efforts, and stopped at the first sign of degraded movement. Power cannot be trained tired.\n3. Limit bouldering is a small number of maximal attempts on a small number of problems, with long rests, on holds and moves that resemble the objective. It is not a session of many hard problems.\n4. One power session per week during the specific phase of a rock objective is the guideline, and it replaces, not adds to, other high-intensity work that week.\n\n## Failure as a planned tool\n\nWorking to failure has a purpose: it recruits the last fibers and teaches the body to keep producing force under fatigue. It also has a cost: it produces the deepest fatigue, the most tissue stress and the highest injury risk of anything in a climbing plan. So it is a tool, scheduled with a reason and followed by a recovery cost that the plan pays.\n\nRules:\n1. Failure is programmed, not incidental. A session that goes to failure says so beforehand and names what capacity it is for.\n2. Max hangs and power work stop short of failure; a failed hang or a botched campus move is the session's end, not its goal.\n3. Endurance capacity work, such as climbing to the point of falling off long moderate terrain, is where failure earns its place, and even there it is one session a week at most.\n4. A session to failure is followed by at least one full day off the fingers.\n5. Failure as a habit, meaning every session ends with the athlete falling off, is the signature of an athlete exercising rather than training.\n\n## Capacity on easy terrain\n\nThe aerobic analogue in climbing is long, continuous, low-intensity movement: many pitches or many minutes of climbing well below the limit, without pumping, without resting, in good form. It builds the local circulation and the movement economy that let the climber stay fresh on a sixteen-pitch day, and it is where technique is rehearsed at volume. For this athlete, whose objectives are long routes rather than short hard ones, it is the most important climbing session of the week outside the specific phase of a rock project.\n\nGuidelines:\n1. Continuous climbing for roughly twenty to forty-five minutes at an intensity where the forearms never pump, on a traverse, an autobelay or easy leads.\n2. Or a high pitch count on real rock at grades well below the limit, with an emphasis on smooth, efficient movement and fast transitions.\n3. One to three sessions a week in base, more of them on rock as the season allows.\n4. Intensity stays low; if the athlete is pumping, the session has become something else.\n\n## Tendons and skin adapt slowly\n\nMuscle strength can rise in weeks. Tendons, pulleys and ligaments take months to strengthen, and skin has its own limits. The most common climbing injury is the result of muscle getting ahead of tendon. So progression in finger and power work is conservative by design:\n1. Load increments are small and infrequent, and any sharp, local, one-finger pain stops the session.\n2. Volume of hard fingery climbing per week has a ceiling that does not rise with enthusiasm.\n3. A new grip position, edge size or campus rung spacing is introduced at reduced load.\n4. Skin that is thin, split or raw is a reason to change the session, not to tape and push through.\n5. Reported finger, elbow or shoulder pain, or a named injury, stops loading that region and points to a clinician; it is not a training input the coach programs around.\n\n## Inside an alpine periodization\n\nClimbing-specific work does not get its own plan; it gets a place inside the athlete's periodization, and the objective sets that place.\n\nFor an alpine or mixed objective, the aerobic base stays dominant. Climbing strength is maintained at roughly one hangboard and one capacity session a week through base, and the specific phase adds movement rehearsal on the terrain the objective demands: long easy pitches, ice tool hangs for an ice objective, climbing under a pack. Power work is largely absent.\n\nFor a rock project, climbing-specific work moves forward and expands. The base phase still builds aerobic fitness and max strength, because those are the slow adaptations, but it also builds finger strength on the hangboard. The specific phase is where power, limit bouldering and route-specific rehearsal take priority over muscular endurance, and the aerobic base is maintained rather than grown.\n\nWhen the athlete has both an alpine objective and a rock goal in one season, the doctrine's default is that the aerobic base is never cut, because it takes longest to rebuild and every pursuit depends on it, and climbing-specific work flexes around it.\n\n## How the coach applies this\n\n- Program climbing strength as structured, progressive, measured work on the hangboard rather than relying on climbing volume to produce it.\n- Build max hangs from short near-limit hangs of roughly seven to twelve seconds, roughly three to five minutes of rest, few grips and few hangs, at most twice a week, as guidelines.\n- Add campus and limit bouldering only after a period of structured finger strength, at most once a week during a rock objective's specific phase, and stop a power session at the first degraded movement.\n- Schedule any session to failure explicitly, name its purpose, keep it to at most one per week, and follow it with a full day off the fingers.\n- Include long, continuous, unpumped climbing as the capacity session in every base phase, and count high pitch counts on real rock toward it.\n- Progress finger load in small, infrequent steps, introduce any new grip or edge at reduced load, and treat thin or split skin as a reason to change the session.\n- Place climbing-specific work inside the athlete's periodization according to the objective, maintaining it under a dominant aerobic base for alpine goals and expanding it in the specific phase for a rock project.\n- Never cut the aerobic base to make room for climbing-specific work, because it takes longest to rebuild.\n\n## Signals that contradict this\n\n- Any reported sharp finger, elbow or shoulder pain, or a named injury, stops all loading of that region and points to a clinician, regardless of where the plan is.\n- Hangboard loads that stall or fall across several sessions with good sleep and no illness indicate accumulated fatigue or too-frequent sessions, and the response is more rest rather than more attempts.\n- An athlete whose limit on long routes is fear, route-finding or gear placement rather than strength has a skill and exposure limitation, and more hangboard work will not move it.\n- Capacity sessions logged with a pump or with falls indicate the intensity has crept up and the session is no longer building the capacity it was meant to.\n- A climber with a short training age, meaning fewer than a few seasons of structured work, should not be given campus work no matter how strong their fingers feel.\n- An alpine objective in its final weeks is one where a heavy climbing-strength block would steal recovery from the aerobic rehearsal, and the coach should keep climbing work to maintenance."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_0188ht2V1WeNUShNxXy3QcF7",
+          "name": "get_training_blocks",
+          "input": {
+            "scope": "current",
+            "today": "2026-08-03"
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_0188ht2V1WeNUShNxXy3QcF7",
+          "content": "{\"note\":\"no data for this athlete\"}"
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01444RtYeGZAtH5BGhLGZbTJ",
+          "name": "get_schedule",
+          "input": {
+            "start_date": "2026-07-01",
+            "end_date": "2026-08-03"
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01444RtYeGZAtH5BGhLGZbTJ",
+          "content": "{\"note\":\"no data for this athlete\"}"
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01DwfPQpucTNDEgsbbDQ9Z53",
+          "name": "get_prs",
+          "input": {
+            "scope": "all_time"
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01DwfPQpucTNDEgsbbDQ9Z53",
+          "content": "{\"note\":\"no data for this athlete\"}"
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01MfL8DR8BCnB119fdk5zH8a",
+          "name": "search_history",
+          "input": {
+            "query": "strength",
+            "limit": 10
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01MfL8DR8BCnB119fdk5zH8a",
+          "content": "{\"note\":\"no data for this athlete\"}"
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01Vfsyks2NeNiV2FqbVebKkr",
+          "name": "search_exercises",
+          "input": {
+            "query": "Squat"
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01Vfsyks2NeNiV2FqbVebKkr",
+          "content": "{\"note\":\"no data for this athlete\"}"
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01QX2Ti2tLobJUBY9Lh2uWNr",
+          "name": "read_doctrine",
+          "input": {
+            "topic": "athlete-ideal"
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01QX2Ti2tLobJUBY9Lh2uWNr",
+          "content": "This athlete has a specific ideal of what a body should be able to do, and the coach programs toward it rather than toward a generic fitness. The ideal is the dancer and the brawler unified: explosive strength to move mass, joined to the coordination, proprioception and precision that complex movement demands.\n\n## The model\n\nThe dancer contributes control: balance, proprioception, the ability to place a foot or a hand exactly where it is needed and to move the whole body through a complex sequence with economy. The brawler contributes force: the capacity to move mass, to produce power from the hips and trunk, to be strong under load and under stress. Neither alone is the ideal. A dancer without force is fragile in the mountains; a brawler without control is clumsy and injury-prone on technical ground. The unified athlete has both, and the measure of any session is whether it moves the athlete toward that union.\n\nThe climber-alpinist embodies the model. A hard pitch demands technical delicacy: precise footwork, body position, tension held through the fingertips. The approach, the descent and the load demand raw power and durability. The alpinist who lacks either fails. This is why the athlete's primary pursuit is also the clearest statement of what they are training to be.\n\n## The aesthetic\n\nThe look the athlete is training toward is the gymnast or the alpinist: lean, strong relative to bodyweight, mobile, built by what the body does. It is not the bodybuilder. Mass displayed at the expense of movement quality is a failure of the model, not a neutral outcome. The coach never programs for size as a goal, never chooses an exercise because of how it shapes a muscle, and treats bodyweight gain that does not come with a capacity gain as a cost.\n\nThis rules out a class of common gym work. Isolation exercises for appearance, high-volume hypertrophy blocks, and any session whose main product is a pump have no place in this plan. Strength is built heavy and low-rep, which builds force without bulk, and the body's shape follows from the movement it is trained for.\n\n## What each region is for\n\nThe athlete's ideal assigns each region a purpose, and the coach programs each region to that purpose.\n\n1. Legs serve distance, load and delicate movement. They must carry the athlete through long days with large vertical gain, carry a pack up and a heavier one down, and place a foot precisely on a small edge or a steep kick-turn. This means aerobic durability, unilateral strength, muscular endurance under load, and control through full range. It does not mean maximal size.\n\n2. Upper body serves bodyweight precision. The arms, shoulders and back must move the body through space with control: pulling on rock and ice, hanging from tools, pressing out a mantle, holding tension through a sequence. Strength relative to bodyweight and control at end range are the measures. Upper-body mass that does not pull its own weight is carried up every route as dead load.\n\n3. Core and posterior chain are the non-negotiable foundation and the current development focus. The trunk transfers force between the legs and the hands, holds position under a pack and on steep ground, and protects the spine under every load the pursuits impose. The posterior chain drives every uphill step, every hinge and every powerful movement. The doctrine treats them as prerequisites: they are trained in every phase, they are progressed as seriously as any lift, and no other progression is allowed to outrun them. Because the athlete has named them as the present focus, the coach gives them a place in every week's plan and reports on their progress.\n\n4. Full mobility is a baseline constraint, not an add-on. The ranges the pursuits demand at the hips, ankles, thoracic spine and shoulders are a floor. A deficit is a plan input; the mobility doctrine sets how it is closed.\n\n## Nothing decorative, nothing vestigial\n\nEvery session serves the movement model or it is cut. The test the coach applies to any proposed session, exercise or block: which capacity of the unified athlete does this build, and which pursuit will use it? A session that cannot answer is exercise, and the principles doctrine says what happens to exercise.\n\nThis also shapes how the coach answers requests. When the athlete asks for something that does not serve the model, the coach says so and offers what would. When the athlete asks for something that serves it, the coach places it in the periodization where it belongs. The model is the athlete's own, so the coach can cite it without apology.\n\n## The pursuits\n\nTraining is the servant of the pursuits, not the other way round. The plan exists so the athlete can do these things well and keep doing them.\n\nPrimary pursuits: climbing on rock, ice and in the alpine; backcountry skiing; trail running; backcountry hunting. Each demands the aerobic base, the leg durability, the trunk and the mobility described above, and each adds its own specific demand that the specific phase of a plan rehearses.\n\nInterests for later: jiu-jitsu, paragliding and whitewater. The coach does not program for these now, but it does not build anything that would foreclose them either; all three reward the same general capacities the model builds.\n\nWhen a pursuit outing and a training session compete for the same day, the outing wins whenever it provides the capacity the session was meant to build. A long alpine day is the week's long aerobic session. A day of many easy pitches is the week's climbing capacity session. The coach counts the outing, adjusts the week around it, and does not ask the athlete to do both.\n\n## Calibration\n\nFor calibrating what the athlete can already do, the following are established: multi-pitch traditional rock to 5.9 across sixteen pitches in a day; multi-pitch WI4 ice; solo couloirs and long alpine ridges with days of six thousand feet of gain; two-day alpine routes. The coach programs from this level. It does not prescribe as if the athlete were a beginner, and it does not assume capacities beyond these without evidence in the training data.\n\nThese facts set the scale of the long session, the load of the pack work, the pitch count of a capacity day and the grade range for climbing work. They also mean the athlete's easy pace, threshold estimates and strength benchmarks must be measured, not assumed from a template, because an athlete at this level is far from any generic baseline.\n\n## How the coach applies this\n\n- Program every session toward the union of explosive force and precise control, and cut any session that builds one at the cost of the other.\n- Never program for size, choose an exercise for its effect on appearance, or run a hypertrophy block, and treat bodyweight gain without a capacity gain as a cost.\n- Build the legs for distance, load and precise placement through aerobic durability, unilateral strength and muscular endurance under load.\n- Build the upper body for bodyweight precision, measuring it by strength relative to bodyweight and control at end range.\n- Keep core and posterior chain work in every week of every phase, progress it as seriously as any lift, and report on it, because it is the athlete's named current focus.\n- Treat mobility at the hips, ankles, thoracic spine and shoulders as a floor, and program to close any deficit.\n- Count a pursuit outing as the training session it replaces, and adjust the week around it rather than asking for both.\n- Calibrate every prescription to the athlete's established level, measured from their data, rather than to a template.\n- Cite this ideal when declining a request that does not serve the movement model, and offer the session that would.\n\n## Signals that contradict this\n\n- A request for isolation work, a hypertrophy block or a session aimed at appearance does not serve the model, and the coach should name that and offer the alternative that does.\n- Bodyweight that rises across a block without a matching rise in strength relative to bodyweight or in aerobic pace indicates the training is adding mass rather than capacity.\n- A weekly plan with no core or posterior chain work in it contradicts the athlete's named development focus and should be corrected before anything else is added.\n- Training data showing capacities well below the established calibration, such as an easy pace far slower than a sixteen-pitch day would predict, means the athlete is detrained or returning from a gap, and the plan should rebuild rather than assume the calibration holds today.\n- A schedule in which training sessions are displacing pursuit outings has inverted the relationship, and the coach should re-plan the week around the outing.\n- An athlete who describes a mobility restriction in one of the four regions has a plan input that the mobility doctrine must address before the region is loaded harder."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "Starting a general-strength regimen. No training block or strength history exists for you yet, so per doctrine this opens in **transition phase**: \"The transition phase builds the movement quality and tissue tolerance that heavy loading will require... two sessions per week, roughly eight to fifteen reps per set, moderate rest\" (strength doctrine). Core and posterior chain run in every session — your named current focus (athlete-ideal doctrine). Heavy max-strength and hangboard work wait for base phase; this is squat/hinge/lunge/push/pull/carry at moderate load, done clean.\n\nTwo new library entries needed — a lunge pattern and a carry, both missing from your library and both called for explicitly by the transition-phase doctrine:"
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_01Q9qpWQia3XcRLXk3jo7e6H",
+          "name": "create_exercise_definition",
+          "input": {
+            "canonical_name": "Rear-Foot-Elevated Split Squat",
+            "category": "strength",
+            "default_reps": "10 each leg",
+            "default_sets": 3,
+            "default_rest": "90s",
+            "is_unilateral": true,
+            "equipment": [
+              "bench",
+              "dumbbells"
+            ],
+            "muscle_groups": [
+              "quads",
+              "glutes",
+              "hip flexors"
+            ],
+            "technique_notes": "Rear foot on bench, torso upright, front knee tracks over midfoot, descend to full depth under control. Exposes and corrects left-right asymmetry; mimics single-leg loading of steep terrain. Add load only once depth and control are clean."
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01Q9qpWQia3XcRLXk3jo7e6H",
+          "content": "Added \"Rear-Foot-Elevated Split Squat\" (strength, unilateral) to the exercise library. Reference it by that exact name in create_event or set_event_exercises."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01Sv8jw27PaAsXUtKdzmADbz",
+          "name": "create_exercise_definition",
+          "input": {
+            "canonical_name": "Farmer's Carry",
+            "category": "strength",
+            "default_duration": "30-40 sec",
+            "default_sets": 3,
+            "default_rest": "90s",
+            "equipment": [
+              "dumbbells or farmer handles"
+            ],
+            "muscle_groups": [
+              "grip",
+              "trunk",
+              "traps",
+              "legs"
+            ],
+            "technique_notes": "Heavy dumbbells or handles at sides, walk tall, trunk stiff, shoulders down. Builds trunk stiffness, grip and walking-under-load capacity that transfers directly to pack-carrying."
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01Sv8jw27PaAsXUtKdzmADbz",
+          "content": "Added \"Farmer's Carry\" (strength) to the exercise library. Reference it by that exact name in create_event or set_event_exercises."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "Now the two weekly sessions:"
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_01Mfky4TfZozaqXvEQPkkUH6",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "General Strength A",
+            "date": "2026-11-10",
+            "estimated_duration": 55,
+            "repeat": {
+              "days": [
+                "TU"
+              ]
+            },
+            "description": "Transition-phase general strength: movement quality at moderate load, 8-15 reps. Squat/hinge/push/pull + posterior chain and core. Last rep of each set hard but clean — never to failure.",
+            "exercises": [
+              {
+                "name": "Back Squat",
+                "sets": 3,
+                "reps": "10",
+                "rest_period": "90s",
+                "notes": "Moderate load, full depth, control through the bottom."
+              },
+              {
+                "name": "Single-Leg RDL",
+                "sets": 3,
+                "reps": "8 each leg",
+                "rest_period": "90s",
+                "notes": "Light-moderate load, hinge quality over speed."
+              },
+              {
+                "name": "Chest-Supported Dumbbell Row",
+                "sets": 3,
+                "reps": "12",
+                "rest_period": "60s"
+              },
+              {
+                "name": "Push-Ups",
+                "sets": 3,
+                "reps": "12-15",
+                "rest_period": "60s"
+              },
+              {
+                "name": "Copenhagen Plank",
+                "sets": 3,
+                "duration": "20-30 sec each side",
+                "rest_period": "45s"
+              },
+              {
+                "name": "Dead Bug",
+                "sets": 2,
+                "reps": "10 each side",
+                "rest_period": "30s"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01Mfky4TfZozaqXvEQPkkUH6",
+          "content": "Created \"General Strength A\" repeating every Tue from 2026-11-10 [evt-ai-1]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01Wo8ijn2NVSmqBpL6bZ71mj",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "General Strength B",
+            "date": "2026-11-13",
+            "estimated_duration": 55,
+            "repeat": {
+              "days": [
+                "FR"
+              ]
+            },
+            "description": "Transition-phase general strength: unilateral leg, pull, carry, anti-rotation core. Moderate load, 8-15 reps, clean reps only — hold load rather than push through a failed rep.",
+            "exercises": [
+              {
+                "name": "Rear-Foot-Elevated Split Squat",
+                "sets": 3,
+                "reps": "10 each leg",
+                "rest_period": "90s",
+                "notes": "Light dumbbells to start; add load only once depth and balance are clean."
+              },
+              {
+                "name": "Barbell Row",
+                "sets": 3,
+                "reps": "10",
+                "rest_period": "90s"
+              },
+              {
+                "name": "Farmer's Carry",
+                "sets": 3,
+                "duration": "30-40 sec",
+                "rest_period": "90s",
+                "notes": "Heavy enough that grip and trunk are the limiter, not the legs."
+              },
+              {
+                "name": "Banded Glute Bridges",
+                "sets": 3,
+                "reps": "15",
+                "rest_period": "45s"
+              },
+              {
+                "name": "Pallof Press Hold",
+                "sets": 3,
+                "duration": "20-30 sec each side",
+                "rest_period": "45s",
+                "notes": "Resist rotation — hold, don't move."
+              },
+              {
+                "name": "Calf Raises (single leg)",
+                "sets": 2,
+                "reps": "15 each leg",
+                "rest_period": "30s"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01Wo8ijn2NVSmqBpL6bZ71mj",
+          "content": "Created \"General Strength B\" repeating every Fri from 2026-11-13 [evt-ai-2]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "**General Strength, Tue/Fri, no end date** — transition phase.\n\n- **Tue (A):** Back Squat, Single-Leg RDL, Chest-Supported DB Row, Push-Ups, Copenhagen Plank, Dead Bug\n- **Fri (B):** Rear-Foot-Elevated Split Squat, Barbell Row, Farmer's Carry, Banded Glute Bridges, Pallof Press Hold, Calf Raises\n\n8-15 reps, moderate load, 2+ days apart, nothing to failure. Core/posterior chain in both sessions per your named focus.\n\nThis is deliberately *not* max strength or hangboard work — no history on file, so doctrine's fixed order applies: general strength earns the right to load heavy next (4-8 weeks, until movement is clean with no residual soreness). Once that's solid, base phase adds heavy low-rep lifting plus hangboard finger strength, since single-pitch trad is a rock objective where climbing-specific work eventually takes priority in the specific phase. I'll flag when you're ready to progress — or tell me if you've already got a strength base I'm not seeing and I'll adjust."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": "Regimen's live — Tue/Fri General Strength, A/B rotation, transition phase.\n\nNothing else queued to build right now. Progress checkpoint: run this 4-8 weeks. Move to base/max-strength when squat, hinge, lunge, push, pull and carry are all clean at moderate load with no soreness carrying into the next session — tell me when sessions start feeling easy and I'll check your logs and advance the loading scheme (heavier, 1-5 rep sets, 3-5 min rest, twice weekly) rather than adding volume here."
+    },
+    {
+      "role": "user",
+      "content": "Mondays and Thursdays, about an hour, for the next 4 weeks. Go ahead and schedule it."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01VsXaR7KQ4cSuf6eFvu5Dwh",
+          "name": "delete_event",
+          "input": {
+            "event_id": "evt-ai-1",
+            "scope": "all",
+            "event_title": "General Strength A"
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01VsXaR7KQ4cSuf6eFvu5Dwh",
+          "content": "Deleted the event successfully."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_0172i5NAfHmNn7HBQFZ8X3sK",
+          "name": "delete_event",
+          "input": {
+            "event_id": "evt-ai-2",
+            "scope": "all",
+            "event_title": "General Strength B"
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_0172i5NAfHmNn7HBQFZ8X3sK",
+          "content": "Deleted the event successfully."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01EntZwPEe7N7BhNubHDM3Ra",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "General Strength A",
+            "date": "2026-11-09",
+            "estimated_duration": 60,
+            "repeat": {
+              "days": [
+                "MO"
+              ],
+              "until": "2026-12-06"
+            },
+            "description": "Transition-phase general strength: movement quality at moderate load, 8-15 reps. Squat/hinge/push/pull + posterior chain and core. Last rep of each set hard but clean — never to failure.",
+            "exercises": [
+              {
+                "name": "Back Squat",
+                "sets": 3,
+                "reps": "10",
+                "rest_period": "90s",
+                "notes": "Moderate load, full depth, control through the bottom."
+              },
+              {
+                "name": "Single-Leg RDL",
+                "sets": 3,
+                "reps": "8 each leg",
+                "rest_period": "90s",
+                "notes": "Light-moderate load, hinge quality over speed."
+              },
+              {
+                "name": "Chest-Supported Dumbbell Row",
+                "sets": 3,
+                "reps": "12",
+                "rest_period": "60s"
+              },
+              {
+                "name": "Push-Ups",
+                "sets": 3,
+                "reps": "12-15",
+                "rest_period": "60s"
+              },
+              {
+                "name": "Copenhagen Plank",
+                "sets": 3,
+                "duration": "20-30 sec each side",
+                "rest_period": "45s"
+              },
+              {
+                "name": "Dead Bug",
+                "sets": 2,
+                "reps": "10 each side",
+                "rest_period": "30s"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01EntZwPEe7N7BhNubHDM3Ra",
+          "content": "Created \"General Strength A\" repeating every Mon until 2026-12-06 from 2026-11-09 [evt-ai-3]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01Lz9btjhTeUhVdbAZpzZorp",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "General Strength B",
+            "date": "2026-11-12",
+            "estimated_duration": 60,
+            "repeat": {
+              "days": [
+                "TH"
+              ],
+              "until": "2026-12-06"
+            },
+            "description": "Transition-phase general strength: unilateral leg, pull, carry, anti-rotation core. Moderate load, 8-15 reps, clean reps only — hold load rather than push through a failed rep.",
+            "exercises": [
+              {
+                "name": "Rear-Foot-Elevated Split Squat",
+                "sets": 3,
+                "reps": "10 each leg",
+                "rest_period": "90s",
+                "notes": "Light dumbbells to start; add load only once depth and balance are clean."
+              },
+              {
+                "name": "Barbell Row",
+                "sets": 3,
+                "reps": "10",
+                "rest_period": "90s"
+              },
+              {
+                "name": "Farmer's Carry",
+                "sets": 3,
+                "duration": "30-40 sec",
+                "rest_period": "90s",
+                "notes": "Heavy enough that grip and trunk are the limiter, not the legs."
+              },
+              {
+                "name": "Banded Glute Bridges",
+                "sets": 3,
+                "reps": "15",
+                "rest_period": "45s"
+              },
+              {
+                "name": "Pallof Press Hold",
+                "sets": 3,
+                "duration": "20-30 sec each side",
+                "rest_period": "45s",
+                "notes": "Resist rotation — hold, don't move."
+              },
+              {
+                "name": "Calf Raises (single leg)",
+                "sets": 2,
+                "reps": "15 each leg",
+                "rest_period": "30s"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01Lz9btjhTeUhVdbAZpzZorp",
+          "content": "Created \"General Strength B\" repeating every Thu until 2026-12-06 from 2026-11-12 [evt-ai-4]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Rescheduled: Mon/Thu, 60 min, 4 weeks (through 2026-12-06) — 4 sessions each, same A/B content. Old Tue/Fri series removed.\n\nCheckpoint lands end of that window: review for clean movement / no residual soreness, then decide on extending transition phase or advancing to max strength."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": "The schedule's confirmed and nothing further is queued — Mon/Thu General Strength A/B, 60 min, through 2026-12-06. Nothing to add right now. Check back in with me at the 4-week mark (2026-12-06ish) and I'll pull your logs to see if movement's clean and soreness isn't carrying over before advancing to max strength."
+    }
+  ],
+  "toolCalls": [
+    {
+      "name": "read_doctrine",
+      "input": {
+        "topic": "strength"
+      },
+      "result": "Strength for a mountain athlete is the capacity to move the body and a load through the mountains for hours without breaking down, and to produce force when the terrain demands it. It is built in a fixed order, general then maximal then specific, and it is always the servant of the aerobic work rather than its rival.\n\n## What strength is for\n\nThe mountain athlete needs strength for four things: to protect joints and connective tissue under repeated loaded steps; to make every submaximal step cheaper, because a stronger muscle uses a smaller fraction of its capacity for the same work; to carry a pack up and, in hunting, a heavier one down; and to produce force on a hard move, a steep kick-turn or a mantle. None of these calls for large muscles. All of them call for high force relative to bodyweight, good coordination, and the ability to hold position under fatigue.\n\nThis sets the shape of the work: few exercises chosen for transfer, heavy loads when the goal is force, multi-joint and often unilateral movements because the mountains load one leg at a time, and a strict ceiling on strength volume because the recovery it costs is recovery the aerobic base needs.\n\n## Phase one: general strength in transition\n\nThe transition phase builds the movement quality and tissue tolerance that heavy loading will require. The goal is not to get strong yet; it is to earn the right to train heavy.\n\nContent, as a guideline:\n1. Movement quality first. Squat, hinge, lunge, push, pull and carry patterns performed well at moderate loads, with attention to position, depth and control. If a pattern cannot be done well unloaded, it is not loaded.\n2. Unilateral work. Step-ups, split squats, single-leg deadlifts and lunges, because they expose and correct left-right asymmetry and mimic the single-leg loading of steep terrain.\n3. Carries. Loaded carries in several positions build trunk stiffness, grip and the ability to walk under load, all of which transfer directly.\n4. Core and posterior chain, addressed below, at high frequency and moderate intensity.\n5. Two sessions per week, roughly eight to fifteen reps per set, moderate rest, moving toward heavier loads and lower reps as the phase closes.\n\nFour to eight weeks here, longer after a layoff or injury, until movement is clean and the athlete can handle moderate loads without soreness lasting into the next session.\n\n## Phase two: max strength in base\n\nMax strength raises the force ceiling. A higher ceiling makes every submaximal effort cheaper, which is the property mountain endurance actually uses. It is trained with heavy loads, few reps, long rests and few exercises, and it produces strength without size when done this way.\n\nRules, as guidelines:\n1. Heavy: loads at which roughly one to five clean reps are possible, progressing toward the heavier end as the phase continues.\n2. Low reps: sets of roughly one to five, with several sets per exercise. The last rep of each set is hard but clean; sets are not taken to failure, which costs recovery and teaches poor positions.\n3. Full recovery: roughly three to five minutes between heavy sets. This feels slow and it is the point. Short rest turns a strength session into a conditioning session and loses the adaptation.\n4. Few exercises: roughly three to five per session, all multi-joint, all with obvious transfer. A lower-body hinge or squat, a unilateral leg movement, a pull, a push, and a carry or core movement is a complete session.\n5. Twice a week, for roughly six to ten weeks, with at least two days between sessions.\n6. Progression by load, in small steps, when all sets are completed cleanly. When a step fails, hold the load rather than pushing.\n\nMax strength sessions are brief, often under an hour, and they should leave the athlete feeling strong rather than wrecked. Heavy soreness the next day means the session was too much or the transition was too short.\n\n## Phase three: conversion to muscular endurance\n\nMax strength is a ceiling; muscular endurance is the ability to work near a useful fraction of that ceiling for a long time. For the mountain athlete this means sustained uphill work under load: the capacity that decides the last two thousand feet of a big day. It is built in the specific phase by loading the actual movement pattern of the objective.\n\nForms, from most to least specific:\n1. Weighted uphill hiking or skinning. A pack heavier than the objective's, on steep terrain, for sustained periods at an effort the athlete can hold. This is the most specific form and the default for alpine, ski and hunting objectives.\n2. Hill repeats under load. Repeated steep climbs with a pack, with descents as recovery, when terrain or time limits a single long effort.\n3. High-rep loaded step-ups. Indoors, a box step-up with a loaded pack for many continuous reps or a fixed duration, progressing in load and duration week over week. This is the substitute when steep terrain is not available.\n\nProgression is by duration first, then load. One session per week replaces one max strength session; the other max strength session is kept as maintenance at reduced volume. The work is hard in a particular way, a deep local burn in the legs rather than breathlessness, and it produces significant fatigue, so it sits away from the long aerobic session and never on consecutive days. Four to eight weeks of this, on the platform of the max strength phase, turns a strong athlete into one who can climb for hours.\n\n## Core and posterior chain as prerequisites\n\nThe trunk and the posterior chain, meaning the glutes, hamstrings, spinal erectors and the muscles that hold the pelvis and spine in position, are not accessories. They are the structure everything else pushes against. A weak trunk leaks force on every step, a weak posterior chain shifts load to the knees and lower back, and both fail first under a heavy pack late in a day.\n\nFor this athlete they are the named current development focus, and the doctrine treats them accordingly:\n1. They are trained in every phase, at high frequency, as the first strength work in transition and never dropped.\n2. Posterior chain work is loaded and progressed like any other strength work: hinges, single-leg hinges, bridges and their loaded variants, moving toward heavy in base.\n3. Trunk work emphasizes holding position against load, resisting rotation and extension, and transferring force between the legs and the arms, rather than flexion for its own sake. Carries and unilateral lifts do much of this.\n4. No max strength or muscular endurance progression is allowed to outrun the trunk's ability to hold position under it. A lift that breaks position is reduced.\n\n## Strength never replaces aerobic work\n\nThe most common error in a strong athlete's plan is to let strength work grow until it steals from the aerobic base. Strength is a smaller, faster adaptation. The aerobic base is the larger, slower one, and it is the one the objective depends on. When the two compete, the base wins in every phase except the specific phase of a rock objective.\n\nScheduling rules:\n1. Two strength sessions per week is the ceiling in base and specific. More is decoration.\n2. Heavy strength sits on a day with only easy aerobic work, or on its own, and at least two days before the long session, because heavy legs ruin the long session and the long session is more important.\n3. When both must happen on one day, the easy aerobic work comes first and strength second; that order compromises neither much, and the reverse compromises the aerobic session.\n4. Muscular endurance and objective-specific intensity are never on consecutive days, and neither sits the day before the long session.\n5. In the taper, strength drops to a light maintenance dose and is removed in the final week.\n6. Strength volume never grows in the same week as aerobic volume. One variable at a time.\n\n## How the coach applies this\n\n- Program strength in the fixed order of general work in transition, max strength in base and muscular endurance conversion in the specific phase, and do not skip ahead.\n- Hold heavy loading until squat, hinge, lunge, push, pull and carry patterns are clean at moderate loads, and reduce any lift that breaks position.\n- Build max strength sessions from roughly three to five multi-joint exercises at loads allowing roughly one to five clean reps, with roughly three to five minutes of rest, twice a week, as guidelines.\n- Stop each heavy set short of failure and progress load in small steps only when all sets were completed cleanly.\n- Convert to muscular endurance in the specific phase with weighted uphill hiking, hill repeats under load or high-rep loaded step-ups, progressing duration before load, one session per week.\n- Keep core and posterior chain work in every phase and at high frequency, because they are the athlete's named development focus and the foundation every other lift depends on.\n- Cap strength at two sessions per week, place heavy strength at least two days before the long session, and never grow strength volume in the same week as aerobic volume.\n- Reduce strength to a light dose in the taper and remove it in the final week before the objective.\n\n## Signals that contradict this\n\n- Soreness that lasts into the next session after a max strength workout indicates the transition was too short or the load too high, and the coach should hold or reduce load rather than progress.\n- A long aerobic session logged with unusually high heart rate for its pace, or a completion rate on long sessions that falls once heavy strength begins, indicates the strength work is blunting the aerobic base and should be moved or reduced.\n- A lift that fails or loses position at a load that was previously clean, with no illness or missed sleep reported, indicates accumulated fatigue and calls for a reduced week rather than a heavier attempt.\n- An athlete already carrying high strength numbers relative to their bodyweight but a slow easy pace is one whose limiting capacity is aerobic, and the coach should not let a strength focus displace aerobic volume.\n- Any reported joint pain, swelling or named injury in a region a lift loads stops loading that region and points to a clinician, and no progression rule in this topic overrides that.\n- A rock objective in its specific phase is the one case where climbing-specific strength takes priority over muscular endurance, and the alpine default here does not apply.",
+      "turn": 1,
+      "kind": "read",
+      "round": 0
+    },
+    {
+      "name": "read_doctrine",
+      "input": {
+        "topic": "climbing"
+      },
+      "result": "Climbing performance is limited by finger and contact strength, by power, and by the capacity to keep climbing for hours, and none of these improves reliably by just climbing more. Yaniro's view, which this doctrine adopts, is that a climber trains strength first and on purpose, then goes climbing to use it.\n\n## Strength first, and on purpose\n\nClimbing a lot builds skill, and skill is real. But strength gained by climbing arrives slowly, unevenly and at the mercy of the routes available, and a climber who is not strong enough for the next grade plateaus while accumulating fatigue and finger wear. The alternative is to treat climbing strength like any other strength: isolate the quality, load it progressively, rest fully, measure it, then take it to the rock where technique and tactics turn it into sends. This inverts the common habit of climbing hard often and hoping strength follows; the doctrine treats structured strength as the base and hard climbing as the expression of it.\n\n## Finger and contact strength\n\nFinger strength is the ceiling on what a climber can hold; contact strength is the ability to latch a hold on the move, with force rising fast. Both are trained on a hangboard with a structure, not by hanging until tired.\n\nMax hangs, as the guideline pattern:\n1. Warm up thoroughly, on easy climbing and then on progressively harder hangs, for longer than feels necessary.\n2. Hang at a load near the limit for a short duration, roughly seven to twelve seconds, on a defined edge and grip position. Add or remove weight to hit the load, rather than shrinking the edge below a safe size.\n3. Rest fully, roughly three to five minutes, between hangs. Short rest turns strength work into endurance work and loses the adaptation.\n4. Few total hangs per session, roughly three to six per grip position, and few grip positions, roughly two to three.\n5. Two sessions per week at most, never on consecutive days, and never the day before or after limit climbing.\n6. Progress by small load increments when every hang in a session is clean and the fingers feel fresh. Hold the load otherwise.\n\nContact strength is trained by the same structure at slightly shorter durations with a faster, more explosive latch, and by limit bouldering on holds that demand it. It sits on top of max finger strength and follows it in the plan.\n\n## Power, when the base exists\n\nPower is force produced fast: the dynamic move, the deadpoint, the drive through a steep sequence. It is trained by campus boarding and limit bouldering. Both are high-stress, high-reward tools that require a base of finger strength and tendon tolerance, and both should be earned rather than assumed.\n\nGuidelines:\n1. Campus work enters only after a period of structured finger strength, when the athlete has a training age of at least a few seasons, and never during an injury or a fatigue accumulation.\n2. Sessions are short, fully rested between efforts, and stopped at the first sign of degraded movement. Power cannot be trained tired.\n3. Limit bouldering is a small number of maximal attempts on a small number of problems, with long rests, on holds and moves that resemble the objective. It is not a session of many hard problems.\n4. One power session per week during the specific phase of a rock objective is the guideline, and it replaces, not adds to, other high-intensity work that week.\n\n## Failure as a planned tool\n\nWorking to failure has a purpose: it recruits the last fibers and teaches the body to keep producing force under fatigue. It also has a cost: it produces the deepest fatigue, the most tissue stress and the highest injury risk of anything in a climbing plan. So it is a tool, scheduled with a reason and followed by a recovery cost that the plan pays.\n\nRules:\n1. Failure is programmed, not incidental. A session that goes to failure says so beforehand and names what capacity it is for.\n2. Max hangs and power work stop short of failure; a failed hang or a botched campus move is the session's end, not its goal.\n3. Endurance capacity work, such as climbing to the point of falling off long moderate terrain, is where failure earns its place, and even there it is one session a week at most.\n4. A session to failure is followed by at least one full day off the fingers.\n5. Failure as a habit, meaning every session ends with the athlete falling off, is the signature of an athlete exercising rather than training.\n\n## Capacity on easy terrain\n\nThe aerobic analogue in climbing is long, continuous, low-intensity movement: many pitches or many minutes of climbing well below the limit, without pumping, without resting, in good form. It builds the local circulation and the movement economy that let the climber stay fresh on a sixteen-pitch day, and it is where technique is rehearsed at volume. For this athlete, whose objectives are long routes rather than short hard ones, it is the most important climbing session of the week outside the specific phase of a rock project.\n\nGuidelines:\n1. Continuous climbing for roughly twenty to forty-five minutes at an intensity where the forearms never pump, on a traverse, an autobelay or easy leads.\n2. Or a high pitch count on real rock at grades well below the limit, with an emphasis on smooth, efficient movement and fast transitions.\n3. One to three sessions a week in base, more of them on rock as the season allows.\n4. Intensity stays low; if the athlete is pumping, the session has become something else.\n\n## Tendons and skin adapt slowly\n\nMuscle strength can rise in weeks. Tendons, pulleys and ligaments take months to strengthen, and skin has its own limits. The most common climbing injury is the result of muscle getting ahead of tendon. So progression in finger and power work is conservative by design:\n1. Load increments are small and infrequent, and any sharp, local, one-finger pain stops the session.\n2. Volume of hard fingery climbing per week has a ceiling that does not rise with enthusiasm.\n3. A new grip position, edge size or campus rung spacing is introduced at reduced load.\n4. Skin that is thin, split or raw is a reason to change the session, not to tape and push through.\n5. Reported finger, elbow or shoulder pain, or a named injury, stops loading that region and points to a clinician; it is not a training input the coach programs around.\n\n## Inside an alpine periodization\n\nClimbing-specific work does not get its own plan; it gets a place inside the athlete's periodization, and the objective sets that place.\n\nFor an alpine or mixed objective, the aerobic base stays dominant. Climbing strength is maintained at roughly one hangboard and one capacity session a week through base, and the specific phase adds movement rehearsal on the terrain the objective demands: long easy pitches, ice tool hangs for an ice objective, climbing under a pack. Power work is largely absent.\n\nFor a rock project, climbing-specific work moves forward and expands. The base phase still builds aerobic fitness and max strength, because those are the slow adaptations, but it also builds finger strength on the hangboard. The specific phase is where power, limit bouldering and route-specific rehearsal take priority over muscular endurance, and the aerobic base is maintained rather than grown.\n\nWhen the athlete has both an alpine objective and a rock goal in one season, the doctrine's default is that the aerobic base is never cut, because it takes longest to rebuild and every pursuit depends on it, and climbing-specific work flexes around it.\n\n## How the coach applies this\n\n- Program climbing strength as structured, progressive, measured work on the hangboard rather than relying on climbing volume to produce it.\n- Build max hangs from short near-limit hangs of roughly seven to twelve seconds, roughly three to five minutes of rest, few grips and few hangs, at most twice a week, as guidelines.\n- Add campus and limit bouldering only after a period of structured finger strength, at most once a week during a rock objective's specific phase, and stop a power session at the first degraded movement.\n- Schedule any session to failure explicitly, name its purpose, keep it to at most one per week, and follow it with a full day off the fingers.\n- Include long, continuous, unpumped climbing as the capacity session in every base phase, and count high pitch counts on real rock toward it.\n- Progress finger load in small, infrequent steps, introduce any new grip or edge at reduced load, and treat thin or split skin as a reason to change the session.\n- Place climbing-specific work inside the athlete's periodization according to the objective, maintaining it under a dominant aerobic base for alpine goals and expanding it in the specific phase for a rock project.\n- Never cut the aerobic base to make room for climbing-specific work, because it takes longest to rebuild.\n\n## Signals that contradict this\n\n- Any reported sharp finger, elbow or shoulder pain, or a named injury, stops all loading of that region and points to a clinician, regardless of where the plan is.\n- Hangboard loads that stall or fall across several sessions with good sleep and no illness indicate accumulated fatigue or too-frequent sessions, and the response is more rest rather than more attempts.\n- An athlete whose limit on long routes is fear, route-finding or gear placement rather than strength has a skill and exposure limitation, and more hangboard work will not move it.\n- Capacity sessions logged with a pump or with falls indicate the intensity has crept up and the session is no longer building the capacity it was meant to.\n- A climber with a short training age, meaning fewer than a few seasons of structured work, should not be given campus work no matter how strong their fingers feel.\n- An alpine objective in its final weeks is one where a heavy climbing-strength block would steal recovery from the aerobic rehearsal, and the coach should keep climbing work to maintenance.",
+      "turn": 1,
+      "kind": "read",
+      "round": 1
+    },
+    {
+      "name": "get_training_blocks",
+      "input": {
+        "scope": "current",
+        "today": "2026-08-03"
+      },
+      "result": "{\"note\":\"no data for this athlete\"}",
+      "turn": 1,
+      "kind": "read",
+      "round": 2
+    },
+    {
+      "name": "get_schedule",
+      "input": {
+        "start_date": "2026-07-01",
+        "end_date": "2026-08-03"
+      },
+      "result": "{\"note\":\"no data for this athlete\"}",
+      "turn": 1,
+      "kind": "read",
+      "round": 3
+    },
+    {
+      "name": "get_prs",
+      "input": {
+        "scope": "all_time"
+      },
+      "result": "{\"note\":\"no data for this athlete\"}",
+      "turn": 1,
+      "kind": "read",
+      "round": 4
+    },
+    {
+      "name": "search_history",
+      "input": {
+        "query": "strength",
+        "limit": 10
+      },
+      "result": "{\"note\":\"no data for this athlete\"}",
+      "turn": 1,
+      "kind": "read",
+      "round": 5
+    },
+    {
+      "name": "search_exercises",
+      "input": {
+        "query": "Squat"
+      },
+      "result": "{\"note\":\"no data for this athlete\"}",
+      "turn": 1,
+      "kind": "read",
+      "round": 6
+    },
+    {
+      "name": "read_doctrine",
+      "input": {
+        "topic": "athlete-ideal"
+      },
+      "result": "This athlete has a specific ideal of what a body should be able to do, and the coach programs toward it rather than toward a generic fitness. The ideal is the dancer and the brawler unified: explosive strength to move mass, joined to the coordination, proprioception and precision that complex movement demands.\n\n## The model\n\nThe dancer contributes control: balance, proprioception, the ability to place a foot or a hand exactly where it is needed and to move the whole body through a complex sequence with economy. The brawler contributes force: the capacity to move mass, to produce power from the hips and trunk, to be strong under load and under stress. Neither alone is the ideal. A dancer without force is fragile in the mountains; a brawler without control is clumsy and injury-prone on technical ground. The unified athlete has both, and the measure of any session is whether it moves the athlete toward that union.\n\nThe climber-alpinist embodies the model. A hard pitch demands technical delicacy: precise footwork, body position, tension held through the fingertips. The approach, the descent and the load demand raw power and durability. The alpinist who lacks either fails. This is why the athlete's primary pursuit is also the clearest statement of what they are training to be.\n\n## The aesthetic\n\nThe look the athlete is training toward is the gymnast or the alpinist: lean, strong relative to bodyweight, mobile, built by what the body does. It is not the bodybuilder. Mass displayed at the expense of movement quality is a failure of the model, not a neutral outcome. The coach never programs for size as a goal, never chooses an exercise because of how it shapes a muscle, and treats bodyweight gain that does not come with a capacity gain as a cost.\n\nThis rules out a class of common gym work. Isolation exercises for appearance, high-volume hypertrophy blocks, and any session whose main product is a pump have no place in this plan. Strength is built heavy and low-rep, which builds force without bulk, and the body's shape follows from the movement it is trained for.\n\n## What each region is for\n\nThe athlete's ideal assigns each region a purpose, and the coach programs each region to that purpose.\n\n1. Legs serve distance, load and delicate movement. They must carry the athlete through long days with large vertical gain, carry a pack up and a heavier one down, and place a foot precisely on a small edge or a steep kick-turn. This means aerobic durability, unilateral strength, muscular endurance under load, and control through full range. It does not mean maximal size.\n\n2. Upper body serves bodyweight precision. The arms, shoulders and back must move the body through space with control: pulling on rock and ice, hanging from tools, pressing out a mantle, holding tension through a sequence. Strength relative to bodyweight and control at end range are the measures. Upper-body mass that does not pull its own weight is carried up every route as dead load.\n\n3. Core and posterior chain are the non-negotiable foundation and the current development focus. The trunk transfers force between the legs and the hands, holds position under a pack and on steep ground, and protects the spine under every load the pursuits impose. The posterior chain drives every uphill step, every hinge and every powerful movement. The doctrine treats them as prerequisites: they are trained in every phase, they are progressed as seriously as any lift, and no other progression is allowed to outrun them. Because the athlete has named them as the present focus, the coach gives them a place in every week's plan and reports on their progress.\n\n4. Full mobility is a baseline constraint, not an add-on. The ranges the pursuits demand at the hips, ankles, thoracic spine and shoulders are a floor. A deficit is a plan input; the mobility doctrine sets how it is closed.\n\n## Nothing decorative, nothing vestigial\n\nEvery session serves the movement model or it is cut. The test the coach applies to any proposed session, exercise or block: which capacity of the unified athlete does this build, and which pursuit will use it? A session that cannot answer is exercise, and the principles doctrine says what happens to exercise.\n\nThis also shapes how the coach answers requests. When the athlete asks for something that does not serve the model, the coach says so and offers what would. When the athlete asks for something that serves it, the coach places it in the periodization where it belongs. The model is the athlete's own, so the coach can cite it without apology.\n\n## The pursuits\n\nTraining is the servant of the pursuits, not the other way round. The plan exists so the athlete can do these things well and keep doing them.\n\nPrimary pursuits: climbing on rock, ice and in the alpine; backcountry skiing; trail running; backcountry hunting. Each demands the aerobic base, the leg durability, the trunk and the mobility described above, and each adds its own specific demand that the specific phase of a plan rehearses.\n\nInterests for later: jiu-jitsu, paragliding and whitewater. The coach does not program for these now, but it does not build anything that would foreclose them either; all three reward the same general capacities the model builds.\n\nWhen a pursuit outing and a training session compete for the same day, the outing wins whenever it provides the capacity the session was meant to build. A long alpine day is the week's long aerobic session. A day of many easy pitches is the week's climbing capacity session. The coach counts the outing, adjusts the week around it, and does not ask the athlete to do both.\n\n## Calibration\n\nFor calibrating what the athlete can already do, the following are established: multi-pitch traditional rock to 5.9 across sixteen pitches in a day; multi-pitch WI4 ice; solo couloirs and long alpine ridges with days of six thousand feet of gain; two-day alpine routes. The coach programs from this level. It does not prescribe as if the athlete were a beginner, and it does not assume capacities beyond these without evidence in the training data.\n\nThese facts set the scale of the long session, the load of the pack work, the pitch count of a capacity day and the grade range for climbing work. They also mean the athlete's easy pace, threshold estimates and strength benchmarks must be measured, not assumed from a template, because an athlete at this level is far from any generic baseline.\n\n## How the coach applies this\n\n- Program every session toward the union of explosive force and precise control, and cut any session that builds one at the cost of the other.\n- Never program for size, choose an exercise for its effect on appearance, or run a hypertrophy block, and treat bodyweight gain without a capacity gain as a cost.\n- Build the legs for distance, load and precise placement through aerobic durability, unilateral strength and muscular endurance under load.\n- Build the upper body for bodyweight precision, measuring it by strength relative to bodyweight and control at end range.\n- Keep core and posterior chain work in every week of every phase, progress it as seriously as any lift, and report on it, because it is the athlete's named current focus.\n- Treat mobility at the hips, ankles, thoracic spine and shoulders as a floor, and program to close any deficit.\n- Count a pursuit outing as the training session it replaces, and adjust the week around it rather than asking for both.\n- Calibrate every prescription to the athlete's established level, measured from their data, rather than to a template.\n- Cite this ideal when declining a request that does not serve the movement model, and offer the session that would.\n\n## Signals that contradict this\n\n- A request for isolation work, a hypertrophy block or a session aimed at appearance does not serve the model, and the coach should name that and offer the alternative that does.\n- Bodyweight that rises across a block without a matching rise in strength relative to bodyweight or in aerobic pace indicates the training is adding mass rather than capacity.\n- A weekly plan with no core or posterior chain work in it contradicts the athlete's named development focus and should be corrected before anything else is added.\n- Training data showing capacities well below the established calibration, such as an easy pace far slower than a sixteen-pitch day would predict, means the athlete is detrained or returning from a gap, and the plan should rebuild rather than assume the calibration holds today.\n- A schedule in which training sessions are displacing pursuit outings has inverted the relationship, and the coach should re-plan the week around the outing.\n- An athlete who describes a mobility restriction in one of the four regions has a plan input that the mobility doctrine must address before the region is loaded harder.",
+      "turn": 1,
+      "kind": "read",
+      "round": 7
+    },
+    {
+      "name": "create_exercise_definition",
+      "input": {
+        "canonical_name": "Rear-Foot-Elevated Split Squat",
+        "category": "strength",
+        "default_reps": "10 each leg",
+        "default_sets": 3,
+        "default_rest": "90s",
+        "is_unilateral": true,
+        "equipment": [
+          "bench",
+          "dumbbells"
+        ],
+        "muscle_groups": [
+          "quads",
+          "glutes",
+          "hip flexors"
+        ],
+        "technique_notes": "Rear foot on bench, torso upright, front knee tracks over midfoot, descend to full depth under control. Exposes and corrects left-right asymmetry; mimics single-leg loading of steep terrain. Add load only once depth and control are clean."
+      },
+      "result": "Added \"Rear-Foot-Elevated Split Squat\" (strength, unilateral) to the exercise library. Reference it by that exact name in create_event or set_event_exercises.",
+      "turn": 1,
+      "kind": "write",
+      "round": 8
+    },
+    {
+      "name": "create_exercise_definition",
+      "input": {
+        "canonical_name": "Farmer's Carry",
+        "category": "strength",
+        "default_duration": "30-40 sec",
+        "default_sets": 3,
+        "default_rest": "90s",
+        "equipment": [
+          "dumbbells or farmer handles"
+        ],
+        "muscle_groups": [
+          "grip",
+          "trunk",
+          "traps",
+          "legs"
+        ],
+        "technique_notes": "Heavy dumbbells or handles at sides, walk tall, trunk stiff, shoulders down. Builds trunk stiffness, grip and walking-under-load capacity that transfers directly to pack-carrying."
+      },
+      "result": "Added \"Farmer's Carry\" (strength) to the exercise library. Reference it by that exact name in create_event or set_event_exercises.",
+      "turn": 1,
+      "kind": "write",
+      "round": 9
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "General Strength A",
+        "date": "2026-11-10",
+        "estimated_duration": 55,
+        "repeat": {
+          "days": [
+            "TU"
+          ]
+        },
+        "description": "Transition-phase general strength: movement quality at moderate load, 8-15 reps. Squat/hinge/push/pull + posterior chain and core. Last rep of each set hard but clean — never to failure.",
+        "exercises": [
+          {
+            "name": "Back Squat",
+            "sets": 3,
+            "reps": "10",
+            "rest_period": "90s",
+            "notes": "Moderate load, full depth, control through the bottom."
+          },
+          {
+            "name": "Single-Leg RDL",
+            "sets": 3,
+            "reps": "8 each leg",
+            "rest_period": "90s",
+            "notes": "Light-moderate load, hinge quality over speed."
+          },
+          {
+            "name": "Chest-Supported Dumbbell Row",
+            "sets": 3,
+            "reps": "12",
+            "rest_period": "60s"
+          },
+          {
+            "name": "Push-Ups",
+            "sets": 3,
+            "reps": "12-15",
+            "rest_period": "60s"
+          },
+          {
+            "name": "Copenhagen Plank",
+            "sets": 3,
+            "duration": "20-30 sec each side",
+            "rest_period": "45s"
+          },
+          {
+            "name": "Dead Bug",
+            "sets": 2,
+            "reps": "10 each side",
+            "rest_period": "30s"
+          }
+        ]
+      },
+      "result": "Created \"General Strength A\" repeating every Tue from 2026-11-10 [evt-ai-1].",
+      "turn": 1,
+      "kind": "write",
+      "round": 10
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "General Strength B",
+        "date": "2026-11-13",
+        "estimated_duration": 55,
+        "repeat": {
+          "days": [
+            "FR"
+          ]
+        },
+        "description": "Transition-phase general strength: unilateral leg, pull, carry, anti-rotation core. Moderate load, 8-15 reps, clean reps only — hold load rather than push through a failed rep.",
+        "exercises": [
+          {
+            "name": "Rear-Foot-Elevated Split Squat",
+            "sets": 3,
+            "reps": "10 each leg",
+            "rest_period": "90s",
+            "notes": "Light dumbbells to start; add load only once depth and balance are clean."
+          },
+          {
+            "name": "Barbell Row",
+            "sets": 3,
+            "reps": "10",
+            "rest_period": "90s"
+          },
+          {
+            "name": "Farmer's Carry",
+            "sets": 3,
+            "duration": "30-40 sec",
+            "rest_period": "90s",
+            "notes": "Heavy enough that grip and trunk are the limiter, not the legs."
+          },
+          {
+            "name": "Banded Glute Bridges",
+            "sets": 3,
+            "reps": "15",
+            "rest_period": "45s"
+          },
+          {
+            "name": "Pallof Press Hold",
+            "sets": 3,
+            "duration": "20-30 sec each side",
+            "rest_period": "45s",
+            "notes": "Resist rotation — hold, don't move."
+          },
+          {
+            "name": "Calf Raises (single leg)",
+            "sets": 2,
+            "reps": "15 each leg",
+            "rest_period": "30s"
+          }
+        ]
+      },
+      "result": "Created \"General Strength B\" repeating every Fri from 2026-11-13 [evt-ai-2].",
+      "turn": 1,
+      "kind": "write",
+      "round": 11
+    },
+    {
+      "name": "delete_event",
+      "input": {
+        "event_id": "evt-ai-1",
+        "scope": "all",
+        "event_title": "General Strength A"
+      },
+      "result": "Deleted the event successfully.",
+      "turn": 3,
+      "kind": "write",
+      "round": 0
+    },
+    {
+      "name": "delete_event",
+      "input": {
+        "event_id": "evt-ai-2",
+        "scope": "all",
+        "event_title": "General Strength B"
+      },
+      "result": "Deleted the event successfully.",
+      "turn": 3,
+      "kind": "write",
+      "round": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "General Strength A",
+        "date": "2026-11-09",
+        "estimated_duration": 60,
+        "repeat": {
+          "days": [
+            "MO"
+          ],
+          "until": "2026-12-06"
+        },
+        "description": "Transition-phase general strength: movement quality at moderate load, 8-15 reps. Squat/hinge/push/pull + posterior chain and core. Last rep of each set hard but clean — never to failure.",
+        "exercises": [
+          {
+            "name": "Back Squat",
+            "sets": 3,
+            "reps": "10",
+            "rest_period": "90s",
+            "notes": "Moderate load, full depth, control through the bottom."
+          },
+          {
+            "name": "Single-Leg RDL",
+            "sets": 3,
+            "reps": "8 each leg",
+            "rest_period": "90s",
+            "notes": "Light-moderate load, hinge quality over speed."
+          },
+          {
+            "name": "Chest-Supported Dumbbell Row",
+            "sets": 3,
+            "reps": "12",
+            "rest_period": "60s"
+          },
+          {
+            "name": "Push-Ups",
+            "sets": 3,
+            "reps": "12-15",
+            "rest_period": "60s"
+          },
+          {
+            "name": "Copenhagen Plank",
+            "sets": 3,
+            "duration": "20-30 sec each side",
+            "rest_period": "45s"
+          },
+          {
+            "name": "Dead Bug",
+            "sets": 2,
+            "reps": "10 each side",
+            "rest_period": "30s"
+          }
+        ]
+      },
+      "result": "Created \"General Strength A\" repeating every Mon until 2026-12-06 from 2026-11-09 [evt-ai-3].",
+      "turn": 3,
+      "kind": "write",
+      "round": 2
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "General Strength B",
+        "date": "2026-11-12",
+        "estimated_duration": 60,
+        "repeat": {
+          "days": [
+            "TH"
+          ],
+          "until": "2026-12-06"
+        },
+        "description": "Transition-phase general strength: unilateral leg, pull, carry, anti-rotation core. Moderate load, 8-15 reps, clean reps only — hold load rather than push through a failed rep.",
+        "exercises": [
+          {
+            "name": "Rear-Foot-Elevated Split Squat",
+            "sets": 3,
+            "reps": "10 each leg",
+            "rest_period": "90s",
+            "notes": "Light dumbbells to start; add load only once depth and balance are clean."
+          },
+          {
+            "name": "Barbell Row",
+            "sets": 3,
+            "reps": "10",
+            "rest_period": "90s"
+          },
+          {
+            "name": "Farmer's Carry",
+            "sets": 3,
+            "duration": "30-40 sec",
+            "rest_period": "90s",
+            "notes": "Heavy enough that grip and trunk are the limiter, not the legs."
+          },
+          {
+            "name": "Banded Glute Bridges",
+            "sets": 3,
+            "reps": "15",
+            "rest_period": "45s"
+          },
+          {
+            "name": "Pallof Press Hold",
+            "sets": 3,
+            "duration": "20-30 sec each side",
+            "rest_period": "45s",
+            "notes": "Resist rotation — hold, don't move."
+          },
+          {
+            "name": "Calf Raises (single leg)",
+            "sets": 2,
+            "reps": "15 each leg",
+            "rest_period": "30s"
+          }
+        ]
+      },
+      "result": "Created \"General Strength B\" repeating every Thu until 2026-12-06 from 2026-11-12 [evt-ai-4].",
+      "turn": 3,
+      "kind": "write",
+      "round": 3
+    }
+  ],
+  "anomalies": [
+    "unscriptedRead:get_training_blocks",
+    "unscriptedRead:get_schedule",
+    "unscriptedRead:get_prs",
+    "unscriptedRead:search_history",
+    "unscriptedRead:search_exercises"
+  ]
+}

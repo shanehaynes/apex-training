@@ -8,6 +8,7 @@ import {
   casePassed,
   classify,
   evalSurfaceHash,
+  isErrored,
   looksAgree,
   majorityCase,
   majorityRun,
@@ -187,15 +188,11 @@ export async function runGate(deps: GateDeps): Promise<GateOutcome> {
   const baselineRaw = readFileSync(baselinePath, 'utf8');
   const baseline = JSON.parse(baselineRaw) as BaselineFile;
   // A single-sample baseline makes every flaky case a coin toss (measured
-  // 2026-11-09: it failed unchanged main). Refuse it before spending anything;
-  // eval:verify would refuse the attestation anyway.
-  if (!baseline.majorityOf?.runs?.length) {
-    return {
-      code: 1,
-      message: `${baselineRel} is a single sample, not a majority of runs — promote it from three full runs ` +
-        'with `npm run eval:baseline -- <a.json> <b.json> <c.json>`.',
-    };
-  }
+  // 2026-11-09: it failed unchanged main), and one whose sources are missing
+  // or out-voted is not the standard it claims to be. Refuse either before
+  // spending anything; eval:verify would refuse the attestation anyway.
+  const standard = checkMajorityBaseline(deps.root, baselineRel, baseline);
+  if (standard) return { code: 1, message: standard };
 
   // (2) Fail fast, BEFORE any model call: an edited prompt under an unchanged
   // PROMPT_VERSION means the version no longer identifies the prompt, and a
@@ -273,7 +270,7 @@ export async function runGate(deps: GateDeps): Promise<GateOutcome> {
       });
     }
 
-    const decided = new Map(suspects.map(id => [id, majorityCase(looks.get(id)!)]));
+    const decided = new Map(suspects.map(id => [id, settleSuspect(looks.get(id)!)]));
     finalCases = firstRun.cases.map(c => decided.get(c.id) ?? c);
     for (const id of suspects) if (!firstById.has(id)) finalCases.push(decided.get(id)!);
   }
@@ -290,7 +287,7 @@ export async function runGate(deps: GateDeps): Promise<GateOutcome> {
   const reasons: string[] = [];
   if (final.regressions.length) {
     reasons.push(`${final.regressions.length} confirmed regression(s): ` +
-      final.regressions.map(r => `${r.caseId} [${r.dim}] ${r.from} → ${r.to}`).join('; '));
+      final.regressions.map(r => `${r.caseId} [${r.dim}] ${r.from} → ${r.to}${votesNote(byId.get(r.caseId), r.dim)}`).join('; '));
   }
   if (final.erroredCases.length) {
     reasons.push(`${final.erroredCases.length} case(s) errored in two looks: ${final.erroredCases.join(', ')}`);
@@ -344,6 +341,31 @@ export async function runGate(deps: GateDeps): Promise<GateOutcome> {
       `Attestation written to ${ATTESTATION_FILE} — commit it with ${resultRel} and its transcripts.`,
     attestation,
   };
+}
+
+/**
+ * A suspect decided by majorityCase, with a transcript hash that belongs to a
+ * look holding every verdict the attestation will record (R4). With two
+ * dimensions some look always does (two majorities of three looks share a
+ * look); with three or more, or with no majority at all, none may — then the
+ * hash names every look, so the attestation never points at one transcript
+ * that disagrees with it.
+ */
+export function settleSuspect(looks: CaseResultLike[]): CaseResultLike {
+  const decided = majorityCase(looks);
+  if (looks.length < 2 || isErrored(decided)) return decided;
+  if (looks.some(look => looksAgree(look, decided))) return decided;
+  return { ...decided, transcriptHash: `split:${looks.map(l => l.transcriptHash || '-').join('+')}` };
+}
+
+/** " (looks: fail 2, pass 1)" for a suspect's dimension, saying when no status held a majority. */
+function votesNote(c: CaseResultLike | undefined, dim: Dimension): string {
+  const votes = (c as { votes?: Partial<Record<Dimension, Record<string, number>>> } | undefined)?.votes?.[dim];
+  if (!votes) return '';
+  const cast = Object.values(votes).reduce((n, v) => n + v, 0);
+  const tally = Object.entries(votes).map(([status, n]) => `${status} ${n}`).join(', ');
+  const held = Object.values(votes).some(n => n > cast / 2);
+  return held ? ` (looks: ${tally})` : ` (looks: ${tally} — no majority, recorded as fail)`;
 }
 
 function limitOutcome(outcome: RunSuiteOutcome): GateOutcome | null {
@@ -466,6 +488,10 @@ function incomparable(runs: Array<{ label: string; run: StoredRunResult }>): str
   const [head, ...rest] = runs;
   for (const { label, run } of rest) {
     if (run.model !== head.run.model) return `${label} is ${run.model}, ${head.label} is ${head.run.model}.`;
+    // The judge scores refusal and doctrine: another judge is another question.
+    if (run.judgeModel !== head.run.judgeModel) {
+      return `${label} was judged by ${run.judgeModel}, ${head.label} by ${head.run.judgeModel}.`;
+    }
     if (run.promptVersion !== head.run.promptVersion) {
       return `${label} scored PROMPT_VERSION ${run.promptVersion}, ${head.label} scored ${head.run.promptVersion}.`;
     }
@@ -480,6 +506,24 @@ function incomparable(runs: Array<{ label: string; run: StoredRunResult }>): str
 function buildMajorityBaseline(
   runs: Array<{ rel: string; run: StoredRunResult }>,
 ): { ok: true; baseline: BaselineFile } | { ok: false; reason: string } {
+  // Three votes from one run are one sample counted three times — the bug a
+  // majority exists to remove. A source is a distinct run: its own file, its
+  // own runId, its own transcripts.
+  const notUnder = runs.filter(r => !r.rel.startsWith('evals/results/'));
+  if (notUnder.length) {
+    return { ok: false, reason: `source runs must live under evals/results/: ${notUnder.map(r => r.rel).join(', ')}` };
+  }
+  const seen = new Map<string, string>();
+  for (const { rel, run } of runs) {
+    const transcripts = run.cases.map(c => c.transcriptHash).filter((h): h is string => Boolean(h)).sort();
+    const keys: Array<[string, string]> = [[`path:${rel}`, 'the same file'], [`run:${run.runId}`, 'the same runId']];
+    if (transcripts.length) keys.push([`transcripts:${transcripts.join('|')}`, 'the same transcripts']);
+    for (const [key, what] of keys) {
+      const earlier = seen.get(key);
+      if (earlier) return { ok: false, reason: `${rel} and ${earlier} are one run counted twice (${what})` };
+      seen.set(key, rel);
+    }
+  }
   const mismatch = incomparable(runs.map(r => ({ label: r.rel, run: r.run })));
   if (mismatch) return { ok: false, reason: mismatch };
   const majority = majorityRun(runs.map(r => r.run));
@@ -535,7 +579,8 @@ export function checkMajorityBaseline(root: string, baselineRel: string, baselin
   if (!rebuilt.ok) return `${baselineRel}'s sources do not make a baseline: ${rebuilt.reason}`;
   const want = new Map(rebuilt.baseline.cases.map(c => [c.id, c]));
   const drift: string[] = [];
-  if (baseline.cases.length !== rebuilt.baseline.cases.length) drift.push('a different number of cases from its sources');
+  const ids = (cases: Array<{ id: string }>) => cases.map(c => c.id).sort().join('\n');
+  if (ids(baseline.cases) !== ids(rebuilt.baseline.cases)) drift.push('a different case set from its sources');
   for (const c of baseline.cases) {
     const w = want.get(c.id);
     if (!w) {
@@ -563,11 +608,11 @@ export function promoteBaseline(root: string, resultPaths: string[]): GateOutcom
   const missing = resultPaths.filter(p => !existsSync(p));
   if (missing.length) return { code: 1, message: `no such result file: ${missing.join(', ')}` };
   const runs = resultPaths.map(p => ({ rel: posix(relative(root, resolve(p))), run: readJson<StoredRunResult>(p) }));
-  const outside = runs.filter(r => r.rel.startsWith('..'));
+  const outside = runs.filter(r => !r.rel.startsWith('evals/results/'));
   if (outside.length) {
     return {
       code: 1,
-      message: 'source runs must live in the tree (evals/results/), so eval:verify can re-derive the baseline: ' +
+      message: 'source runs must live in the tree under evals/results/, so eval:verify can re-derive the baseline: ' +
         outside.map(r => r.rel).join(', '),
     };
   }
@@ -687,7 +732,7 @@ async function main(): Promise<number> {
       : [];
     if (found.length === 1) model = found[0].replace(/\.json$/, '');
     else if (found.length === 0) {
-      console.error(`no baseline yet; run \`npm run eval:baseline -- <result.json>\` to create ${BASELINE_DIR}/<model>.json`);
+      console.error(`no baseline yet; run \`npm run eval:baseline -- <a.json> <b.json> <c.json>\` to create ${BASELINE_DIR}/<model>.json`);
       return 2;
     } else {
       console.error(`several baselines (${found.join(', ')}) — pass --model <id>.`);
