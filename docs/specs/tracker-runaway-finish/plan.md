@@ -34,7 +34,7 @@ add, CI config, hooks, `scripts/merge-policy.mjs`), `src/styles/app.css`
 (onboarding board), `e2e/lib/*`, `MISSION.md`, `applyEditTimes`'s contract.
 **Depends on:** none. #552 (`feat/coach-session-times`) touches neither these
 files nor the finish path.
-**Status:** in review (M1 #555; M2 feat/tracker-runaway-finish-ios)
+**Status:** M1 shipped (#555); M2 in review (feat/tracker-runaway-finish-ios)
 
 ## Approach
 
