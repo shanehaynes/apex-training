@@ -76,7 +76,8 @@ function runBlock(step: string[]): string {
 // Two calls: CI's run list (fixture.runs, filtered by --workflow, --event and
 // --branch and cut to --limit, newest first, as gh does) and one run's view
 // (fixture.views[id], or a failed call when absent). fixture.listFails fails
-// the list. Like gh, an object carries only the fields --json names.
+// the list. fixture.disabled is a disabled CI, which gh finds by name only
+// with --all. Like gh, an object carries only the fields --json names.
 const GH_STUB = `#!/usr/bin/env node
 const { spawnSync } = require('node:child_process');
 const { appendFileSync, readFileSync } = require('node:fs');
@@ -89,6 +90,10 @@ const pick = (o) => Object.fromEntries(fields.filter((f) => f in o).map((f) => [
 let data;
 if (args[0] === 'run' && args[1] === 'list') {
   if (fixture.listFails) { process.stderr.write('HTTP 502: Bad Gateway'); process.exit(1); }
+  if (fixture.disabled && !args.includes('--all') && !args.includes('-a')) {
+    process.stderr.write('could not find any workflows named ' + flag('--workflow'));
+    process.exit(1);
+  }
   let runs = flag('--workflow') === 'CI' ? fixture.runs : [];
   if (flag('--event')) runs = runs.filter((r) => r.event === flag('--event'));
   if (flag('--branch')) runs = runs.filter((r) => r.headBranch === flag('--branch'));
@@ -107,7 +112,7 @@ process.exit(out.status ?? 1);
 
 type Run = { createdAt: string; event: string; headBranch: string };
 type View = { jobs: { name: string }[]; conclusion: string };
-type Fixture = { runs?: Run[]; views?: Record<string, View>; listFails?: boolean };
+type Fixture = { runs?: Run[]; views?: Record<string, View>; listFails?: boolean; disabled?: boolean };
 
 const HOUR = 3_600_000;
 /** gh's timestamp form (no milliseconds) for `hours` ago. */
@@ -211,6 +216,14 @@ describe('supervisor.yml nightly-check, on the fallback cron', () => {
     expect(r.lines.slice(1)).toEqual(['sweep=true']);
   });
 
+  it('CI disabled: its last nightly is still found, and reported as stale', () => {
+    const nightly = ciRun(30);
+    const r = check({ runs: [nightly], disabled: true });
+    expect(r.status, r.stderr).toBe(0);
+    expect(r.lines[0].startsWith(`${MISSED}${nightly.createdAt})`)).toBe(true);
+    expect(r.lines.slice(1)).toEqual(['sweep=true']);
+  });
+
   it('runs cannot be listed: sweep without an ACTION, and warn', () => {
     const r = check({ runs: [ciRun(3)], listFails: true });
     expect(r.status, r.stderr).toBe(0);
@@ -226,6 +239,7 @@ describe('supervisor.yml nightly-check, on the fallback cron', () => {
     for (const [flag, value] of [['--workflow', 'CI'], ['--event', 'schedule'], ['--branch', 'main']]) {
       expect(call[call.indexOf(flag) + 1], flag).toBe(value);
     }
+    expect(call).toContain('--all');
   });
 });
 

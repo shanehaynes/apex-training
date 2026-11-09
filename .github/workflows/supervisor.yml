@@ -120,7 +120,9 @@ jobs:
               echo "::warning::Could not read the jobs of CI run $NIGHTLY_RUN_ID; sweeping without knowing whether the nightly ran."
             fi
             echo "sweep=true" >> "$GITHUB_OUTPUT"
-          elif newest=$(gh run list --workflow CI --branch main --event schedule --limit 1 --json createdAt \
+          # --all: by name, gh finds a disabled workflow's runs only with it,
+          # and a disabled CI is a nightly that stopped.
+          elif newest=$(gh run list --workflow CI --all --branch main --event schedule --limit 1 --json createdAt \
               --jq 'if length == 0 then "none" elif now - (.[0].createdAt | fromdateiso8601) < 86400 then "recent \(.[0].createdAt)" else "stale \(.[0].createdAt)" end'); then
             case "$newest" in
               recent*)
