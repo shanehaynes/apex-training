@@ -433,6 +433,10 @@ acceptance endpoint MT calls (read the web's re-acceptance modal first).
   also lands in You → Data (D-060). Unit (behind the mock's gate), smoke and snapshot tests. It
   reaches athletes in the next TestFlight build, which is Shane's go.
 
+- 2026-11-08 · Mac · MT follow-up (`fix/ios-export-silent-dismiss`): when Replace in Files loses
+  the saved item, iOS reports it to the export row as a cancel at every layer, so the row stays
+  silent for both (D-061). Comment and docs only. Shane's device run is open.
+
 ## Next brief
 **M1 — Write finished sessions to Health.** Goal: a tracker finish writes an Apex-branded
 `HKWorkout` with the real start and end, the mapped activity type and sync metadata; cancel

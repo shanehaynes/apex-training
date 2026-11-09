@@ -1288,3 +1288,42 @@ athletes to the web for it.
   account already gone.
 - **Known gap, its own PR:** `buildExport` reads each table unpaginated, so a table past
   PostgREST's 1000-row cap exports truncated, on the web and here alike.
+
+## D-061 · Export: a cancel and a save whose result Files loses look the same, so the row says nothing for either
+**Status:** decided · session call · 2026-11-08 · this PR. Device check open (Shane).
+D-060 says "the completion says whether it saved". That holds for a success and a failure, but
+not for this case. On the iOS 26.5 simulator, Replace in Files' "Replace Existing Items?" prompt
+sometimes loses the saved item. Files moves the old export to `.Trash`, then fileproviderd logs
+"Cannot get URL for item … The file doesn't exist" and DocumentManager, in Apex's process, logs
+"Calling delegate -documentBrowser:didPickDocumentURLs: with an empty array of items" and
+"[CRIT] Index out of sync". The sheet closes, sometimes after 25 s or more "In progress", and
+the row shows neither saved nor error (#550 moved the UI test to Keep Both for this reason). A
+line for the athlete was worth adding only if the app could tell this case from a cancel. It
+cannot. Probed on two simulators on 2026-11-08 with Cancel, swipe-down, Stop then Cancel, Keep
+Both and 145 Replaces:
+
+| | `fileExporter` (iOS 14 form, shipped) | `fileExporter` with `onCancellation` (iOS 17) | `UIDocumentPickerDelegate` |
+|---|---|---|---|
+| Cancel, swipe-down | no callback | `onCancellation` | `documentPickerWasCancelled` |
+| the lost result | no callback (inferred: UIKit hands it the same cancel; #550's runs saw no label) | `onCancellation` | `documentPickerWasCancelled` |
+
+- **iOS reports it as a cancel at every public layer.** UIKit itself turns the empty result into
+  a cancel, so wrapping `UIDocumentPickerViewController` ourselves would not help. The
+  `isPresented` binding is written first in every case: 0–6 ms before a success, and in the same
+  millisecond as a cancel. A dismissal check therefore sees nothing a cancel does not. Any message
+  added there would appear on every cancel (Mission V).
+- **The file was saved.** In the one lost result checked on disk, the new export sat in On My
+  iPhone and the old one in `.Trash`. Only the confirmation was lost, so "not saved" would be
+  false too.
+- **Rate.** 2 lost results and 1 picker stuck "In progress" past 27 s in 145 Replace rounds
+  (#550's session saw 1 in 6 Replaces fail).
+- Rejected: a line in `onCancellation`, or on a dismissal with no completion (it would show on
+  every cancel); a `UIDocumentPickerViewController` wrapper (same verdict, and the app would then
+  write and clean up its own temporary copy of the account, which D-060 chose not to do).
+- **Open, Shane's call.** (a) The one signal that differs is DocumentManager's error in Apex's own
+  unified log, readable after a cancel through `OSLogStore(scope: .currentProcessIdentifier)`. The
+  wording is Apple's and private, so a rewording would quietly bring back today's silence. None of
+  the 8 logged cancels wrote it. (b) Avoid the prompt. A name carrying the time
+  (`apex-training-export-2026-09-08-1432.json`) never collides with an earlier export, so Files
+  never offers Replace. It departs from the web's download name, which `YouModelTests` pins.
+  (c) A real device has not been checked (Shane's run, the PR's test plan).
