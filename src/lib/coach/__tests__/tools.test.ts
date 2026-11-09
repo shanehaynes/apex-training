@@ -118,6 +118,7 @@ describe('coach tool registry', () => {
       'delete_event', 'create_event', 'update_event', 'set_event_exercises',
       'create_exercise_definition', 'update_exercise_definition',
       'log_meal', 'update_meal', 'delete_meal', 'propose_contract_edit', 'leave_note',
+      'edit_session_times',
     ]);
     for (const name of names) expect(findCoachTool(name)?.schema.name).toBe(name);
     expect(findCoachTool('nope')).toBeUndefined();

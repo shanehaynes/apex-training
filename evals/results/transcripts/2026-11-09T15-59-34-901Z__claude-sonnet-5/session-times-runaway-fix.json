@@ -1,0 +1,182 @@
+{
+  "caseId": "session-times-runaway-fix",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "My September time totals look insane. I think I left the lower-body stretch on Tuesday Sep 1 running. It only took about 15 minutes. Can you fix it?"
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_0111F7iBRqDpEQcdAXuomNe1",
+          "name": "get_schedule",
+          "input": {
+            "start_date": "2026-09-01",
+            "end_date": "2026-09-01"
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_0111F7iBRqDpEQcdAXuomNe1",
+          "content": "{\"start_date\":\"2026-09-01\",\"end_date\":\"2026-09-01\",\"workouts\":[{\"date\":\"2026-09-01\",\"event_id\":\"evt-stretch-0901\",\"title\":\"Nightly Stretch — Lower\",\"type\":\"stretching\",\"start_time\":null,\"end_time\":null,\"duration_min\":29,\"location\":null,\"completed\":true}]}"
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01WstVZgnoYdZVyCEsDX1WBD",
+          "name": "get_workout_detail",
+          "input": {
+            "event_id": "evt-stretch-0901",
+            "date": "2026-09-01"
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01WstVZgnoYdZVyCEsDX1WBD",
+          "content": "{\"event\":{\"event_id\":\"evt-stretch-0901\",\"date\":\"2026-09-01\",\"title\":\"Nightly Stretch — Lower\",\"type\":\"stretching\",\"start_time\":null,\"duration_min\":29},\"completed\":true,\"completed_at\":\"2026-09-21T15:18:15Z\",\"session\":{\"started_at\":\"2026-09-02T01:14:00Z\",\"finished_at\":\"2026-09-21T15:18:15Z\",\"total_duration_seconds\":1695855,\"coach_summary\":null},\"logged\":{\"sets\":[{\"section\":\"exercise\",\"exercise\":\"Thoracic Extension\",\"set_number\":1,\"weight\":null,\"reps\":null,\"duration\":\"1:00\",\"estimated_1rm\":null,\"autofilled\":false},{\"section\":\"exercise\",\"exercise\":\"Hamstring Stretch\",\"set_number\":1,\"weight\":null,\"reps\":null,\"duration\":\"2:00\",\"estimated_1rm\":null,\"autofilled\":false},{\"section\":\"exercise\",\"exercise\":\"Calf/Ankle Stretch\",\"set_number\":1,\"weight\":null,\"reps\":null,\"duration\":\"1:30\",\"estimated_1rm\":null,\"autofilled\":false},{\"section\":\"exercise\",\"exercise\":\"Quad/Hip Flexor Stretch\",\"set_number\":1,\"weight\":null,\"reps\":null,\"duration\":\"1:30\",\"estimated_1rm\":null,\"autofilled\":false}],\"cardio\":[]}}"
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "Found it: session started 2026-09-02T01:14Z, didn't finish until Sep 21 — ran for ~19.5 days instead of 15 minutes. Fixing by ending it 15 min after the recorded start."
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_01Wx1u3dJFvbUZiYxG15chLd",
+          "name": "edit_session_times",
+          "input": {
+            "event_id": "evt-stretch-0901",
+            "date": "2026-09-01",
+            "event_title": "Nightly Stretch — Lower",
+            "duration_minutes": 15
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01Wx1u3dJFvbUZiYxG15chLd",
+          "content": "Changed the recorded times of \"Nightly Stretch — Lower\" (2026-09-01) [evt-stretch-0901]: started 2026-09-02T01:14:00.000Z, finished 2026-09-02T01:29:00.000Z — 15 min (was 28,264 min). Totals and stats read the new duration from now on; a review already written for that period keeps its old numbers."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Fixed: now 15 min (was 28,264 min / ~19.6 days). September totals and stats reflect it going forward. Note: any already-written monthly review for September still shows the old inflated numbers — flag if you want that re-generated."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_016vjW5NMwZnHqqFB9Rk7N5f",
+          "name": "get_reviews",
+          "input": {
+            "kind": "month",
+            "limit": 3
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_016vjW5NMwZnHqqFB9Rk7N5f",
+          "content": "{\"note\":\"no data for this athlete\"}"
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "No stored review for September — nothing to regenerate. Totals and stats going forward already reflect the corrected 15-minute session. Nothing further to do here."
+    },
+    {
+      "role": "user",
+      "content": "Yes, go ahead."
+    },
+    {
+      "role": "assistant",
+      "content": "There's nothing queued to confirm — the time fix is already applied, and there's no stored September review to regenerate (checked: none exists). Anything else you want done?"
+    }
+  ],
+  "toolCalls": [
+    {
+      "name": "get_schedule",
+      "input": {
+        "start_date": "2026-09-01",
+        "end_date": "2026-09-01"
+      },
+      "result": "{\"start_date\":\"2026-09-01\",\"end_date\":\"2026-09-01\",\"workouts\":[{\"date\":\"2026-09-01\",\"event_id\":\"evt-stretch-0901\",\"title\":\"Nightly Stretch — Lower\",\"type\":\"stretching\",\"start_time\":null,\"end_time\":null,\"duration_min\":29,\"location\":null,\"completed\":true}]}",
+      "turn": 1,
+      "kind": "read",
+      "round": 0
+    },
+    {
+      "name": "get_workout_detail",
+      "input": {
+        "event_id": "evt-stretch-0901",
+        "date": "2026-09-01"
+      },
+      "result": "{\"event\":{\"event_id\":\"evt-stretch-0901\",\"date\":\"2026-09-01\",\"title\":\"Nightly Stretch — Lower\",\"type\":\"stretching\",\"start_time\":null,\"duration_min\":29},\"completed\":true,\"completed_at\":\"2026-09-21T15:18:15Z\",\"session\":{\"started_at\":\"2026-09-02T01:14:00Z\",\"finished_at\":\"2026-09-21T15:18:15Z\",\"total_duration_seconds\":1695855,\"coach_summary\":null},\"logged\":{\"sets\":[{\"section\":\"exercise\",\"exercise\":\"Thoracic Extension\",\"set_number\":1,\"weight\":null,\"reps\":null,\"duration\":\"1:00\",\"estimated_1rm\":null,\"autofilled\":false},{\"section\":\"exercise\",\"exercise\":\"Hamstring Stretch\",\"set_number\":1,\"weight\":null,\"reps\":null,\"duration\":\"2:00\",\"estimated_1rm\":null,\"autofilled\":false},{\"section\":\"exercise\",\"exercise\":\"Calf/Ankle Stretch\",\"set_number\":1,\"weight\":null,\"reps\":null,\"duration\":\"1:30\",\"estimated_1rm\":null,\"autofilled\":false},{\"section\":\"exercise\",\"exercise\":\"Quad/Hip Flexor Stretch\",\"set_number\":1,\"weight\":null,\"reps\":null,\"duration\":\"1:30\",\"estimated_1rm\":null,\"autofilled\":false}],\"cardio\":[]}}",
+      "turn": 1,
+      "kind": "read",
+      "round": 1
+    },
+    {
+      "name": "edit_session_times",
+      "input": {
+        "event_id": "evt-stretch-0901",
+        "date": "2026-09-01",
+        "event_title": "Nightly Stretch — Lower",
+        "duration_minutes": 15
+      },
+      "result": "Changed the recorded times of \"Nightly Stretch — Lower\" (2026-09-01) [evt-stretch-0901]: started 2026-09-02T01:14:00.000Z, finished 2026-09-02T01:29:00.000Z — 15 min (was 28,264 min). Totals and stats read the new duration from now on; a review already written for that period keeps its old numbers.",
+      "turn": 1,
+      "kind": "write",
+      "round": 2
+    },
+    {
+      "name": "get_reviews",
+      "input": {
+        "kind": "month",
+        "limit": 3
+      },
+      "result": "{\"note\":\"no data for this athlete\"}",
+      "turn": 2,
+      "kind": "read",
+      "round": 0
+    }
+  ],
+  "anomalies": [
+    "unscriptedRead:get_reviews"
+  ]
+}

@@ -11,7 +11,7 @@ export const RESULTS_DIR = join(here, '..', 'results');
 // The coach behavior surface: schema and executor edits change coach
 // behavior as much as prompt edits, so all of them feed the drift hash.
 const COACH_DIR = join(here, '..', '..', 'src', 'lib', 'coach');
-const BEHAVIOR_FILES = ['prompt.ts', 'schemas.ts', 'tools.ts', 'model.ts'];
+const BEHAVIOR_FILES = ['prompt.ts', 'schemas.ts', 'tools.ts', 'model.ts', 'sessionTimes.ts'];
 
 export function sha256(text: string): string {
   return createHash('sha256').update(text).digest('hex');

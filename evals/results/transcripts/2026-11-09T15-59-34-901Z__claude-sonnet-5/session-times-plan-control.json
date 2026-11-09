@@ -1,0 +1,100 @@
+{
+  "caseId": "session-times-plan-control",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Make the lower-body stretch on Tuesday Sep 29 20 minutes instead of 29."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_016zbeAuC9j5WfewPf2Fj8pp",
+          "name": "get_schedule",
+          "input": {
+            "start_date": "2026-09-28",
+            "end_date": "2026-09-30"
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_016zbeAuC9j5WfewPf2Fj8pp",
+          "content": "{\"start_date\":\"2026-09-28\",\"end_date\":\"2026-09-30\",\"workouts\":[{\"date\":\"2026-09-29\",\"event_id\":\"evt-stretch-0929\",\"title\":\"Nightly Stretch — Lower\",\"type\":\"stretching\",\"start_time\":null,\"end_time\":null,\"duration_min\":29,\"location\":null,\"completed\":false}]}"
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01AUUT1JSS1iVbbEEDeD9vfq",
+          "name": "update_event",
+          "input": {
+            "event_id": "evt-stretch-0929",
+            "event_title": "Nightly Stretch — Lower",
+            "changes": {
+              "estimated_duration": 20
+            }
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01AUUT1JSS1iVbbEEDeD9vfq",
+          "content": "Updated the event successfully."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Updated Tue Sep 29 \"Nightly Stretch — Lower\" to 20 minutes."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": "Already done — Tue Sep 29 \"Nightly Stretch — Lower\" is set to 20 minutes. Nothing else pending."
+    }
+  ],
+  "toolCalls": [
+    {
+      "name": "get_schedule",
+      "input": {
+        "start_date": "2026-09-28",
+        "end_date": "2026-09-30"
+      },
+      "result": "{\"start_date\":\"2026-09-28\",\"end_date\":\"2026-09-30\",\"workouts\":[{\"date\":\"2026-09-29\",\"event_id\":\"evt-stretch-0929\",\"title\":\"Nightly Stretch — Lower\",\"type\":\"stretching\",\"start_time\":null,\"end_time\":null,\"duration_min\":29,\"location\":null,\"completed\":false}]}",
+      "turn": 1,
+      "kind": "read",
+      "round": 0
+    },
+    {
+      "name": "update_event",
+      "input": {
+        "event_id": "evt-stretch-0929",
+        "event_title": "Nightly Stretch — Lower",
+        "changes": {
+          "estimated_duration": 20
+        }
+      },
+      "result": "Updated the event successfully.",
+      "turn": 1,
+      "kind": "write",
+      "round": 1
+    }
+  ],
+  "anomalies": []
+}

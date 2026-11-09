@@ -1,9 +1,10 @@
 import type { CoachToolDeps } from '../../src/lib/coach/tools';
 import { slugifyName } from '../../src/lib/schedule/definitions';
-import { baseIdOf } from '../../src/lib/schedule/occurrence';
+import { baseIdOf, makeOccurrenceId } from '../../src/lib/schedule/occurrence';
 import type { ExerciseDefinition, WorkoutEvent } from '../../src/types/workout';
 import type { CreateEventInput } from '../../src/lib/schedule/types';
 import type { Meal } from '../../src/types/nutrition';
+import type { FixtureSession } from './types';
 
 // In-memory CoachToolDeps: the real executors from src/lib/coach/tools.ts run
 // against this state, so tool_result strings (including validation errors the
@@ -19,18 +20,22 @@ export interface MemoryState {
   createdDefinitionNames: string[];
   /** Same array instance as deps.meals — mutated in place so both stay live. */
   meals: Meal[];
+  /** Tracked sessions; edit_session_times rewrites their times in place. */
+  sessions: FixtureSession[];
 }
 
 export function createMemoryDeps(
   initialEvents: WorkoutEvent[],
   initialDefinitions: ExerciseDefinition[],
   initialMeals: Meal[] = [],
+  initialSessions: FixtureSession[] = [],
 ): { deps: CoachToolDeps; state: MemoryState } {
   const state: MemoryState = {
     events: initialEvents.map(e => ({ ...e })),
     definitions: new Map(initialDefinitions.map(d => [d.id, { ...d }])),
     createdDefinitionNames: [],
     meals: initialMeals.map(m => ({ ...m })),
+    sessions: initialSessions.map(x => ({ ...x })),
   };
   let eventCounter = 0;
   let mealCounter = 0;
@@ -155,6 +160,27 @@ export function createMemoryDeps(
       // Splice, not filter: deps.meals and state.meals share this array.
       state.meals.splice(index, 1);
       return true;
+    },
+
+    // edit_session_times: the session row keyed the way production keys it
+    // (an occurrence id for a recurring workout, tried from a base id), and
+    // the one refusal a fixture can reach — a session still running. The
+    // executor has already checked the input and resolved the instants.
+    async getSessionTimes(eventId, date) {
+      const found = state.sessions.find(x => x.date === date && x.eventId === eventId)
+        ?? state.sessions.find(x => x.date === date && x.eventId === makeOccurrenceId(eventId, date));
+      if (!found) return null;
+      const { date: _date, ...recorded } = found;
+      return { ...recorded };
+    },
+
+    async editSessionTimes(edit) {
+      const session = state.sessions.find(x => x.date === edit.date && x.eventId === edit.eventId);
+      if (!session) return { ok: false, reason: 'Session not started' };
+      if (!session.finishedAt) return { ok: false, reason: 'Times can be edited once the workout is finished' };
+      const seconds = Math.round((Date.parse(edit.finishedAt) - Date.parse(edit.startedAt)) / 1000);
+      Object.assign(session, { startedAt: edit.startedAt, finishedAt: edit.finishedAt, totalDurationSeconds: seconds });
+      return { ok: true, totalDurationSeconds: seconds };
     },
   };
 

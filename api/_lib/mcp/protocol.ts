@@ -26,7 +26,7 @@ export const SERVER_INSTRUCTIONS =
   'Event ids come from get_schedule; a recurring occurrence is addressed as base-id__YYYY-MM-DD. ' +
   "Changes land immediately in the user's account and are listed in Apex under Profile → Coach activity, so " +
   'state what you are about to change and ask before anything that deletes or overwrites (delete_*, ' +
-  'uncomplete_workout, set_event_exercises). Never invent weights, reps, distances or macros the user did not ' +
+  'uncomplete_workout, set_event_exercises, edit_session_times). Never invent weights, reps, distances or macros the user did not ' +
   "state. Pass `today` (the user's local date) on write tools — it decides whether a created workout is a plan or " +
   'a retro-log of something already done.';
 

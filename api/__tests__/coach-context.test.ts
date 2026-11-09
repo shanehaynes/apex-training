@@ -242,6 +242,15 @@ describe('buildChatContext', () => {
     expect(toolContext.contract).toBe('');
   });
 
+  it('chat: the card label context carries the athlete\'s zone, UTC when unset or unknown (coach-session-times R5)', async () => {
+    state.profile = { coach_goal: 'Send 5.12', coach_context: 'Two kids', timezone: 'America/New_York' };
+    expect((await buildChatContext(makeAdmin(), 'u1', 'chat', TODAY)).toolContext.timeZone).toBe('America/New_York');
+    state.profile = { coach_goal: 'Send 5.12', coach_context: 'Two kids', timezone: null };
+    expect((await buildChatContext(makeAdmin(), 'u1', 'chat', TODAY)).toolContext.timeZone).toBe('UTC');
+    state.profile = { coach_goal: 'Send 5.12', coach_context: 'Two kids', timezone: 'Mars/Olympus' };
+    expect((await buildChatContext(makeAdmin(), 'u1', 'chat', TODAY)).toolContext.timeZone).toBe('UTC');
+  });
+
   it('chat: a missing profile degrades to the generic live context', async () => {
     state.profile = null;
     const { system, volatile } = await buildChatContext(makeAdmin(), 'u1', 'chat', TODAY);

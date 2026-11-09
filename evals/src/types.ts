@@ -8,6 +8,10 @@ import type { ApiMessage, TextBlock, ToolResultBlock } from '../../src/lib/coach
 import type { WireToolUse } from '../../src/lib/coach/wire';
 import type { PhysiologyInputs } from '../../src/lib/physiology/index';
 import type { ReadFixture, ServerToolResult } from './reads';
+import type { RecordedSessionTimes } from '../../src/lib/coach/sessionTimes';
+
+/** A tracked session in a fixture: the recorded times plus its workout date. */
+export type FixtureSession = RecordedSessionTimes & { date: string };
 
 // Core types for the coach eval harness. The harness mirrors api/chat.ts +
 // useChat.ts + actionQueue.ts: a response asking only for server-side tools
@@ -171,6 +175,9 @@ export interface EvalCase {
     block?: BlockPromptSummary | null;
     /** Logged meals — today's render into the prompt's <meals> section. */
     meals?: Meal[];
+    /** Tracked sessions as recorded — what edit_session_times reads and
+     *  corrects (docs/specs/coach-session-times). Defaults to none. */
+    sessions?: FixtureSession[];
     /** What each read tool returns, keyed by tool name: a value, or a function
      *  of the call's input; JSON-stringified as executeReadTool would. A read
      *  the fixture does not script returns UNSCRIPTED_READ_RESULT and records

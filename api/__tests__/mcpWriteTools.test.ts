@@ -51,7 +51,7 @@ describe('connector registry', () => {
     const destructive = MCP_WRITE_TOOLS.filter(t => toolAnnotations(t).destructiveHint).map(t => t.name).sort();
     expect(destructive).toEqual([
       'delete_event', 'delete_meal', 'delete_objective', 'delete_training_block',
-      'set_event_exercises', 'uncomplete_workout', 'update_coach_memory',
+      'edit_session_times', 'set_event_exercises', 'uncomplete_workout', 'update_coach_memory',
     ]);
   });
 
