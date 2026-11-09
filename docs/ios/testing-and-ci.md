@@ -185,18 +185,35 @@ moves in a PR. `screenshots.sh` takes the runtime as its second argument for the
 Why the simulator wait: a macos-26 runner sometimes comes up with no simulators at all.
 xcodebuild then waits 60 s, lists only the "Any iOS Simulator Device" placeholder and fails
 with "Unable to find a device matching the provided destination specifier" (exit 70), which
-looks exactly like a pin the image dropped. It hit 3 of the 52 attempts that reached "Build
-and test" from 2026-10-29 to 11-08: #518's throwaway run 40888121776 (10-29), the PR run
-41525428660 of `fix/stop-gate-caffeinate-sidecar` (11-02) and main's run 42487079800 (11-08).
-Each time other runs on the same image found the device and a re-run passed, so it is the
-machine. The step before "Build and test" polls `xcrun simctl list devices available -j` for
-the pinned device for up to 3 minutes, prints `simctl list runtimes` and `simctl list devices`,
-restarts CoreSimulatorService once and polls 90 s more. If the device never comes, its error
-says which case it is: no iOS simulators at all (re-run with `gh run rerun <id> --failed`;
-change no code) or simulators without the pin (the image changed; move the pin). Whether the
-wait or the restart rescues a bad runner is unproven, because no bad runner has been caught
-since the step landed. A run that needed either carries a notice annotation saying so, and
-those notices are the evidence.
+looks exactly like a pin the image dropped. Every hit was attempt 1 of its run:
+
+| Run | Date | Where | Image |
+|---|---|---|---|
+| 38276645385 | 2026-10-12 | main push | 20260907.0351.1 |
+| 38583249804 | 2026-10-14 | nightly | 20260907.0351.1 |
+| 38751943623 | 2026-10-15 | nightly | 20260907.0351.1 |
+| 39596224696 | 2026-10-21 | PR, `feat/w17-voice-logging` | 20261013.0424.1 |
+| 40888121776 | 2026-10-29 | PR, #518's `throwaway/ios-only` | 20261021.0445.8 |
+| 41525428660 | 2026-11-02 | PR, `fix/stop-gate-caffeinate-sidecar` | 20261021.0445.8 |
+| 41710592089 | 2026-11-03 | main push | 20261026.0455.2 |
+| 42487079800 | 2026-11-08 | main push | 20261102.0473.1 |
+
+From 10-29 to 11-08 that is 4 of the 52 attempts that reached "Build and test". Other runs on
+the same images found the device, and the next attempt or run passed, so it is the machine.
+
+The step before "Build and test" polls `xcrun simctl list -j` every 10 s for up to 3 minutes,
+matching the runtime on its version (as xcodebuild's `OS=` does) and the device on its name.
+On a miss it prints `simctl list runtimes`, `simctl runtime list` and `simctl list devices`,
+restarts CoreSimulatorService once and polls 90 s more. Each `simctl` call is cut off at 20 s,
+so a service that hangs counts as a miss. If the device never comes, the error names the case.
+The machine (no iOS simulators, or the runtime there but unavailable or without devices) says
+re-run with `gh run rerun <id> --failed` and change no code. The image (no runtime of that
+version, or none of its devices has the pinned name) says move `IOS_SIM_OS` or
+`IOS_SIM_DEVICE` in a PR. Whether the wait or the restart rescues a bad runner is unproven:
+no bad runner has been caught since the step landed. A run where the device came after 90 s,
+or only after the restart, carries a notice annotation, and those notices are the evidence.
+If a run passes the step and still fails "Build and test" with that error, simctl and
+xcodebuild disagree, and the step is not the fix.
 
 ## Local loop on the Mac
 
