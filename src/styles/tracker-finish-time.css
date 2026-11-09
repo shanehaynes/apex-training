@@ -1,0 +1,60 @@
+/* The runaway Finish step (FinishTimePrompt): the confirm bar, plus a
+   date-and-time field. Its own file because app.css belongs to the
+   onboarding board. */
+
+.tracker-finish-time {
+  flex-wrap: wrap;
+  row-gap: 8px;
+}
+
+.tracker-finish-time__msg {
+  flex: 1 1 100%;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.tracker-finish-time__field {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.tracker-finish-time__input {
+  height: 32px;
+  padding: 0 10px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+  font-family: inherit;
+}
+
+.tracker-finish-time__hint {
+  flex: 1 1 auto;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.tracker-finish-time__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-left: auto;
+}
+
+@media (max-width: 640px) {
+  .tracker-finish-time__hint {
+    flex-basis: 100%;
+  }
+
+  .tracker-finish-time__actions {
+    flex-basis: 100%;
+  }
+}

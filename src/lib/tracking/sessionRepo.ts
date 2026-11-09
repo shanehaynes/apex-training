@@ -49,6 +49,8 @@ export interface TrackerSessionData {
   /** Populated for an already-finished session (reopening the summary). */
   prs: PersonalRecord[];
   scoreRecord: WorkoutScoreRecord | null;
+  /** When the last set or cardio row reached the server; null for none or offline. */
+  lastLoggedAt: string | null;
 }
 
 function inMemorySession(): SessionInfo {
@@ -71,12 +73,14 @@ interface BootstrapWire {
   groups: TrackedSectionGroup[];
   prs?: PersonalRecord[];
   scoreRecord?: WorkoutScoreRecord | null;
+  /** Absent from a server older than the runaway-finish prompt. */
+  lastLoggedAt?: string | null;
 }
 
 /** Get-or-create the session and receive the resolved tracker model. */
 export async function loadSession(event: WorkoutEvent): Promise<TrackerSessionData> {
   const offline = (): TrackerSessionData => ({
-    session: inMemorySession(), groups: buildTrackerModel(event), prs: [], scoreRecord: null,
+    session: inMemorySession(), groups: buildTrackerModel(event), prs: [], scoreRecord: null, lastLoggedAt: null,
   });
   if (!supabase) return offline();
 
@@ -87,7 +91,10 @@ export async function loadSession(event: WorkoutEvent): Promise<TrackerSessionDa
       'Starting session',
     );
     if (!data?.session || !Array.isArray(data.groups)) throw new Error('Malformed bootstrap response');
-    return { session: data.session, groups: data.groups, prs: data.prs ?? [], scoreRecord: data.scoreRecord ?? null };
+    return {
+      session: data.session, groups: data.groups, prs: data.prs ?? [], scoreRecord: data.scoreRecord ?? null,
+      lastLoggedAt: typeof data.lastLoggedAt === 'string' ? data.lastLoggedAt : null,
+    };
   } catch (err) {
     console.warn('[apex] Tracker load failed:', err);
     return offline();
@@ -195,11 +202,13 @@ export async function finishSession(
   eventDate: string,
   autofillRows: SetLogRow[],
   score?: { templateId: string } & SessionScore,
+  /** When it really ended, chosen at the runaway prompt; absent = now (the server's clock). */
+  finishedAt?: string,
 ): Promise<FinishResult | null> {
   if (!supabase) return null;
   const data = await postJson<Partial<FinishResult>>(
     '/api/workout-sessions',
-    { action: 'finish', eventId, eventDate, autofillRows, ...(score ? { score } : {}) },
+    { action: 'finish', eventId, eventDate, autofillRows, ...(score ? { score } : {}), ...(finishedAt ? { finishedAt } : {}) },
     'Finishing workout',
   );
   if (typeof data?.totalDurationSeconds !== 'number') return null;
