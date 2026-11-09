@@ -12,6 +12,8 @@ interface Props {
   runaway: RunawayFinish;
   /** The session's started_at, ISO. */
   startedAt: string;
+  /** The tracker's live clock, so the labels and "now" keep up while the prompt is open. */
+  elapsedSeconds: number;
   accentColor: string;
   disabled?: boolean;
   /** Finish at this instant (ISO). */
@@ -30,14 +32,17 @@ interface Props {
  * default.
  */
 export default function FinishTimePrompt({
-  runaway, startedAt, accentColor, disabled, onFinishAt, onAsRecorded, onKeep,
+  runaway, startedAt, elapsedSeconds, accentColor, disabled, onFinishAt, onAsRecorded, onKeep,
 }: Props) {
   const startedMs = Date.parse(startedAt);
   const suggestedMs = runaway.suggestion.atMs;
   const [draft, setDraft] = useState(() => format(new Date(suggestedMs), INPUT_DATETIME));
   const [touched, setTouched] = useState(false);
-  // "Now" is when the prompt opened: the instant its elapsed time was read.
-  const [nowMs] = useState(() => Date.now());
+  // "Now" moves with the tracker's clock (it ticks each second), never
+  // earlier than the moment the prompt opened.
+  const [openedAtMs] = useState(() => Date.now());
+  const nowMs = Math.max(openedAtMs, startedMs + elapsedSeconds * 1000);
+  const ranFor = formatRunawayLength(Math.max(runaway.elapsedSeconds, elapsedSeconds));
 
   // Untouched, the suggestion goes as it is, to the millisecond (the field
   // shows minutes only). A time typed into the start's own minute means the
@@ -54,7 +59,7 @@ export default function FinishTimePrompt({
     <div className="tracker-confirm tracker-finish-time" data-testid="finish-time" role="group" aria-label="When did this workout end?">
       <span className="tracker-finish-time__msg">
         <Clock size={14} strokeWidth={2} style={{ color: accentColor }} />
-        This session has run {formatRunawayLength(runaway.elapsedSeconds)} against
+        This session has run {ranFor} against
         a {formatRunawayLength(runaway.plannedMinutes * 60)} plan. When did it end?
       </span>
       <label className="tracker-finish-time__field">
@@ -74,7 +79,7 @@ export default function FinishTimePrompt({
         {!valid
           ? 'Pick a time between the start and now.'
           : runaway.suggestion.basis === 'last-logged'
-            ? 'Prefilled with your last logged set.'
+            ? 'Prefilled with when your last set was saved.'
             : 'Nothing logged yet — prefilled with the start plus the plan.'}
       </span>
       <div className="tracker-finish-time__actions">
@@ -82,7 +87,7 @@ export default function FinishTimePrompt({
           Keep going
         </button>
         <button className="tracker-confirm__cancel" onClick={onAsRecorded} disabled={disabled}>
-          It ran {formatRunawayLength(runaway.elapsedSeconds)}
+          It ran {ranFor}
         </button>
         <button
           className="tracker-confirm__go"

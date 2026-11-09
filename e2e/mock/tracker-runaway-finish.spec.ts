@@ -31,11 +31,14 @@ interface Scenario {
   row: Record<string, unknown>;
   startedAt: number;
   lastLoggedAt: number | null;
+  /** The first `finish` answers 500 (no signal, a bad deploy). */
+  failFirstFinish?: boolean;
 }
 
 /** Stub the event and the session API; returns every finish body sent. */
-async function stage(page: Page, { row, startedAt, lastLoggedAt }: Scenario) {
+async function stage(page: Page, { row, startedAt, lastLoggedAt, failFirstFinish = false }: Scenario) {
   const finishes: Array<Record<string, unknown>> = [];
+  let failNext = failFirstFinish;
   await page.route(/rest\/v1\/workout_events/, route =>
     route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([row]) }));
   await page.route(/rest\/v1\/workout_sessions/, route =>
@@ -44,6 +47,10 @@ async function stage(page: Page, { row, startedAt, lastLoggedAt }: Scenario) {
     const body = route.request().postDataJSON() as Record<string, unknown>;
     if (body.action === 'finish') {
       finishes.push(body);
+      if (failNext) {
+        failNext = false;
+        return route.fulfill({ status: 500, contentType: 'text/plain', body: 'Failed to finish session' });
+      }
       const end = typeof body.finishedAt === 'string' ? Date.parse(body.finishedAt) : Date.now();
       return route.fulfill({
         status: 200, contentType: 'application/json',
@@ -55,7 +62,8 @@ async function stage(page: Page, { row, startedAt, lastLoggedAt }: Scenario) {
       event: rowToEvent(row as never),
     });
     if (body.action === 'bootstrap') {
-      answer.lastLoggedAt = lastLoggedAt === null ? null : new Date(lastLoggedAt).toISOString();
+      // PostgREST's shape: an offset, not Z.
+      answer.lastLoggedAt = lastLoggedAt === null ? null : new Date(lastLoggedAt).toISOString().replace('Z', '+00:00');
     }
     return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(answer) });
   });
@@ -87,7 +95,7 @@ test('a runaway finish asks when it ended, defaulting to the last logged set', a
   expect(finishes).toHaveLength(0);
   await expect(prompt(page)).toContainText('This session has run 5 h');
   await expect(prompt(page)).toContainText('against a 29 min plan');
-  await expect(prompt(page)).toContainText('Prefilled with your last logged set.');
+  await expect(prompt(page)).toContainText('Prefilled with when your last set was saved.');
   const field = page.getByLabel('Ended at');
   await expect(field).toHaveValue(await inputValue(page, lastLoggedAt));
   await shot(page, 'tracker-runaway-prompt');
@@ -95,10 +103,12 @@ test('a runaway finish asks when it ended, defaulting to the last logged set', a
   await page.setViewportSize({ width: 390, height: 844 });
   await shot(page, 'tracker-runaway-prompt-mobile');
 
-  // A time before the start cannot be the end.
-  await field.fill(await inputValue(page, startedAt - 10 * MIN));
-  await expect(prompt(page).locator('.tracker-confirm__go')).toBeDisabled();
-  await expect(prompt(page)).toContainText('Pick a time between the start and now.');
+  // An empty field, a time before the start and a time after now cannot be the end.
+  for (const value of ['', await inputValue(page, startedAt - 10 * MIN), await inputValue(page, Date.now() + 10 * MIN)]) {
+    await field.fill(value);
+    await expect(prompt(page).locator('.tracker-confirm__go'), `field "${value}"`).toBeDisabled();
+    await expect(prompt(page)).toContainText('Pick a time between the start and now.');
+  }
 
   // A chosen time goes as chosen.
   const chosen = startedAt + 40 * MIN;
@@ -204,7 +214,7 @@ test('a set logged this sitting moves the default to now', async ({ page }) => {
   const after = Date.now();
   await page.locator('.tracker-header__finish').click();
 
-  await expect(prompt(page)).toContainText('Prefilled with your last logged set.');
+  await expect(prompt(page)).toContainText('Prefilled with when your last set was saved.');
   const value = await page.getByLabel('Ended at').inputValue();
   // The minute the set was typed in, not the bootstrap's 20 minutes in.
   expect([await inputValue(page, before), await inputValue(page, after)]).toContain(value);
@@ -232,4 +242,53 @@ test('a For Time score after a corrected finish prefills the corrected length', 
   expect(finishes).toHaveLength(1);
   expect(finishes[0].finishedAt).toBe(new Date(lastLoggedAt).toISOString());
   expect(finishes[0].score).toEqual({ templateId: 'wt-fran', type: 'for-time', timeSeconds: 1470 });
+});
+
+test('Finish tapped again while the prompt is up offers the set just logged', async ({ page }) => {
+  const startedAt = Date.now() - 5 * HOUR;
+  await stage(page, { row: eventRow({ exercises: ONE_SET }), startedAt, lastLoggedAt: startedAt + 20 * MIN });
+
+  await page.locator('.tracker-header__finish').click();
+  await page.locator('.tracker-confirm__go', { hasText: 'Finish anyway' }).click();
+  const field = page.getByLabel('Ended at');
+  await expect(field).toHaveValue(await inputValue(page, startedAt + 20 * MIN));
+
+  // A set logged below the bar, then the header's Finish again.
+  const before = Date.now();
+  await page.getByLabel('Set 1 reps').fill('8');
+  const after = Date.now();
+  await page.locator('.tracker-header__finish').click();
+
+  // The field and the action agree on the new default.
+  await expect(field).not.toHaveValue(await inputValue(page, startedAt + 20 * MIN));
+  expect([await inputValue(page, before), await inputValue(page, after)]).toContain(await field.inputValue());
+  await expect(prompt(page).locator('.tracker-confirm__go')).toBeEnabled();
+});
+
+test('a finish that fails keeps the chosen end for the next Finish', async ({ page, consoleErrors }) => {
+  const startedAt = Date.now() - 5 * HOUR;
+  const finishes = await stage(page, {
+    row: eventRow({}), startedAt, lastLoggedAt: startedAt + 20 * MIN, failFirstFinish: true,
+  });
+
+  await page.locator('.tracker-header__finish').click();
+  const chosen = startedAt + 33 * MIN;
+  await page.getByLabel('Ended at').fill(await inputValue(page, chosen));
+  await prompt(page).locator('.tracker-confirm__go').click();
+
+  // The send failed: nothing finished, the prompt closed.
+  await expect.poll(() => finishes.length).toBe(1);
+  await expect(page.locator('.tracker-header__finish')).toBeVisible();
+  await expect(prompt(page)).toHaveCount(0);
+
+  // The next Finish goes out with the answer already given, without asking again.
+  await page.locator('.tracker-header__finish').click();
+  await expect(page.locator('.tracker-summary')).toBeVisible();
+  await expect(prompt(page)).toHaveCount(0);
+  expect(finishes).toHaveLength(2);
+  expect(finishes[1].finishedAt).toBe(new Date(Math.floor(chosen / MIN) * MIN).toISOString());
+
+  // The stubbed 500 is the only console error, by design.
+  expect(consoleErrors.every(e => /status of 500/.test(e)), consoleErrors.join('\n')).toBe(true);
+  consoleErrors.length = 0;
 });

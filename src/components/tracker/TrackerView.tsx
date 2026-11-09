@@ -162,7 +162,9 @@ export default function TrackerView() {
     } else {
       setConfirmCount(null);
       setRunaway(null);
-      setFinishChoice(undefined);
+      // A send that failed (unsaved edits, no signal) keeps the athlete's
+      // answer: the next Finish goes out with it rather than asking again.
+      setFinishChoice(result.status === 'failed' ? choice : undefined);
       setScoreOpen(false);
     }
   };
@@ -423,8 +425,12 @@ export default function TrackerView() {
 
       {runaway && !isFinishing && session && (
         <FinishTimePrompt
+          // Each detection opens a fresh prompt: Finish tapped again after a
+          // set was logged offers that set's time, not the field's old one.
+          key={runaway.elapsedSeconds}
           runaway={runaway}
           startedAt={session.started_at}
+          elapsedSeconds={elapsed}
           accentColor={color.solid}
           disabled={isFinishing}
           onFinishAt={iso => handleFinish(undefined, iso)}
