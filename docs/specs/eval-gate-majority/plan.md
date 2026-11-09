@@ -9,7 +9,7 @@
 `evals/cases/`, the checkers and judges in `evals/src/`, and
 `scripts/merge-policy.mjs`.
 **Depends on:** none. PR #552 and #543 re-gate after this merges.
-**Status:** in progress (chore/eval-baseline-refresh)
+**Status:** in review (PR #562)
 
 ## Approach
 One pure function in `compare.ts`, `majorityCase(looks)`, decides a case
@@ -37,10 +37,10 @@ re-runs.
 
 ### M1 — majority baseline and majority re-runs
 Delivers: R1, R2, R3, R4, R5, R6
-- [ ] `majorityCase` and `majorityRun`, with tests
-- [ ] Promotion, the gate's re-runs and verify all use majorities, with tests
-- [ ] Three runs of main promoted; `eval:gate` passes and attests
-- [ ] `agent:check` green
+- [x] `majorityCase` and `majorityRun`, with tests
+- [x] Promotion, the gate's re-runs and verify all use majorities, with tests
+- [x] Three runs of main promoted; `eval:gate` passes and attests
+- [x] `agent:check` green
 
 ## Decisions
 - 2026-11-09 · Shane chose majority of three over promoting another single
@@ -60,7 +60,23 @@ Delivers: R1, R2, R3, R4, R5, R6
 ## Session log
 - 2026-11-09 · Spec written after a single-sample baseline failed unchanged
   `main` (`buried-contraindication` pass → fail, confirmed on re-run).
+- 2026-11-09 · Built, reviewed (one major: duplicate sources accepted, fixed),
+  baseline promoted from three runs, gate passed against it (three suspects
+  each cleared on two of three looks), PR #562. Not done: protecting
+  `evals/results/` sources (held `.github`), which is follow-up 1.
 
 ## Learned
+- One full run of this suite has several cases flip on an unchanged tree
+  (2026-11-09: three in one gate pass). Any verdict from one sample is noise
+  on those cases.
 
 ## Next brief
+**Re-gate the waiting coach PRs, then fix `buried-contraindication`.** Once
+#562 merges, merge `main` into #552 and #543, run `npm run eval:gate` on each,
+and commit the attestation. Then the coach fix: in 2 of 3 runs the coach
+prescribes a hinge (Single-Leg RDL) and spinal flexion (Cat-Cow) to an
+athlete whose contraindication is buried in their profile context. Read the
+three transcripts named in the baseline's sources, find where the prompt's
+safety section loses the buried detail, change the prompt, and prove it on
+the case's majority. That needs a feature folder and the `eval-analyst`
+agent.
