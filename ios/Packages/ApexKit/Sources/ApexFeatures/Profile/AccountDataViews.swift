@@ -162,8 +162,8 @@ public struct ExportDataRow: View {
         }
         // A cancel shows nothing here, and neither does a save whose result
         // Files loses (Replace, "didPickDocumentURLs: with an empty array"):
-        // iOS reports that as a cancel at every level, so a line shown for it
-        // would show on every cancel. D-061.
+        // no public callback tells the two apart, so a line shown for one
+        // would show on every cancel. D-062.
         .fileExporter(
             isPresented: Binding(get: { document != nil }, set: { if !$0 { document = nil } }),
             document: document,

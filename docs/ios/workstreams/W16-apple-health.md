@@ -434,8 +434,8 @@ acceptance endpoint MT calls (read the web's re-acceptance modal first).
   reaches athletes in the next TestFlight build, which is Shane's go.
 
 - 2026-11-08 · Mac · MT follow-up (`fix/ios-export-silent-dismiss`): when Replace in Files loses
-  the saved item, iOS reports it to the export row as a cancel at every layer, so the row stays
-  silent for both (D-061). Comment and docs only. Shane's device run is open.
+  the saved item, the export row gets the same callback as for a cancel, so it stays silent for
+  both (D-062). Comment and docs only. Shane's device run is open.
 
 ## Next brief
 **M1 — Write finished sessions to Health.** Goal: a tracker finish writes an Apex-branded
