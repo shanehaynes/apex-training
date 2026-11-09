@@ -278,6 +278,17 @@ public final class TrackerModel {
         if let stamp = bootstrap.lastLoggedAt.flatMap(Self.parseISO) {
             lastLoggedAt = max(lastLoggedAt ?? stamp, stamp)
         }
+        // Finish tapped on the cached copy, then the server's landed: the
+        // open card asks again with what the server knows (`.id` renews it).
+        if case .needsFinishTime = gate { gate = runawayDetection().map(Gate.needsFinishTime) ?? .idle }
+    }
+
+    private func runawayDetection() -> RunawayFinish? {
+        guard let startedAt else { return nil }
+        return RunawayFinish.detect(
+            startedAt: startedAt, now: services.clock.now,
+            plannedMinutes: event.base.estimatedDuration.map(Double.init), lastLoggedAt: lastLoggedAt
+        )
     }
 
     private func handleOpenFailure(_ error: Error, cached: TrackerBootstrap?) async {
@@ -543,7 +554,7 @@ public final class TrackerModel {
     public func removeSet(at key: SetKey) {
         guard editor.removeExtraSet(at: key) else { return }
         voiceEdited(key)
-        scheduleSave()
+        scheduleSave(logged: false)
     }
 
     /// A set the user just left with something in it: the "set logged" haptic.
@@ -551,10 +562,13 @@ public final class TrackerModel {
         if editor.set(at: key)?.hasAnyActual == true, editor.dirtySets.contains(key) { loggedSetCount += 1 }
     }
 
-    func scheduleSave() {
-        // Every caller is a set or cardio edit the athlete just made.
-        let now = services.clock.now
-        lastLoggedAt = max(lastLoggedAt ?? now, now)
+    /// `logged`: a set or cardio value the athlete just entered (the runaway
+    /// card's default, D-061); false for a removal or an undo, which log nothing.
+    func scheduleSave(logged: Bool = true) {
+        if logged {
+            let now = services.clock.now
+            lastLoggedAt = max(lastLoggedAt ?? now, now)
+        }
         saveGeneration += 1
         let mine = saveGeneration
         let clock = services.clock
@@ -698,6 +712,10 @@ public final class TrackerModel {
     /// the calendar completion. `force` is the confirm bar's "Finish anyway".
     public func requestFinish(force: Bool = false, score: ScoreChoice = .notAsked) async {
         guard phase == .ready, !isFinished, gate != .finishing else { return }
+        // Finish again while the card is up: the confirm was already seen, so
+        // this re-detects (the web's `runaway !== null` counts as force too).
+        var force = force
+        if case .needsFinishTime = gate { force = true }
         cancelVoice()
         await loadWeightContext()
         if !force {
@@ -707,10 +725,7 @@ public final class TrackerModel {
                 return
             }
         }
-        if finishChoice == .notAsked, let startedAt, let runaway = RunawayFinish.detect(
-            startedAt: startedAt, now: services.clock.now,
-            plannedMinutes: event.base.estimatedDuration.map(Double.init), lastLoggedAt: lastLoggedAt
-        ) {
+        if finishChoice == .notAsked, let runaway = runawayDetection() {
             gate = .needsFinishTime(runaway)
             return
         }
@@ -1045,7 +1060,7 @@ public final class TrackerModel {
     /// Take an added exercise back out; what it logged is deleted with the next save.
     public func removeAddedExercise(section: String, exerciseId: String) {
         guard editor.removeAddedExercise(section: section, exerciseId: exerciseId) else { return }
-        scheduleSave()
+        scheduleSave(logged: false)
         Task { await syncActivity() }
     }
 

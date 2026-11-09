@@ -15,7 +15,10 @@ and `e2e/mock/tracker-runaway-finish.spec.ts`; in M2
 `ios/Packages/ApexCore/Sources/ApexCore/Tracker/RunawayFinish.swift`,
 `ApexCore/Models/Tracker.swift` (`lastLoggedAt`), `ApexCoreTests/RunawayFinishTests.swift`,
 `ApexFeatures/Tracker/{TrackerModel,TrackerScreen,FinishTimeCard}.swift`,
-`ApexFeatures/Tracker/ScoreCard.swift` (the For Time prefill), `ios/Apex/Mock/MockEnvironment.swift`
+`ApexFeatures/Tracker/ScoreCard.swift` (the For Time prefill),
+`ApexFeatures/Tracker/TrackerModel+Voice.swift` (an Undo logs nothing),
+`ApexCore/Schedule/CompletionRows.swift` (`isoTimestamp` rounds) with the new
+`ApexCoreTests/IsoTimestampTests.swift`, `ios/Apex/Mock/MockEnvironment.swift`
 (`-apexMockRunaway`), `ios/CLAUDE.md` (the flag's line), `docs/ios/decisions.md`
 (D-061), `docs/ios/STATUS.md`; `docs/ios/backend-changes.md` (the wire
 change, M1); this folder.
@@ -156,6 +159,9 @@ Delivers: R10, R11, R12
   carry the extra state.
 - 2026-11-08 · The prompt's "It ran …" and its upper bound follow the
   tracker's live clock, so a prompt left open shows the real length.
+- 2026-11-08 · iOS `isoTimestamp` rounds to the millisecond (M2 reviewer,
+  critical): truncation sent a finish clamped to the start a millisecond
+  before it, which the server refuses. D-061 records it.
 
 ## Session log
 - 2026-11-08 · Spec written from the measurement above. M1 built on
@@ -175,7 +181,7 @@ Delivers: R10, R11, R12
   picker's bound on the live clock, an answer kept when the finish cannot be
   queued, PostgREST-shaped stamps in the tests. `-apexMockRunaway` reaches the
   card on fixtures; `SmokeUITests/testRunawayFinishAsksWhenItEnded` drives it.
-  Proven on the iPhone Air simulator (iOS 26.5): TrackerModelTests 44 (10
+  Proven on the iPhone Air simulator (iOS 26.5): TrackerModelTests 46 (12
   new), VoiceLoggingTests 22, the two tracker UI tests; ApexCore on macOS and
   Linux (`swift:6.1`). Not verified: a device or TestFlight build, and the
   DatePicker's own interaction (the model's `finish(at:)` is tested).

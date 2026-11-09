@@ -1303,10 +1303,16 @@ which has tests, so D-008 would keep it server-side.
   by both `runawayFinish.test.ts` and `RunawayFinishTests`, and each asserts its own constants
   against the file's `rule`, so a threshold moved on one side fails the other until it follows.
 - **The suggestion's inputs:** the bootstrap's `lastLoggedAt` (cache or network, never stepping
-  back) and every set or cardio edit this sitting (`scheduleSave`, whose callers are all such
-  edits). Edits replayed from the queue at open carry no time and do not count.
+  back; a fresh one landing while the card is up re-detects) and every set or cardio value entered
+  this sitting (`scheduleSave(logged:)`; a removal and a voice Undo pass `false`). Edits replayed
+  from the queue at open carry no time and do not count.
 - **The chosen end is the session's end everywhere the phone writes one:** `FinishPayload`,
   the summary, the cached session, the Live Activity's end and the Apple Health workout. The
   completion row keeps the moment Finish was tapped. "It ran …" queues now, as before.
+- **`CompletionRows.isoTimestamp` rounds to the millisecond** in integer arithmetic. It used to
+  truncate a Double's nanoseconds, which put half of all parsed server stamps a millisecond early
+  (`…42.001` → `…42.000`): a finish clamped to the session's start was then refused as preceding
+  it, or, past a week, stripped by the queue and stamped now. Every millisecond round-trips now
+  (`IsoTimestampTests`).
 - Rejected: asking the server through a new endpoint (offline finish); hand-copied vectors
   (D-023's mechanism, weaker than one shared file).

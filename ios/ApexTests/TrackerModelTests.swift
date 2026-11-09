@@ -958,9 +958,9 @@ final class TrackerModelTests: XCTestCase {
         return formatter.date(from: iso)!
     }
 
-    private func runawayTransport(lastLoggedAt: String?, scored: Bool = false) -> ScriptedTransport {
+    private func runawayTransport(lastLoggedAt: String?, scored: Bool = false, start: String = TrackerModelTests.runawayStart) -> ScriptedTransport {
         let t = healthy()
-        var body = Self.fixture("bootstrap-peek.json").replacingSessionWithStarted(at: Self.runawayStart).withLastLoggedAt(lastLoggedAt)
+        var body = Self.fixture("bootstrap-peek.json").replacingSessionWithStarted(at: start).withLastLoggedAt(lastLoggedAt)
         if scored { body = body.withScored() }
         t.set("POST /api/workout-sessions bootstrap", body: body)
         return t
@@ -1022,9 +1022,10 @@ final class TrackerModelTests: XCTestCase {
 
         let typedAt = clock.now
         model.focusSet(at: press1)
-        await model.requestFinish(force: true)
+        // The header's Finish: no force, and one planned set still unlogged.
+        await model.requestFinish()
 
-        guard case .needsFinishTime(let second) = model.gate else { return XCTFail("\(model.gate)") }
+        guard case .needsFinishTime(let second) = model.gate else { return XCTFail("re-detects, not the confirm again: \(model.gate)") }
         XCTAssertEqual(second.suggestion, .init(at: typedAt, basis: .lastLogged))
         XCTAssertNotEqual(second, first, "a different detection, so a fresh card (`.id(runaway)`)")
     }
@@ -1069,22 +1070,58 @@ final class TrackerModelTests: XCTestCase {
         XCTAssertTrue(finish.body!.contains(#""finishedAt":"2026-09-22T07:10:00.000Z""#), finish.body!)
     }
 
+    /// Clamped to the start, the stamp is the server's own to the millisecond:
+    /// one millisecond early and the server refuses it as preceding the start.
     @MainActor
     func testAChosenEndOutsideTheSessionIsClampedToIt() async throws {
         let store = MemoryWriteQueueStore()
-        let (model, _) = make(runawayTransport(lastLoggedAt: nil), store: store)
+        let (model, _) = make(runawayTransport(lastLoggedAt: nil, start: "2026-09-22T06:00:00.001+00:00"), store: store)
         await model.open()
         await model.requestFinish(force: true)
         await model.finish(at: .at(Self.instant("2026-09-22T05:00:00.000Z")))
         let queued = await store.all.compactMap { op -> FinishPayload? in
             if case .finish(let payload) = op.payload { return payload } else { return nil }
         }
-        XCTAssertEqual(queued.map(\.finishedAt), [Self.runawayStart])
+        XCTAssertEqual(queued.map(\.finishedAt), ["2026-09-22T06:00:00.001Z"])
     }
 
     @MainActor
+    func testRemovingASetDoesNotMoveTheSuggestion() async throws {
+        let (model, _) = make(runawayTransport(lastLoggedAt: "2026-09-22T07:05:00.000Z"))
+        await model.open()
+        model.addSet(section: "exercise", exerciseId: "fx-press")
+        let extra = SetKey(section: "exercise", exerciseId: "fx-press", setNumber: 3)
+        XCTAssertNotNil(model.set(at: extra))
+        model.removeSet(at: extra)
+        await model.requestFinish(force: true)
+        guard case .needsFinishTime(let runaway) = model.gate else { return XCTFail("\(model.gate)") }
+        XCTAssertEqual(runaway.suggestion, .init(at: Self.instant("2026-09-22T07:05:00.000Z"), basis: .lastLogged), "a removal logs nothing")
+    }
+
+    /// Finish tapped on the cached copy, then the server's bootstrap lands
+    /// with a later stamp: the open card asks again with it.
+    @MainActor
+    func testAFreshBootstrapLandingUnderTheCardRedetects() async throws {
+        let transport = runawayTransport(lastLoggedAt: nil)
+        let (model, _) = make(transport)
+        await model.open()
+        await model.requestFinish(force: true)
+        guard case .needsFinishTime(let stale) = model.gate else { return XCTFail("\(model.gate)") }
+        XCTAssertEqual(stale.suggestion.basis, .plan)
+
+        transport.set("POST /api/workout-sessions bootstrap", body: Self.fixture("bootstrap-peek.json")
+            .replacingSessionWithStarted(at: Self.runawayStart).withLastLoggedAt("2026-09-22T07:05:00.000Z"))
+        await model.open()
+
+        guard case .needsFinishTime(let fresh) = model.gate else { return XCTFail("\(model.gate)") }
+        XCTAssertEqual(fresh.suggestion, .init(at: Self.instant("2026-09-22T07:05:00.000Z"), basis: .lastLogged))
+    }
+
+    /// Five hours, not six: a Health workout is capped at six hours
+    /// (`HealthWorkoutDraft.longestSession`), and the draft is asserted here.
+    @MainActor
     func testItRanThisLongFinishesNowAsBefore() async throws {
-        let transport = runawayTransport(lastLoggedAt: "2026-09-22T07:05:00.000Z")
+        let transport = runawayTransport(lastLoggedAt: "2026-09-22T07:35:00.000Z", start: "2026-09-22T07:00:00.000Z")
         let health = HealthSpy()
         let (model, queue) = make(transport, health: health)
         await model.open()
