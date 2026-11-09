@@ -74,9 +74,9 @@ function runBlock(step: string[]): string {
 }
 
 // Two calls: CI's run list (fixture.runs, filtered by --workflow, --event and
-// --branch and cut to --limit, newest first, as gh does) and one run's jobs
-// (fixture.jobs[id], or a failed call when absent). fixture.listFails fails the
-// list. Like gh, an object carries only the fields --json names.
+// --branch and cut to --limit, newest first, as gh does) and one run's view
+// (fixture.views[id], or a failed call when absent). fixture.listFails fails
+// the list. Like gh, an object carries only the fields --json names.
 const GH_STUB = `#!/usr/bin/env node
 const { spawnSync } = require('node:child_process');
 const { appendFileSync, readFileSync } = require('node:fs');
@@ -93,8 +93,8 @@ if (args[0] === 'run' && args[1] === 'list') {
   if (flag('--event')) runs = runs.filter((r) => r.event === flag('--event'));
   if (flag('--branch')) runs = runs.filter((r) => r.headBranch === flag('--branch'));
   data = runs.slice(0, Number(flag('--limit') ?? 20)).map(pick);
-} else if (args[0] === 'run' && args[1] === 'view' && fixture.jobs && args[2] in fixture.jobs) {
-  data = pick({ jobs: fixture.jobs[args[2]] });
+} else if (args[0] === 'run' && args[1] === 'view' && fixture.views && args[2] in fixture.views) {
+  data = pick(fixture.views[args[2]]);
 } else {
   process.stderr.write('HTTP 404: Not Found');
   process.exit(1);
@@ -106,7 +106,8 @@ process.exit(out.status ?? 1);
 `;
 
 type Run = { createdAt: string; event: string; headBranch: string };
-type Fixture = { runs?: Run[]; jobs?: Record<string, { name: string }[]>; listFails?: boolean };
+type View = { jobs: { name: string }[]; conclusion: string };
+type Fixture = { runs?: Run[]; views?: Record<string, View>; listFails?: boolean };
 
 const HOUR = 3_600_000;
 /** gh's timestamp form (no milliseconds) for `hours` ago. */
@@ -115,7 +116,7 @@ const ciRun = (hours: number, event = 'schedule'): Run => ({ createdAt: ago(hour
 
 const NIGHTLY_ID = '42499798880';
 const MISSED = "action=ACTION CI's nightly has not run in 24 hours (newest: ";
-const NEVER_RAN = `action=ACTION CI's nightly was cancelled before any job ran (run ${NIGHTLY_ID}: `;
+const NO_JOB = `action=ACTION CI's nightly ran no job (run ${NIGHTLY_ID}, `;
 
 let work: string;
 let stubDir: string;
@@ -144,8 +145,12 @@ function execOk(cmd: string, args: string[]) {
   if (r.status !== 0) throw new Error(`${cmd} ${args.join(' ')} failed: ${r.stderr}`);
 }
 
-/** Runs the marked script the way a default `run:` step does (bash -e). */
-function check(fixture: Fixture, nightlyRunId?: string) {
+/**
+ * Runs the marked script the way a default `run:` step does (bash -e). After
+ * the nightly, the job's env carries its run id and attempt (GitHub sends
+ * `1` for a first attempt); on the fallback cron, neither.
+ */
+function check(fixture: Fixture, nightly?: { id: string; attempt: string }) {
   const dir = join(work, `case-${++cases}`);
   mkdirSync(dir);
   const fx = join(dir, 'fixture.json');
@@ -154,7 +159,8 @@ function check(fixture: Fixture, nightlyRunId?: string) {
   writeFileSync(output, '');
   const env: NodeJS.ProcessEnv = { ...process.env, PATH: `${stubDir}:${process.env.PATH}`, GH_FIXTURE: fx, GITHUB_OUTPUT: output };
   delete env.NIGHTLY_RUN_ID;
-  if (nightlyRunId !== undefined) env.NIGHTLY_RUN_ID = nightlyRunId;
+  delete env.NIGHTLY_ATTEMPT;
+  if (nightly) Object.assign(env, { NIGHTLY_RUN_ID: nightly.id, NIGHTLY_ATTEMPT: nightly.attempt });
   const r = spawnSync('bash', ['-e', script], { cwd: dir, env, encoding: 'utf8' });
   const calls: string[][] = existsSync(`${fx}.calls`)
     ? readFileSync(`${fx}.calls`, 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l))
@@ -187,7 +193,7 @@ describe('supervisor.yml nightly-check, on the fallback cron', () => {
     const nightly = ciRun(24.5);
     const r = check({ runs: [nightly] });
     expect(r.status, r.stderr).toBe(0);
-    expect(r.lines).toEqual([`${MISSED}${nightly.createdAt}), so neither have evals or prod-checks — GitHub drops scheduled runs under load, and disables them in a public repository after 60 days without activity: gh run list --workflow CI --event schedule`, 'sweep=true']);
+    expect(r.lines).toEqual([`${MISSED}${nightly.createdAt}), and with it evals and prod-checks — GitHub drops scheduled runs under load, and disables them in a public repository after 60 days without activity: gh run list --workflow CI --event schedule`, 'sweep=true']);
   });
 
   it('push and dispatch runs since do not count: only a scheduled run is a nightly', () => {
@@ -228,25 +234,48 @@ describe('supervisor.yml nightly-check, after the nightly', () => {
   // would say "no sweep" here, so a script that consulted it after the
   // nightly would skip the very sweep this trigger exists for.
   const recent = () => [ciRun(0.1), ciRun(24.1)];
+  const first = { id: NIGHTLY_ID, attempt: '1' };
+  const ran: View = { jobs: [{ name: 'check' }, { name: 'evals' }], conclusion: 'failure' };
 
   it('the nightly ran its jobs: sweep, no ACTION, and the run list is never read', () => {
-    const r = check({ runs: recent(), jobs: { [NIGHTLY_ID]: [{ name: 'check' }, { name: 'evals' }] } }, NIGHTLY_ID);
+    const r = check({ runs: recent(), views: { [NIGHTLY_ID]: ran } }, first);
     expect(r.status, r.stderr).toBe(0);
     expect(r.lines).toEqual(['sweep=true']);
-    expect(r.calls).toEqual([['run', 'view', NIGHTLY_ID, '--json', 'jobs', '--jq', '.jobs | length']]);
+    expect(r.calls).toHaveLength(1);
+    expect(r.calls[0].slice(0, 5)).toEqual(['run', 'view', NIGHTLY_ID, '--json', 'jobs,conclusion']);
   });
 
-  it('cancelled before any job ran: sweep, opening with an ACTION that names the run', () => {
-    const r = check({ runs: recent(), jobs: { [NIGHTLY_ID]: [] } }, NIGHTLY_ID);
+  it('cancelled before any job ran: sweep, opening with an ACTION that names the run and how it ended', () => {
+    const r = check({ runs: recent(), views: { [NIGHTLY_ID]: { jobs: [], conclusion: 'cancelled' } } }, first);
     expect(r.status, r.stderr).toBe(0);
-    expect(r.lines).toEqual([`${NEVER_RAN}a push took its place in main's queue) — evals and prod-checks did not run tonight`, 'sweep=true']);
+    expect(r.lines).toEqual([
+      `${NO_JOB}cancelled), so evals and prod-checks did not run tonight — a push that takes its place in main's queue cancels it this way`,
+      'sweep=true',
+    ]);
+  });
+
+  it('no job for another reason (ci.yml invalid on main): the ACTION carries that conclusion', () => {
+    const r = check({ runs: recent(), views: { [NIGHTLY_ID]: { jobs: [], conclusion: 'startup_failure' } } }, first);
+    expect(r.status, r.stderr).toBe(0);
+    expect(r.lines[0].startsWith(`${NO_JOB}startup_failure), `)).toBe(true);
+    expect(r.lines.slice(1)).toEqual(['sweep=true']);
   });
 
   it('its jobs cannot be read: sweep without an ACTION, and warn', () => {
-    const r = check({ runs: recent(), jobs: {} }, NIGHTLY_ID);
+    const r = check({ runs: recent(), views: {} }, first);
     expect(r.status, r.stderr).toBe(0);
     expect(r.lines).toEqual(['sweep=true']);
     expect(r.stdout).toMatch(new RegExp(`^::warning::Could not read the jobs of CI run ${NIGHTLY_ID}`, 'm'));
+  });
+
+  it("a re-run of the nightly: no sweep, which would report main's newest run, not this one", () => {
+    // A green push run created after the nightly would be the `── main`
+    // block's verdict, and a clean sweep closes the issue over a red nightly.
+    const r = check({ runs: [ciRun(0.5, 'push'), ...recent()], views: { [NIGHTLY_ID]: ran } }, { id: NIGHTLY_ID, attempt: '2' });
+    expect(r.status, r.stderr).toBe(0);
+    expect(r.lines).toEqual(['sweep=false']);
+    expect(r.stdout).toContain(`CI run ${NIGHTLY_ID} is a re-run (attempt 2)`);
+    expect(r.calls).toEqual([]);
   });
 });
 
@@ -279,10 +308,21 @@ describe("supervisor.yml's wiring around nightly-check", () => {
     ]);
   });
 
-  it('`nightly` runs on the fallback cron and after the nightly only, and knows which run that was', () => {
+  it("names CI as ci.yml does, so a rename there fails here instead of silencing the sweep", () => {
+    const ciYml = readFileSync(fileURLToPath(new URL('../../.github/workflows/ci.yml', import.meta.url)), 'utf8');
+    const name = /^name: (.+)$/m.exec(ciYml)?.[1];
+    expect(name).toBe('CI');
+    expect(yml).toContain(`    workflows: [${name}]`);
+    const named = [...markedScript(yml).matchAll(/--workflow (\S+)/g)].map((m) => m[1]);
+    expect(named.length).toBeGreaterThan(0);
+    expect(new Set(named)).toEqual(new Set([name]));
+  });
+
+  it('`nightly` runs on the fallback cron and after the nightly only, and knows which run and attempt that was', () => {
     const head = jobHead(yml, 'nightly');
     expect(head).toContain("    if: github.event_name == 'schedule' || github.event.workflow_run.event == 'schedule'");
     expect(head).toContain('      NIGHTLY_RUN_ID: ${{ github.event.workflow_run.id }}');
+    expect(head).toContain('      NIGHTLY_ATTEMPT: ${{ github.event.workflow_run.run_attempt }}');
     expect(head).toContain('      sweep: ${{ steps.check.outputs.sweep }}');
     expect(head).toContain('      action: ${{ steps.check.outputs.action }}');
   });

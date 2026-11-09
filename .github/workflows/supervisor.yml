@@ -82,6 +82,8 @@ jobs:
   # On the fallback cron: whether a nightly started in the last 24 hours; if
   # one did, the sweep that followed it stands. A second sweep would read
   # main's newest run instead, and a green push run there hides a red nightly.
+  # A re-run of the nightly is a second sweep of that kind, so it sweeps
+  # nothing either: its result is on the run itself.
   nightly:
     if: github.event_name == 'schedule' || github.event.workflow_run.event == 'schedule'
     runs-on: ubuntu-latest
@@ -89,8 +91,9 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
-      # Empty on the fallback cron.
+      # Both empty on the fallback cron.
       NIGHTLY_RUN_ID: ${{ github.event.workflow_run.id }}
+      NIGHTLY_ATTEMPT: ${{ github.event.workflow_run.run_attempt }}
     outputs:
       sweep: ${{ steps.check.outputs.sweep }}
       action: ${{ steps.check.outputs.action }}
@@ -100,15 +103,19 @@ jobs:
       - id: check
         run: |
           # nightly-check:begin
-          if [ -n "${NIGHTLY_RUN_ID:-}" ]; then
+          if [ -n "${NIGHTLY_RUN_ID:-}" ] && [ "${NIGHTLY_ATTEMPT:-1}" != 1 ]; then
+            echo "CI run $NIGHTLY_RUN_ID is a re-run (attempt $NIGHTLY_ATTEMPT); the sweep after its first attempt stands."
+            echo "sweep=false" >> "$GITHUB_OUTPUT"
+          elif [ -n "${NIGHTLY_RUN_ID:-}" ]; then
             # A nightly that waited its turn in main's queue is cancelled
             # before any job starts when a newer push takes its place. Then
             # evals and prod-checks did not run, and the `── main` block,
             # which passes such a run over, cannot say so.
-            if jobs=$(gh run view "$NIGHTLY_RUN_ID" --json jobs --jq '.jobs | length'); then
-              if [ "$jobs" = 0 ]; then
-                echo "action=ACTION CI's nightly was cancelled before any job ran (run $NIGHTLY_RUN_ID: a push took its place in main's queue) — evals and prod-checks did not run tonight" >> "$GITHUB_OUTPUT"
-              fi
+            if ran=$(gh run view "$NIGHTLY_RUN_ID" --json jobs,conclusion --jq '"\(.jobs | length) \(.conclusion)"'); then
+              case "$ran" in
+                "0 "*)
+                  echo "action=ACTION CI's nightly ran no job (run $NIGHTLY_RUN_ID, ${ran#0 }), so evals and prod-checks did not run tonight — a push that takes its place in main's queue cancels it this way" >> "$GITHUB_OUTPUT" ;;
+              esac
             else
               echo "::warning::Could not read the jobs of CI run $NIGHTLY_RUN_ID; sweeping without knowing whether the nightly ran."
             fi
@@ -120,7 +127,7 @@ jobs:
                 echo "CI's nightly started at ${newest#recent }; the sweep after it stands."
                 echo "sweep=false" >> "$GITHUB_OUTPUT" ;;
               *)
-                echo "action=ACTION CI's nightly has not run in 24 hours (newest: ${newest#stale }), so neither have evals or prod-checks — GitHub drops scheduled runs under load, and disables them in a public repository after 60 days without activity: gh run list --workflow CI --event schedule" >> "$GITHUB_OUTPUT"
+                echo "action=ACTION CI's nightly has not run in 24 hours (newest: ${newest#stale }), and with it evals and prod-checks — GitHub drops scheduled runs under load, and disables them in a public repository after 60 days without activity: gh run list --workflow CI --event schedule" >> "$GITHUB_OUTPUT"
                 echo "sweep=true" >> "$GITHUB_OUTPUT" ;;
             esac
           else
