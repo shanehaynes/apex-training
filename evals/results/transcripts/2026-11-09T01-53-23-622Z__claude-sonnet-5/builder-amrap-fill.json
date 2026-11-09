@@ -1,0 +1,117 @@
+{
+  "caseId": "builder-amrap-fill",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Set this up as CINDY — 20 minute AMRAP of 5 pull-ups, 10 push-ups, 15 air squats."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01LGhFqAL9PgYLT6tBBpi76L",
+          "name": "update_workout_draft",
+          "input": {
+            "title": "CINDY",
+            "scoring_type": "amrap",
+            "time_cap_minutes": 20,
+            "duration_minutes": 20,
+            "exercises": [
+              {
+                "name": "Pull-Ups",
+                "reps": "5",
+                "category": "strength",
+                "muscle_groups": [
+                  "back",
+                  "biceps"
+                ],
+                "superset": "A"
+              },
+              {
+                "name": "Push-Ups",
+                "reps": "10",
+                "superset": "A"
+              },
+              {
+                "name": "Air Squats",
+                "reps": "15",
+                "category": "strength",
+                "muscle_groups": [
+                  "quads",
+                  "glutes"
+                ],
+                "superset": "A"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01LGhFqAL9PgYLT6tBBpi76L",
+          "content": "Draft updated: title, scoring, time cap, duration, exercises (3). The user reviews and presses Apply."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "CINDY set: 20-min AMRAP, 5 pull-ups/10 push-ups/15 air squats as a round circuit (A). Review and Apply."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": "Draft's ready — nothing more to change on my end. Hit Apply when you're set."
+    }
+  ],
+  "toolCalls": [
+    {
+      "name": "update_workout_draft",
+      "input": {
+        "title": "CINDY",
+        "scoring_type": "amrap",
+        "time_cap_minutes": 20,
+        "duration_minutes": 20,
+        "exercises": [
+          {
+            "name": "Pull-Ups",
+            "reps": "5",
+            "category": "strength",
+            "muscle_groups": [
+              "back",
+              "biceps"
+            ],
+            "superset": "A"
+          },
+          {
+            "name": "Push-Ups",
+            "reps": "10",
+            "superset": "A"
+          },
+          {
+            "name": "Air Squats",
+            "reps": "15",
+            "category": "strength",
+            "muscle_groups": [
+              "quads",
+              "glutes"
+            ],
+            "superset": "A"
+          }
+        ]
+      },
+      "result": "Draft updated: title, scoring, time cap, duration, exercises (3). The user reviews and presses Apply.",
+      "turn": 1,
+      "kind": "write",
+      "round": 0
+    }
+  ],
+  "anomalies": []
+}
