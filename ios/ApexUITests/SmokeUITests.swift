@@ -1168,23 +1168,34 @@ final class SmokeUITests: XCTestCase {
         attach(app, name: "you-export-04-terms-saved")
     }
 
-    /// Files' save sheet: Save, then Replace when the file is already there.
-    /// It always is in the second export test, because the first saves the
-    /// same name, and on a slow runner Replace can come later than any fixed
-    /// wait. So wait on the outcome: the row's saved label, or Replace, which
-    /// is tapped once (no hidden retries, ci.yml #192/#195). The caller still
-    /// asserts the label.
+    /// Files' save sheet: Save, then Keep Both when the file is already there.
+    /// It is there whenever an earlier export on this simulator saved the same
+    /// name, and on a slow runner the prompt can come later than any fixed
+    /// wait. So wait on the outcome: the row's saved label, or the prompt,
+    /// answered once (no hidden retries, ci.yml #192/#195). The caller still
+    /// asserts the label, and "… 2.json" still carries the dated name.
+    ///
+    /// Not Replace: Files removes the old item, and its index sometimes loses
+    /// track of it ("Index out of sync"), then hands the app an empty result
+    /// ("didPickDocumentURLs: with an empty array"). The exporter's completion
+    /// never runs and the label never comes, however long the wait. Every
+    /// failed attempt of the export test on 2026-11-03 and 2026-11-08 had
+    /// tapped Replace. Keep Both removes nothing.
     private func saveInFiles(_ app: XCUIApplication, screenshot name: String, until saved: XCUIElement) {
         let save = app.buttons["Save"].firstMatch
         XCTAssertTrue(save.waitForExistence(timeout: 15), "the export opens Files to save it")
         attach(app, name: name)
         save.tap()
-        let replace = app.buttons["Replace"].firstMatch
+        let keepBoth = app.buttons["Keep Both"].firstMatch
         let settled = XCTNSPredicateExpectation(
-            predicate: NSPredicate { _, _ in replace.exists || saved.exists }, object: nil
+            predicate: NSPredicate { _, _ in keepBoth.exists || saved.exists }, object: nil
         )
-        XCTAssertEqual(XCTWaiter().wait(for: [settled], timeout: 20), .completed, "Files neither saved nor asked to replace")
-        if !saved.exists, replace.exists { replace.tap() }
+        XCTAssertEqual(XCTWaiter().wait(for: [settled], timeout: 20), .completed, "Files neither saved nor asked about the existing file")
+        if !saved.exists, keepBoth.exists {
+            keepBoth.tap()
+            // The same budget a save without the prompt gets after Save.
+            _ = saved.waitForExistence(timeout: 20)
+        }
     }
 
     // MARK: - W11 · the You tab
