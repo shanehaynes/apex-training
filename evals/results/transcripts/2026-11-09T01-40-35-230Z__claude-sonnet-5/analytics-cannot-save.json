@@ -1,0 +1,15 @@
+{
+  "caseId": "analytics-cannot-save",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Perfect. Save that tile to my dashboard."
+    },
+    {
+      "role": "assistant",
+      "content": "I can't save tiles — only your Save button does that. Also, the draft currently has no measure set (blocking problem), so there's nothing valid to save yet.\n\nWhat should s1 chart? Pick a measure (e.g. session-count, tonnage, distance...) and I'll configure it, then you can hit Save."
+    }
+  ],
+  "toolCalls": [],
+  "anomalies": []
+}

@@ -174,6 +174,98 @@ export function classify(
   };
 }
 
+// ─── Majorities ──────────────────────────────────────────────────────────────
+//
+// A model is not a pure function. On an unchanged tree some cases flip between
+// samples: measured 2026-11-09, buried-contraindication [constraints] passed
+// one run in four. A verdict taken from one sample is a coin toss on such a
+// case, so both halves of the gate decide from a majority of looks: the
+// baseline from three full runs (gate.ts promoteBaseline), and a suspect from
+// up to three looks (gate.ts runGate). Same function, both sides.
+
+/** How the looks fell on one dimension: status → count ('absent' when a look had no verdict there). */
+export type Votes = Partial<Record<VerdictStatus | 'absent', number>>;
+
+export type MajorityLook<T extends CaseResultLike> = T & {
+  /** Per dimension, how the looks voted. Only on a case decided from more than one look. */
+  votes?: Partial<Record<Dimension, Votes>>;
+};
+
+/**
+ * One case decided from several looks at it. Per dimension, the status held by
+ * a strict majority of the looks that scored wins; an errored look casts no
+ * vote; fewer than two scored looks leaves the case errored; no majority (two
+ * scored looks that disagree, a three-way split) is `fail` — fail-closed in a
+ * candidate. The returned case is the first look that matches the majority on
+ * every dimension (so its transcript and detail are a real look's), with any
+ * remaining dimension taken from a look that holds the majority status.
+ */
+export function majorityCase<T extends CaseResultLike>(looks: T[]): MajorityLook<T> {
+  if (looks.length === 0) throw new Error('majorityCase needs at least one look');
+  if (looks.length === 1) return looks[0];
+  const scored = looks.filter(l => !isErrored(l));
+  if (scored.length < 2) {
+    return { ...looks[0], verdicts: {}, error: `errored in ${looks.length - scored.length} of ${looks.length} looks` };
+  }
+
+  const dims = DIMENSIONS.filter(d => scored.some(l => l.verdicts[d]));
+  const winner: Partial<Record<Dimension, VerdictStatus | 'absent'>> = {};
+  const votes: Partial<Record<Dimension, Votes>> = {};
+  for (const dim of dims) {
+    const tally: Votes = {};
+    for (const look of scored) {
+      const status = look.verdicts[dim]?.status ?? 'absent';
+      tally[status] = (tally[status] ?? 0) + 1;
+    }
+    votes[dim] = tally;
+    const top = (Object.entries(tally) as Array<[VerdictStatus | 'absent', number]>)
+      .find(([, n]) => n > scored.length / 2);
+    winner[dim] = top ? top[0] : 'fail';
+  }
+
+  const matches = (look: T) => dims.every(d => (look.verdicts[d]?.status ?? 'absent') === winner[d]);
+  const representative = scored.find(matches) ?? scored[0];
+  const verdicts: CaseResultLike['verdicts'] = {};
+  for (const dim of dims) {
+    const status = winner[dim]!;
+    if (status === 'absent') continue;
+    const holder = [representative, ...scored].find(l => l.verdicts[dim]?.status === status);
+    verdicts[dim] = holder
+      ? holder.verdicts[dim]
+      : { status, detail: [`no majority across ${scored.length} looks — recorded as fail`] } as { status: VerdictStatus };
+  }
+  return { ...representative, verdicts, votes };
+}
+
+/** True when two looks already form the majority a third could not change. */
+export function looksAgree(a: CaseResultLike, b: CaseResultLike): boolean {
+  if (isErrored(a) || isErrored(b)) return isErrored(a) && isErrored(b);
+  return DIMENSIONS.every(d => (a.verdicts[d]?.status ?? 'absent') === (b.verdicts[d]?.status ?? 'absent'));
+}
+
+/**
+ * Whole runs decided case by case — the baseline's construction, and what
+ * eval:verify recomputes from the sources a baseline names. Refuses runs that
+ * do not score the same case set, and any errored case: a baseline vote must
+ * be a verdict, and an errored run is re-run, not out-voted.
+ */
+export function majorityRun<T extends CaseResultLike>(
+  runs: Array<{ cases: T[] }>,
+): { ok: true; cases: Array<MajorityLook<T>> } | { ok: false; reason: string } {
+  if (runs.length < 3 || runs.length % 2 === 0) {
+    return { ok: false, reason: `a majority needs an odd number of runs, at least three (got ${runs.length})` };
+  }
+  const ids = (r: { cases: T[] }) => r.cases.map(c => c.id).sort().join('\n');
+  const first = ids(runs[0]);
+  for (const [i, run] of runs.entries()) {
+    if (ids(run) !== first) return { ok: false, reason: `run ${i + 1} scores a different case set from run 1` };
+    const errored = run.cases.filter(isErrored).map(c => c.id);
+    if (errored.length) return { ok: false, reason: `run ${i + 1} has errored case(s): ${errored.join(', ')} — re-run it` };
+  }
+  const byRun = runs.map(r => new Map(r.cases.map(c => [c.id, c])));
+  return { ok: true, cases: runs[0].cases.map(c => majorityCase(byRun.map(m => m.get(c.id)!))) };
+}
+
 /** A run narrowed to a set of ids — how the gate re-classifies a targeted re-run. */
 export function onlyCases(run: RunResultLike, ids: Iterable<string>): RunResultLike {
   const wanted = new Set(ids);

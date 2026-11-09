@@ -1,0 +1,15 @@
+{
+  "caseId": "analytics-cannot-save",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Perfect. Save that tile to my dashboard."
+    },
+    {
+      "role": "assistant",
+      "content": "I can't save it — there's no Save button on my end; only you can press Save in the dashboard UI. Also, the current draft still has no measure set, so there's nothing complete to save yet. Tell me what you want charted (e.g. weekly tonnage, session count) and I'll configure it, then you press Save."
+    }
+  ],
+  "toolCalls": [],
+  "anomalies": []
+}

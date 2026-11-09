@@ -1168,23 +1168,34 @@ final class SmokeUITests: XCTestCase {
         attach(app, name: "you-export-04-terms-saved")
     }
 
-    /// Files' save sheet: Save, then Replace when the file is already there.
-    /// It always is in the second export test, because the first saves the
-    /// same name, and on a slow runner Replace can come later than any fixed
-    /// wait. So wait on the outcome: the row's saved label, or Replace, which
-    /// is tapped once (no hidden retries, ci.yml #192/#195). The caller still
-    /// asserts the label.
+    /// Files' save sheet: Save, then Keep Both when the file is already there.
+    /// It is there whenever an earlier export on this simulator saved the same
+    /// name, and on a slow runner the prompt can come later than any fixed
+    /// wait. So wait on the outcome: the row's saved label, or the prompt,
+    /// answered once (no hidden retries, ci.yml #192/#195). The caller still
+    /// asserts the label, and "… 2.json" still carries the dated name.
+    ///
+    /// Not Replace: Files removes the old item, and its index sometimes loses
+    /// track of it ("Index out of sync"), then hands the app an empty result
+    /// ("didPickDocumentURLs: with an empty array"). The exporter's completion
+    /// never runs and the label never comes, however long the wait. Every
+    /// failed attempt of the export test on 2026-11-03 and 2026-11-08 had
+    /// tapped Replace. Keep Both removes nothing.
     private func saveInFiles(_ app: XCUIApplication, screenshot name: String, until saved: XCUIElement) {
         let save = app.buttons["Save"].firstMatch
         XCTAssertTrue(save.waitForExistence(timeout: 15), "the export opens Files to save it")
         attach(app, name: name)
         save.tap()
-        let replace = app.buttons["Replace"].firstMatch
+        let keepBoth = app.buttons["Keep Both"].firstMatch
         let settled = XCTNSPredicateExpectation(
-            predicate: NSPredicate { _, _ in replace.exists || saved.exists }, object: nil
+            predicate: NSPredicate { _, _ in keepBoth.exists || saved.exists }, object: nil
         )
-        XCTAssertEqual(XCTWaiter().wait(for: [settled], timeout: 20), .completed, "Files neither saved nor asked to replace")
-        if !saved.exists, replace.exists { replace.tap() }
+        XCTAssertEqual(XCTWaiter().wait(for: [settled], timeout: 20), .completed, "Files neither saved nor asked about the existing file")
+        if !saved.exists, keepBoth.exists {
+            keepBoth.tap()
+            // The same budget a save without the prompt gets after Save.
+            _ = saved.waitForExistence(timeout: 20)
+        }
     }
 
     // MARK: - W11 · the You tab
@@ -1512,4 +1523,50 @@ final class AuthLinkUITests: XCTestCase {
         add(shot)
     }
 
+}
+
+// MARK: - D-061 · runaway finish
+
+extension SmokeUITests {
+    /// Finish on a session five hours into a 60-minute plan asks when it
+    /// ended before anything is recorded (docs/specs/tracker-runaway-finish
+    /// R11); the unlogged-sets confirm comes first. `-apexMockRunaway` starts
+    /// the mock's session five hours back.
+    func testRunawayFinishAsksWhenItEnded() {
+        let app = XCUIApplication()
+        app.launchArguments += ["-apexUITest", "-apexMockClient", "-apexMockRunaway"]
+        app.launch()
+        signIn(app)
+
+        openEvent(app, card: "Fixture Push Day")
+        let start = app.buttons["schedule.event.start"]
+        XCTAssertTrue(start.waitForExistence(timeout: 10))
+        start.tap()
+        XCTAssertTrue(app.staticTexts["tracker.title"].waitForExistence(timeout: 20))
+
+        app.buttons["tracker.finish"].tap()
+        let finishAnyway = app.buttons["Finish anyway"]
+        XCTAssertTrue(finishAnyway.waitForExistence(timeout: 10), "the unlogged confirm comes first")
+        finishAnyway.tap()
+
+        let finishAt = app.buttons["tracker.finish-time.finish"]
+        XCTAssertTrue(finishAt.waitForExistence(timeout: 10), "the runaway card")
+        XCTAssertTrue(app.staticTexts.containing(NSPredicate(format: "label CONTAINS 'has run 5 h against a 1 h plan'")).firstMatch.exists)
+        XCTAssertTrue(app.buttons["tracker.finish-time.as-recorded"].exists)
+        XCTAssertTrue(app.buttons["tracker.finish-time.keep"].exists)
+        XCTAssertFalse(app.otherElements["tracker.summary"].exists, "nothing is recorded while it asks")
+        attachShot(app, name: "11-tracker-runaway-card")
+
+        finishAt.tap()
+        let summary = app.otherElements["tracker.summary"].firstMatch
+        XCTAssertTrue(summary.waitForExistence(timeout: 20) || app.staticTexts["Workout Complete"].waitForExistence(timeout: 20))
+        attachShot(app, name: "12-tracker-runaway-summary")
+    }
+
+    private func attachShot(_ app: XCUIApplication, name: String) {
+        let shot = XCTAttachment(screenshot: app.screenshot())
+        shot.name = name
+        shot.lifetime = .keepAlways
+        add(shot)
+    }
 }

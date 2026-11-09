@@ -13,6 +13,7 @@ import type { TrackedSectionGroup, TrackedSet } from '../lib/tracking/plan';
 import { sessionScoreFromRow } from '../lib/tracking/records';
 import { clearResolvedLoads } from '../lib/tracking/percent';
 import { exerciseOrderOf, moveTrackedExercise, type ExerciseOrder } from '../lib/tracking/order';
+import { detectRunaway, type RunawayFinish } from '../lib/tracking/runawayFinish';
 import type { PersonalRecord, SessionScore, WorkoutScoreRecord } from '../lib/tracking/records';
 import {
   cancelSession, editSessionTimes, finishSession, generateCoachSummary, loadSession, saveLogs, swapLoggedExercise,
@@ -101,6 +102,8 @@ export interface SummaryState {
 
 export type FinishOutcome =
   | { status: 'needs-confirm'; count: number }
+  /** The session ran far past its plan: when did it really end? (tracker-runaway-finish) */
+  | { status: 'needs-finish-time'; runaway: RunawayFinish }
   /** A scored event needs its score (or an explicit null to skip) first. */
   | { status: 'needs-score' }
   | { status: 'finished' }
@@ -146,6 +149,9 @@ export function useWorkoutSession(
   // finished session, or the finish response — so reopening the summary
   // costs nothing.
   const recordsRef = useRef<{ prs: PersonalRecord[]; scoreRecord: WorkoutScoreRecord | null }>({ prs: [], scoreRecord: null });
+  // When the athlete last logged a set or cardio row: the bootstrap's
+  // lastLoggedAt, then every such edit this sitting. A runaway Finish offers it.
+  const lastLoggedMsRef = useRef<number | null>(null);
   // The unit a bare weight is sent with, null while it is not known. Read by
   // the send like groupsRef, so a queued send uses the current profile.
   const { profile } = useAuth();
@@ -266,11 +272,15 @@ export function useWorkoutSession(
 
     queueRef.current = makeQueue(eventId, eventDate);
     setSaveState({ ...queueRef.current.state(), pausedStatus: null });
+    lastLoggedMsRef.current = null;
 
     loadSession(loadEvent).then(data => {
       if (cancelled) return;
       setSession(data.session);
       recordsRef.current = { prs: data.prs, scoreRecord: data.scoreRecord };
+      // A stamp the browser cannot read is no stamp: NaN would poison every later max.
+      const stamp = data.lastLoggedAt ? Date.parse(data.lastLoggedAt) : NaN;
+      lastLoggedMsRef.current = Number.isFinite(stamp) ? stamp : null;
       sessionNoteRef.current = data.session.note ?? '';
       setSessionNote(sessionNoteRef.current);
       setGroups(data.groups);
@@ -383,12 +393,23 @@ export function useWorkoutSession(
     ));
   };
 
+  // A set or cardio row logged now: the server will stamp its updated_at
+  // when the save lands, a moment from now.
+  const noteLogged = () => {
+    lastLoggedMsRef.current = Math.max(lastLoggedMsRef.current ?? -Infinity, Date.now());
+  };
+
   // A set and its removal are one server row: dirtying one drops the other,
   // so a batch never carries both a delete and an upsert of the same key —
   // the server runs its ops concurrently and would not order them.
   const markSetDirty = (section: TrackedSection, exerciseId: string, setNumber: number) => {
     queueRef.current?.unmark(removedKey(section, exerciseId, setNumber));
     queueRef.current?.markDirty(setKey(section, exerciseId, setNumber));
+    noteLogged();
+  };
+  const markCardioDirty = (section: TrackedSection, exerciseId: string) => {
+    queueRef.current?.markDirty(cardioKey(section, exerciseId));
+    noteLogged();
   };
   const markSetRemoved = (section: TrackedSection, exerciseId: string, setNumber: number) => {
     queueRef.current?.unmark(setKey(section, exerciseId, setNumber));
@@ -409,7 +430,7 @@ export function useWorkoutSession(
       ...t,
       cardio: t.cardio && { ...t.cardio, [field]: value },
     }));
-    queueRef.current?.markDirty(cardioKey(section, exerciseId));
+    markCardioDirty(section, exerciseId);
     scheduleSave();
   };
 
@@ -517,7 +538,7 @@ export function useWorkoutSession(
         ? { ...t.cardio, [field]: t.cardio.shadow[field], shadow: { ...t.cardio.shadow, [field]: '' } }
         : t.cardio,
     }));
-    queueRef.current?.markDirty(cardioKey(section, exerciseId));
+    markCardioDirty(section, exerciseId);
     scheduleSave();
   };
 
@@ -651,16 +672,33 @@ export function useWorkoutSession(
   /**
    * Finish the session. Without `force`, untouched planned sets make this
    * return needs-confirm (they will be zero-filled) instead of finishing.
+   * A session far past its plan then needs its real end (runawayFinish.ts):
+   * `finishAt` undefined returns needs-finish-time, an ISO instant finishes
+   * there, an explicit null finishes now ("it really ran this long").
    * A scored event (for-time/amrap with a template) then needs its score:
    * undefined returns needs-score, a SessionScore records it, an explicit
    * null skips it (the session finishes unscored and sets no workout PR).
    */
-  const requestFinish = async (force: boolean, score?: SessionScore | null): Promise<FinishOutcome> => {
+  const requestFinish = async (
+    force: boolean,
+    score?: SessionScore | null,
+    finishAt?: string | null,
+  ): Promise<FinishOutcome> => {
     if (!event || !groups || isFinishing) return { status: 'noop' };
 
     const autofillRows = collectUntouchedPlanned(event.id, event.date, groups);
     if (!force && autofillRows.length > 0) {
       return { status: 'needs-confirm', count: autofillRows.length };
+    }
+
+    if (finishAt === undefined && session) {
+      const runaway = detectRunaway({
+        startedAtMs: Date.parse(session.started_at),
+        nowMs: Date.now(),
+        plannedMinutes: event.estimatedDuration,
+        lastLoggedMs: lastLoggedMsRef.current,
+      });
+      if (runaway) return { status: 'needs-finish-time', runaway };
     }
 
     const scored = !!event.templateId
@@ -691,12 +729,16 @@ export function useWorkoutSession(
         event.date,
         autofillRows,
         scored && score ? { templateId: event.templateId!, ...score } : undefined,
+        finishAt ?? undefined,
       );
-      const totalSeconds = result?.totalDurationSeconds ?? elapsed;
+      // Offline there is no server total: the chosen end makes it, else the clock.
+      const totalSeconds = result?.totalDurationSeconds ?? (finishAt && session
+        ? Math.max(0, Math.round((Date.parse(finishAt) - Date.parse(session.started_at)) / 1000))
+        : elapsed);
       setCompletion(event.id, true);
       setSession(prev => prev && {
         ...prev,
-        finished_at: new Date().toISOString(),
+        finished_at: finishAt ?? new Date().toISOString(),
         total_duration_seconds: totalSeconds,
       });
       setIsFinishing(false);

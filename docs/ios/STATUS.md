@@ -171,6 +171,15 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
    (`printf` the two ids back after a tidy) — both git-ignored, so never from the primary checkout.
 
 ## Recent sessions
+- 2026-11-08 · Runaway finish M2 (`feat/tracker-runaway-finish-ios`, D-061). Finish on a session
+  past 4× its plan and 2 h asks when it ended (`FinishTimeCard`), defaulting to when the last
+  set was saved; the chosen end reaches the queue, summary, cache, Live Activity and Health. ApexCore runs
+  the web's vector file. Web and server shipped in M1.
+- 2026-11-08 · Export: Files' lost result looks like a cancel (D-062) · Mac. #550 left open what
+  an athlete sees when Replace loses Files' result. Both `fileExporter` forms and UIKit's picker
+  delegate were probed on two simulators. Wherever the lost result was seen, it arrived as a
+  cancel. No message ships; `ExportDataRow` gains a comment. Next: Shane's device run (export
+  twice to On My iPhone, Replace, several times) and his call on D-062's open options.
 - 2026-11-08 · TestFlight 1.1.0 (659) · CI. Shane accepted the Program License Agreement update
   (attempts 1 and 2 of run 41830146297 had failed on it on 2026-11-04); attempt 3, from `main` at
   51718353, uploaded 1.1.0 (659) and App Store Connect processed it. Next: his real sign-up on
