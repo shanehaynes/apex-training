@@ -277,5 +277,10 @@ Uploading publishes a build to Apple. Confirm with Shane before running it witho
   into `ApexUI/Resources/ConnectorFigures.xcassets` + `Generated/ConnectorFigures.swift`.
 - `Fixtures/` come from `api/__tests__/integration/ios-read.integration.test.ts`
   (`APEX_FIXTURES_WRITE=1` to update after a deliberate shape change). Never edit them by hand.
+  `npm run fixtures:ios` resets the shared database first, which auto-mode sessions are
+  refused. For an additive field, the emitter alone under the stack lock is enough —
+  `scripts/with-stack-lock.sh sh -c 'APEX_LOCAL_SUPABASE=1 APEX_FIXTURES_WRITE=1 npx vitest run
+  api/__tests__/integration/ios-read'` — provided the diff is the new key and nothing else
+  (tracker-runaway-finish M1).
   The one exception to the emitter is `live-activity-end.json`, the server's ActivityKit `end`
   push, written by `api/__tests__/live-activity.test.ts` under the same flag.

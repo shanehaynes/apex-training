@@ -34,7 +34,7 @@ add, CI config, hooks, `scripts/merge-policy.mjs`), `src/styles/app.css`
 (onboarding board), `e2e/lib/*`, `MISSION.md`, `applyEditTimes`'s contract.
 **Depends on:** none. #552 (`feat/coach-session-times`) touches neither these
 files nor the finish path.
-**Status:** M1 shipped (#555); M2 in review (feat/tracker-runaway-finish-ios)
+**Status:** shipped (M1 #555, M2 #558)
 
 ## Approach
 
@@ -186,8 +186,28 @@ Delivers: R10, R11, R12
   Linux (`swift:6.1`). Not verified: a device or TestFlight build, and the
   DatePicker's own interaction (the model's `finish(at:)` is tested).
 
+- 2026-11-08 · M1 merged as #555 and M2 as #558, both through the fleet
+  babysitter. M2's second reviewer pass found the critical `isoTimestamp`
+  truncation, fixed before merge. Replan opened.
+
 ## Learned
-<Written at the replan.>
+- Whole-second fixtures hid a 1 ms truncation in a shared iOS helper
+  (`CompletionRows.isoTimestamp`). For half of all real starts, it would have
+  sent a finish clamped to the start before the start, so the server would have
+  refused it or recorded the whole runaway. Test data takes the production wire
+  shape (PostgREST's milliseconds and `+00:00`), not round numbers.
+- The reviewer found that bug and one other; every gate was green at the time.
+  Running a reviewer per milestone (here, two) paid for itself on M2.
+- One vector file read by both suites made the Swift port a translation, not a
+  re-derivation. A threshold moved on one side fails the other suite.
+- Measuring before choosing moved the floor from the brief's 3 h to 2 h. The
+  ratio does the separating; the floor only guards bad or default plans.
+- An old wire bound (the 7-day `finish` window), combined with the iOS queue's
+  strip-and-retry, would have silently recorded the very runaway this feature
+  stops. Read the wire contract end to end before a UI feature leans on it.
+- The fleet babysitter skips a PR that conflicts and does not look at it again
+  in the same run after the conflict is pushed away. Start it again once the
+  conflict is resolved.
 
 ## Next brief
 **Sessions started and never finished.** This feature makes Finish honest
