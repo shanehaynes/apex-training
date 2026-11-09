@@ -33,6 +33,8 @@
   color: var(--text-primary);
   font-size: var(--text-sm);
   font-family: inherit;
+  /* The picker's calendar glyph, light on the dark surface. */
+  color-scheme: dark;
 }
 
 .tracker-finish-time__hint {

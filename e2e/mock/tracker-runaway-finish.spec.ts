@@ -91,6 +91,9 @@ test('a runaway finish asks when it ended, defaulting to the last logged set', a
   const field = page.getByLabel('Ended at');
   await expect(field).toHaveValue(await inputValue(page, lastLoggedAt));
   await shot(page, 'tracker-runaway-prompt');
+  // The rest runs at phone width: the bar wraps, every action still reachable.
+  await page.setViewportSize({ width: 390, height: 844 });
+  await shot(page, 'tracker-runaway-prompt-mobile');
 
   // A time before the start cannot be the end.
   await field.fill(await inputValue(page, startedAt - 10 * MIN));
@@ -127,6 +130,8 @@ test('accepting the default sends the last logged instant to the millisecond', a
   await expect(page.locator('.tracker-summary')).toBeVisible();
   expect(finishes.map(f => f.finishedAt)).toEqual([new Date(lastLoggedAt).toISOString()]);
   await expect(page.locator('.tracker-header__timer--done')).toHaveText('25:30');
+  // The summary rounds to the minute: 25:30 reads 26 min, not five hours.
+  await expect(page.locator('.tracker-summary__meta').first()).toContainText('· 26 min');
 });
 
 test('with nothing logged the default is the start plus the plan', async ({ page }) => {
