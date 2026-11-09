@@ -24,6 +24,8 @@ import WorkoutSummary from './WorkoutSummary';
 import ConfirmBar from './ConfirmBar';
 import UnsavedBar from './UnsavedBar';
 import ScorePrompt from './ScorePrompt';
+import FinishTimePrompt from './FinishTimePrompt';
+import type { RunawayFinish } from '../../lib/tracking/runawayFinish';
 import type { SessionScore } from '../../lib/tracking/records';
 import type { TrackedSectionGroup } from '../../lib/tracking/plan';
 import { useTip } from '../../hooks/useTip';
@@ -82,6 +84,11 @@ export default function TrackerView() {
   const [confirmCount, setConfirmCount] = useState<number | null>(null);
   const [confirmCancel, setConfirmCancel] = useState(false);
   const [scoreOpen, setScoreOpen] = useState(false);
+  // A session far past its plan asks when it really ended (runawayFinish.ts).
+  // The answer is kept across the score step: undefined = not asked yet,
+  // null = "it really ran this long", an ISO instant = finish there.
+  const [runaway, setRunaway] = useState<RunawayFinish | null>(null);
+  const [finishChoice, setFinishChoice] = useState<string | null | undefined>(undefined);
   const [addingExercise, setAddingExercise] = useState(false);
   // Editing a finished session's start and finish (R4.2: finished only).
   // Drafts are datetime-local strings; the server holds the bounds and says
@@ -129,21 +136,35 @@ export default function TrackerView() {
     dispatch({ type: 'STOP_TRACKING' });
   };
 
-  const handleFinish = async (score?: SessionScore | null) => {
+  const handleFinish = async (score?: SessionScore | null, choice: string | null | undefined = finishChoice) => {
     // A visible confirm bar means the user already saw the unlogged count —
     // the next press (header button or "Finish anyway") finishes for real.
-    // Scored workouts then get the score step before anything is stamped.
-    const result = await requestFinish(confirmCount !== null || scoreOpen, score);
+    // A runaway session then asks when it ended, and scored workouts get the
+    // score step, before anything is stamped.
+    const sawUnlogged = confirmCount !== null || runaway !== null || scoreOpen || choice !== undefined;
+    const result = await requestFinish(sawUnlogged, score, choice);
     if (result.status === 'needs-confirm') {
       setConfirmCancel(false);
       setScoreOpen(false);
+      setRunaway(null);
       setConfirmCount(result.count);
+    } else if (result.status === 'needs-finish-time') {
+      setConfirmCount(null);
+      setConfirmCancel(false);
+      setScoreOpen(false);
+      setRunaway(result.runaway);
     } else if (result.status === 'needs-score') {
       setConfirmCount(null);
       setConfirmCancel(false);
+      setRunaway(null);
+      setFinishChoice(choice);
       setScoreOpen(true);
     } else {
       setConfirmCount(null);
+      setRunaway(null);
+      // A send that failed (unsaved edits, no signal) keeps the athlete's
+      // answer: the next Finish goes out with it rather than asking again.
+      setFinishChoice(result.status === 'failed' ? choice : undefined);
       setScoreOpen(false);
     }
   };
@@ -180,7 +201,7 @@ export default function TrackerView() {
 
   return createPortal(
     <div className="tracker">
-      {groups && !isFinished && !summary && confirmCount === null && !scoreOpen && !confirmCancel && (
+      {groups && !isFinished && !summary && confirmCount === null && !runaway && !scoreOpen && !confirmCancel && (
         <TrackerTips groups={groups} />
       )}
       <header className="tracker-header" style={{ borderBottom: `2px solid ${color.solid}` }}>
@@ -373,7 +394,7 @@ export default function TrackerView() {
         {groups && (
           <button
             className="tracker-cancel"
-            onClick={() => { setConfirmCount(null); setConfirmCancel(true); }}
+            onClick={() => { setConfirmCount(null); setRunaway(null); setConfirmCancel(true); }}
             disabled={isFinishing || isCancelling}
           >
             <Trash2 size={14} strokeWidth={1.5} /> Cancel workout
@@ -402,11 +423,30 @@ export default function TrackerView() {
         />
       )}
 
+      {runaway && !isFinishing && session && (
+        <FinishTimePrompt
+          // Each detection opens a fresh prompt: Finish tapped again after a
+          // set was logged offers that set's time, not the field's old one.
+          key={runaway.elapsedSeconds}
+          runaway={runaway}
+          startedAt={session.started_at}
+          elapsedSeconds={elapsed}
+          accentColor={color.solid}
+          disabled={isFinishing}
+          onFinishAt={iso => handleFinish(undefined, iso)}
+          onAsRecorded={() => handleFinish(undefined, null)}
+          onKeep={() => setRunaway(null)}
+        />
+      )}
+
       {scoreOpen && !isFinishing && (event.scoringType === 'for-time' || event.scoringType === 'amrap') && (
         <ScorePrompt
           scoringType={event.scoringType}
           timeCapMinutes={event.timeCapMinutes}
-          elapsedSeconds={elapsed}
+          // A corrected finish is the clock the score was run against.
+          elapsedSeconds={finishChoice && session
+            ? Math.max(0, Math.round((Date.parse(finishChoice) - Date.parse(session.started_at)) / 1000))
+            : elapsed}
           accentColor={color.solid}
           disabled={isFinishing}
           onSubmit={handleFinish}

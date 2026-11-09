@@ -117,9 +117,16 @@ public enum CompletionRows {
 
     /// JavaScript's `toISOString()` shape — `2026-09-08T18:30:00.000Z` — which
     /// is what every other row in `workout_completions` carries.
+    ///
+    /// Whole milliseconds, rounded, in integer arithmetic: a Date parsed from
+    /// a server stamp holds it as a Double, and truncating its nanoseconds put
+    /// half of them a millisecond early (`…42.001` → `…42.000`), so a finish
+    /// clamped to the session's start was refused as preceding it (D-061).
     public static func isoTimestamp(_ date: Date) -> String {
-        let parts = DayKey.utc.dateComponents([.year, .month, .day, .hour, .minute, .second, .nanosecond], from: date)
-        let millis = (parts.nanosecond ?? 0) / 1_000_000
+        let ms = (date.timeIntervalSince1970 * 1000).rounded()
+        let seconds = (ms / 1000).rounded(.down)
+        let millis = Int(ms - seconds * 1000)
+        let parts = DayKey.utc.dateComponents([.year, .month, .day, .hour, .minute, .second], from: Date(timeIntervalSince1970: seconds))
         return String(format: "%04d-%02d-%02dT%02d:%02d:%02d.%03dZ",
                       parts.year!, parts.month!, parts.day!, parts.hour!, parts.minute!, parts.second!, millis)
     }

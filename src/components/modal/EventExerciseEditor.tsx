@@ -12,8 +12,9 @@ import { draftFromEvent } from '../../lib/builder/draft';
 import { withPrescriptionPatch } from '../../lib/builder/plannedSets';
 import { asksScope, saveRequest } from './exerciseScope';
 import type { SaveScope } from './exerciseScope';
-import { entryFromDefinition, uniqueEntryId, validateUnilateral } from '../../lib/schedule/definitions';
+import { uniqueEntryId, validateUnilateral } from '../../lib/schedule/definitions';
 import type { SectionKey, SectionLists } from '../../lib/schedule/definitions';
+import { entriesFromDefinitions } from '../../lib/schedule/pickerQueue';
 import { linkWithAbove, moveEntry as moveWithin, normalizeSupersets, unlink } from '../../lib/schedule/supersets';
 import { notify } from '../../lib/notify';
 import { CLIMB_STYLES, ascentStylesFor, climbStyleLabel, sectionLabels } from '../../lib/climbing';
@@ -254,10 +255,10 @@ export function ExerciseSectionsEditor({ lists, onChange, errors, pickerCategory
   const updateEntry = (key: SectionKey, id: string, patch: Partial<Exercise>) =>
     setSection(key, lists[key].map(e => (e.id === id ? withPrescriptionPatch(e, patch) : e)));
 
-  const addFromDefinition = (def: ExerciseDefinition) => {
+  // Everything picked before Done lands at once, in pick order.
+  const addFromDefinitions = (defs: ExerciseDefinition[]) => {
     if (!pickerSection) return;
-    const entry = entryFromDefinition(def, uniqueEntryId(def.id, allIds));
-    setSection(pickerSection, [...lists[pickerSection], entry]);
+    setSection(pickerSection, [...lists[pickerSection], ...entriesFromDefinitions(defs, allIds)]);
     setPickerSection(null);
   };
 
@@ -314,7 +315,7 @@ export function ExerciseSectionsEditor({ lists, onChange, errors, pickerCategory
 
       {pickerSection && (
         <ExercisePicker
-          onSelect={addFromDefinition}
+          onDone={addFromDefinitions}
           onClose={() => setPickerSection(null)}
           initialCategory={sections.find(s => s.key === pickerSection)?.pickerCategory}
         />

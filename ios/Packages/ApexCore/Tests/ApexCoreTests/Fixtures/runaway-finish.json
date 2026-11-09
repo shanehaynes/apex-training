@@ -1,0 +1,127 @@
+{
+  "version": 1,
+  "about": "The runaway-finish contract (docs/specs/tracker-runaway-finish). Read by src/lib/tracking/__tests__/runawayFinish.test.ts and ApexCoreTests/RunawayFinishTests.swift. Hand-authored; the first six cases are measured sessions from Shane's history (2026-07-01 to 2026-11-08). suggestedAt is compared as an instant.",
+  "rule": { "planMultiple": 4, "floorSeconds": 7200 },
+  "cases": [
+    {
+      "name": "the 2026-09-11 stretch: 3.40 h on a 29-min plan, the last hold logged at 22:46",
+      "startedAt": "2026-09-11T22:16:43Z", "now": "2026-09-12T01:40:41Z", "plannedMinutes": 29,
+      "lastLoggedAt": "2026-09-11T22:46:00Z",
+      "expect": { "runaway": true, "suggestedAt": "2026-09-11T22:46:00Z", "basis": "last-logged", "elapsedLabel": "3 h 23 min", "plannedLabel": "29 min" }
+    },
+    {
+      "name": "the 471-hour stretch with nothing logged: the start plus the plan",
+      "startedAt": "2026-09-02T01:14:11Z", "now": "2026-09-21T16:18:26Z", "plannedMinutes": 29,
+      "lastLoggedAt": null,
+      "expect": { "runaway": true, "suggestedAt": "2026-09-02T01:43:11Z", "basis": "plan", "elapsedLabel": "19 d 15 h", "plannedLabel": "29 min" }
+    },
+    {
+      "name": "the 42-hour Weights B on an 80-min plan",
+      "startedAt": "2026-08-13T22:02:27Z", "now": "2026-08-15T15:37:20Z", "plannedMinutes": 80,
+      "lastLoggedAt": "2026-08-13T23:10:00Z",
+      "expect": { "runaway": true, "suggestedAt": "2026-08-13T23:10:00Z", "basis": "last-logged", "elapsedLabel": "1 d 17 h", "plannedLabel": "1 h 20 min" }
+    },
+    {
+      "name": "the 22-hour stretch on a 30-min plan, nothing logged",
+      "startedAt": "2026-08-09T01:57:57Z", "now": "2026-08-10T00:16:57Z", "plannedMinutes": 30,
+      "lastLoggedAt": null,
+      "expect": { "runaway": true, "suggestedAt": "2026-08-09T02:27:57Z", "basis": "plan", "elapsedLabel": "22 h 19 min", "plannedLabel": "30 min" }
+    },
+    {
+      "name": "the longest normal session by ratio: 69 min on a 30-min plan (2.31x)",
+      "startedAt": "2026-09-18T00:37:06Z", "now": "2026-09-18T01:46:18Z", "plannedMinutes": 30,
+      "lastLoggedAt": "2026-09-18T01:40:00Z",
+      "expect": { "runaway": false, "suggestedAt": "2026-09-18T01:40:00Z", "basis": "last-logged", "elapsedLabel": "1 h 9 min", "plannedLabel": "30 min" }
+    },
+    {
+      "name": "the longest normal session by length: 94 min on an 80-min plan",
+      "startedAt": "2026-08-02T19:01:54Z", "now": "2026-08-02T20:36:08Z", "plannedMinutes": 80,
+      "lastLoggedAt": "2026-08-02T20:30:00Z",
+      "expect": { "runaway": false, "suggestedAt": "2026-08-02T20:30:00Z", "basis": "last-logged", "elapsedLabel": "1 h 34 min", "plannedLabel": "1 h 20 min" }
+    },
+    {
+      "name": "exactly 4x the plan, past the floor, is not a runaway",
+      "startedAt": "2026-10-01T10:00:00Z", "now": "2026-10-01T13:00:00Z", "plannedMinutes": 45,
+      "lastLoggedAt": null,
+      "expect": { "runaway": false, "suggestedAt": "2026-10-01T10:45:00Z", "basis": "plan", "elapsedLabel": "3 h", "plannedLabel": "45 min" }
+    },
+    {
+      "name": "one second past 4x the plan, past the floor, is",
+      "startedAt": "2026-10-01T10:00:00Z", "now": "2026-10-01T13:00:01Z", "plannedMinutes": 45,
+      "lastLoggedAt": null,
+      "expect": { "runaway": true, "suggestedAt": "2026-10-01T10:45:00Z", "basis": "plan", "elapsedLabel": "3 h", "plannedLabel": "45 min" }
+    },
+    {
+      "name": "exactly the 2-hour floor at 8x the plan is not a runaway",
+      "startedAt": "2026-10-01T10:00:00Z", "now": "2026-10-01T12:00:00Z", "plannedMinutes": 15,
+      "lastLoggedAt": null,
+      "expect": { "runaway": false, "suggestedAt": "2026-10-01T10:15:00Z", "basis": "plan", "elapsedLabel": "2 h", "plannedLabel": "15 min" }
+    },
+    {
+      "name": "one second past the floor at 8x the plan is",
+      "startedAt": "2026-10-01T10:00:00Z", "now": "2026-10-01T12:00:01Z", "plannedMinutes": 15,
+      "lastLoggedAt": null,
+      "expect": { "runaway": true, "suggestedAt": "2026-10-01T10:15:00Z", "basis": "plan", "elapsedLabel": "2 h", "plannedLabel": "15 min" }
+    },
+    {
+      "name": "6x a 20-min plan but under the floor is not a runaway",
+      "startedAt": "2026-10-01T10:00:00Z", "now": "2026-10-01T11:59:00Z", "plannedMinutes": 20,
+      "lastLoggedAt": "2026-10-01T10:18:30Z",
+      "expect": { "runaway": false, "suggestedAt": "2026-10-01T10:18:30Z", "basis": "last-logged", "elapsedLabel": "1 h 59 min", "plannedLabel": "20 min" }
+    },
+    {
+      "name": "no plan never prompts, however long; with nothing logged the suggestion is now",
+      "startedAt": "2026-10-01T10:00:00Z", "now": "2026-10-02T16:00:00Z", "plannedMinutes": null,
+      "lastLoggedAt": null,
+      "expect": { "runaway": false, "suggestedAt": "2026-10-02T16:00:00Z", "basis": "now", "elapsedLabel": "1 d 6 h", "plannedLabel": null }
+    },
+    {
+      "name": "a zero plan never prompts",
+      "startedAt": "2026-10-01T10:00:00Z", "now": "2026-10-02T16:00:00Z", "plannedMinutes": 0,
+      "lastLoggedAt": "2026-10-01T10:40:00Z",
+      "expect": { "runaway": false, "suggestedAt": "2026-10-01T10:40:00Z", "basis": "last-logged", "elapsedLabel": "1 d 6 h", "plannedLabel": null }
+    },
+    {
+      "name": "a negative plan never prompts",
+      "startedAt": "2026-10-01T10:00:00Z", "now": "2026-10-02T16:00:00Z", "plannedMinutes": -30,
+      "lastLoggedAt": null,
+      "expect": { "runaway": false, "suggestedAt": "2026-10-02T16:00:00Z", "basis": "now", "elapsedLabel": "1 d 6 h", "plannedLabel": null }
+    },
+    {
+      "name": "a last log before the start is ignored",
+      "startedAt": "2026-10-01T10:00:00Z", "now": "2026-10-01T15:00:00Z", "plannedMinutes": 30,
+      "lastLoggedAt": "2026-10-01T09:30:00Z",
+      "expect": { "runaway": true, "suggestedAt": "2026-10-01T10:30:00Z", "basis": "plan", "elapsedLabel": "5 h", "plannedLabel": "30 min" }
+    },
+    {
+      "name": "a last log at the start itself is ignored",
+      "startedAt": "2026-10-01T10:00:00Z", "now": "2026-10-01T15:00:00Z", "plannedMinutes": 30,
+      "lastLoggedAt": "2026-10-01T10:00:00Z",
+      "expect": { "runaway": true, "suggestedAt": "2026-10-01T10:30:00Z", "basis": "plan", "elapsedLabel": "5 h", "plannedLabel": "30 min" }
+    },
+    {
+      "name": "a last log after now (a skewed clock) is ignored",
+      "startedAt": "2026-10-01T10:00:00Z", "now": "2026-10-01T15:00:00Z", "plannedMinutes": 30,
+      "lastLoggedAt": "2026-10-01T15:05:00Z",
+      "expect": { "runaway": true, "suggestedAt": "2026-10-01T10:30:00Z", "basis": "plan", "elapsedLabel": "5 h", "plannedLabel": "30 min" }
+    },
+    {
+      "name": "a last log exactly now counts",
+      "startedAt": "2026-10-01T10:00:00Z", "now": "2026-10-01T15:00:00Z", "plannedMinutes": 30,
+      "lastLoggedAt": "2026-10-01T15:00:00Z",
+      "expect": { "runaway": true, "suggestedAt": "2026-10-01T15:00:00Z", "basis": "last-logged", "elapsedLabel": "5 h", "plannedLabel": "30 min" }
+    },
+    {
+      "name": "stamps in PostgREST's shape (milliseconds, +00:00) are the same instants",
+      "startedAt": "2026-09-11T22:16:43.207+00:00", "now": "2026-09-12T01:40:41.991+00:00", "plannedMinutes": 29,
+      "lastLoggedAt": "2026-09-11T22:46:00.512+00:00",
+      "expect": { "runaway": true, "suggestedAt": "2026-09-11T22:46:00.512Z", "basis": "last-logged", "elapsedLabel": "3 h 23 min", "plannedLabel": "29 min" }
+    },
+    {
+      "name": "the start plus the plan never lands after now",
+      "startedAt": "2026-10-01T10:00:00Z", "now": "2026-10-01T10:30:00Z", "plannedMinutes": 60,
+      "lastLoggedAt": null,
+      "expect": { "runaway": false, "suggestedAt": "2026-10-01T10:30:00Z", "basis": "plan", "elapsedLabel": "30 min", "plannedLabel": "1 h" }
+    }
+  ]
+}

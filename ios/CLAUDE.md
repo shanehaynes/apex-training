@@ -179,7 +179,8 @@ The tracker (W4) is answered too: `bootstrap` → `bootstrap.json` (or `bootstra
 `peek: true`), `finish` → `finish.json`, `POST /api/coach-summary` → `coach-summary.ndjson`;
 `save`/`swap-exercise`/`cancel` → `{"ok":true}`; a non-peek `bootstrap` gets a session started
 seven minutes before the fixed clock, so Start Workout opens a live session rather than the
-committed (finished) `bootstrap.json`. `-apexMockFailOnce save 3` makes the first three `save`
+committed (finished) `bootstrap.json`; `-apexMockRunaway` starts it five hours back instead, so
+Finish shows the runaway card (D-061). `-apexMockFailOnce save 3` makes the first three `save`
 actions (or a path suffix) answer 500 and then succeed — the write queue's pending → synced path
 the smoke asserts on; `-apexMockFail` also matches an action name now. `-apexMockDense` clones
 the bootstrap in-process to 3 sections × 4–6 exercises × 5 sets (the fixture file is untouched;

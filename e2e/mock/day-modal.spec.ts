@@ -47,6 +47,8 @@ test('day modal, builder flow, and pre-filtered exercise picker', async ({ page 
   await page.locator('.exercise-editor__add').first().click();
   await expect(page.locator('.exercise-picker__filters')).toBeVisible();
   await expect(page.locator('.exercise-picker__filters .library-filter--active')).toHaveText('Strength');
+  // Results list only once something is typed.
+  await page.locator('.exercise-picker__input').fill('e');
   const categories = await page.locator('.exercise-picker__row .library-row__category').allTextContents();
   expect(categories.every(c => c === 'strength'), 'filtered picker rows are all strength').toBe(true);
   await shot(page, 'composer-picker');
@@ -60,9 +62,12 @@ test('day modal, builder flow, and pre-filtered exercise picker', async ({ page 
   if ((await rows.count()) > 0) {
     const pickedName = await page.locator('.exercise-picker__row-name').first().textContent();
     await rows.first().click();
+    await page.locator('.exercise-picker__done').click();
     await expect(page.locator('.composer-exercises')).toContainText(pickedName!);
     await shot(page, 'composer-with-exercise');
   } else {
+    // The first Escape clears the search, the second closes the picker.
+    await page.keyboard.press('Escape');
     await page.keyboard.press('Escape');
   }
 

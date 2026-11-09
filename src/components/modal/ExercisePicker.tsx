@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { format, parseISO } from 'date-fns';
 import { Search, X } from 'lucide-react';
@@ -7,10 +7,19 @@ import { buildAliasIndex, matchDefinitionByName, nearMatchDefinitions } from '..
 import { fetchLastPerformedRows } from '../../lib/library/repo';
 import { lastPerformedByCanonical } from '../../lib/library/stats';
 import CreateDefinitionInline from './CreateDefinitionInline';
+import { enqueue, dequeue, type QueuedPick } from '../../lib/schedule/pickerQueue';
 import type { ExerciseCategory, ExerciseDefinition } from '../../types/workout';
+import '../../styles/exercise-picker-queue.css';
 
-interface Props {
-  onSelect: (def: ExerciseDefinition) => void;
+/**
+ * One pick closes the picker (the tracker's add and swap), or picks queue
+ * up until Done hands them over together (adding to an event's sections).
+ */
+type PickMode =
+  | { onSelect: (def: ExerciseDefinition) => void; onDone?: never }
+  | { onDone: (defs: ExerciseDefinition[]) => void; onSelect?: never };
+
+type Props = PickMode & {
   onClose: () => void;
   /** Pre-selects a category filter aligned with the workout type (clearable). */
   initialCategory?: ExerciseCategory;
@@ -26,7 +35,7 @@ interface Props {
    * swap starts from the replaced movement's, without narrowing the search.
    */
   createCategory?: ExerciseCategory;
-}
+};
 
 const ALL_CATEGORIES: ExerciseCategory[] = ['strength', 'stretch', 'mobility', 'skill', 'cardio', 'climbing'];
 
@@ -45,23 +54,42 @@ function defaultsPreview(def: ExerciseDefinition): string {
  * Search-first add flow over the exercise library: exact-match-or-create,
  * never fuzzy — seeing the near-matches before "Create" is what prevents
  * duplicate library entries.
+ *
+ * With `onDone` it adds several at once: results show only once something is
+ * typed, each pick joins the "Adding" list and clears the search for the
+ * next one, and Done adds the list. Closing any other way adds nothing.
  */
-export default function ExercisePicker({ onSelect, onClose, initialCategory, restrictTo, createCategory }: Props) {
+export default function ExercisePicker({ onSelect, onDone, onClose, initialCategory, restrictTo, createCategory }: Props) {
   const { definitions } = useSchedule();
   const categories = restrictTo?.length ? restrictTo : ALL_CATEGORIES;
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState<ExerciseCategory | null>(initialCategory ?? null);
   const [lastPerformed, setLastPerformed] = useState<Map<string, string>>(new Map());
+  const [queued, setQueued] = useState<QueuedPick[]>([]);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const queueing = onDone !== undefined;
+  const typing = query.trim().length > 0;
 
   // Capture phase so Escape closes the picker before the modal's document
-  // listener can react to the same keypress.
+  // listener can react to the same keypress. While queueing, a first Escape
+  // only clears the search, so it cannot throw away the list being built.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') { e.stopPropagation(); onClose(); }
+      if (e.key !== 'Escape') return;
+      e.stopPropagation();
+      if (queueing && query) setQuery('');
+      else onClose();
     };
     document.addEventListener('keydown', onKey, true);
     return () => document.removeEventListener('keydown', onKey, true);
-  }, [onClose]);
+  }, [onClose, queueing, query]);
+
+  const pick = (def: ExerciseDefinition) => {
+    if (!onDone) { onSelect?.(def); return; }
+    setQueued(q => enqueue(q, def));
+    setQuery('');
+    inputRef.current?.focus();
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -110,6 +138,7 @@ export default function ExercisePicker({ onSelect, onClose, initialCategory, res
         <div className="exercise-picker__search">
           <Search size={14} strokeWidth={1.5} />
           <input
+            ref={inputRef}
             autoFocus
             className="exercise-picker__input"
             placeholder="Search the exercise library…"
@@ -139,12 +168,12 @@ export default function ExercisePicker({ onSelect, onClose, initialCategory, res
           ))}
         </div>
 
-        <div className="exercise-picker__results">
+        {(!queueing || typing) && <div className="exercise-picker__results">
           {results.map(def => {
             const last = lastPerformed.get(def.canonicalName);
             const preview = defaultsPreview(def);
             return (
-              <button key={def.id} className="exercise-picker__row" onClick={() => onSelect(def)}>
+              <button key={def.id} className="exercise-picker__row" onClick={() => pick(def)}>
                 <div className="exercise-picker__row-main">
                   <span className="exercise-picker__row-name">{def.canonicalName}</span>
                   <span className="exercise-picker__row-meta">
@@ -160,7 +189,7 @@ export default function ExercisePicker({ onSelect, onClose, initialCategory, res
           })}
 
           {nearMatches.map(def => (
-            <button key={def.id} className="exercise-picker__row" onClick={() => onSelect(def)}>
+            <button key={def.id} className="exercise-picker__row" onClick={() => pick(def)}>
               <div className="exercise-picker__row-main">
                 <span className="exercise-picker__row-name">{def.canonicalName}</span>
                 <span className="exercise-picker__row-meta">
@@ -181,11 +210,39 @@ export default function ExercisePicker({ onSelect, onClose, initialCategory, res
               categories={categories}
               initialCategory={[initialCategory, createCategory].find(c => c && categories.includes(c)) ?? categories[0]}
               anyway={nearMatches.length > 0 || results.length > 0}
-              confirmLabel="Create & add"
-              onCreated={onSelect}
+              confirmLabel={queueing ? 'Create & add to list' : 'Create & add'}
+              onCreated={pick}
             />
           )}
-        </div>
+        </div>}
+
+        {queueing && !typing && queued.length === 0 && (
+          <p className="exercise-picker__hint">Type to search the library.</p>
+        )}
+
+        {queueing && queued.length > 0 && (
+          <div className="exercise-picker__queue">
+            <span className="exercise-picker__queue-label">Adding ({queued.length})</span>
+            <ul className="exercise-picker__queue-list">
+              {queued.map(({ key, def }) => (
+                <li key={key} className="exercise-picker__queue-row">
+                  <span className="exercise-picker__row-name">{def.canonicalName}</span>
+                  <span className="library-row__category">{def.category}</span>
+                  <button
+                    className="exercise-picker__queue-remove"
+                    onClick={() => setQueued(q => dequeue(q, key))}
+                    aria-label={`Remove ${def.canonicalName}`}
+                  >
+                    <X size={14} strokeWidth={1.5} />
+                  </button>
+                </li>
+              ))}
+            </ul>
+            <button className="exercise-picker__done" onClick={() => onDone?.(queued.map(p => p.def))}>
+              Done
+            </button>
+          </div>
+        )}
       </div>
     </div>,
     document.body,
