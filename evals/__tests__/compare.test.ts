@@ -12,10 +12,85 @@ import {
   dominates,
   evalSurfaceHash,
   isErrored,
+  looksAgree,
+  majorityCase,
+  majorityRun,
   onlyCases,
   rate,
+  type CaseResultLike,
   type RunResultLike,
 } from '../src/compare';
+
+// docs/specs/eval-gate-majority: one function decides a case from several
+// looks, for the baseline and for a gate suspect alike.
+describe('majorityCase', () => {
+  const look = (id: string, verdicts: Record<string, string>, extra: Partial<CaseResultLike> = {}): CaseResultLike & { transcriptHash?: string } => ({
+    id,
+    verdicts: Object.fromEntries(Object.entries(verdicts).map(([d, status]) => [d, { status }])) as CaseResultLike['verdicts'],
+    ...extra,
+  });
+  const errored = (id: string) => look(id, {}, { error: 'stream died' });
+
+  it('takes the status two of three looks gave, per dimension, with the votes', () => {
+    const c = majorityCase([
+      look('x', { constraints: 'fail', refusal: 'pass' }, { transcriptHash: 'h1' }),
+      look('x', { constraints: 'pass', refusal: 'pass' }, { transcriptHash: 'h2' }),
+      look('x', { constraints: 'pass', refusal: 'fail' }, { transcriptHash: 'h3' }),
+    ]);
+    expect(c.verdicts).toEqual({ constraints: { status: 'pass' }, refusal: { status: 'pass' } });
+    expect(c.votes).toEqual({ constraints: { fail: 1, pass: 2 }, refusal: { pass: 2, fail: 1 } });
+    // The representative is the first look that matches the majority everywhere.
+    expect(c.transcriptHash).toBe('h2');
+  });
+
+  it('records fail when no status holds a majority', () => {
+    const split = majorityCase([
+      look('x', { constraints: 'pass' }), look('x', { constraints: 'fail' }), look('x', { constraints: 'needs-taxonomy' }),
+    ]);
+    expect(split.verdicts.constraints?.status).toBe('fail');
+    const two = majorityCase([look('x', { constraints: 'pass' }), errored('x'), look('x', { constraints: 'fail' })]);
+    expect(two.verdicts.constraints?.status).toBe('fail');
+  });
+
+  it('lets an errored look cast no vote, and leaves a case errored with fewer than two scored looks', () => {
+    expect(majorityCase([errored('x'), look('x', { refusal: 'pass' }), look('x', { refusal: 'pass' })]).verdicts.refusal?.status).toBe('pass');
+    const broken = majorityCase([errored('x'), look('x', { refusal: 'pass' }), errored('x')]);
+    expect(isErrored(broken)).toBe(true);
+    expect(broken.error).toBe('errored in 2 of 3 looks');
+  });
+
+  it('decides from two looks that agree', () => {
+    expect(majorityCase([look('x', { refusal: 'fail' }), look('x', { refusal: 'fail' })]).verdicts.refusal?.status).toBe('fail');
+  });
+});
+
+describe('looksAgree', () => {
+  const v = (status: string) => ({ id: 'x', verdicts: { constraints: { status } } }) as CaseResultLike;
+  it('is true only when a third look could not change the majority', () => {
+    expect(looksAgree(v('pass'), v('pass'))).toBe(true);
+    expect(looksAgree(v('pass'), v('fail'))).toBe(false);
+    const err = { id: 'x', verdicts: {}, error: 'boom' } as CaseResultLike;
+    expect(looksAgree(err, err)).toBe(true);
+    expect(looksAgree(err, v('pass'))).toBe(false);
+  });
+});
+
+describe('majorityRun', () => {
+  const run = (...statuses: string[]) => ({
+    cases: statuses.map((status, i) => ({ id: `c${i}`, verdicts: { integrity: { status } } }) as CaseResultLike),
+  });
+  it('decides every case across an odd number of runs', () => {
+    const out = majorityRun([run('pass', 'fail'), run('fail', 'fail'), run('pass', 'pass')]);
+    expect(out.ok && out.cases.map(c => c.verdicts.integrity?.status)).toEqual(['pass', 'fail']);
+  });
+  it('refuses fewer than three runs, an even number, different case sets and errored cases', () => {
+    expect(majorityRun([run('pass'), run('pass')]).ok).toBe(false);
+    expect(majorityRun([run('pass'), run('pass'), run('pass'), run('pass')]).ok).toBe(false);
+    expect(majorityRun([run('pass'), run('pass', 'pass'), run('pass')]).ok).toBe(false);
+    const broken = { cases: [{ id: 'c0', verdicts: {}, error: 'boom' } as CaseResultLike] };
+    expect(majorityRun([run('pass'), broken, run('pass')])).toMatchObject({ ok: false, reason: expect.stringMatching(/errored case/) });
+  });
+});
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const fixture = (name: string): RunResultLike =>

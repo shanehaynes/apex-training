@@ -1,9 +1,13 @@
 # Baseline runs
 
-One file per coach model: `<model>.json`, a full `--backend agent-sdk` result
-file promoted with `npm run eval:baseline -- <result.json>`. It is what
-`npm run eval:gate` compares a candidate run against, and what
-`npm run eval:verify` re-hashes in CI.
+One file per coach model: `<model>.json`. It holds the per-case majority of
+three full `--backend agent-sdk` runs, promoted with
+`npm run eval:baseline -- <a.json> <b.json> <c.json>`. Its `majorityOf`
+record names the three source runs, which live under `evals/results/`. It is
+what `npm run eval:gate` compares a candidate run against. In CI,
+`npm run eval:verify` re-hashes it and re-derives it from its sources. A single
+promoted sample is refused; see "A baseline is the majority of three runs" in
+[../README.md](../README.md).
 
 **This directory is a held path** (`scripts/merge-policy.mjs`). It is the
 definition of correct coach behavior, so changing it is not a code change —
@@ -17,5 +21,6 @@ different runtime — different tool loop, no `max_tokens` control, different
 token accounting (see **Backends** in [../README.md](../README.md)) — and
 comparing across the two would produce noise that reads like regression.
 
-Nothing lands here until PR #306 (`--backend agent-sdk`) merges and the first
-full subscription run is promoted.
+History: the first baseline (2026-10-06) was one promoted run. It was replaced
+on 2026-11-09 by a majority of three runs, after a single sample failed
+unchanged `main` (docs/specs/eval-gate-majority).

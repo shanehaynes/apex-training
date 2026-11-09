@@ -1,6 +1,6 @@
 import { spawnSync } from 'node:child_process';
-import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { ALL_CASES } from './cases/index';
 import { PROMPT_VERSION } from '../src/lib/coach/prompt';
@@ -8,6 +8,9 @@ import {
   casePassed,
   classify,
   evalSurfaceHash,
+  looksAgree,
+  majorityCase,
+  majorityRun,
   promptFileHash,
   sha256,
   type AdvisoryChanges,
@@ -22,7 +25,7 @@ import type { VerdictStatus } from './src/types';
 //
 //   npm run eval:gate                       # run the suite locally, decide, attest
 //   npm run eval:gate -- --concurrency 3    # fewer lanes (default 6)
-//   npm run eval:baseline -- <result.json>  # promote a result file to the baseline
+//   npm run eval:baseline -- <a> <b> <c>    # promote the majority of three full runs to the baseline
 //   npm run eval:hash                       # print the hashes and SDK version the attestation pins
 //   npm run eval:verify                     # token-free: check the committed attestation
 //
@@ -73,8 +76,12 @@ export interface Attestation {
    *  could run cases side by side, which were all serial — readers fall back
    *  to 1, exactly as they fall back for promptVersion and backend. */
   concurrency?: number;
-  /** Present only when the flake re-run fired; those cases' verdicts come from it. */
+  /** Legacy: the one re-run file of an attestation written before majorities. */
   rerunFile?: string;
+  /** Every re-run the gate took, in order: the second look at each suspect,
+   *  then the third look at the ones the first two did not settle. Present
+   *  only when a re-run fired; suspects' verdicts are the majority of their looks. */
+  rerunFiles?: string[];
   /** Ungated dimensions that moved against the baseline — progression today.
    *  Recorded so the movement is on the record and readable in the PR, never
    *  read back by eval:verify: it is information, not a standard. */
@@ -83,6 +90,11 @@ export interface Attestation {
   transcriptHashes: Record<string, string>;
   createdAt: string;
 }
+
+/** A promoted baseline: the majority of several full runs, naming them. */
+export type BaselineFile = StoredRunResult & {
+  majorityOf?: { method: string; runs: string[] };
+};
 
 export interface RunSuiteRequest {
   model: string;
@@ -168,12 +180,22 @@ export async function runGate(deps: GateDeps): Promise<GateOutcome> {
   if (!existsSync(baselinePath)) {
     return {
       code: 2,
-      message: `no baseline for ${deps.model}; run \`npm run eval:baseline -- <result.json>\` ` +
-        `with an agent-sdk result to create ${baselineRel}`,
+      message: `no baseline for ${deps.model}; run \`npm run eval:baseline -- <a.json> <b.json> <c.json>\` ` +
+        `with three agent-sdk runs to create ${baselineRel}`,
     };
   }
   const baselineRaw = readFileSync(baselinePath, 'utf8');
-  const baseline = JSON.parse(baselineRaw) as StoredRunResult;
+  const baseline = JSON.parse(baselineRaw) as BaselineFile;
+  // A single-sample baseline makes every flaky case a coin toss (measured
+  // 2026-11-09: it failed unchanged main). Refuse it before spending anything;
+  // eval:verify would refuse the attestation anyway.
+  if (!baseline.majorityOf?.runs?.length) {
+    return {
+      code: 1,
+      message: `${baselineRel} is a single sample, not a majority of runs — promote it from three full runs ` +
+        'with `npm run eval:baseline -- <a.json> <b.json> <c.json>`.',
+    };
+  }
 
   // (2) Fail fast, BEFORE any model call: an edited prompt under an unchanged
   // PROMPT_VERSION means the version no longer identifies the prompt, and a
@@ -210,41 +232,54 @@ export async function runGate(deps: GateDeps): Promise<GateOutcome> {
   }
   const firstRun = readJson<StoredRunResult>(resultPath);
 
-  // (4)+(5) Classify, then look again at everything that looks bad exactly
-  // once. A model is not a pure function; one bad sample is a suspicion, two
-  // is a finding.
+  // (4)+(5) Classify, then look again at everything that looks bad: a gated
+  // regression, an errored case, a new case that did not pass. One bad sample
+  // is a suspicion. Each suspect gets a second look, and a third only when the
+  // first two disagree (they already form the majority a third could not
+  // change); its verdict is the majority of its looks (compare.ts majorityCase).
   const firstPass = classify(baseline, firstRun);
-  const suspects = [...new Set([...firstPass.regressions.map(r => r.caseId), ...firstPass.erroredCases])];
+  const firstById = new Map(firstRun.cases.map(c => [c.id, c]));
+  const failingNew = firstPass.newCases.filter(id => !casePassed(firstById.get(id)!));
+  const suspects = [...new Set([
+    ...firstPass.regressions.map(r => r.caseId), ...firstPass.erroredCases, ...failingNew,
+  ])];
 
   let finalCases: CaseResultLike[] = firstRun.cases;
-  let rerunRel: string | undefined;
+  const rerunRels: string[] = [];
   if (suspects.length) {
-    rerunRel = `evals/results/${stamp}__gate__${deps.model}__rerun.json`;
-    const rerunPath = join(deps.root, rerunRel);
-    log(`re-running ${suspects.length} suspect case(s) once: ${suspects.join(', ')}`);
-    const second = await deps.runSuite({ model: deps.model, outPath: rerunPath, caseIds: suspects });
-    const secondLimited = limitOutcome(second);
-    if (secondLimited) return secondLimited;
-    if (second.code !== 0 || !existsSync(rerunPath)) {
-      return { code: 1, message: `the flake re-run exited ${second.code} — the suspects stay unconfirmed, so the gate fails.` };
-    }
-    const rerun = readJson<StoredRunResult>(rerunPath);
-    // Only the suspects are taken from the re-run; every other case keeps its
-    // first-run verdict. A case still bad on its second look is confirmed by
-    // the same classify() that flagged it.
-    const suspectSet = new Set(suspects);
-    const byId = new Map(rerun.cases.filter(c => suspectSet.has(c.id)).map(c => [c.id, c]));
-    finalCases = firstRun.cases.map(c => byId.get(c.id) ?? c);
-    for (const id of suspects) {
-      if (!finalCases.some(c => c.id === id)) {
-        const fresh = byId.get(id);
-        if (fresh) finalCases.push(fresh);
+    const looks = new Map<string, CaseResultLike[]>(suspects.map(id => [id, firstById.has(id) ? [firstById.get(id)!] : []]));
+    const absent = (id: string): CaseResultLike => ({ id, verdicts: {}, error: 'absent from the re-run' });
+
+    let pending = suspects;
+    for (const round of [1, 2] as const) {
+      if (!pending.length) break;
+      const rel = `evals/results/${stamp}__gate__${deps.model}__rerun-${round}.json`;
+      const path = join(deps.root, rel);
+      log(round === 1
+        ? `re-running ${pending.length} suspect case(s): ${pending.join(', ')}`
+        : `a third look at ${pending.length} case(s) whose first two disagree: ${pending.join(', ')}`);
+      const outcome = await deps.runSuite({ model: deps.model, outPath: path, caseIds: pending });
+      const outcomeLimited = limitOutcome(outcome);
+      if (outcomeLimited) return outcomeLimited;
+      if (outcome.code !== 0 || !existsSync(path)) {
+        return { code: 1, message: `the flake re-run exited ${outcome.code} — the suspects stay unconfirmed, so the gate fails.` };
       }
+      rerunRels.push(rel);
+      const rerun = new Map(readJson<StoredRunResult>(path).cases.map(c => [c.id, c]));
+      for (const id of pending) looks.get(id)!.push(rerun.get(id) ?? absent(id));
+      pending = pending.filter(id => {
+        const [a, b] = looks.get(id)!;
+        return !b || !looksAgree(a, b);
+      });
     }
+
+    const decided = new Map(suspects.map(id => [id, majorityCase(looks.get(id)!)]));
+    finalCases = firstRun.cases.map(c => decided.get(c.id) ?? c);
+    for (const id of suspects) if (!firstById.has(id)) finalCases.push(decided.get(id)!);
   }
 
   // (6) One classification over the settled run. Because only suspects were
-  // replaced, a regression here is one that survived two looks.
+  // replaced, a regression here is one a majority of looks confirmed.
   const final = classify(baseline, { cases: finalCases });
   const byId = new Map(finalCases.map(c => [c.id, c]));
   const unprovenNewCases = final.newCases.filter(id => {
@@ -258,11 +293,11 @@ export async function runGate(deps: GateDeps): Promise<GateOutcome> {
       final.regressions.map(r => `${r.caseId} [${r.dim}] ${r.from} → ${r.to}`).join('; '));
   }
   if (final.erroredCases.length) {
-    reasons.push(`${final.erroredCases.length} case(s) errored twice: ${final.erroredCases.join(', ')}`);
+    reasons.push(`${final.erroredCases.length} case(s) errored in two looks: ${final.erroredCases.join(', ')}`);
   }
   if (unprovenNewCases.length) {
     // A new case is absent from the held baseline by construction, so there is
-    // nothing to regress from — it has to stand on its own.
+    // nothing to regress from — it has to stand on its own, by majority.
     reasons.push(`new case(s) that did not pass: ${unprovenNewCases.join(', ')}`);
   }
   if (final.missingCases.length) {
@@ -292,7 +327,7 @@ export async function runGate(deps: GateDeps): Promise<GateOutcome> {
     baselineSha256: sha256(baselineRaw),
     resultFile: posix(resultRel),
     ...(deps.concurrency ? { concurrency: deps.concurrency } : {}),
-    ...(rerunRel ? { rerunFile: posix(rerunRel) } : {}),
+    ...(rerunRels.length ? { rerunFiles: rerunRels.map(posix) } : {}),
     ...(Object.keys(final.advisory).length ? { advisory: final.advisory } : {}),
     verdicts: verdictMap(finalCases),
     transcriptHashes: Object.fromEntries(
@@ -388,7 +423,9 @@ export function verifyAttestation(deps: VerifyDeps): GateOutcome {
   if (unscored.length) return fail(`case(s) with no attested verdict: ${unscored.join(', ')}`);
   if (stale.length) return fail(`attestation scores case(s) that no longer exist: ${stale.join(', ')}`);
 
-  const baseline = JSON.parse(baselineRaw) as StoredRunResult;
+  const baseline = JSON.parse(baselineRaw) as BaselineFile;
+  const standard = checkMajorityBaseline(deps.root, a.baselineFile, baseline);
+  if (standard) return fail(standard);
   const result = classify(baseline, attestationAsRun(a));
   if (result.regressions.length) {
     return fail('the attestation itself records regressions against the baseline: ' +
@@ -410,28 +447,142 @@ export function verifyAttestation(deps: VerifyDeps): GateOutcome {
 
 // ─── npm run eval:baseline ───────────────────────────────────────────────────
 
-export function promoteBaseline(root: string, resultPath: string): GateOutcome {
-  if (!existsSync(resultPath)) return { code: 1, message: `no such result file: ${resultPath}` };
-  const run = readJson<StoredRunResult>(resultPath);
-  // An API-backend run and an agent-sdk run are not comparable: different tool
-  // loop, no max_tokens control, different token accounting (evals/README.md,
-  // Backends). A baseline from the wrong runtime would turn every gate run
-  // into noise.
-  if (run.backend !== BACKEND) {
+/**
+ * Why a set of runs cannot be one baseline, or null. An API-backend run and an
+ * agent-sdk run are not comparable: different tool loop, no max_tokens
+ * control, different token accounting (evals/README.md, Backends). Runs of
+ * different models, prompt versions or prompt bytes are votes on different
+ * coaches.
+ */
+function incomparable(runs: Array<{ label: string; run: StoredRunResult }>): string | null {
+  for (const { label, run } of runs) {
+    if (run.backend !== BACKEND) {
+      return `${label} was produced by backend "${run.backend ?? 'api'}" — the baseline must be an ` +
+        `${BACKEND} run, because that is the runtime the gate measures. Re-run with ` +
+        '`npm run eval -- --backend agent-sdk`.';
+    }
+    if (!run.model) return `${label} names no model.`;
+  }
+  const [head, ...rest] = runs;
+  for (const { label, run } of rest) {
+    if (run.model !== head.run.model) return `${label} is ${run.model}, ${head.label} is ${head.run.model}.`;
+    if (run.promptVersion !== head.run.promptVersion) {
+      return `${label} scored PROMPT_VERSION ${run.promptVersion}, ${head.label} scored ${head.run.promptVersion}.`;
+    }
+    if (run.promptFileHash !== head.run.promptFileHash) {
+      return `${label} and ${head.label} scored different coach bytes (promptFileHash differs).`;
+    }
+  }
+  return null;
+}
+
+/** The majority baseline a set of runs makes, or why they cannot make one. */
+function buildMajorityBaseline(
+  runs: Array<{ rel: string; run: StoredRunResult }>,
+): { ok: true; baseline: BaselineFile } | { ok: false; reason: string } {
+  const mismatch = incomparable(runs.map(r => ({ label: r.rel, run: r.run })));
+  if (mismatch) return { ok: false, reason: mismatch };
+  const majority = majorityRun(runs.map(r => r.run));
+  if (!majority.ok) return majority;
+  const head = runs[0].run;
+  const passRateByDimension: Record<string, { pass: number; fail: number; other: number }> = {};
+  for (const c of majority.cases) {
+    for (const [dim, v] of Object.entries(c.verdicts)) {
+      if (!v || v.status === 'skipped') continue;
+      const d = (passRateByDimension[dim] ??= { pass: 0, fail: 0, other: 0 });
+      if (v.status === 'pass') d.pass += 1;
+      else if (v.status === 'fail') d.fail += 1;
+      else d.other += 1;
+    }
+  }
+  const sum = (pick: (r: StoredRunResult) => number | undefined) => runs.reduce((n, r) => n + (pick(r.run) ?? 0), 0);
+  return {
+    ok: true,
+    baseline: {
+      ...head,
+      runId: `majority-of-${runs.length}__${head.model}`,
+      majorityOf: {
+        method: 'per case and dimension, the status a strict majority of the runs gave; no majority is fail',
+        runs: runs.map(r => r.rel),
+      },
+      cases: majority.cases,
+      aggregate: {
+        ...head.aggregate,
+        passRateByDimension,
+        totalCostUsd: Math.round(sum(r => r.aggregate?.totalCostUsd) * 1e4) / 1e4,
+        totalInputTokens: sum(r => r.aggregate?.totalInputTokens),
+        totalOutputTokens: sum(r => r.aggregate?.totalOutputTokens),
+      },
+    },
+  };
+}
+
+/**
+ * Why the committed baseline is not the standard it claims to be, or null:
+ * a single sample, a source run missing from the tree, or verdicts that are
+ * not the majority of its sources. eval:verify runs it, so the standard is
+ * re-derived from evidence in the tree rather than trusted as bytes.
+ */
+export function checkMajorityBaseline(root: string, baselineRel: string, baseline: BaselineFile): string | null {
+  const sources = baseline.majorityOf?.runs ?? [];
+  if (!sources.length) {
+    return `${baselineRel} is a single sample, not a majority of runs — promote it from three full runs ` +
+      'with `npm run eval:baseline -- <a.json> <b.json> <c.json>`.';
+  }
+  const missing = sources.filter(rel => !existsSync(join(root, rel)));
+  if (missing.length) return `${baselineRel} names source run(s) not in the tree: ${missing.join(', ')}`;
+  const rebuilt = buildMajorityBaseline(sources.map(rel => ({ rel, run: readJson<StoredRunResult>(join(root, rel)) })));
+  if (!rebuilt.ok) return `${baselineRel}'s sources do not make a baseline: ${rebuilt.reason}`;
+  const want = new Map(rebuilt.baseline.cases.map(c => [c.id, c]));
+  const drift: string[] = [];
+  if (baseline.cases.length !== rebuilt.baseline.cases.length) drift.push('a different number of cases from its sources');
+  for (const c of baseline.cases) {
+    const w = want.get(c.id);
+    if (!w) {
+      drift.push(`${c.id} (not in the sources)`);
+      continue;
+    }
+    const got = c.verdicts as Record<string, { status: string } | undefined>;
+    const exp = w.verdicts as Record<string, { status: string } | undefined>;
+    for (const dim of new Set([...Object.keys(got), ...Object.keys(exp)])) {
+      const a = got[dim]?.status ?? 'absent';
+      const b = exp[dim]?.status ?? 'absent';
+      if (a !== b) drift.push(`${c.id} [${dim}] ${a}, majority ${b}`);
+    }
+  }
+  return drift.length ? `${baselineRel}'s verdicts are not the majority of its sources: ${drift.join('; ')}` : null;
+}
+
+/**
+ * npm run eval:baseline -- <a> <b> <c>: the per-case majority of an odd number
+ * (at least three) of comparable full agent-sdk runs, written to
+ * evals/baseline/<model>.json with the sources named. The sources must be in
+ * the tree, because eval:verify re-derives the baseline from them.
+ */
+export function promoteBaseline(root: string, resultPaths: string[]): GateOutcome {
+  const missing = resultPaths.filter(p => !existsSync(p));
+  if (missing.length) return { code: 1, message: `no such result file: ${missing.join(', ')}` };
+  const runs = resultPaths.map(p => ({ rel: posix(relative(root, resolve(p))), run: readJson<StoredRunResult>(p) }));
+  const outside = runs.filter(r => r.rel.startsWith('..'));
+  if (outside.length) {
     return {
       code: 1,
-      message: `${resultPath} was produced by backend "${run.backend ?? 'api'}" — the baseline must be an ` +
-        `${BACKEND} run, because that is the runtime the gate measures. Re-run with ` +
-        '`npm run eval -- --backend agent-sdk`.',
+      message: 'source runs must live in the tree (evals/results/), so eval:verify can re-derive the baseline: ' +
+        outside.map(r => r.rel).join(', '),
     };
   }
-  if (!run.model) return { code: 1, message: `${resultPath} names no model.` };
-  const rel = `${BASELINE_DIR}/${run.model}.json`;
+  const built = buildMajorityBaseline(runs);
+  if (!built.ok) return { code: 1, message: built.reason };
+  const { baseline } = built;
+  const rel = `${BASELINE_DIR}/${baseline.model}.json`;
   mkdirSync(join(root, BASELINE_DIR), { recursive: true });
-  copyFileSync(resultPath, join(root, rel));
+  writeFileSync(join(root, rel), `${JSON.stringify(baseline, null, 2)}\n`);
+  const split = baseline.cases.filter(c => Object.values((c as { votes?: Record<string, Record<string, number>> }).votes ?? {})
+    .some(v => Object.keys(v).length > 1)).length;
   return {
     code: 0,
-    message: `${rel} ← ${resultPath} (${run.cases.length} cases, prompt ${run.promptVersion ?? 'unversioned'}). ` +
+    message: `${rel} ← majority of ${runs.length} runs (${baseline.cases.length} cases, prompt ` +
+      `${baseline.promptVersion ?? 'unversioned'}; the runs disagreed on ${split} case(s)). ` +
       'It is a held path: the PR carrying it needs Shane.',
   };
 }
@@ -512,12 +663,12 @@ async function main(): Promise<number> {
   }
 
   if (command === 'baseline') {
-    const resultPath = argv[1];
-    if (!resultPath) {
-      console.error('Usage: npm run eval:baseline -- <result.json>');
+    const resultPaths = argv.slice(1);
+    if (!resultPaths.length) {
+      console.error('Usage: npm run eval:baseline -- <a.json> <b.json> <c.json>  (an odd number of full agent-sdk runs, at least three)');
       return 1;
     }
-    const outcome = promoteBaseline(root, resultPath);
+    const outcome = promoteBaseline(root, resultPaths);
     (outcome.code === 0 ? console.log : console.error)(outcome.message);
     return outcome.code;
   }
