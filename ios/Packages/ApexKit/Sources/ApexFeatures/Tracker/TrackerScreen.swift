@@ -299,7 +299,10 @@ public struct TrackerScreen: View {
                 secondary: .init("Keep going") { model.keepGoing() }
             )
         case .needsFinishTime(let runaway):
+            // A fresh card per detection: Finish tapped again after a set
+            // was logged offers that set's time, not the picker's old one.
             FinishTimeCard(model: model, runaway: runaway)
+                .id(runaway)
         case .needsScore:
             ScoreCard(model: model)
         case .confirmCancel, .cancelling:

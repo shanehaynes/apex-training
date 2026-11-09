@@ -23,7 +23,12 @@ struct FinishTimeCard: View {
     }
 
     private var start: Date { model.startedAt ?? runaway.suggestion.at }
-    private var elapsedLabel: String { RunawayFinish.formatLength(seconds: runaway.elapsedSeconds) }
+    /// The tracker's clock ticks each second, so a card left open keeps the
+    /// real length and lets the athlete pick the current minute.
+    private var liveNow: Date { max(now, start.addingTimeInterval(TimeInterval(model.elapsed))) }
+    private var elapsedLabel: String {
+        RunawayFinish.formatLength(seconds: max(runaway.elapsedSeconds, Double(model.elapsed)))
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.md) {
@@ -31,13 +36,13 @@ struct FinishTimeCard: View {
                 .font(.apex(.display, size: TypeScale.sm, relativeTo: .callout))
                 .foregroundStyle(ApexColor.textPrimary)
                 .fixedSize(horizontal: false, vertical: true)
-            DatePicker("Ended", selection: $end, in: start...now, displayedComponents: [.date, .hourAndMinute])
+            DatePicker("Ended", selection: $end, in: start...liveNow, displayedComponents: [.date, .hourAndMinute])
                 .datePickerStyle(.compact)
                 .font(.apex(.display, size: TypeScale.sm, relativeTo: .callout))
                 .foregroundStyle(ApexColor.textSecondary)
                 .accessibilityIdentifier("tracker.finish-time.picker")
             Text(runaway.suggestion.basis == .lastLogged
-                 ? "Prefilled with your last logged set."
+                 ? "Prefilled with when your last set was saved."
                  : "Nothing logged yet — prefilled with the start plus the plan.")
                 .font(.apex(.display, size: TypeScale.xs, relativeTo: .caption))
                 .foregroundStyle(ApexColor.textMuted)
@@ -65,7 +70,7 @@ struct FinishTimeCard: View {
 
     /// "10:46 PM" today, "Sep 2, 10:46 PM" on another day.
     private var timeLabel: String {
-        Calendar.current.isDate(end, inSameDayAs: now)
+        Calendar.current.isDate(end, inSameDayAs: liveNow)
             ? end.formatted(date: .omitted, time: .shortened)
             : end.formatted(.dateTime.month(.abbreviated).day().hour().minute())
     }

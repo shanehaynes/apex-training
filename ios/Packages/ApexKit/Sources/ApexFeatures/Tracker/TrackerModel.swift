@@ -749,8 +749,9 @@ public final class TrackerModel {
             try await services.queue.enqueue(.finish(finish), for: session)
             try await services.queue.enqueue(.completion(completionRow: rows.completionRow, logRow: rows.logRow), for: session)
         } catch {
+            // The answer stands: the next Finish goes out with it (the web's
+            // failed send keeps it too).
             gate = .idle
-            finishChoice = .notAsked
             ToastBus.shared.post("Could not finish: \(error.localizedDescription)", level: .failure)
             return
         }

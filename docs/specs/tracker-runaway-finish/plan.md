@@ -31,7 +31,7 @@ add, CI config, hooks, `scripts/merge-policy.mjs`), `src/styles/app.css`
 (onboarding board), `e2e/lib/*`, `MISSION.md`, `applyEditTimes`'s contract.
 **Depends on:** none. #552 (`feat/coach-session-times`) touches neither these
 files nor the finish path.
-**Status:** in progress (feat/tracker-runaway-finish)
+**Status:** in review (M1 #555; M2 feat/tracker-runaway-finish-ios)
 
 ## Approach
 
@@ -111,12 +111,12 @@ Delivers: R1, R2, R3, R4, R5, R6, R7, R8, R9
 
 ### M2 — iOS
 Delivers: R10, R11, R12
-- [ ] `RunawayFinish.swift` passing the shared vectors; D-061
-- [ ] `lastLoggedAt` decoded; the gate, the card, the chosen instant threaded
+- [x] `RunawayFinish.swift` passing the shared vectors; D-061
+- [x] `lastLoggedAt` decoded; the gate, the card, the chosen instant threaded
       through finish
-- [ ] TrackerModel tests for prompt, choice, "It ran", Keep going, and the
+- [x] TrackerModel tests for prompt, choice, "It ran", Keep going, and the
       unchanged normal finish
-- [ ] `agent:check` and the iOS suite green
+- [x] `agent:check` and the iOS suite green
 
 ## Decisions
 - 2026-11-08 · Threshold 4× and 2 h, not the brief's 4× and 3 h (Approach).
@@ -170,43 +170,41 @@ Delivers: R10, R11, R12
   second Finish, R6's empty and after-now cases, a lost answer after a failed
   send, an unguarded parse, real-shaped stamps in the vectors), two recorded
   as decisions (`updated_at` semantics, type-default plans).
+- 2026-11-08 · M2 built on `feat/tracker-runaway-finish-ios` (D-061), with
+  M1's review fixes mirrored: the card keyed on the detection, labels and the
+  picker's bound on the live clock, an answer kept when the finish cannot be
+  queued, PostgREST-shaped stamps in the tests. `-apexMockRunaway` reaches the
+  card on fixtures; `SmokeUITests/testRunawayFinishAsksWhenItEnded` drives it.
+  Proven on the iPhone Air simulator (iOS 26.5): TrackerModelTests 44 (10
+  new), VoiceLoggingTests 22, the two tracker UI tests; ApexCore on macOS and
+  Linux (`swift:6.1`). Not verified: a device or TestFlight build, and the
+  DatePicker's own interaction (the model's `finish(at:)` is tested).
 
 ## Learned
 <Written at the replan.>
 
 ## Next brief
-**M2 — the runaway Finish prompt on iOS.** M1 shipped the rule
-(`src/lib/tracking/runawayFinish.ts`), the vector file
-`ios/Packages/ApexCore/Tests/ApexCoreTests/Fixtures/runaway-finish.json`,
-`lastLoggedAt` on the bootstrap and a `finish` window that reaches back to the
-session's start. M2 brings the prompt to the phone.
+**Sessions started and never finished.** This feature makes Finish honest
+about a session left running; it does nothing for the ones nobody ever
+finishes. The 2026-11-08 measurement found 15 in Shane's history alone
+(`list_sessions` rows with `finishedAt` null, the oldest started 2026-07-02:
+stretches, two Weights A, a Weights B, a climbing day). Each is a runaway
+waiting to happen and, until finished or cancelled, an open session the
+schedule and the Live Activity may treat as current.
 
-- *Goal:* a TestFlight athlete who finishes a session past 4× its plan and
-  2 hours is asked when it ended, defaulting to the last logged set, with "It
-  ran …" one tap away; the chosen end reaches the server, the Live Activity,
-  Apple Health and the summary.
-- *Scope:* `ApexCore/Tracker/RunawayFinish.swift` (a port of `isRunaway`,
-  `suggestFinish`, `detectRunaway`, `formatRunawayLength`; not
-  `latestLoggedAt`, which is server-side) and `RunawayFinishTests` reading
-  the vector file through `TestFixtures.local`; `TrackerBootstrap.lastLoggedAt:
-  String?`; `TrackerModel`: a `lastLoggedAt` Date seeded from the bootstrap
-  (cache or network) and bumped on every set or cardio edit this sitting,
-  `Gate.needsFinishTime(RunawayFinish)` between `needsConfirm` and
-  `needsScore`, `requestFinish(force:score:finishAt:)` with a `FinishChoice`
-  (`.notAsked`, `.asRecorded`, `.at(Date)`) that sets
-  `FinishPayload.finishedAt`, `totalDurationSeconds`, `markCachedFinished`,
-  `activity.end` and `HealthWorkoutDraft(finishedAt:)`; `FinishTimeCard`
-  beside `ScoreCard` (compact `DatePicker` bounded start…now, Keep going /
-  It ran … / Finish at …); `TrackerScreen.bottomBar`. D-061 in
-  `docs/ios/decisions.md` (a D-008 exception in the D-023/D-024/D-059
-  mould: decided at Finish, possibly offline, so the server cannot own it;
-  parity through the shared vectors). `docs/ios/STATUS.md` recent-sessions
-  line.
-- *Acceptance:* R10–R12 proven in `validation.md`; new cases appended to
-  `ios/ApexTests/TrackerModelTests.swift` (prompt and suggestion, chosen
-  instant through payload/summary/cache/activity/Health, "It ran" = now,
-  Keep going queues nothing, a normal finish byte-identical to before);
-  ApexCore green on Linux (`docker run … swift:6.1 swift test`) and the
-  Mac; the iOS suite green; a simulator screenshot of the card in the PR.
-- *Owns:* the M2 files in this plan's Owns line. *Forbidden:* the web, the
-  server, `ios/project.yml`, `ios/Fixtures/` (M1 regenerated them).
+- *Goal:* an athlete with a session left open from an earlier day can close
+  it truthfully in one decision, at the moment they next meet it, with no
+  nagging in between (Article V: no streak guilt, no manufactured urgency).
+- *Measure first:* how the web schedule, the iOS schedule (D-043's running
+  indicator) and the Live Activity treat a session open for days; whether a
+  second Start on another day of the same series reuses or orphans it; how
+  many athletes beyond Shane have one (count only, through a read-only
+  aggregate Shane approves, or his account alone).
+- *Likely shape, to be decided in the spec:* when the tracker or the event
+  sheet opens a session started on an earlier day and never finished, offer
+  Finish (with this feature's prompt, which already defaults to the last
+  saved set) or Discard, once. Nothing changes without the athlete
+  (Article VII).
+- *Owns (likely):* the tracker open path on both clients; no server change
+  unless the measurement shows one. Spec under
+  `docs/specs/abandoned-sessions/`.

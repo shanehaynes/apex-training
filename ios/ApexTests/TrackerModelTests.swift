@@ -970,14 +970,15 @@ final class TrackerModelTests: XCTestCase {
     func testARunawayFinishAsksWhenItEndedBeforeAnythingIsQueued() async throws {
         let store = MemoryWriteQueueStore()
         let health = HealthSpy()
-        let (model, _) = make(runawayTransport(lastLoggedAt: "2026-09-22T07:05:00.000Z"), store: store, health: health)
+        // PostgREST's shape: milliseconds and an offset, not Z.
+        let (model, _) = make(runawayTransport(lastLoggedAt: "2026-09-22T07:05:00.512+00:00"), store: store, health: health)
         await model.open()
 
         await model.requestFinish(force: true)
 
         XCTAssertEqual(model.gate, .needsFinishTime(RunawayFinish(
             elapsedSeconds: 6 * 3600, plannedMinutes: 60,
-            suggestion: .init(at: Self.instant("2026-09-22T07:05:00.000Z"), basis: .lastLogged)
+            suggestion: .init(at: Self.instant("2026-09-22T07:05:00.512Z"), basis: .lastLogged)
         )))
         XCTAssertFalse(model.isFinished)
         let actions = await store.all.map(\.payload.action)
@@ -1006,6 +1007,26 @@ final class TrackerModelTests: XCTestCase {
         await model.requestFinish(force: true)
         guard case .needsFinishTime(let runaway) = model.gate else { return XCTFail("\(model.gate)") }
         XCTAssertEqual(runaway.suggestion, .init(at: typedAt, basis: .lastLogged))
+    }
+
+    /// Finish tapped again while the card is up re-detects: a set logged
+    /// meanwhile becomes the default (the screen keys the card on it).
+    @MainActor
+    func testFinishAgainWhileTheCardIsUpOffersTheSetJustLogged() async throws {
+        let clock = TestClock(now: Self.now)
+        let (model, _) = make(runawayTransport(lastLoggedAt: "2026-09-22T07:05:00.000Z"), clock: clock)
+        await model.open()
+        await model.requestFinish(force: true)
+        guard case .needsFinishTime(let first) = model.gate else { return XCTFail("\(model.gate)") }
+        XCTAssertEqual(first.suggestion.at, Self.instant("2026-09-22T07:05:00.000Z"))
+
+        let typedAt = clock.now
+        model.focusSet(at: press1)
+        await model.requestFinish(force: true)
+
+        guard case .needsFinishTime(let second) = model.gate else { return XCTFail("\(model.gate)") }
+        XCTAssertEqual(second.suggestion, .init(at: typedAt, basis: .lastLogged))
+        XCTAssertNotEqual(second, first, "a different detection, so a fresh card (`.id(runaway)`)")
     }
 
     @MainActor

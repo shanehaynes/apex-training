@@ -5,20 +5,20 @@ import Foundation
 /// Decided at Finish, possibly offline, so the server cannot own it; both
 /// suites run `Tests/ApexCoreTests/Fixtures/runaway-finish.json`, so this port
 /// cannot drift from the web's rule.
-public struct RunawayFinish: Equatable, Sendable {
+public struct RunawayFinish: Hashable, Sendable {
     /// More than this many times the planned length…
     public static let planMultiple: Double = 4
     /// …and more than this long, in seconds.
     public static let floorSeconds: Double = 2 * 60 * 60
 
     /// Where a suggested finish came from, so the card can say so.
-    public enum Basis: String, Equatable, Sendable {
+    public enum Basis: String, Hashable, Sendable {
         case lastLogged = "last-logged"
         case plan
         case now
     }
 
-    public struct Suggestion: Equatable, Sendable {
+    public struct Suggestion: Hashable, Sendable {
         public let at: Date
         public let basis: Basis
 
