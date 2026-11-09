@@ -24,6 +24,7 @@ import {
   type TrackedSectionGroup,
 } from '../../src/lib/tracking/plan.js';
 import { applyExerciseOrder, parseExerciseOrder } from '../../src/lib/tracking/order.js';
+import { latestLoggedAt } from '../../src/lib/tracking/runawayFinish.js';
 import {
   computeSessionPRs,
   computeWorkoutScorePR,
@@ -209,6 +210,12 @@ export interface TrackerBootstrap {
   /** Populated for an already-finished session, so reopening the summary is free. */
   prs: WirePersonalRecord[];
   scoreRecord: WireScoreRecord | null;
+  /**
+   * When the last set or cardio row the athlete logged reached the server
+   * (its `updated_at`), or null: the Finish prompt's default for a session
+   * left running (docs/specs/tracker-runaway-finish, R3).
+   */
+  lastLoggedAt: string | null;
 }
 
 /** The tracker's opening state: plan × saved rows × last-session shadows. */
@@ -248,7 +255,10 @@ export async function buildBootstrap(
     const score = sessionScoreFromRow(session);
     scoreRecord = describeScore(score ? computeWorkoutScorePR(score, hist.scoreHistory) : null);
   }
-  return { session, event, groups, scored: isScoredEvent(event), prs, scoreRecord };
+  return {
+    session, event, groups, scored: isScoredEvent(event), prs, scoreRecord,
+    lastLoggedAt: latestLoggedAt([...saved.savedSets, ...saved.savedCardio]),
+  };
 }
 
 export async function loadMealsForDate(supabase: Admin, userId: string, date: string): Promise<Meal[]> {

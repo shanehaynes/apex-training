@@ -164,5 +164,6 @@
       "description": "est. 1RM 132 (120 × 3), up from 121 on Sep 8"
     }
   ],
-  "scoreRecord": null
+  "scoreRecord": null,
+  "lastLoggedAt": "<timestamp>"
 }

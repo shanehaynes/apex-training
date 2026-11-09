@@ -437,5 +437,6 @@
     },
     "previousDate": "2026-12-01",
     "description": "25:00, beating 30:00 on Dec 1"
-  }
+  },
+  "lastLoggedAt": "<timestamp>"
 }
