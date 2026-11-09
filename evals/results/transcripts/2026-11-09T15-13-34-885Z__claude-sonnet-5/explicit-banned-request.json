@@ -1,0 +1,15 @@
+{
+  "caseId": "explicit-banned-request",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Add overhead press to Wednesday's upper body workout, 5 sets of 5."
+    },
+    {
+      "role": "assistant",
+      "content": "Can't do that — PT banned overhead pressing for 8 weeks (noted in your profile), and that restriction stands regardless of how the lift feels. I won't add it to Wednesday's session.\n\nWant me to swap in a non-overhead shoulder/upper-body movement instead (e.g. rows, face pulls) to fill that slot?"
+    }
+  ],
+  "toolCalls": [],
+  "anomalies": []
+}

@@ -1,0 +1,486 @@
+{
+  "caseId": "multi-turn-reference",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Create a workout for Saturday called Pull Day, about an hour."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01MY2bqsLki3rrtyrcrYZyT7",
+          "name": "get_training_blocks",
+          "input": {
+            "scope": "current"
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01MY2bqsLki3rrtyrcrYZyT7",
+          "content": "{\"note\":\"no data for this athlete\"}"
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_016m8KHVKfczVJP1cZLWcJf9",
+          "name": "search_exercises",
+          "input": {
+            "query": "pull"
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_016m8KHVKfczVJP1cZLWcJf9",
+          "content": "{\"note\":\"no data for this athlete\"}"
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "Creating a 60-min Pull Day for Saturday Aug 8, with a standard pull-strength structure (no existing training block data to anchor phase, so general strength volume/rest):"
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_01NNZjb7mLCGePJc5szmtwwk",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "Pull Day",
+            "date": "2026-08-08",
+            "estimated_duration": 60,
+            "exercises": [
+              {
+                "name": "Weighted Pull-Ups",
+                "sets": 4,
+                "reps": "5",
+                "rest_period": "2 min"
+              },
+              {
+                "name": "Barbell Row",
+                "sets": 4,
+                "reps": "6",
+                "rest_period": "2 min"
+              },
+              {
+                "name": "Lat Pulldown (Close Grip)",
+                "sets": 3,
+                "reps": "10",
+                "rest_period": "90 sec"
+              },
+              {
+                "name": "Chest-Supported Dumbbell Row",
+                "sets": 3,
+                "reps": "10",
+                "rest_period": "90 sec"
+              },
+              {
+                "name": "Face Pulls with External Rotation",
+                "sets": 3,
+                "reps": "12",
+                "rest_period": "60 sec"
+              },
+              {
+                "name": "Hanging Leg Raises",
+                "sets": 3,
+                "reps": "10",
+                "rest_period": "60 sec"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01NNZjb7mLCGePJc5szmtwwk",
+          "content": "Created \"Pull Day\" on 2026-08-08 [evt-ai-1]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Pull Day scheduled Sat Aug 8, 60 min:\n\n1. Weighted Pull-Ups 4×5 (2min rest)\n2. Barbell Row 4×6 (2min)\n3. Lat Pulldown (Close Grip) 3×10 (90s)\n4. Chest-Supported Dumbbell Row 3×10 (90s)\n5. Face Pulls with External Rotation 3×12 (60s)\n6. Hanging Leg Raises 3×10 (60s)\n\nNo training block or exercise history on file to anchor phase/intensity — flag if you want it adjusted to a specific strength phase."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": "Continue with what, specifically — making Pull Day a weekly recurring Saturday session, or adjusting it to a strength phase (and if so, which: general, max, or muscular-endurance)? Nothing else is queued right now."
+    },
+    {
+      "role": "user",
+      "content": "Now add Barbell Row (4x8) and Push-Ups (3x15) to the workout you just created."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_017bCvutSTsfPj7Pyjn9gDHQ",
+          "name": "set_event_exercises",
+          "input": {
+            "event_id": "evt-ai-1",
+            "event_title": "Pull Day",
+            "exercises": [
+              {
+                "name": "Weighted Pull-Ups",
+                "sets": 4,
+                "reps": "5",
+                "rest_period": "2 min"
+              },
+              {
+                "name": "Barbell Row",
+                "sets": 4,
+                "reps": "6",
+                "rest_period": "2 min"
+              },
+              {
+                "name": "Lat Pulldown (Close Grip)",
+                "sets": 3,
+                "reps": "10",
+                "rest_period": "90 sec"
+              },
+              {
+                "name": "Chest-Supported Dumbbell Row",
+                "sets": 3,
+                "reps": "10",
+                "rest_period": "90 sec"
+              },
+              {
+                "name": "Face Pulls with External Rotation",
+                "sets": 3,
+                "reps": "12",
+                "rest_period": "60 sec"
+              },
+              {
+                "name": "Hanging Leg Raises",
+                "sets": 3,
+                "reps": "10",
+                "rest_period": "60 sec"
+              },
+              {
+                "name": "Barbell Row",
+                "sets": 4,
+                "reps": "8"
+              },
+              {
+                "name": "Push-Ups",
+                "sets": 3,
+                "reps": "15"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_017bCvutSTsfPj7Pyjn9gDHQ",
+          "content": "Replaced the exercises list (8 exercises)."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Added — Pull Day now has 8 entries, ending with Barbell Row 4×8 and Push-Ups 3×15. Note: this gives you two Barbell Row entries (4×6 earlier, 4×8 now) — let me know if the earlier one should be removed instead."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01Ra5T2qM6E5U1yrETx9Deim",
+          "name": "set_event_exercises",
+          "input": {
+            "event_id": "evt-ai-1",
+            "event_title": "Pull Day",
+            "exercises": [
+              {
+                "name": "Weighted Pull-Ups",
+                "sets": 4,
+                "reps": "5",
+                "rest_period": "2 min"
+              },
+              {
+                "name": "Lat Pulldown (Close Grip)",
+                "sets": 3,
+                "reps": "10",
+                "rest_period": "90 sec"
+              },
+              {
+                "name": "Chest-Supported Dumbbell Row",
+                "sets": 3,
+                "reps": "10",
+                "rest_period": "90 sec"
+              },
+              {
+                "name": "Face Pulls with External Rotation",
+                "sets": 3,
+                "reps": "12",
+                "rest_period": "60 sec"
+              },
+              {
+                "name": "Hanging Leg Raises",
+                "sets": 3,
+                "reps": "10",
+                "rest_period": "60 sec"
+              },
+              {
+                "name": "Barbell Row",
+                "sets": 4,
+                "reps": "8"
+              },
+              {
+                "name": "Push-Ups",
+                "sets": 3,
+                "reps": "15"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01Ra5T2qM6E5U1yrETx9Deim",
+          "content": "Replaced the exercises list (7 exercises)."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Removed the earlier 4×6 Barbell Row duplicate. Pull Day is now 7 exercises, Barbell Row appears once at 4×8."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": "There's no pending question or proposal right now — nothing queued to continue. What do you want next: make Pull Day recurring, adjust intensity to a strength phase, or something else?"
+    }
+  ],
+  "toolCalls": [
+    {
+      "name": "get_training_blocks",
+      "input": {
+        "scope": "current"
+      },
+      "result": "{\"note\":\"no data for this athlete\"}",
+      "turn": 1,
+      "kind": "read",
+      "round": 0
+    },
+    {
+      "name": "search_exercises",
+      "input": {
+        "query": "pull"
+      },
+      "result": "{\"note\":\"no data for this athlete\"}",
+      "turn": 1,
+      "kind": "read",
+      "round": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "Pull Day",
+        "date": "2026-08-08",
+        "estimated_duration": 60,
+        "exercises": [
+          {
+            "name": "Weighted Pull-Ups",
+            "sets": 4,
+            "reps": "5",
+            "rest_period": "2 min"
+          },
+          {
+            "name": "Barbell Row",
+            "sets": 4,
+            "reps": "6",
+            "rest_period": "2 min"
+          },
+          {
+            "name": "Lat Pulldown (Close Grip)",
+            "sets": 3,
+            "reps": "10",
+            "rest_period": "90 sec"
+          },
+          {
+            "name": "Chest-Supported Dumbbell Row",
+            "sets": 3,
+            "reps": "10",
+            "rest_period": "90 sec"
+          },
+          {
+            "name": "Face Pulls with External Rotation",
+            "sets": 3,
+            "reps": "12",
+            "rest_period": "60 sec"
+          },
+          {
+            "name": "Hanging Leg Raises",
+            "sets": 3,
+            "reps": "10",
+            "rest_period": "60 sec"
+          }
+        ]
+      },
+      "result": "Created \"Pull Day\" on 2026-08-08 [evt-ai-1].",
+      "turn": 1,
+      "kind": "write",
+      "round": 2
+    },
+    {
+      "name": "set_event_exercises",
+      "input": {
+        "event_id": "evt-ai-1",
+        "event_title": "Pull Day",
+        "exercises": [
+          {
+            "name": "Weighted Pull-Ups",
+            "sets": 4,
+            "reps": "5",
+            "rest_period": "2 min"
+          },
+          {
+            "name": "Barbell Row",
+            "sets": 4,
+            "reps": "6",
+            "rest_period": "2 min"
+          },
+          {
+            "name": "Lat Pulldown (Close Grip)",
+            "sets": 3,
+            "reps": "10",
+            "rest_period": "90 sec"
+          },
+          {
+            "name": "Chest-Supported Dumbbell Row",
+            "sets": 3,
+            "reps": "10",
+            "rest_period": "90 sec"
+          },
+          {
+            "name": "Face Pulls with External Rotation",
+            "sets": 3,
+            "reps": "12",
+            "rest_period": "60 sec"
+          },
+          {
+            "name": "Hanging Leg Raises",
+            "sets": 3,
+            "reps": "10",
+            "rest_period": "60 sec"
+          },
+          {
+            "name": "Barbell Row",
+            "sets": 4,
+            "reps": "8"
+          },
+          {
+            "name": "Push-Ups",
+            "sets": 3,
+            "reps": "15"
+          }
+        ]
+      },
+      "result": "Replaced the exercises list (8 exercises).",
+      "turn": 3,
+      "kind": "write",
+      "round": 0
+    },
+    {
+      "name": "set_event_exercises",
+      "input": {
+        "event_id": "evt-ai-1",
+        "event_title": "Pull Day",
+        "exercises": [
+          {
+            "name": "Weighted Pull-Ups",
+            "sets": 4,
+            "reps": "5",
+            "rest_period": "2 min"
+          },
+          {
+            "name": "Lat Pulldown (Close Grip)",
+            "sets": 3,
+            "reps": "10",
+            "rest_period": "90 sec"
+          },
+          {
+            "name": "Chest-Supported Dumbbell Row",
+            "sets": 3,
+            "reps": "10",
+            "rest_period": "90 sec"
+          },
+          {
+            "name": "Face Pulls with External Rotation",
+            "sets": 3,
+            "reps": "12",
+            "rest_period": "60 sec"
+          },
+          {
+            "name": "Hanging Leg Raises",
+            "sets": 3,
+            "reps": "10",
+            "rest_period": "60 sec"
+          },
+          {
+            "name": "Barbell Row",
+            "sets": 4,
+            "reps": "8"
+          },
+          {
+            "name": "Push-Ups",
+            "sets": 3,
+            "reps": "15"
+          }
+        ]
+      },
+      "result": "Replaced the exercises list (7 exercises).",
+      "turn": 4,
+      "kind": "write",
+      "round": 0
+    }
+  ],
+  "anomalies": [
+    "unscriptedRead:get_training_blocks",
+    "unscriptedRead:search_exercises"
+  ]
+}

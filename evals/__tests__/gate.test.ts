@@ -10,6 +10,7 @@ import {
   parseConcurrency,
   promoteBaseline,
   runGate,
+  settleSuspect,
   suiteArgv,
   verifyAttestation,
   type Attestation,
@@ -41,10 +42,55 @@ beforeEach(() => {
 });
 afterEach(() => rmSync(root, { recursive: true, force: true }));
 
+/**
+ * Fixture runs written into the temp tree's evals/results/, where a baseline's
+ * sources must live. Each is made a distinct run (its own runId and transcript
+ * hashes), as three real runs are: promotion refuses one run counted twice.
+ */
+function installRuns(...fixtures: string[]): string[] {
+  const dir = join(root, 'evals', 'results');
+  mkdirSync(dir, { recursive: true });
+  return fixtures.map((fixture, i) => {
+    const dest = join(dir, `source-${i + 1}__${fixture}`);
+    const run = JSON.parse(readFileSync(join(FIXTURES, fixture), 'utf8'));
+    run.runId = `${run.runId}-${i + 1}`;
+    for (const c of run.cases) if (c.transcriptHash) c.transcriptHash = `${c.transcriptHash}-${i + 1}`;
+    writeFileSync(dest, JSON.stringify(run, null, 2));
+    return dest;
+  });
+}
+
+/** Byte-for-byte copies of one fixture under different names: one run, three files. */
+function installRawCopies(fixture: string, n: number): string[] {
+  const dir = join(root, 'evals', 'results');
+  mkdirSync(dir, { recursive: true });
+  return Array.from({ length: n }, (_, i) => {
+    const dest = join(dir, `copy-${i + 1}.json`);
+    copyFileSync(join(FIXTURES, fixture), dest);
+    return dest;
+  });
+}
+
+/** A majority baseline from three copies of one fixture run — the shape every baseline now has. */
 function installBaseline(fixture = 'baseline-clean.json', model = MODEL): string {
-  const dest = join(root, 'evals', 'baseline', `${model}.json`);
+  const outcome = promoteBaseline(root, installRuns(fixture, fixture, fixture));
+  if (outcome.code !== 0) throw new Error(outcome.message);
+  return join(root, 'evals', 'baseline', `${model}.json`);
+}
+
+/** The pre-majority shape: one run copied verbatim. Only for proving it is refused. */
+function installSingleSampleBaseline(fixture = 'baseline-clean.json'): string {
+  const dest = join(root, 'evals', 'baseline', `${MODEL}.json`);
   mkdirSync(dirname(dest), { recursive: true });
   copyFileSync(join(FIXTURES, fixture), dest);
+  return dest;
+}
+
+/** Write a fixture run with fields overridden, into evals/results/. */
+function installVariant(fixture: string, name: string, patch: Record<string, unknown>): string {
+  const dest = join(root, 'evals', 'results', name);
+  mkdirSync(dirname(dest), { recursive: true });
+  writeFileSync(dest, JSON.stringify({ ...JSON.parse(readFileSync(join(FIXTURES, fixture), 'utf8')), ...patch }, null, 2));
   return dest;
 }
 
@@ -117,6 +163,23 @@ describe('runGate: before anything is spent', () => {
     const outcome = await gate(suiteReturning('candidate-clean.json'));
     expect(outcome.code).toBe(0);
   });
+
+  it('refuses a baseline whose source runs are missing, and never calls the model', async () => {
+    installBaseline();
+    rmSync(join(root, 'evals', 'results', 'source-1__baseline-clean.json'));
+    const outcome = await gate(suiteReturning('candidate-clean.json'));
+    expect(outcome.code).toBe(1);
+    expect(outcome.message).toMatch(/names source run\(s\) not in the tree/);
+    expect(requests).toEqual([]);
+  });
+
+  it('refuses a single-sample baseline, and never calls the model', async () => {
+    installSingleSampleBaseline();
+    const outcome = await gate(suiteReturning('candidate-clean.json'));
+    expect(outcome.code).toBe(1);
+    expect(outcome.message).toMatch(/single sample, not a majority of runs/);
+    expect(requests).toEqual([]);
+  });
 });
 
 describe('runGate: a clean run', () => {
@@ -139,6 +202,7 @@ describe('runGate: a clean run', () => {
       createdAt: NOW,
     });
     expect(a.rerunFile).toBeUndefined();
+    expect(a.rerunFiles).toBeUndefined();
     expect(Object.keys(a.verdicts).sort()).toEqual([...ALL_IDS].sort());
     expect(a.verdicts['unsafe-volume-insist']).toEqual({ refusal: 'pass', integrity: 'pass' });
     expect(a.transcriptHashes['deload-week']).toBe('h-deload-week');
@@ -151,57 +215,95 @@ describe('runGate: a clean run', () => {
   });
 });
 
-describe('runGate: the flake re-run', () => {
+describe('runGate: the majority re-run', () => {
   beforeEach(() => installBaseline());
+  const rerun = (n: 1 | 2) => `evals/results/${STAMP}__gate__${MODEL}__rerun-${n}.json`;
 
-  it('re-runs only the suspects, naming them exactly', async () => {
-    await gate(suiteReturning('candidate-regression.json', 'rerun-recovered.json'));
-    expect(requests).toHaveLength(2);
+  it('gives a suspect a second look naming it exactly, and a third when the first two disagree', async () => {
+    await gate(suiteReturning('candidate-regression.json', 'rerun-recovered.json', 'rerun-recovered.json'));
+    expect(requests).toHaveLength(3);
     expect(requests[1].caseIds).toEqual(['buried-contraindication']);
+    expect(requests[2].caseIds).toEqual(['buried-contraindication']);
   });
 
-  it('passes when the second look clears it, and attests the second verdict', async () => {
-    const outcome = await gate(suiteReturning('candidate-regression.json', 'rerun-recovered.json'));
-    expect(outcome.code).toBe(0);
-    const a = readAttestation();
-    expect(a.verdicts['buried-contraindication']).toEqual({ constraints: 'pass' });
-    expect(a.transcriptHashes['buried-contraindication']).toBe('h-rerun');
-    expect(a.rerunFile).toBe(`evals/results/${STAMP}__gate__${MODEL}__rerun.json`);
-  });
-
-  it('fails when the case regresses twice', async () => {
+  it('takes no third look when the first two agree — a third could not change the majority', async () => {
     const outcome = await gate(suiteReturning('candidate-regression.json', 'rerun-confirmed.json'));
+    expect(requests).toHaveLength(2);
     expect(outcome.code).toBe(1);
     expect(outcome.message).toMatch(/confirmed regression/);
     expect(outcome.message).toContain('buried-contraindication [constraints] pass → fail');
     expect(existsSync(attestationPath())).toBe(false);
   });
 
-  it('treats an errored case as a suspect and clears it if the re-run scores', async () => {
-    const outcome = await gate(suiteReturning('candidate-errored.json', 'rerun-recovered.json'));
-    expect(requests[1].caseIds).toEqual(['buried-contraindication']);
+  it('passes when two of three looks pass, and attests the first passing look and every re-run file', async () => {
+    const outcome = await gate(suiteReturning('candidate-regression.json', 'rerun-recovered.json', 'rerun-recovered-2.json'));
+    expect(outcome.code).toBe(0);
+    const a = readAttestation();
+    expect(a.verdicts['buried-contraindication']).toEqual({ constraints: 'pass' });
+    expect(a.transcriptHashes['buried-contraindication']).toBe('h-rerun');
+    expect(a.rerunFiles).toEqual([rerun(1), rerun(2)]);
+    expect(a.rerunFile).toBeUndefined();
+  });
+
+  it('fails when two of three looks fail, and says how the looks voted', async () => {
+    const outcome = await gate(suiteReturning('candidate-regression.json', 'rerun-recovered.json', 'rerun-confirmed.json'));
+    expect(outcome.code).toBe(1);
+    expect(outcome.message).toContain('buried-contraindication [constraints] pass → fail (looks: fail 2, pass 1)');
+  });
+
+  it('decides each dimension by its own majority, so looks that each fail a different dimension can pass', async () => {
+    // Intended (docs/specs/eval-gate-majority R3): refusal fails in look 1,
+    // integrity in look 2, look 3 is clean. Each dimension passes two of three
+    // looks, so the case passes; pinned so a future edit cannot change it quietly.
+    const outcome = await gate(suiteReturning('candidate-two-dim-split.json', 'rerun-two-dim-l2.json', 'rerun-two-dim-l3.json'));
+    expect(requests).toHaveLength(3);
+    expect(outcome.code).toBe(0);
+    const a = readAttestation();
+    expect(a.verdicts['unsafe-volume-insist']).toEqual({ refusal: 'pass', integrity: 'pass' });
+    expect(a.transcriptHashes['unsafe-volume-insist']).toBe('h-l3');
+  });
+
+  it('never takes a fourth look', async () => {
+    await gate(suiteReturning('candidate-regression.json', 'rerun-recovered.json', 'rerun-confirmed.json', 'rerun-recovered.json'));
+    expect(requests).toHaveLength(3);
+  });
+
+  it('treats an errored case as a suspect and clears it when the other two looks pass', async () => {
+    const outcome = await gate(suiteReturning('candidate-errored.json', 'rerun-recovered.json', 'rerun-recovered.json'));
+    expect(requests.map(r => r.caseIds)).toEqual([undefined, ['buried-contraindication'], ['buried-contraindication']]);
     expect(outcome.code).toBe(0);
   });
 
-  it('fails when the case errors twice', async () => {
+  it('fails a case that errored in two looks, without a third', async () => {
     const outcome = await gate(suiteReturning('candidate-errored.json', 'rerun-errored.json'));
+    expect(requests).toHaveLength(2);
     expect(outcome.code).toBe(1);
-    expect(outcome.message).toMatch(/errored twice/);
+    expect(outcome.message).toMatch(/errored in two looks: buried-contraindication/);
   });
 
-  it('re-runs only once — a third look is never taken', async () => {
-    await gate(suiteReturning('candidate-regression.json', 'rerun-confirmed.json'));
-    expect(requests).toHaveLength(2);
+  it('fails a case that errored in two of three looks, even when the third passed', async () => {
+    const outcome = await gate(suiteReturning('candidate-errored.json', 'rerun-recovered.json', 'rerun-errored.json'));
+    expect(outcome.code).toBe(1);
+    expect(outcome.message).toMatch(/errored in two looks/);
   });
 });
 
 describe('runGate: the case set moved', () => {
   beforeEach(() => installBaseline());
 
-  it('fails a new case that did not pass — there is nothing to regress from', async () => {
-    const outcome = await gate(suiteReturning('candidate-new-case-failing.json', 'rerun-recovered.json'));
+  it('fails a new case that did not pass on a majority of looks — there is nothing to regress from', async () => {
+    const outcome = await gate(suiteReturning('candidate-new-case-failing.json', 'rerun-new-case-failing.json'));
+    expect(requests[1].caseIds).toEqual(['post-op-override']);
     expect(outcome.code).toBe(1);
     expect(outcome.message).toMatch(/new case\(s\) that did not pass: post-op-override/);
+  });
+
+  it('passes a new case that failed once but passed the next two looks', async () => {
+    const outcome = await gate(suiteReturning(
+      'candidate-new-case-failing.json', 'rerun-new-case-recovered.json', 'rerun-new-case-recovered.json'));
+    expect(outcome.code).toBe(0);
+    expect(readAttestation().verdicts['post-op-override']).toEqual({ refusal: 'pass' });
+    expect(readAttestation().transcriptHashes['post-op-override']).toBe('h-rerun-new');
   });
 
   it('passes a new case that did pass', async () => {
@@ -367,6 +469,61 @@ describe('verifyAttestation', () => {
     expect(verify().code).toBe(1);
   });
 
+  it('exits 1 on a single-sample baseline, whatever the attestation says', () => {
+    installSingleSampleBaseline();
+    writeAttestation();
+    const outcome = verify();
+    expect(outcome.code).toBe(1);
+    expect(outcome.message).toMatch(/single sample, not a majority of runs/);
+  });
+
+  it('exits 1 when a source run the baseline names is missing from the tree', () => {
+    installBaseline();
+    writeAttestation();
+    rmSync(join(root, 'evals', 'results', 'source-2__baseline-clean.json'));
+    const outcome = verify();
+    expect(outcome.code).toBe(1);
+    expect(outcome.message).toMatch(/names source run\(s\) not in the tree: evals\/results\/source-2__baseline-clean\.json/);
+  });
+
+  it('exits 1 when the baseline\'s verdicts are not the majority of its sources, even re-attested', () => {
+    const baselinePath = installBaseline();
+    const baseline = JSON.parse(readFileSync(baselinePath, 'utf8'));
+    baseline.cases[0].verdicts.constraints.status = 'fail';
+    writeFileSync(baselinePath, JSON.stringify(baseline, null, 2));
+    // The sha now matches: only re-deriving the standard from its sources catches the edit.
+    writeAttestation({ verdicts: {
+      'buried-contraindication': { constraints: 'fail' },
+      'deload-week': { progression: 'pass' },
+      'unsafe-volume-insist': { refusal: 'pass', integrity: 'pass' },
+    } });
+    const outcome = verify();
+    expect(outcome.code).toBe(1);
+    expect(outcome.message).toMatch(/not the majority of its sources: buried-contraindication \[constraints\] fail, majority pass/);
+  });
+
+  it('exits 1 when the baseline names one run several times', () => {
+    const baselinePath = installBaseline();
+    const baseline = JSON.parse(readFileSync(baselinePath, 'utf8'));
+    baseline.majorityOf.runs = [baseline.majorityOf.runs[0], baseline.majorityOf.runs[0], baseline.majorityOf.runs[0]];
+    writeFileSync(baselinePath, JSON.stringify(baseline, null, 2));
+    writeAttestation();
+    const outcome = verify();
+    expect(outcome.code).toBe(1);
+    expect(outcome.message).toMatch(/one run counted twice \(the same file\)/);
+  });
+
+  it('exits 1 when the baseline swaps a case for a copy of another', () => {
+    const baselinePath = installBaseline();
+    const baseline = JSON.parse(readFileSync(baselinePath, 'utf8'));
+    baseline.cases[2] = { ...baseline.cases[0] };
+    writeFileSync(baselinePath, JSON.stringify(baseline, null, 2));
+    writeAttestation();
+    const outcome = verify();
+    expect(outcome.code).toBe(1);
+    expect(outcome.message).toMatch(/a different case set from its sources/);
+  });
+
   it('accepts what runGate just wrote — the two halves agree', async () => {
     installBaseline();
     const outcome = await gate(suiteReturning('candidate-clean.json'));
@@ -378,28 +535,111 @@ describe('verifyAttestation', () => {
 // ─── npm run eval:baseline ───────────────────────────────────────────────────
 
 describe('promoteBaseline', () => {
-  it('copies an agent-sdk result to evals/baseline/<model>.json', () => {
-    const outcome = promoteBaseline(root, join(FIXTURES, 'candidate-clean.json'));
+  const baselinePath = () => join(root, 'evals', 'baseline', `${MODEL}.json`);
+  const readBaseline = () => JSON.parse(readFileSync(baselinePath(), 'utf8'));
+
+  it('writes the per-case majority of three runs, with the votes and the sources', () => {
+    const sources = installRuns('candidate-clean.json', 'candidate-regression.json', 'candidate-clean.json');
+    const outcome = promoteBaseline(root, sources);
     expect(outcome.code).toBe(0);
-    expect(existsSync(join(root, 'evals', 'baseline', `${MODEL}.json`))).toBe(true);
+    expect(outcome.message).toMatch(/majority of 3 runs \(3 cases.*the runs disagreed on 1 case/);
     expect(outcome.message).toMatch(/held path/);
+    const b = readBaseline();
+    expect(b.majorityOf.runs).toEqual([
+      'evals/results/source-1__candidate-clean.json',
+      'evals/results/source-2__candidate-regression.json',
+      'evals/results/source-3__candidate-clean.json',
+    ]);
+    const buried = b.cases.find((c: { id: string }) => c.id === 'buried-contraindication');
+    expect(buried.verdicts.constraints.status).toBe('pass');
+    expect(buried.votes.constraints).toEqual({ pass: 2, fail: 1 });
+    expect(b.aggregate.passRateByDimension.constraints).toEqual({ pass: 1, fail: 0, other: 0 });
   });
 
-  it('refuses an API-backend result — the two runtimes are not comparable', () => {
-    const outcome = promoteBaseline(root, join(FIXTURES, 'api-backend-run.json'));
+  it('records the failing status when most runs failed', () => {
+    promoteBaseline(root, installRuns('candidate-regression.json', 'candidate-clean.json', 'candidate-regression.json'));
+    const buried = readBaseline().cases.find((c: { id: string }) => c.id === 'buried-contraindication');
+    expect(buried.verdicts.constraints.status).toBe('fail');
+  });
+
+  it('refuses one run, or an even number — a single sample is the bug this replaces', () => {
+    expect(promoteBaseline(root, installRuns('candidate-clean.json')).message).toMatch(/odd number of runs, at least three \(got 1\)/);
+    expect(promoteBaseline(root, installRuns('candidate-clean.json', 'candidate-clean.json')).code).toBe(1);
+    expect(existsSync(baselinePath())).toBe(false);
+  });
+
+  it('refuses an API-backend run — the two runtimes are not comparable', () => {
+    const outcome = promoteBaseline(root, installRuns('candidate-clean.json', 'api-backend-run.json', 'candidate-clean.json'));
     expect(outcome.code).toBe(1);
     expect(outcome.message).toMatch(/backend "api"/);
     expect(existsSync(join(root, 'evals', 'baseline'))).toBe(false);
   });
 
-  it('refuses a legacy result that predates the backend field', () => {
-    const outcome = promoteBaseline(root, join(FIXTURES, 'legacy-api-run.json'));
+  it('refuses a legacy run that predates the backend field', () => {
+    const outcome = promoteBaseline(root, installRuns('legacy-api-run.json', 'candidate-clean.json', 'candidate-clean.json'));
     expect(outcome.code).toBe(1);
     expect(outcome.message).toMatch(/backend "api"/);
   });
 
+  it.each([
+    ['another model', { model: 'claude-haiku-5', runId: 'odd' }, /is claude-haiku-5/],
+    ['another PROMPT_VERSION', { promptVersion: '2026.10.01-1', runId: 'odd' }, /PROMPT_VERSION 2026\.10\.01-1/],
+    ['other coach bytes', { promptFileHash: 'PROMPT_HASH_B', runId: 'odd' }, /different coach bytes/],
+  ])('refuses runs of %s — votes on different coaches', (_label, patch, matcher) => {
+    const [a, b] = installRuns('candidate-clean.json', 'candidate-clean.json');
+    const odd = installVariant('candidate-clean.json', 'odd.json', patch);
+    const outcome = promoteBaseline(root, [a, b, odd]);
+    expect(outcome.code).toBe(1);
+    expect(outcome.message).toMatch(matcher);
+  });
+
+  it('refuses runs that score different case sets, and a run with an errored case', () => {
+    expect(promoteBaseline(root, installRuns('candidate-clean.json', 'candidate-missing-case.json', 'candidate-clean.json')).message)
+      .toMatch(/different case set/);
+    expect(promoteBaseline(root, installRuns('candidate-clean.json', 'candidate-errored.json', 'candidate-clean.json')).message)
+      .toMatch(/errored case\(s\): buried-contraindication — re-run it/);
+  });
+
+  it('refuses one run counted as several: the same path, the same run under other names, the same transcripts', () => {
+    const [a] = installRuns('candidate-clean.json');
+    expect(promoteBaseline(root, [a, a, a]).message).toMatch(/one run counted twice \(the same file\)/);
+    expect(promoteBaseline(root, installRawCopies('candidate-clean.json', 3)).message).toMatch(/one run counted twice \(the same runId\)/);
+    const renamed = installRawCopies('candidate-clean.json', 3).map((path, i) => {
+      const run = JSON.parse(readFileSync(path, 'utf8'));
+      run.runId = `renamed-${i}`;
+      writeFileSync(path, JSON.stringify(run));
+      return path;
+    });
+    expect(promoteBaseline(root, renamed).message).toMatch(/one run counted twice \(the same transcripts\)/);
+    expect(existsSync(baselinePath())).toBe(false);
+  });
+
+  it('refuses runs scored by different judges', () => {
+    const [a, b] = installRuns('candidate-clean.json', 'candidate-clean.json');
+    const other = installVariant('candidate-clean.json', 'other-judge.json', { runId: 'other', judgeModel: 'claude-haiku-5' });
+    expect(promoteBaseline(root, [a, b, other]).message).toMatch(/judged by claude-haiku-5/);
+  });
+
+  it('refuses a source outside evals/results/, such as the baseline it would overwrite', () => {
+    installBaseline();
+    const before = readFileSync(baselinePath(), 'utf8');
+    const [a, b] = installRuns('candidate-clean.json', 'candidate-clean.json');
+    const outcome = promoteBaseline(root, [baselinePath(), a, b]);
+    expect(outcome.code).toBe(1);
+    expect(outcome.message).toMatch(/under evals\/results\//);
+    expect(readFileSync(baselinePath(), 'utf8')).toBe(before);
+  });
+
+  it('refuses a source outside the tree, which eval:verify could never re-derive', () => {
+    const outcome = promoteBaseline(root, [
+      join(FIXTURES, 'candidate-clean.json'), join(FIXTURES, 'candidate-clean.json'), join(FIXTURES, 'candidate-clean.json'),
+    ]);
+    expect(outcome.code).toBe(1);
+    expect(outcome.message).toMatch(/must live in the tree/);
+  });
+
   it('refuses a path that is not there', () => {
-    expect(promoteBaseline(root, join(root, 'nope.json')).code).toBe(1);
+    expect(promoteBaseline(root, [join(root, 'nope.json')]).code).toBe(1);
   });
 });
 
@@ -530,5 +770,28 @@ describe('anthropicSdkVersion', () => {
   it('reads the repo lockfile\'s top-level entry', () => {
     const lock = JSON.parse(readFileSync(join(HERE, '..', '..', 'package-lock.json'), 'utf8'));
     expect(anthropicSdkVersion()).toBe(lock.packages['node_modules/@anthropic-ai/sdk'].version);
+  });
+});
+
+describe('settleSuspect', () => {
+  const look = (hash: string, verdicts: Record<string, string>) => ({
+    id: 'x', transcriptHash: hash,
+    verdicts: Object.fromEntries(Object.entries(verdicts).map(([d, status]) => [d, { status }])),
+  });
+
+  it('keeps the first look that holds every majority verdict', () => {
+    const c = settleSuspect([look('h1', { refusal: 'fail', integrity: 'pass' }), look('h2', { refusal: 'pass', integrity: 'fail' }), look('h3', { refusal: 'pass', integrity: 'pass' })]);
+    expect(c.transcriptHash).toBe('h3');
+  });
+
+  it('names every look when no single look holds every verdict, never one that disagrees', () => {
+    // Three dimensions, each failed by a different look: each passes 2 of 3, no look passes all three.
+    const c = settleSuspect([
+      look('h1', { constraints: 'fail', refusal: 'pass', integrity: 'pass' }),
+      look('h2', { constraints: 'pass', refusal: 'fail', integrity: 'pass' }),
+      look('h3', { constraints: 'pass', refusal: 'pass', integrity: 'fail' }),
+    ]);
+    expect(Object.values(c.verdicts).map(v => v?.status)).toEqual(['pass', 'pass', 'pass']);
+    expect(c.transcriptHash).toBe('split:h1+h2+h3');
   });
 });

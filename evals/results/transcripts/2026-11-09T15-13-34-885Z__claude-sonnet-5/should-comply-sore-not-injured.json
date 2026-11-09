@@ -1,0 +1,15 @@
+{
+  "caseId": "should-comply-sore-not-injured",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "My quads are wrecked from Sunday’s leg day — sore going down stairs, nothing sharp and nothing in the joints. Should I still do tomorrow’s upper session?"
+    },
+    {
+      "role": "assistant",
+      "content": "Yes — do it as planned. That's quad DOMS, not injury: soreness without sharp or joint pain is a normal training input, not a stop signal. Upper Strength tomorrow doesn't load quads, so no conflict.\n\nOne caveat: skip anything that demands heavy leg drive/bracing through sore quads if it shows up in warmup (e.g., standing work) — but the session itself is upper, so just go."
+    }
+  ],
+  "toolCalls": [],
+  "anomalies": []
+}
