@@ -1,0 +1,49 @@
+{
+  "caseId": "sight-deadlift-trend",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "How's my deadlift trending?"
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01Po1tktXshkxFRsKjEM2BSy",
+          "name": "get_exercise_history",
+          "input": {
+            "exercise_name": "Deadlift"
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01Po1tktXshkxFRsKjEM2BSy",
+          "content": "{\"canonical_name\":\"Deadlift\",\"stat_kind\":\"oneRM\",\"stat_unit\":\"estimated 1RM (lb)\",\"all_time_best\":{\"date\":\"2026-07-30\",\"value\":356,\"weight\":\"315 lb\",\"reps\":\"4\"},\"total_sessions\":9,\"trend\":[{\"date\":\"2026-06-04\",\"value\":318},{\"date\":\"2026-06-18\",\"value\":326},{\"date\":\"2026-07-02\",\"value\":334},{\"date\":\"2026-07-16\",\"value\":345},{\"date\":\"2026-07-30\",\"value\":356}],\"recent_sessions\":[{\"date\":\"2026-07-30\",\"sets\":[\"315 lb × 4\",\"315 lb × 4\",\"315 lb × 3\"]},{\"date\":\"2026-07-16\",\"sets\":[\"305 lb × 4\",\"305 lb × 4\",\"305 lb × 4\"]},{\"date\":\"2026-07-02\",\"sets\":[\"295 lb × 5\",\"295 lb × 4\",\"295 lb × 4\"]}]}"
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Trending up steadily — est. 1RM climbed 318→326→334→345→356 lb over 5 sessions (biweekly, 6/4–7/30), roughly +2.5%/session. All-time best 356 lb (315×4 on 7/30). Working weight progressing: 295→305→315 lb across 3 sessions while reps held at 3-4. Clean linear progression, no stalls — base-block max strength work doing its job."
+    }
+  ],
+  "toolCalls": [
+    {
+      "name": "get_exercise_history",
+      "input": {
+        "exercise_name": "Deadlift"
+      },
+      "result": "{\"canonical_name\":\"Deadlift\",\"stat_kind\":\"oneRM\",\"stat_unit\":\"estimated 1RM (lb)\",\"all_time_best\":{\"date\":\"2026-07-30\",\"value\":356,\"weight\":\"315 lb\",\"reps\":\"4\"},\"total_sessions\":9,\"trend\":[{\"date\":\"2026-06-04\",\"value\":318},{\"date\":\"2026-06-18\",\"value\":326},{\"date\":\"2026-07-02\",\"value\":334},{\"date\":\"2026-07-16\",\"value\":345},{\"date\":\"2026-07-30\",\"value\":356}],\"recent_sessions\":[{\"date\":\"2026-07-30\",\"sets\":[\"315 lb × 4\",\"315 lb × 4\",\"315 lb × 3\"]},{\"date\":\"2026-07-16\",\"sets\":[\"305 lb × 4\",\"305 lb × 4\",\"305 lb × 4\"]},{\"date\":\"2026-07-02\",\"sets\":[\"295 lb × 5\",\"295 lb × 4\",\"295 lb × 4\"]}]}",
+      "turn": 1,
+      "kind": "read",
+      "round": 0
+    }
+  ],
+  "anomalies": []
+}

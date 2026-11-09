@@ -11,7 +11,7 @@ attestation), their tests, `CONNECTORS.md`, this folder.
 `applyEditTimes` contract (reused, not changed), `MISSION.md`.
 **Depends on:** none. `feat/coach-sonnet-haiku-5-5` also touches
 `src/lib/coach/`; whichever merges second re-runs `eval:gate`.
-**Status:** in progress (feat/coach-session-times)
+**Status:** in review (PR #552)
 
 ## Approach
 The athlete's own edit-times path (`applyEditTimes`, R4.1–R4.5 of the core
@@ -34,13 +34,13 @@ No migration, no new endpoint, no new dependency, no `TECHSTACK.md` row.
 
 ### M1 — the tool, both doors, evals
 Delivers: R1, R2, R3, R4, R5, R6, R7, R8, R9, R10, R11
-- [ ] `edit_session_times` in `COACH_TOOLS` and `coachToolSchemas()`, with
+- [x] `edit_session_times` in `COACH_TOOLS` and `coachToolSchemas()`, with
       executor, label and unit tests
-- [ ] Server deps over `applyEditTimes` with the mutation-log row, and
+- [x] Server deps over `applyEditTimes` with the mutation-log row, and
       `timeZone` in the chat tool context
-- [ ] MCP coach-backed tool registered
-- [ ] Eval fixture sessions, the two cases, `eval:gate` attestation
-- [ ] `agent:check` green
+- [x] MCP coach-backed tool registered
+- [x] Eval fixture sessions, the two cases, `eval:gate` attestation
+- [x] `agent:check` green
 
 ## Decisions
 - 2026-11-08 · Name `edit_session_times`, matching the tracker's `edit-times`
@@ -68,6 +68,10 @@ Delivers: R1, R2, R3, R4, R5, R6, R7, R8, R9, R10, R11
   the coach refused to guess an id; the control's "next Tuesday" read the
   agent-sdk backend's real clock. Both scripted, both pass. Not verified:
   a real device or browser confirm of the card.
+- 2026-11-09 · The first gate run failed on a planner case this change does
+  not touch; the single-sample baseline was the cause (#562 replaced it with
+  a majority of three runs). Re-gated after merging main: 61 cases, no
+  regressions, both new cases pass, attested.
 
 ## Learned
 - An eval case for a write the coach must look up needs the reads that find

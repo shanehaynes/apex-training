@@ -18,7 +18,7 @@
 | R8 | `coachSessionTimes.test.ts` "reads the recorded session for this user only, and prefers the exact id…", "finds a recurring occurrence's session from its base id and the date…"; `sessionTimes.test.ts` "edits the session row the deps found…" | integration, unit | proven (PR #552) |
 | R9 | `coachSessionTimes.test.ts` "is a write tool with the card-only title cut…"; `api/__tests__/mcp.test.ts` "tools/list for a read-only token hides every write tool" and "refuses a write tool for a read-only token" (generic over `MCP_WRITE_TOOLS`); `mcpWriteTools.test.ts` destructive list | integration | proven (PR #552) |
 | R10 | `sessionTimes.test.ts` "update_event points at edit_session_times (R10)" | unit | proven (PR #552) |
-| R11 | `evals/cases/integrity.ts` `session-times-runaway-fix` and `session-times-plan-control`, both passing in the attested `eval:gate` run | eval | not proven |
+| R11 | `evals/cases/integrity.ts` `session-times-runaway-fix` and `session-times-plan-control`, both passing in the attested `eval:gate` run (`evals/results/2026-11-09T15-59-34-105Z__gate__claude-sonnet-5.json`, against the majority baseline from #562) | eval | proven (PR #552) |
 
 ## Beyond the gate
 - `eval:gate` on the subscription (this session), with transcripts committed.
