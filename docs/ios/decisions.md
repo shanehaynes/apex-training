@@ -1316,3 +1316,54 @@ which has tests, so D-008 would keep it server-side.
   (`IsoTimestampTests`).
 - Rejected: asking the server through a new endpoint (offline finish); hand-copied vectors
   (D-023's mechanism, weaker than one shared file).
+
+## D-062 · Export: a cancel and a save whose result Files loses arrive the same way, so the row says nothing for either (amends D-060)
+**Status:** decided · session call · 2026-11-08 · #557. Device check open (Shane).
+D-060 says "the completion says whether it saved". That holds for a success and a failure, but
+not for this case. On the iOS 26.5 simulator, Replace in Files' "Replace Existing Items?" prompt
+sometimes loses track of the saved item:
+- Files moves the old export to `.Trash`.
+- fileproviderd logs "Cannot get URL for item … The file doesn't exist".
+- DocumentManager, in Apex's process, logs "Calling delegate -documentBrowser:didPickDocumentURLs:
+  with an empty array of items" and "[CRIT] Index out of sync".
+
+Then the sheet either closes (once after about 25 s "In progress") or stays "In progress" (#550's
+CI failures). Either way the row shows neither saved nor error, which is why #550 moved the UI
+test to Keep Both. A line for the athlete was worth adding only if the app could tell this case
+from a cancel. No public callback can. Probed on two simulators on 2026-11-08 with Cancel,
+swipe-down, Stop then Cancel, Keep Both and 145 Replaces:
+
+| | `fileExporter`, iOS 14 form (shipped) | `fileExporter` with `onCancellation` (iOS 17) | `UIDocumentPickerViewController(forExporting:asCopy: true)` delegate |
+|---|---|---|---|
+| Cancel, swipe-down | no callback | `onCancellation` | `documentPickerWasCancelled` |
+| the lost result | not reproduced (0 in 40); #550's runs saw no label | `onCancellation` (1 in 24) | `documentPickerWasCancelled` (1 in 81) |
+
+- **Where the lost result was seen, it shared a cancel's callback.** UIKit itself turns the empty
+  result into a cancel, so a copy-mode picker of our own would not help. In the iOS 17 form, the
+  `isPresented` binding was written 0–6 ms before each success and in the same millisecond as each
+  cancel, the lost result included. A dismissal check therefore sees nothing a cancel does not. In
+  the shipped form a cancel calls nothing at all, so "dismissed with no completion" means every
+  cancel. A line added on any of these paths would show on every cancel (Mission V).
+- **The save can have landed.** In the one lost result checked on disk (the UIKit-mode round), the
+  new export was in On My iPhone and the old one was in `.Trash`. Only the confirmation was lost,
+  so "not saved" would have been false. Not checked: the shipped path, and a picker swiped away
+  while still "In progress".
+- **Rate.** 3 failures in 145 Replace rounds: 2 lost results, and 1 picker still "In progress" at
+  27 s when the probe swiped it away. That picker's natural end was not observed. #550's session
+  saw 1 in 6.
+- Rejected:
+  - A line in `onCancellation`, or on a dismissal with no completion: it would show on every cancel.
+  - A copy-mode `UIDocumentPickerViewController` wrapper: the callback is the same, and the app
+    would write and clean up its own temporary copy of the account, which D-060 chose not to do.
+- **Open, Shane's call. None of these was built or run in-app.**
+  - (a) Read the log. DocumentManager's error is in Apex's own unified log, which `OSLogStore(scope:
+    .currentProcessIdentifier)` might read after a cancel. Untested: whether that call returns
+    the entry in-process. The wording is Apple's and private. None of the 8 cancels the Mac log
+    captured wrote it.
+  - (b) Move instead of copy (`fileMover`, or `asCopy: false`). A cancel leaves the source file in
+    place and a completed move removes it. That is a file-system signal no callback hides. Untried.
+    It needs a temporary copy of the account in the app's folder while the picker is open (D-060).
+  - (c) Avoid the prompt. A filename unique to the second
+    (`apex-training-export-2026-09-08-143205.json`) never meets an earlier export, so Files never
+    offers Replace. It departs from the web's download name, which `YouModelTests` pins.
+  - (d) Check a real device. Not done yet: it is Shane's run, in the PR's test plan.
