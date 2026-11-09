@@ -209,11 +209,19 @@ so a service that hangs counts as a miss. If the device never comes, the error n
 The machine (no iOS simulators, or the runtime there but unavailable or without devices) says
 re-run with `gh run rerun <id> --failed` and change no code. The image (no runtime of that
 version, or none of its devices has the pinned name) says move `IOS_SIM_OS` or
-`IOS_SIM_DEVICE` in a PR. Whether the wait or the restart rescues a bad runner is unproven:
-no bad runner has been caught since the step landed. A run where the device came after 90 s,
-or only after the restart, carries a notice annotation, and those notices are the evidence.
-If a run passes the step and still fails "Build and test" with that error, simctl and
-xcodebuild disagree, and the step is not the fix.
+`IOS_SIM_DEVICE` in a PR. A device of the pinned name that is there but unavailable says
+re-run once, then move `IOS_SIM_DEVICE`. `scripts/__tests__/ci-ios-sim-wait.test.ts` runs the
+step's script out of ci.yml against a fake clock, `simctl` and `sudo`, with the real windows,
+for every one of these cases.
+
+Whether the wait or the restart rescues a bad runner is unproven: no bad runner has been
+caught since the step landed. A run where the device came after 120 s, or only after the
+restart, carries a notice annotation, and those notices are the evidence. 120 s is past the
+latest point at which xcodebuild alone gave up in the eight failures (89–110 s into "Build and
+test", package resolution included). Whether xcodebuild notices a device that appears during
+its own 60 s wait is unknown. If it does not, earlier arrivals were rescues too; the step's
+log line gives each arrival's time. If a run passes the step and still fails "Build and test"
+with that error, simctl and xcodebuild disagree, and the step is not the fix.
 
 ## Local loop on the Mac
 

@@ -330,22 +330,32 @@ jobs:
       # minutes. If it is still missing, the step prints what the runner has,
       # restarts CoreSimulatorService once and polls 90 s more, then fails
       # with an error that names the case: the machine (no iOS simulators, or
-      # the runtime unavailable: re-run, change nothing) or the image (no iOS
+      # the runtime unavailable: re-run, change nothing), the image (no iOS
       # runtime of that version, or none of its devices has the pinned name:
-      # move IOS_SIM_* above in a PR). The runtime is matched on its version,
-      # as xcodebuild's OS= is. A healthy runner passes on the first poll.
+      # move IOS_SIM_* above in a PR), or a pinned device that is there but
+      # unavailable (re-run once, then move it). The runtime is matched on its
+      # version, as xcodebuild's OS= is. A healthy runner passes on the first
+      # poll. scripts/__tests__/ci-ios-sim-wait.test.ts runs this step's
+      # script against a fake simctl and clock, every case.
       #
       # Whether the wait or the restart ever rescues a bad runner is not known
-      # yet. A run where the device came after 90 s, or only after the restart,
-      # carries a notice: later than xcodebuild alone would have waited on a
-      # warm package cache (35 s to resolve, then 60 s). Those notices are the
-      # evidence. A run that passes this step and still fails "Build and test"
-      # with that error means simctl and xcodebuild disagree, and this step is
-      # not the fix.
+      # yet. A run where the device came after 120 s, or only after the
+      # restart, carries a notice: later than xcodebuild alone waited in any
+      # of the 8 failures (it gave up 89-110 s into "Build and test", package
+      # resolution included). Those notices are the evidence. Whether
+      # xcodebuild sees a device that appears during its own wait is unknown;
+      # if it does not, earlier arrivals were rescues too, and the log line
+      # gives each arrival's time. A run that passes this step and still fails
+      # "Build and test" with that error means simctl and xcodebuild disagree,
+      # and this step is not the fix.
       - name: Wait for the pinned simulator
         timeout-minutes: 10
         run: |
           target="$IOS_SIM_DEVICE on iOS $IOS_SIM_OS"
+          # Seconds since the step began, from date rather than $SECONDS so
+          # the test can run the real windows on a fake clock.
+          start=$(date +%s)
+          elapsed() { echo $(( $(date +%s) - start )); }
           polls=0
           # xcrun simctl, cut off at 20 s: a CoreSimulatorService that hangs
           # rather than answering is a miss, so the restart still comes.
@@ -359,34 +369,39 @@ jobs:
           # Where the pin stands, one word and a detail: "ready <udid>";
           # "none" (no available iOS device at all); "no-runtime" (no iOS
           # runtime with this version); "unavailable <why>" (the runtime is
-          # there but unusable); "no-device <n>" (n available devices on the
-          # runtime, none with the pinned name). Never fails: no JSON, or
-          # garbage, prints nothing, which the caller reads as "none".
+          # there but unusable); "pin-unavailable <why>" (a device with the
+          # pinned name is there but unusable); "no-device <n>" (n available
+          # devices on the runtime, none with the pinned name). Never fails:
+          # no JSON, or garbage, prints nothing, which the caller reads as
+          # "none". Reasons are folded onto one line, as ::error:: needs.
           state() {
             simctl list -j 2>/dev/null |
               jq -r --arg os "$IOS_SIM_OS" --arg name "$IOS_SIM_DEVICE" '
+                def why: (.availabilityError // "no reason given") | gsub("\\s+"; " ");
                 ([.devices | to_entries[] | select(.key | contains(".SimRuntime.iOS-"))
                   | .value[] | select(.isAvailable)] | length) as $ios
                 | ([.runtimes[] | select((.identifier | contains(".SimRuntime.iOS-")) and .version == $os)][0]) as $rt
                 | if $ios == 0 then "none"
                   elif $rt == null then "no-runtime"
-                  else ([(.devices[$rt.identifier] // [])[] | select(.isAvailable)]) as $devs
-                    | ([$devs[] | select(.name == $name) | .udid][0]) as $udid
+                  else (.devices[$rt.identifier] // []) as $all
+                    | [$all[] | select(.name == $name)] as $named
+                    | ([$named[] | select(.isAvailable) | .udid][0]) as $udid
                     | if $udid != null then "ready \($udid)"
-                      elif ($rt.isAvailable | not) then "unavailable \($rt.availabilityError // "no reason given")"
-                      else "no-device \($devs | length)" end
+                      elif ($rt.isAvailable | not) then "unavailable \($rt | why)"
+                      elif ($named | length) > 0 then "pin-unavailable \($named[0] | why)"
+                      else "no-device \([$all[] | select(.isAvailable)] | length)" end
                   end' 2>/dev/null || true
           }
           # Polls every 10 s until the device is there ($udid) or $1 s pass;
           # leaves the last state in $s.
           poll() {
-            local deadline=$((SECONDS + $1))
+            local deadline=$(( $(elapsed) + $1 ))
             while :; do
               polls=$((polls + 1))
               s=$(state)
               s=${s:-none}
               case $s in ready\ *) udid=${s#ready }; return 0 ;; esac
-              if [ "$SECONDS" -ge "$deadline" ]; then return 1; fi
+              if [ "$(elapsed)" -ge "$deadline" ]; then return 1; fi
               sleep 10
             done
           }
@@ -403,7 +418,7 @@ jobs:
           }
           restarted=""
           if ! poll 180; then
-            echo "No $target after ${SECONDS}s ($s). What this runner has:"
+            echo "No $target after $(elapsed)s ($s). What this runner has:"
             dump
             echo "Restarting CoreSimulatorService, then polling 90 s more."
             sudo killall -9 com.apple.CoreSimulator.CoreSimulatorService 2>/dev/null || true
@@ -413,9 +428,10 @@ jobs:
               dump
               rerun="re-run the job (gh run rerun $GITHUB_RUN_ID --failed) and change nothing"
               case $s in
-                none) why="This runner has no iOS simulators, after ${SECONDS}s of waiting and a CoreSimulatorService restart. It is the machine, not the code: $rerun. This step's comment in ci.yml has the history." ;;
+                none) why="This runner has no iOS simulators, after $(elapsed)s of waiting and a CoreSimulatorService restart. It is the machine, not the code: $rerun. This step's comment in ci.yml has the history." ;;
                 unavailable\ *) why="iOS $IOS_SIM_OS is on this runner but unavailable (${s#unavailable }). It is the machine, not the code: $rerun." ;;
                 "no-device 0") why="iOS $IOS_SIM_OS is on this runner with no available devices. It is the machine, not the code: $rerun." ;;
+                pin-unavailable\ *) why="$target is on this runner but unavailable (${s#pin-unavailable }). Re-run the job once (gh run rerun $GITHUB_RUN_ID --failed); if it fails the same way again, the image changed: move IOS_SIM_DEVICE in ci.yml, in a PR." ;;
                 no-runtime) why="This runner has iOS simulators but no iOS $IOS_SIM_OS runtime (listed above). If the image's README no longer lists iOS $IOS_SIM_OS, move IOS_SIM_OS (and IOS_SIM_DEVICE if need be) in ci.yml, in a PR. If it still does, $rerun." ;;
                 *) why="iOS $IOS_SIM_OS is on this runner with ${s#no-device } available devices, none named $IOS_SIM_DEVICE (listed above). The image changed its device set: move IOS_SIM_DEVICE in ci.yml, in a PR." ;;
               esac
@@ -423,11 +439,12 @@ jobs:
               exit 1
             fi
           fi
-          echo "$target is ready: $udid (after ${SECONDS}s, poll $polls)."
+          took=$(elapsed)
+          echo "$target is ready: $udid (after ${took}s, poll $polls)."
           if [ -n "$restarted" ]; then
-            echo "::notice::$target appeared only after a CoreSimulatorService restart, ${SECONDS}s in. Without this step, Build and test would likely have failed."
-          elif [ "$SECONDS" -ge 90 ]; then
-            echo "::notice::$target appeared only after ${SECONDS}s. Without this step, Build and test would likely have failed (xcodebuild resolves packages, then waits 60 s)."
+            echo "::notice::$target appeared only after a CoreSimulatorService restart, ${took}s in. Without this step, Build and test would likely have failed."
+          elif [ "$took" -ge 120 ]; then
+            echo "::notice::$target appeared only after ${took}s, later than xcodebuild alone waited in any logged no-simulator failure (89-110 s). Without this step, Build and test would likely have failed."
           fi
       # CODE_SIGNING_ALLOWED=NO: a simulator build needs no identity, and the
       # runner has none. Local is the only configuration whose Supabase values
