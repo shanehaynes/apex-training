@@ -1,7 +1,7 @@
 # Tracker quarterly PR — plan
 
 **Owns:** `src/lib/tracking/records.ts` (the quarterly-best section),
-`src/lib/tracking/quarterBest.ts`, `src/components/tracker/QuarterPrTicker.tsx`,
+`src/lib/tracking/quarterBest.ts`, `src/components/tracker/QuarterPrTicker.tsx`, `src/components/tracker/quarterPrTiming.ts`,
 `src/styles/quarter-pr.css`, the target column in
 `src/components/tracker/TrackerExercise.tsx`, `quarterBest` on
 `TrackedExercise` (`src/lib/tracking/plan.ts`), the bootstrap in

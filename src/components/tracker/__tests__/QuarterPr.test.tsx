@@ -1,7 +1,8 @@
 import { describe, it, expect, vi } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import TrackerExercise from '../TrackerExercise';
-import QuarterPrTicker, { DWELL_MS, FADE_MS, tickerAdvance, tickerDelay, type TickerState } from '../QuarterPrTicker';
+import QuarterPrTicker from '../QuarterPrTicker';
+import { DWELL_MS, FADE_MS, tickerAdvance, tickerDelay, type TickerState } from '../quarterPrTiming';
 import { buildTrackerModel } from '../../../lib/tracking/plan';
 import type { QuarterBest } from '../../../lib/tracking/records';
 import type { ExerciseCategory } from '../../../types/workout';
