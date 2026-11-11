@@ -27,6 +27,7 @@ import { applyExerciseOrder, parseExerciseOrder } from '../../src/lib/tracking/o
 import { latestLoggedAt } from '../../src/lib/tracking/runawayFinish.js';
 import {
   attachQuarterBests,
+  hasQuarterCandidates,
   computeSessionPRs,
   computeWorkoutScorePR,
   describeRecord,
@@ -237,22 +238,25 @@ export async function buildBootstrap(
     buildLastPerformance(hist.history), buildLastCardio(hist.cardioHistory),
     notes, hist.definitionCategories,
   );
+  // The athlete's weight context, read once and only when something here
+  // classifies a weight: a percentage target, a quarterly best to rank, or a
+  // finished session's records. A bare "80" is then 80 kg for a kg lifter
+  // everywhere, and "BW+25" resolves against their body weight.
+  const percent = hasPercentTargets(model);
+  const needsWeight = percent || !!session?.finished_at || hasQuarterCandidates(model, hist.history, event.date);
+  const read = needsWeight ? await readWeightContext(supabase, userId) : null;
+  if (needsWeight && !read) console.warn('[api] weight context unavailable, reading weights as pounds');
+  const weight = read ?? DEFAULT_WEIGHT_CONTEXT;
   // "80%" becomes 80% of the lift's best estimated 1RM here, once, so every
   // client renders the same load (D-008) — only under the unit the profile
   // actually holds: a guessed lb would put a kg lifter's 80 kg on the bar
   // as 177.5. Unknown unit, the raw "80%" shows.
-  const known = hasPercentTargets(model) ? await readWeightContext(supabase, userId) : null;
+  const known = percent ? read : null;
   // The order the athlete arranged this sitting in (phase60), over the plan's.
   const ordered = applyExerciseOrder(
     known ? resolvePercentTargets(model, hist.history, known) : model,
     parseExerciseOrder(session?.exercise_order),
   );
-  // The same context the review reads with, so a bare "80" is 80 kg for a
-  // kg lifter here too and the two never disagree about a record. An open
-  // session reads the profile only for a percentage target, so the quarter's
-  // best ranks under the pounds default there: it only orders one lift's
-  // rows, and the row it picks travels as logged.
-  const weight = known ?? (session?.finished_at ? await fetchWeightContext(supabase, userId) : DEFAULT_WEIGHT_CONTEXT);
   // Each strength exercise's best set this quarter, shown in place of its target.
   const groups = attachQuarterBests(ordered, hist.history, event.date, weight);
   let prs: WirePersonalRecord[] = [];

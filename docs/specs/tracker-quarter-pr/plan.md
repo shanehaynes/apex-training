@@ -35,7 +35,7 @@ Delivers: R1, R2, R3, R4, R5
 - Every set row but the first shows an empty cell, keeping the inputs aligned; an extra set loses its "extra" label on such a card (its remove button still marks it).
 - Dwell 4 s, fade 0.5 s each way; reduced motion shows the whole set still, since text changing every few seconds is motion too.
 - A swap clears the best for the sitting: it was the old movement's.
-- An open session ranks the best under the profile's unit only when it was already read (a percentage target); otherwise under the pounds default, so the bootstrap adds no profile read (tracker-percent.test.ts pins that). It only orders one lift's rows, which the tracker stores with their unit.
+- The best ranks under the profile's weight context, open session or finished, read once per bootstrap whenever a strength exercise has a row this quarter (or a percentage target, or the session is finished). A bare "100" is 100 kg for a kg lifter and "BW+45" needs body weight, so the pounds default would show one PR mid-workout and another after Finish (Codex review on #564). An open session with nothing to rank still adds no read; tracker-percent.test.ts now pins that case, with last quarter's history.
 
 ## Session log
 - 2026-11-11 · M1 built on `claude/project-thread-19at5q`. Not verified here: Playwright (no browser in this sandbox; CI runs the mock spec) and the live-stack fixture values (no Docker; the fixtures were written by hand from the integration scenario, and CI's full job checks them byte for byte).

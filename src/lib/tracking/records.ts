@@ -327,6 +327,11 @@ function quarterRank(row: SetLogRow, ctx: WeightContext): { rank: number; value:
   return null;
 }
 
+/** A row that can be a quarter's best: dated in the window, performed, not a pitch. */
+function isQuarterCandidate(row: SetLogRow, from: string, beforeDate: string): boolean {
+  return row.event_date >= from && row.event_date < beforeDate && isPerformedSet(row) && !isPitchRow(row);
+}
+
 /**
  * Best set per exercise name among rows dated in `beforeDate`'s calendar
  * quarter and before it (quarterRank). Warm-ups, autofills and pitches never
@@ -343,8 +348,7 @@ export function bestSetsThisQuarter(
   const quarter = quarterOf(beforeDate);
   const best = new Map<string, { rank: number; value: number; set: QuarterBest }>();
   for (const row of rows) {
-    if (row.event_date < from || row.event_date >= beforeDate) continue;
-    if (!isPerformedSet(row) || isPitchRow(row)) continue;
+    if (!isQuarterCandidate(row, from, beforeDate)) continue;
     const ranked = quarterRank(row, ctx);
     if (!ranked) continue;
     const { rank, value } = ranked;
@@ -365,6 +369,23 @@ export function bestSetsThisQuarter(
   return new Map([...best].map(([name, { set }]) => [name, set]));
 }
 
+/** Whether the session shows a strength exercise this function would rank. */
+function quarterBestApplies(tracked: TrackedSectionGroup['exercises'][number]): boolean {
+  return tracked.exercise.category === 'strength' && !tracked.isCardio;
+}
+
+/**
+ * Whether ranking this session's quarterly bests reads any history row, so
+ * the caller knows the athlete's weight context matters: a bare "100" is
+ * 100 kg for a kg lifter, and "BW+25" needs their body weight.
+ */
+export function hasQuarterCandidates(groups: TrackedSectionGroup[], history: SetLogRow[], eventDate: string): boolean {
+  const names = new Set(groups.flatMap(g => g.exercises.filter(quarterBestApplies).map(t => t.exercise.name)));
+  if (names.size === 0) return false;
+  const from = quarterStartOf(eventDate);
+  return history.some(row => names.has(row.exercise_name) && isQuarterCandidate(row, from, eventDate));
+}
+
 /**
  * Each strength exercise's quarterly best, set on the model (null when it has
  * none); every other exercise carries null. Only strength: a pitch's column is
@@ -381,9 +402,7 @@ export function attachQuarterBests(
     ...group,
     exercises: group.exercises.map(tracked => ({
       ...tracked,
-      quarterBest: tracked.exercise.category === 'strength' && !tracked.isCardio
-        ? best.get(tracked.exercise.name) ?? null
-        : null,
+      quarterBest: quarterBestApplies(tracked) ? best.get(tracked.exercise.name) ?? null : null,
     })),
   }));
 }

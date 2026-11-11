@@ -80,15 +80,36 @@ describe('bootstrap quarterBest', () => {
     expect(boot.groups[0].exercises[0].quarterBest).toBeNull();
   });
 
-  it('ranks under the profile unit once it is read: a bare 100 is 100 kg for a kg lifter', async () => {
+  // The ranking reads the athlete's profile in an open session too, so the PR
+  // shown mid-workout is the one Finish would agree with.
+  it.each([['an open', OPEN], ['a finished', FINISHED]] as const)(
+    'in %s session, ranks under the profile unit: a bare 100 is 100 kg for a kg lifter',
+    async (_label, session) => {
+      const admin = makeAdmin({
+        profiles: [{ id: 'u1', weight_unit: 'kg', body_weight_lb: null }],
+        workout_set_logs: [
+          setRow({ event_date: '2026-11-04', actual_weight: '100', actual_reps: '5' }),
+          setRow({ event_date: '2026-10-14', actual_weight: '150 lb', actual_reps: '5' }),
+        ],
+      });
+      const boot = await buildBootstrap(admin, 'u1', session, EVENT);
+      expect(boot.groups[0].exercises[0].quarterBest).toMatchObject({ weight: '100', date: '2026-11-04' });
+    },
+  );
+
+  it("resolves BW+ against the profile's body weight in an open session", async () => {
+    const pullUps = {
+      ...EVENT,
+      exercises: [{ id: 'pull', name: 'Pull-Up', category: 'strength', sets: 3, reps: '5', weight: 'BW' }],
+    } as unknown as WorkoutEvent;
     const admin = makeAdmin({
-      profiles: [{ id: 'u1', weight_unit: 'kg', body_weight_lb: null }],
+      profiles: [{ id: 'u1', weight_unit: 'lb', body_weight_lb: 180 }],
       workout_set_logs: [
-        setRow({ event_date: '2026-11-04', actual_weight: '100', actual_reps: '5' }),
-        setRow({ event_date: '2026-10-14', actual_weight: '150 lb', actual_reps: '5' }),
+        setRow({ exercise_id: 'pull', exercise_name: 'Pull-Up', event_date: '2026-11-04', actual_weight: 'BW', actual_reps: '8' }),
+        setRow({ exercise_id: 'pull', exercise_name: 'Pull-Up', event_date: '2026-10-14', actual_weight: 'BW+45', actual_reps: '5' }),
       ],
     });
-    const boot = await buildBootstrap(admin, 'u1', FINISHED, EVENT);
-    expect(boot.groups[0].exercises[0].quarterBest).toMatchObject({ weight: '100', date: '2026-11-04' });
+    const boot = await buildBootstrap(admin, 'u1', OPEN, pullUps);
+    expect(boot.groups[0].exercises[0].quarterBest).toMatchObject({ weight: 'BW+45', reps: '5' });
   });
 });

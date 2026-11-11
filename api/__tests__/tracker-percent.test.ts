@@ -131,9 +131,11 @@ describe('bootstrap resolves percentage targets', () => {
     for (const set of setsOf(boot)) expect(set).not.toHaveProperty('resolvedPlannedWeight');
   });
 
-  it('a plan without a percentage does not read the profile for an open session', async () => {
+  // History this quarter would be ranked for the quarterly PR, which reads the
+  // profile (tracker-quarter-best.test.ts); last quarter's is only a shadow.
+  it('a plan without a percentage, and nothing logged this quarter, does not read the profile for an open session', async () => {
     const reads: string[] = [];
-    const admin = makeAdmin({ workout_set_logs: [setRow({})] as unknown as Record<string, unknown>[] }, reads);
+    const admin = makeAdmin({ workout_set_logs: [setRow({ event_date: '2026-06-10' })] as unknown as Record<string, unknown>[] }, reads);
     const boot = await buildBootstrap(admin, 'u1', OPEN, event('185'));
     expect(reads).not.toContain('profiles');
     expect(setsOf(boot)[0]).not.toHaveProperty('resolvedPlannedWeight');
