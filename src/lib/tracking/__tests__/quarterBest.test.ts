@@ -83,6 +83,18 @@ describe('bestSetsThisQuarter (R1, R2)', () => {
     expect(best.get('Plank')).toMatchObject({ weight: '', reps: '', duration: '1:30' });
   });
 
+  it('ranks a weighted hold or carry by its weight, above a bare hold', () => {
+    const best = bestSetsThisQuarter([
+      row({ exercise_name: 'Plank', actual_weight: '45 lb', actual_reps: null, actual_duration: '1:00' }),
+      row({ exercise_name: 'Plank', actual_weight: null, actual_reps: null, actual_duration: '2:00' }),
+      row({ exercise_name: 'Farmer Carry', actual_weight: '100 lb', actual_reps: null, actual_duration: '45s' }),
+      row({ exercise_name: 'Farmer Carry', actual_weight: '100 lb', actual_reps: null, actual_duration: '60s' }),
+      row({ exercise_name: 'Farmer Carry', actual_weight: '90 lb', actual_reps: null, actual_duration: '90s' }),
+    ], TODAY);
+    expect(best.get('Plank')).toMatchObject({ weight: '45 lb', duration: '1:00' });
+    expect(best.get('Farmer Carry')).toMatchObject({ weight: '100 lb', duration: '60s' });
+  });
+
   it('keeps the first of two equal sets, the newest in the tracker history order', () => {
     const best = bestSetsThisQuarter([
       row({ event_date: '2026-11-04' }),

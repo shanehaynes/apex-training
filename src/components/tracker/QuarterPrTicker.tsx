@@ -11,9 +11,10 @@ export interface TickerState {
   shown: boolean;
 }
 
-/** How long the line stays in `state` before tickerAdvance moves it on. */
+/** How long the line stays in `state` before tickerAdvance moves it on: a
+ *  shown field fades in first, so it waits out the fade and then DWELL_MS. */
 export function tickerDelay(state: TickerState): number {
-  return state.shown ? DWELL_MS : FADE_MS;
+  return state.shown ? FADE_MS + DWELL_MS : FADE_MS;
 }
 
 /** A showing field fades out; a faded one gives way to the next field, fading in. */

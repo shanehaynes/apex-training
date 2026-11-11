@@ -282,7 +282,8 @@ export function bestHistoricalCardio(rows: CardioLogRow[]): {
 // best set of it logged this calendar quarter, before the session's own date —
 // the number to beat today. "Best" is the PR dimension classifySet gives the
 // row (heaviest estimated 1RM, else longest hold, else most reps), and a
-// weighted row always outranks an unweighted one, the same rule records use.
+// weighted row always outranks an unweighted one, the same rule records use;
+// a weighted hold or carry, which records leave out, ranks by its weight.
 // The set travels as its logged text, so what the athlete reads is what they
 // typed, never a recomputed number.
 
@@ -309,12 +310,27 @@ export function quarterOf(date: string): 1 | 2 | 3 | 4 {
   return (Math.floor((Number(date.slice(5, 7)) - 1) / 3) + 1) as 1 | 2 | 3 | 4;
 }
 
-const KIND_RANK = { reps: 0, duration: 1, oneRM: 2 } as const;
+/**
+ * A row's place in the quarterly ranking: its kind (higher beats lower) and
+ * its value within the kind. classifySet's kinds, plus a weighted hold or
+ * carry (weight and time, no reps), which it does not classify: ranked by
+ * weight, then time, above a bare hold and below a weight × reps set.
+ */
+function quarterRank(row: SetLogRow, ctx: WeightContext): { rank: number; value: number } | null {
+  const set = classifySet(row.actual_weight, row.actual_reps, row.actual_duration, ctx);
+  if (set?.kind === 'oneRM') return { rank: 3, value: set.oneRM };
+  if (set?.kind === 'duration') return { rank: 1, value: set.seconds };
+  if (set?.kind === 'reps') return { rank: 0, value: set.reps };
+  const load = parseWeight(row.actual_weight, ctx);
+  const seconds = parseDurationSeconds(row.actual_duration);
+  if (load && load.lb > 0 && seconds !== null) return { rank: 2, value: load.lb * 1e6 + seconds };
+  return null;
+}
 
 /**
  * Best set per exercise name among rows dated in `beforeDate`'s calendar
- * quarter and before it. Warm-ups, autofills and pitches never count; a row
- * classifySet cannot read (no reps, no parseable time) is not a set to beat.
+ * quarter and before it (quarterRank). Warm-ups, autofills and pitches never
+ * count; a row with no reps and no parseable time is not a set to beat.
  * Ties keep the row seen first, which in the tracker's history (newest first)
  * is the most recent.
  */
@@ -329,10 +345,9 @@ export function bestSetsThisQuarter(
   for (const row of rows) {
     if (row.event_date < from || row.event_date >= beforeDate) continue;
     if (!isPerformedSet(row) || isPitchRow(row)) continue;
-    const set = classifySet(row.actual_weight, row.actual_reps, row.actual_duration, ctx);
-    if (!set) continue;
-    const rank = KIND_RANK[set.kind];
-    const value = set.kind === 'oneRM' ? set.oneRM : set.kind === 'duration' ? set.seconds : set.reps;
+    const ranked = quarterRank(row, ctx);
+    if (!ranked) continue;
+    const { rank, value } = ranked;
     const held = best.get(row.exercise_name);
     if (held && (held.rank > rank || (held.rank === rank && held.value >= value))) continue;
     best.set(row.exercise_name, {

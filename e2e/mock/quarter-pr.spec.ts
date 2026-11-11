@@ -91,9 +91,11 @@ test('the quarter\'s best replaces the targets, on the first row, one field at a
   await expect(rows(page, 'Bench Press').first().locator('.quarter-pr__sr')).toHaveText(/Best set this quarter \(Q[1-4]\), logged .+: 205 lb × 3/);
   await shot(page, 'quarter-pr-weight');
 
-  // It fades out, the reps fade in, and it comes back round to the weight.
-  await expect(value(page, 'Bench Press')).toHaveClass(/quarter-pr__value--hidden/, { timeout: 6000 });
-  await expect(value(page, 'Bench Press')).toHaveText('3 reps', { timeout: 2000 });
+  // Changes fade: only opacity moves, over half a second.
+  await expect(value(page, 'Bench Press')).toHaveCSS('transition-property', 'opacity');
+  await expect(value(page, 'Bench Press')).toHaveCSS('transition-duration', '0.5s');
+  // The reps come in after the weight's turn, then it comes back round.
+  await expect(value(page, 'Bench Press')).toHaveText('3 reps', { timeout: 7000 });
   await expect(value(page, 'Bench Press')).not.toHaveClass(/quarter-pr__value--hidden/);
   await shot(page, 'quarter-pr-reps');
   await expect(value(page, 'Bench Press')).toHaveText('205 lb', { timeout: 7000 });

@@ -54,6 +54,31 @@ describe('TrackerExercise — the quarterly best replaces the target (R1, R3)', 
     expect(html).not.toContain('185 lb × 5');
   });
 
+  it('puts the best on the first working set when a warm-up leads', () => {
+    const tracked = buildTrackerModel({
+      id: 'evt', title: 'Push', date: '2026-11-11', type: 'weights',
+      exercises: [{ id: 'bench', name: 'Bench Press', category: 'strength', sets: 3, reps: '5', weight: '185 lb' }],
+    } as Parameters<typeof buildTrackerModel>[0])[0].exercises[0];
+    const html = renderToStaticMarkup(
+      <TrackerExercise
+        tracked={{ ...tracked, quarterBest: BEST, sets: tracked.sets.map(s => ({ ...s, isWarmup: s.setNumber === 1 })) }}
+        accentColor="#123456"
+        onSetChange={() => {}}
+        onCardioChange={() => {}}
+        onCommitSetShadow={() => {}}
+        onCommitCardioShadow={() => {}}
+        onAddSet={() => {}}
+        onRemoveSet={() => {}}
+        onSwap={() => {}}
+        onNoteChange={() => {}}
+      />,
+    );
+    const cells = plannedCells(html);
+    expect(cells[0]).toBe('');
+    expect(cells[1]).toContain('205 lb');
+    expect(cells[2]).toBe('');
+  });
+
   it('keeps the plan targets when there is no set this quarter (R5)', () => {
     for (const none of [null, undefined]) {
       const html = render(none);
@@ -79,7 +104,7 @@ describe('QuarterPrTicker (R3, R4)', () => {
     expect(html).not.toContain('quarter-pr__value--hidden');
   });
 
-  it('shows a field for four seconds, fades out, then fades the next one in, round and round', () => {
+  it('holds a field fully shown for four seconds, fades it out, then fades the next one in, round and round', () => {
     let state: TickerState = { index: 0, shown: true };
     const seen: [number, boolean, number][] = [];
     for (let i = 0; i < 6; i++) {
@@ -87,9 +112,9 @@ describe('QuarterPrTicker (R3, R4)', () => {
       state = tickerAdvance(state, 3);
     }
     expect(seen).toEqual([
-      [0, true, DWELL_MS], [0, false, FADE_MS],
-      [1, true, DWELL_MS], [1, false, FADE_MS],
-      [2, true, DWELL_MS], [2, false, FADE_MS],
+      [0, true, FADE_MS + DWELL_MS], [0, false, FADE_MS],
+      [1, true, FADE_MS + DWELL_MS], [1, false, FADE_MS],
+      [2, true, FADE_MS + DWELL_MS], [2, false, FADE_MS],
     ]);
     expect(state).toEqual({ index: 0, shown: true });
     expect(DWELL_MS).toBeGreaterThanOrEqual(3000);

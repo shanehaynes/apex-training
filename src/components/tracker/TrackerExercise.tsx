@@ -454,6 +454,8 @@ export default function TrackerExercise({
       description={quarterBestDescription(quarterBest, weightContext)}
     />
   ) : undefined;
+  // The first working set holds it; a warm-up before it is not the set to beat.
+  const prRow = Math.max(0, tracked.sets.findIndex(set => !set.isWarmup));
 
   // Only after a swap: the reps were entered against the movement this one
   // replaced, so a bilateral count carried onto a unilateral movement is
@@ -587,7 +589,7 @@ export default function TrackerExercise({
             <SetRow
               key={set.setNumber}
               set={set}
-              prSlot={quarterCell === undefined ? undefined : i === 0 ? quarterCell : null}
+              prSlot={quarterCell === undefined ? undefined : i === prRow ? quarterCell : null}
               fields={fields}
               labels={labels}
               freeText={isClimb}

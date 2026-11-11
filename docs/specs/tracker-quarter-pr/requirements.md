@@ -26,16 +26,18 @@ computed in code from logged rows; nothing is estimated for display).
   `quarter` (1–4). Every other exercise, and a strength exercise with no
   such set, carries `null`.
 - **R2** "Best" follows the record rules: the row's kind is classifySet's
-  (weight × reps → estimated 1RM; else duration; else reps), a weighted row
-  outranks an unweighted one, a hold outranks a bare count, and the higher
+  (weight × reps → estimated 1RM; else duration; else reps), plus a weighted
+  hold or carry (weight and time, no reps) ranked by weight then time. A
+  weighted row outranks an unweighted one, a hold outranks a bare count, and the higher
   value wins within a kind. Warm-ups, autofills and climbing pitches never
   count. Ties keep the most recent.
 - **R3** With a `quarterBest`, the column heading reads "Q<n> PR", the first
-  set row's cell shows the best set, and every other row's cell is empty.
+  working (non-warm-up) set row's cell shows the best set, and every other
+  row's cell is empty.
   The plan's per-set label does not show on that card.
 - **R4** The cell shows the set's filled fields one at a time, in the order
   weight, reps, time ("205 lb", "3 reps", "1:30"): each stays for 4 s, fades
-  out over 0.5 s, and the next fades in over 0.5 s, round and round. A single
+  out over 0.5 s, and the next fades in, round and round. A single
   field stays still. With `prefers-reduced-motion: reduce` nothing moves and
   the whole set shows on one line ("205 lb × 3"). A screen reader reads the
   whole set, its quarter and its date once, never the cycling text.
@@ -51,6 +53,9 @@ computed in code from logged rows; nothing is estimated for display).
 - Any change to PR detection at Finish.
 
 ## Open questions
+- A prescribed program (percentage loads, per-set reps that differ) loses
+  its per-set labels on a card that shows a best; the resolved load still
+  ghosts in the weight field. Shane to confirm that trade.
 - Calendar quarter or trailing 90 days. Built as the calendar quarter, which
   "quarterly PR" names; early in a quarter there is little to show and the
   plan shows instead. Shane to confirm.
