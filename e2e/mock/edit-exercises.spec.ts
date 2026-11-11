@@ -1,5 +1,5 @@
 import { test, expect, apexState, gotoCalendar, shot } from '../lib/fixtures';
-import { stubLibrary } from '../lib/library';
+import { stubLibrary, LIBRARY } from '../lib/library';
 
 test('add an exercise via the picker and save (stubbed PATCH)', async ({ page }) => {
   await gotoCalendar(page);
@@ -134,4 +134,24 @@ test('closing the picker without Done adds nothing', async ({ page }) => {
   await picker.getByRole('button', { name: 'Close picker' }).click();
   await expect(picker).toHaveCount(0);
   await expect(page.locator('.editor-card')).toHaveCount(cardsBefore);
+});
+
+test('the picker search treats single and open as the same word', async ({ page }) => {
+  const singleLegRdl = { ...LIBRARY[2], id: 'single-leg-rdl', canonical_name: 'Single-Leg RDL' };
+  const openHandHang = { ...LIBRARY[2], id: 'open-hand-hang', canonical_name: 'Open Hand Hang' };
+  await stubLibrary(page, [...LIBRARY, singleLegRdl, openHandHang]);
+  await gotoCalendar(page);
+
+  await page.locator('.event-chip__main').first().click();
+  await page.locator('.modal-edit-exercises').click();
+  await page.locator('.exercise-editor__add').first().click();
+  const picker = page.locator('.exercise-picker');
+  await picker.locator('.library-filter', { hasText: 'All' }).click();
+  const names = picker.locator('.exercise-picker__row-name');
+
+  await picker.locator('.exercise-picker__input').fill('open');
+  await expect(names).toHaveText(['Open Hand Hang', 'Single-Leg RDL']);
+
+  await picker.locator('.exercise-picker__input').fill('single');
+  await expect(names).toHaveText(['Open Hand Hang', 'Single-Leg RDL']);
 });
