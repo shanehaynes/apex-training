@@ -5,7 +5,7 @@ import { Search, X } from 'lucide-react';
 import { useSchedule } from '../../context/schedule';
 import { buildAliasIndex, matchDefinitionByName, nearMatchDefinitions } from '../../lib/schedule/definitions';
 import { fetchLastPerformedRows } from '../../lib/library/repo';
-import { matchesLibrarySearch } from '../../lib/library/search';
+import { librarySearch } from '../../lib/library/search';
 import { lastPerformedByCanonical } from '../../lib/library/stats';
 import CreateDefinitionInline from './CreateDefinitionInline';
 import { enqueue, dequeue, type QueuedPick } from '../../lib/schedule/pickerQueue';
@@ -112,7 +112,7 @@ export default function ExercisePicker({ onSelect, onDone, onClose, initialCateg
 
   const results = useMemo(() => {
     return pickable
-      .filter(def => matchesLibrarySearch(def, query))
+      .filter(librarySearch(query))
       .sort((a, b) => a.canonicalName.localeCompare(b.canonicalName));
   }, [pickable, query]);
 

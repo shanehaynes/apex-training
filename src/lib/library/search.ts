@@ -48,12 +48,17 @@ export function searchPatterns(query: string): RegExp[] {
 }
 
 /**
- * Whether a library movement matches a search: any pattern in its name, an
- * alias or a muscle group. An empty query matches everything.
+ * A matcher for one search: a movement matches when any pattern is in its
+ * name, an alias or a muscle group. An empty query matches everything. The
+ * patterns are built once per query, not once per movement.
  */
-export function matchesLibrarySearch(def: ExerciseDefinition, query: string): boolean {
+export function librarySearch(query: string): (def: ExerciseDefinition) => boolean {
   const patterns = searchPatterns(query);
-  if (patterns.length === 0) return true;
-  const fields = [def.canonicalName, ...def.aliases, ...def.muscleGroups].map(f => f.toLowerCase());
-  return patterns.some(p => fields.some(f => p.test(f)));
+  if (patterns.length === 0) return () => true;
+  return def => [def.canonicalName, ...def.aliases, ...def.muscleGroups]
+    .some(field => { const f = field.toLowerCase(); return patterns.some(p => p.test(f)); });
+}
+
+export function matchesLibrarySearch(def: ExerciseDefinition, query: string): boolean {
+  return librarySearch(query)(def);
 }
