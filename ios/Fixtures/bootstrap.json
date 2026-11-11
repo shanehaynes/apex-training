@@ -125,7 +125,14 @@
               "attempts": ""
             }
           ],
-          "cardio": null
+          "cardio": null,
+          "quarterBest": {
+            "weight": "110 lb",
+            "reps": "3",
+            "duration": "",
+            "date": "2026-09-08",
+            "quarter": 3
+          }
         },
         {
           "section": "exercise",
@@ -146,7 +153,8 @@
             "avgHeartRate": "",
             "isLogged": false,
             "shadow": null
-          }
+          },
+          "quarterBest": null
         }
       ]
     }

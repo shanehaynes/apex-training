@@ -639,6 +639,8 @@ export function useWorkoutSession(
         // A resolved "80%" was a load for the old lift's max, not this one's.
         ...clearResolvedLoads(t),
         exercise: { ...t.exercise, name: def.canonicalName, definitionId: def.id },
+        // The quarter's best was the old movement's; the next load brings this one's.
+        quarterBest: null,
         // Swapping back to the planned movement is not a substitution.
         substitutedFrom: from === def.canonicalName ? null : from,
       };

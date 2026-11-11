@@ -277,6 +277,102 @@ export function bestHistoricalCardio(rows: CardioLogRow[]): {
   return { distance, elevation };
 }
 
+// ─── Quarterly best set ───────────────────────────────────────────────────────
+// What the tracker shows in place of a strength exercise's planned target: the
+// best set of it logged this calendar quarter, before the session's own date —
+// the number to beat today. "Best" is the PR dimension classifySet gives the
+// row (heaviest estimated 1RM, else longest hold, else most reps), and a
+// weighted row always outranks an unweighted one, the same rule records use.
+// The set travels as its logged text, so what the athlete reads is what they
+// typed, never a recomputed number.
+
+/** The logged text of the best set this quarter; '' for a field the row left empty. */
+export interface QuarterBest {
+  weight: string;
+  reps: string;
+  duration: string;
+  /** event_date of the session that logged it. */
+  date: string;
+  /** The calendar quarter it is best in, 1–4 ("Q4"). */
+  quarter: 1 | 2 | 3 | 4;
+}
+
+/** First day of the calendar quarter holding `date` (YYYY-MM-DD): 2026-11-11 → 2026-10-01. */
+export function quarterStartOf(date: string): string {
+  const month = Number(date.slice(5, 7));
+  const first = Math.floor((month - 1) / 3) * 3 + 1;
+  return `${date.slice(0, 4)}-${String(first).padStart(2, '0')}-01`;
+}
+
+/** The calendar quarter of `date`, 1–4. */
+export function quarterOf(date: string): 1 | 2 | 3 | 4 {
+  return (Math.floor((Number(date.slice(5, 7)) - 1) / 3) + 1) as 1 | 2 | 3 | 4;
+}
+
+const KIND_RANK = { reps: 0, duration: 1, oneRM: 2 } as const;
+
+/**
+ * Best set per exercise name among rows dated in `beforeDate`'s calendar
+ * quarter and before it. Warm-ups, autofills and pitches never count; a row
+ * classifySet cannot read (no reps, no parseable time) is not a set to beat.
+ * Ties keep the row seen first, which in the tracker's history (newest first)
+ * is the most recent.
+ */
+export function bestSetsThisQuarter(
+  rows: SetLogRow[],
+  beforeDate: string,
+  ctx: WeightContext = DEFAULT_WEIGHT_CONTEXT,
+): Map<string, QuarterBest> {
+  const from = quarterStartOf(beforeDate);
+  const quarter = quarterOf(beforeDate);
+  const best = new Map<string, { rank: number; value: number; set: QuarterBest }>();
+  for (const row of rows) {
+    if (row.event_date < from || row.event_date >= beforeDate) continue;
+    if (!isPerformedSet(row) || isPitchRow(row)) continue;
+    const set = classifySet(row.actual_weight, row.actual_reps, row.actual_duration, ctx);
+    if (!set) continue;
+    const rank = KIND_RANK[set.kind];
+    const value = set.kind === 'oneRM' ? set.oneRM : set.kind === 'duration' ? set.seconds : set.reps;
+    const held = best.get(row.exercise_name);
+    if (held && (held.rank > rank || (held.rank === rank && held.value >= value))) continue;
+    best.set(row.exercise_name, {
+      rank,
+      value,
+      set: {
+        weight: row.actual_weight?.trim() ?? '',
+        reps: row.actual_reps?.trim() ?? '',
+        duration: row.actual_duration?.trim() ?? '',
+        date: row.event_date,
+        quarter,
+      },
+    });
+  }
+  return new Map([...best].map(([name, { set }]) => [name, set]));
+}
+
+/**
+ * Each strength exercise's quarterly best, set on the model (null when it has
+ * none); every other exercise carries null. Only strength: a pitch's column is
+ * its grade, cardio has no set rows, and mobility keeps its prescription.
+ */
+export function attachQuarterBests(
+  groups: TrackedSectionGroup[],
+  history: SetLogRow[],
+  eventDate: string,
+  ctx: WeightContext = DEFAULT_WEIGHT_CONTEXT,
+): TrackedSectionGroup[] {
+  const best = bestSetsThisQuarter(history, eventDate, ctx);
+  return groups.map(group => ({
+    ...group,
+    exercises: group.exercises.map(tracked => ({
+      ...tracked,
+      quarterBest: tracked.exercise.category === 'strength' && !tracked.isCardio
+        ? best.get(tracked.exercise.name) ?? null
+        : null,
+    })),
+  }));
+}
+
 // ─── Climbing sends ───────────────────────────────────────────────────────────
 // A pitch's grade rides the weight column, but it is never a weight: no pitch
 // enters the oneRM / duration / reps kinds, whatever its text parses to

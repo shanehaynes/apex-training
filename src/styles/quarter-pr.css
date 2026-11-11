@@ -1,0 +1,36 @@
+/* The quarterly best in the target column: one field at a time, fading
+   between them (QuarterPrTicker). Only opacity moves, so the row never
+   reflows while a value changes. */
+.tracker-set__planned.quarter-pr {
+  color: var(--text-secondary, var(--text-muted));
+}
+
+.quarter-pr__value {
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: bottom;
+  opacity: 1;
+  transition: opacity 500ms ease-in-out;
+}
+
+.quarter-pr__value--hidden {
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .quarter-pr__value {
+    transition: none;
+  }
+}
+
+/* Read once by a screen reader, in place of the cycling text. */
+.quarter-pr__sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
