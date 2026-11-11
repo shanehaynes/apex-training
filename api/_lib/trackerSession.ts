@@ -220,12 +220,6 @@ export interface TrackerBootstrap {
   lastLoggedAt: string | null;
 }
 
-/** A strength exercise in the model has prior rows — a quarterly best to judge. */
-function hasStrengthHistory(groups: TrackedSectionGroup[], history: SetLogRow[]): boolean {
-  const names = new Set(history.map(r => r.exercise_name));
-  return groups.some(g => g.exercises.some(t => t.exercise.category === 'strength' && names.has(t.exercise.name)));
-}
-
 /** The tracker's opening state: plan × saved rows × last-session shadows. */
 export async function buildBootstrap(
   supabase: Admin,
@@ -254,10 +248,11 @@ export async function buildBootstrap(
     parseExerciseOrder(session?.exercise_order),
   );
   // The same context the review reads with, so a bare "80" is 80 kg for a
-  // kg lifter here too and the two never disagree about a record. Read once,
-  // and only when a record is to be judged.
-  const needsWeight = !!session?.finished_at || hasStrengthHistory(ordered, hist.history);
-  const weight = needsWeight ? known ?? await fetchWeightContext(supabase, userId) : DEFAULT_WEIGHT_CONTEXT;
+  // kg lifter here too and the two never disagree about a record. An open
+  // session reads the profile only for a percentage target, so the quarter's
+  // best ranks under the pounds default there: it only orders one lift's
+  // rows, and the row it picks travels as logged.
+  const weight = known ?? (session?.finished_at ? await fetchWeightContext(supabase, userId) : DEFAULT_WEIGHT_CONTEXT);
   // Each strength exercise's best set this quarter, shown in place of its target.
   const groups = attachQuarterBests(ordered, hist.history, event.date, weight);
   let prs: WirePersonalRecord[] = [];
