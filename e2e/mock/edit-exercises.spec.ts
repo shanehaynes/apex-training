@@ -136,10 +136,10 @@ test('closing the picker without Done adds nothing', async ({ page }) => {
   await expect(page.locator('.editor-card')).toHaveCount(cardsBefore);
 });
 
-test('the picker search treats single and open as the same word', async ({ page }) => {
+test('the picker search treats single and one as the same word', async ({ page }) => {
   const singleLegRdl = { ...LIBRARY[2], id: 'single-leg-rdl', canonical_name: 'Single-Leg RDL' };
-  const openHandHang = { ...LIBRARY[2], id: 'open-hand-hang', canonical_name: 'Open Hand Hang' };
-  await stubLibrary(page, [...LIBRARY, singleLegRdl, openHandHang]);
+  const oneArmRow = { ...LIBRARY[2], id: 'one-arm-row', canonical_name: 'One Arm Row' };
+  await stubLibrary(page, [...LIBRARY, singleLegRdl, oneArmRow]);
   await gotoCalendar(page);
 
   await page.locator('.event-chip__main').first().click();
@@ -149,9 +149,9 @@ test('the picker search treats single and open as the same word', async ({ page 
   await picker.locator('.library-filter', { hasText: 'All' }).click();
   const names = picker.locator('.exercise-picker__row-name');
 
-  await picker.locator('.exercise-picker__input').fill('open');
-  await expect(names).toHaveText(['Open Hand Hang', 'Single-Leg RDL']);
+  await picker.locator('.exercise-picker__input').fill('one');
+  await expect(names).toHaveText(['One Arm Row', 'Single-Leg RDL']);
 
   await picker.locator('.exercise-picker__input').fill('single');
-  await expect(names).toHaveText(['Open Hand Hang', 'Single-Leg RDL']);
+  await expect(names).toHaveText(['One Arm Row', 'Single-Leg RDL']);
 });

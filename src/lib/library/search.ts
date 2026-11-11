@@ -3,11 +3,11 @@ import type { ExerciseDefinition } from '../../types/workout';
 /**
  * Words the library search treats as the same word. Each group is a set of
  * interchangeable whole words: a query that uses one also matches names that
- * use any other, so "single" finds "Open …" movements and "open" finds
- * "Single …" ones. Shane asked for single ↔ open (2026-11-11).
+ * use any other, so "single" finds "One Arm …" movements and "one" finds
+ * "Single …" ones. Shane asked for single ↔ one (2026-11-11).
  */
 export const SEARCH_SYNONYMS: readonly (readonly string[])[] = [
-  ['single', 'open'],
+  ['single', 'one'],
 ];
 
 const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -21,8 +21,8 @@ const SYNONYM_WORD = new RegExp(`\\b(${[...synonymsOf.keys()].map(escape).join('
  * What a query matches, as patterns: the query itself as a plain substring
  * (the search as it always was), then one pattern per synonym swap. Only a
  * whole word of the query is swapped, so a half-typed "sing" stays as typed,
- * and the swapped-in word must be a whole word in the name too, so "single"
- * finds "Open Hand Hang" but not "Hip Opener".
+ * and the swapped-in word must be a whole word in the name too, so "one" finds
+ * "Single-Leg RDL" but not "Prone YTWs", and "single" not "Singles".
  */
 export function searchPatterns(query: string): RegExp[] {
   const base = query.trim().toLowerCase();
