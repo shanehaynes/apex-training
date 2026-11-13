@@ -104,6 +104,7 @@ ios:
   # sources, which is what ApexKit is.
   runs-on: macos-26
   timeout-minutes: 75
+  env: { IOS_SIM_DEVICE: iPhone 17, IOS_SIM_OS: '26.5' }
   steps:
     - name: Fail when the changes job did not decide
       if: needs.changes.result != 'success'
@@ -112,7 +113,10 @@ ios:
       with: { fetch-depth: 0 }
     - run: brew install xcodegen
     - run: xcodegen generate --spec ios/project.yml
-    - run: xcodebuild -project ios/Apex.xcodeproj -scheme Apex -configuration Local -destination 'platform=iOS Simulator,name=iPhone 17,OS=26.5' -derivedDataPath ios/build/dd -resultBundlePath ios/build/Apex.xcresult -retry-tests-on-failure -test-iterations 2 CODE_SIGNING_ALLOWED=NO test
+    - name: Wait for the pinned simulator   # polls simctl up to 3 min, restarts CoreSimulatorService once, then fails naming the case
+      timeout-minutes: 10
+      run: …
+    - run: xcodebuild -project ios/Apex.xcodeproj -scheme Apex -configuration Local -destination "platform=iOS Simulator,name=$IOS_SIM_DEVICE,OS=$IOS_SIM_OS" -derivedDataPath ios/build/dd -resultBundlePath ios/build/Apex.xcresult -retry-tests-on-failure -test-iterations 2 CODE_SIGNING_ALLOWED=NO test
     - uses: actions/upload-artifact@v7
       if: always()
       with: { name: ios-results, path: ios/build/Apex.xcresult, retention-days: 7 }
@@ -174,9 +178,50 @@ a green check.
 
 Why `OS=26.5`: a destination without one matches every runtime that carries an iPhone 17, and
 xcodebuild picks the first — so the image deciding to ship a second runtime would change what
-the tests ran on, quietly. Pinned, that same image change fails the job with "Unable to find a
-device matching the provided destination specifier", and the pin moves in a PR. `screenshots.sh`
-takes the runtime as its second argument for the same reason.
+the tests ran on, quietly. Pinned, an image that drops the runtime fails the job in the wait
+step, with an error that names the pin, and the pin (`IOS_SIM_DEVICE`, `IOS_SIM_OS` on the job)
+moves in a PR. `screenshots.sh` takes the runtime as its second argument for the same reason.
+
+Why the simulator wait: a macos-26 runner sometimes comes up with no simulators at all.
+xcodebuild then waits 60 s, lists only the "Any iOS Simulator Device" placeholder and fails
+with "Unable to find a device matching the provided destination specifier" (exit 70), which
+looks exactly like a pin the image dropped. Every hit was attempt 1 of its run:
+
+| Run | Date | Where | Image |
+|---|---|---|---|
+| 38276645385 | 2026-10-12 | main push | 20260907.0351.1 |
+| 38583249804 | 2026-10-14 | nightly | 20260907.0351.1 |
+| 38751943623 | 2026-10-15 | nightly | 20260907.0351.1 |
+| 39596224696 | 2026-10-21 | PR, `feat/w17-voice-logging` | 20261013.0424.1 |
+| 40888121776 | 2026-10-29 | PR, #518's `throwaway/ios-only` | 20261021.0445.8 |
+| 41525428660 | 2026-11-02 | PR, `fix/stop-gate-caffeinate-sidecar` | 20261021.0445.8 |
+| 41710592089 | 2026-11-03 | main push | 20261026.0455.2 |
+| 42487079800 | 2026-11-08 | main push | 20261102.0473.1 |
+
+From 10-29 to 11-08 that is 4 of the 52 attempts that reached "Build and test". Other runs on
+the same images found the device, and the next attempt or run passed, so it is the machine.
+
+The step before "Build and test" polls `xcrun simctl list -j` every 10 s for up to 3 minutes,
+matching the runtime on its version (as xcodebuild's `OS=` does) and the device on its name.
+On a miss it prints `simctl list runtimes`, `simctl runtime list` and `simctl list devices`,
+restarts CoreSimulatorService once and polls 90 s more. Each `simctl` call is cut off at 20 s,
+so a service that hangs counts as a miss. If the device never comes, the error names the case.
+The machine (no iOS simulators, or the runtime there but unavailable or without devices) says
+re-run with `gh run rerun <id> --failed` and change no code. The image (no runtime of that
+version, or none of its devices has the pinned name) says move `IOS_SIM_OS` or
+`IOS_SIM_DEVICE` in a PR. A device of the pinned name that is there but unavailable says
+re-run once, then move `IOS_SIM_DEVICE`. `scripts/__tests__/ci-ios-sim-wait.test.ts` runs the
+step's script out of ci.yml against a fake clock, `simctl` and `sudo`, with the real windows,
+for every one of these cases.
+
+Whether the wait or the restart rescues a bad runner is unproven: no bad runner has been
+caught since the step landed. A run where the device came after 120 s, or only after the
+restart, carries a notice annotation, and those notices are the evidence. 120 s is past the
+latest point at which xcodebuild alone gave up in the eight failures (89–110 s into "Build and
+test", package resolution included). Whether xcodebuild notices a device that appears during
+its own 60 s wait is unknown. If it does not, earlier arrivals were rescues too; the step's
+log line gives each arrival's time. If a run passes the step and still fails "Build and test"
+with that error, simctl and xcodebuild disagree, and the step is not the fix.
 
 ## Local loop on the Mac
 
