@@ -277,6 +277,136 @@ export function bestHistoricalCardio(rows: CardioLogRow[]): {
   return { distance, elevation };
 }
 
+// ─── Quarterly best set ───────────────────────────────────────────────────────
+// What the tracker shows in place of a strength exercise's planned target: the
+// best set of it logged this calendar quarter, before the session's own date —
+// the number to beat today. "Best" is the PR dimension classifySet gives the
+// row (heaviest estimated 1RM, else longest hold, else most reps), and a
+// weighted row always outranks an unweighted one, the same rule records use;
+// a weighted hold or carry, which records leave out, ranks by its weight.
+// The set travels as its logged text, so what the athlete reads is what they
+// typed, never a recomputed number.
+
+/** The logged text of the best set this quarter; '' for a field the row left empty. */
+export interface QuarterBest {
+  weight: string;
+  reps: string;
+  duration: string;
+  /** event_date of the session that logged it. */
+  date: string;
+  /** The calendar quarter it is best in, 1–4 ("Q4"). */
+  quarter: 1 | 2 | 3 | 4;
+}
+
+/** First day of the calendar quarter holding `date` (YYYY-MM-DD): 2026-11-11 → 2026-10-01. */
+export function quarterStartOf(date: string): string {
+  const month = Number(date.slice(5, 7));
+  const first = Math.floor((month - 1) / 3) * 3 + 1;
+  return `${date.slice(0, 4)}-${String(first).padStart(2, '0')}-01`;
+}
+
+/** The calendar quarter of `date`, 1–4. */
+export function quarterOf(date: string): 1 | 2 | 3 | 4 {
+  return (Math.floor((Number(date.slice(5, 7)) - 1) / 3) + 1) as 1 | 2 | 3 | 4;
+}
+
+/**
+ * A row's place in the quarterly ranking: its kind (higher beats lower) and
+ * its value within the kind. classifySet's kinds, plus a weighted hold or
+ * carry (weight and time, no reps), which it does not classify: ranked by
+ * weight, then time, above a bare hold and below a weight × reps set.
+ */
+function quarterRank(row: SetLogRow, ctx: WeightContext): { rank: number; value: number } | null {
+  const set = classifySet(row.actual_weight, row.actual_reps, row.actual_duration, ctx);
+  if (set?.kind === 'oneRM') return { rank: 3, value: set.oneRM };
+  if (set?.kind === 'duration') return { rank: 1, value: set.seconds };
+  if (set?.kind === 'reps') return { rank: 0, value: set.reps };
+  const load = parseWeight(row.actual_weight, ctx);
+  const seconds = parseDurationSeconds(row.actual_duration);
+  if (load && load.lb > 0 && seconds !== null) return { rank: 2, value: load.lb * 1e6 + seconds };
+  return null;
+}
+
+/** A row that can be a quarter's best: dated in the window, performed, not a pitch. */
+function isQuarterCandidate(row: SetLogRow, from: string, beforeDate: string): boolean {
+  return row.event_date >= from && row.event_date < beforeDate && isPerformedSet(row) && !isPitchRow(row);
+}
+
+/**
+ * Best set per exercise name among rows dated in `beforeDate`'s calendar
+ * quarter and before it (quarterRank). Warm-ups, autofills and pitches never
+ * count; a row with no reps and no parseable time is not a set to beat.
+ * Ties keep the row seen first, which in the tracker's history (newest first)
+ * is the most recent.
+ */
+export function bestSetsThisQuarter(
+  rows: SetLogRow[],
+  beforeDate: string,
+  ctx: WeightContext = DEFAULT_WEIGHT_CONTEXT,
+): Map<string, QuarterBest> {
+  const from = quarterStartOf(beforeDate);
+  const quarter = quarterOf(beforeDate);
+  const best = new Map<string, { rank: number; value: number; set: QuarterBest }>();
+  for (const row of rows) {
+    if (!isQuarterCandidate(row, from, beforeDate)) continue;
+    const ranked = quarterRank(row, ctx);
+    if (!ranked) continue;
+    const { rank, value } = ranked;
+    const held = best.get(row.exercise_name);
+    if (held && (held.rank > rank || (held.rank === rank && held.value >= value))) continue;
+    best.set(row.exercise_name, {
+      rank,
+      value,
+      set: {
+        weight: row.actual_weight?.trim() ?? '',
+        reps: row.actual_reps?.trim() ?? '',
+        duration: row.actual_duration?.trim() ?? '',
+        date: row.event_date,
+        quarter,
+      },
+    });
+  }
+  return new Map([...best].map(([name, { set }]) => [name, set]));
+}
+
+/** Whether the session shows a strength exercise this function would rank. */
+function quarterBestApplies(tracked: TrackedSectionGroup['exercises'][number]): boolean {
+  return tracked.exercise.category === 'strength' && !tracked.isCardio;
+}
+
+/**
+ * Whether ranking this session's quarterly bests reads any history row, so
+ * the caller knows the athlete's weight context matters: a bare "100" is
+ * 100 kg for a kg lifter, and "BW+25" needs their body weight.
+ */
+export function hasQuarterCandidates(groups: TrackedSectionGroup[], history: SetLogRow[], eventDate: string): boolean {
+  const names = new Set(groups.flatMap(g => g.exercises.filter(quarterBestApplies).map(t => t.exercise.name)));
+  if (names.size === 0) return false;
+  const from = quarterStartOf(eventDate);
+  return history.some(row => names.has(row.exercise_name) && isQuarterCandidate(row, from, eventDate));
+}
+
+/**
+ * Each strength exercise's quarterly best, set on the model (null when it has
+ * none); every other exercise carries null. Only strength: a pitch's column is
+ * its grade, cardio has no set rows, and mobility keeps its prescription.
+ */
+export function attachQuarterBests(
+  groups: TrackedSectionGroup[],
+  history: SetLogRow[],
+  eventDate: string,
+  ctx: WeightContext = DEFAULT_WEIGHT_CONTEXT,
+): TrackedSectionGroup[] {
+  const best = bestSetsThisQuarter(history, eventDate, ctx);
+  return groups.map(group => ({
+    ...group,
+    exercises: group.exercises.map(tracked => ({
+      ...tracked,
+      quarterBest: quarterBestApplies(tracked) ? best.get(tracked.exercise.name) ?? null : null,
+    })),
+  }));
+}
+
 // ─── Climbing sends ───────────────────────────────────────────────────────────
 // A pitch's grade rides the weight column, but it is never a weight: no pitch
 // enters the oneRM / duration / reps kinds, whatever its text parses to

@@ -610,3 +610,15 @@ No new endpoint; two changes to `/api/workout-sessions` the app consumes in M2.
 | `/api/live-activity-tokens` + APNs `end` sender | D-051 | apns.ts, services/liveActivity.ts | no (server hooks only) | writes | 300 | **yes** (phase52 `live_activity_tokens`) |
 | `provider-sync` `apple` (connect · set-categories · ingest · preview/apply with body activities) | W16 M2b | providers/sync.ts, connection.ts | status label only | providerSync | 450 | **yes** (W16 M0) |
 | `/api/daily-metrics` + profile weight fields + physiology lines | W16 M3b | coach/physiology.ts, physiology/compute.ts | no | providerSync / reads | 400 | **yes** (W16 M0 `daily_metrics`) |
+
+## Quarterly best (docs/specs/tracker-quarter-pr)
+
+No new endpoint; one addition to `/api/workout-sessions` `bootstrap`, which the app may
+ignore until its tracker shows it.
+
+- **Every tracked exercise** adds `quarterBest: { weight, reps, duration, date, quarter } | null`:
+  for a `strength` exercise, the best performed set logged in the calendar quarter of the
+  occurrence's date and before that date, as logged text (`''` for a field the row left
+  empty), its `event_date` and the quarter 1–4. `null` for every other category and for a
+  strength exercise with no such set. The web shows it in place of the planned targets.
+  Optional to decode: an older server omits it.

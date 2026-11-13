@@ -2,6 +2,7 @@ import type { AscentStyle, Exercise, ExerciseCategory, ExerciseDefinition, Plann
 import type { CardioLogRow, ExerciseNoteRow, SetLogRow, TrackedSection } from '../db/types';
 import { sectionLabels } from '../climbing.js';
 import { isPerformedSet, isPitchRow, parseDurationSeconds } from './records.js';
+import type { QuarterBest } from './records.js';
 
 // ─── Tracker form model ───────────────────────────────────────────────────────
 // Pure builders that turn a WorkoutEvent (plan) plus previously-saved rows
@@ -73,6 +74,10 @@ export interface TrackedExercise {
   /** Added in the tracker, not in the plan: it exists only as this day's log
    *  rows (see `addedExercisesIn`), so every set is an extra. */
   isAdded?: boolean;
+  /** Strength only: the best set logged this calendar quarter before today,
+   *  shown in place of the planned target (records.ts, attachQuarterBests).
+   *  Null with none; absent from a model built without history (offline). */
+  quarterBest?: QuarterBest | null;
 }
 
 export interface TrackedSectionGroup {

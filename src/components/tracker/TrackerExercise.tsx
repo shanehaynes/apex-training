@@ -14,6 +14,8 @@ import { knownUnitContext, withExplicitUnit } from '../../lib/tracking/weight';
 import ExercisePicker from '../modal/ExercisePicker';
 import DurationInput from './DurationInput';
 import ExerciseNotes, { type NoteSection } from './ExerciseNotes';
+import QuarterPrTicker from './QuarterPrTicker';
+import { quarterBestDescription, quarterBestFields, quarterBestHeading, quarterBestSummary } from '../../lib/tracking/quarterBest';
 import { selectOnNextFrame } from './selectOnFocus';
 import '../../styles/climbing.css';
 import '../../styles/percent-1rm.css';
@@ -181,8 +183,12 @@ function SetRow({
   onCommitShadow,
   onCommit,
   onRemove,
+  prSlot,
 }: {
   set: TrackedSet;
+  /** Replaces the planned target in this row's target column: the quarterly
+   *  best on the first row, nothing on the rest. Absent, the target shows. */
+  prSlot?: ReactNode;
   /** An added exercise has no plan at all, so no set of it is an "extra". */
   unplanned?: boolean;
   fields: SetField[];
@@ -240,9 +246,13 @@ function SetRow({
       >
         {set.isWarmup ? 'W' : set.setNumber}
       </button>
-      <span className={`tracker-set__planned${set.resolvedPlannedWeight && !unplanned && !set.isExtra ? ' percent-target' : ''}`}>
-        {unplanned ? '—' : set.isExtra ? 'extra' : plannedLabel(set.planned, set.resolvedPlannedWeight)}
-      </span>
+      {prSlot !== undefined ? (
+        <span className="tracker-set__planned quarter-pr">{prSlot}</span>
+      ) : (
+        <span className={`tracker-set__planned${set.resolvedPlannedWeight && !unplanned && !set.isExtra ? ' percent-target' : ''}`}>
+          {unplanned ? '—' : set.isExtra ? 'extra' : plannedLabel(set.planned, set.resolvedPlannedWeight)}
+        </span>
+      )}
       <div
         className="tracker-set__inputs"
         // React's focus/blur bubble, so the row sees every field's; the
@@ -434,6 +444,18 @@ export default function TrackerExercise({
     : undefined;
   const specNote = isClimb ? undefined : countSpecNote(exercise);
   const pitchStyles = isClimb ? ascentStylesFor(exercise.climbStyle) : undefined;
+  // A strength exercise with a set logged this quarter shows that best in
+  // place of its targets, once, on the first row; with none, the plan shows.
+  const quarterBest = exercise.category === 'strength' ? tracked.quarterBest ?? null : null;
+  const quarterCell = quarterBest ? (
+    <QuarterPrTicker
+      fields={quarterBestFields(quarterBest, weightContext)}
+      summary={quarterBestSummary(quarterBest, weightContext)}
+      description={quarterBestDescription(quarterBest, weightContext)}
+    />
+  ) : undefined;
+  // The first working set holds it; a warm-up before it is not the set to beat.
+  const prRow = Math.max(0, tracked.sets.findIndex(set => !set.isWarmup));
 
   // Only after a swap: the reps were entered against the movement this one
   // replaced, so a bilateral count carried onto a unilateral movement is
@@ -546,7 +568,7 @@ export default function TrackerExercise({
         <>
           <div className={`tracker-set tracker-set--head${isClimb ? ' tracker-set--pitch' : ''}`} aria-hidden="true">
             <span className="tracker-set__num">#</span>
-            <span className="tracker-set__planned">target</span>
+            <span className="tracker-set__planned">{quarterBest ? quarterBestHeading(quarterBest) : 'target'}</span>
             <div className="tracker-set__inputs">
               {fields.map(field => (
                 <span key={field} className={`tracker-input-label ${FIELD_CLASS[field]}`}>
@@ -563,10 +585,11 @@ export default function TrackerExercise({
             </div>
             <span className="tracker-set__remove tracker-set__remove--spacer" />
           </div>
-          {tracked.sets.map(set => (
+          {tracked.sets.map((set, i) => (
             <SetRow
               key={set.setNumber}
               set={set}
+              prSlot={quarterCell === undefined ? undefined : i === prRow ? quarterCell : null}
               fields={fields}
               labels={labels}
               freeText={isClimb}

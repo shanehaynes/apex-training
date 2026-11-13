@@ -145,7 +145,14 @@
               "resolvedPlannedWeight": "187.5 lb"
             }
           ],
-          "cardio": null
+          "cardio": null,
+          "quarterBest": {
+            "weight": "200 lb",
+            "reps": "5",
+            "duration": "",
+            "date": "2026-12-01",
+            "quarter": 4
+          }
         },
         {
           "section": "exercise",
@@ -178,7 +185,14 @@
               "attempts": ""
             }
           ],
-          "cardio": null
+          "cardio": null,
+          "quarterBest": {
+            "weight": "",
+            "reps": "",
+            "duration": "60 s",
+            "date": "2026-12-01",
+            "quarter": 4
+          }
         },
         {
           "section": "exercise",
@@ -215,7 +229,14 @@
               "attempts": ""
             }
           ],
-          "cardio": null
+          "cardio": null,
+          "quarterBest": {
+            "weight": "",
+            "reps": "",
+            "duration": "30 s",
+            "date": "2026-12-01",
+            "quarter": 4
+          }
         },
         {
           "section": "exercise",
@@ -250,7 +271,14 @@
               "attempts": ""
             }
           ],
-          "cardio": null
+          "cardio": null,
+          "quarterBest": {
+            "weight": "",
+            "reps": "8",
+            "duration": "",
+            "date": "2026-12-01",
+            "quarter": 4
+          }
         },
         {
           "section": "exercise",
@@ -284,7 +312,8 @@
               "attempts": "1"
             }
           ],
-          "cardio": null
+          "cardio": null,
+          "quarterBest": null
         },
         {
           "section": "exercise",
@@ -305,7 +334,8 @@
             "avgHeartRate": "145",
             "isLogged": true,
             "shadow": null
-          }
+          },
+          "quarterBest": null
         },
         {
           "section": "exercise",
@@ -331,7 +361,8 @@
               "elevationGain": "",
               "avgHeartRate": ""
             }
-          }
+          },
+          "quarterBest": null
         },
         {
           "section": "exercise",
@@ -363,7 +394,8 @@
           ],
           "cardio": null,
           "substitutedFrom": null,
-          "sessionNote": ""
+          "sessionNote": "",
+          "quarterBest": null
         }
       ]
     }

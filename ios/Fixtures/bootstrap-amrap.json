@@ -84,7 +84,8 @@
               "attempts": ""
             }
           ],
-          "cardio": null
+          "cardio": null,
+          "quarterBest": null
         }
       ]
     }
