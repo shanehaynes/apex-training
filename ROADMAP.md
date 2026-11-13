@@ -62,6 +62,11 @@ it bring Apex closer to thirty?
   has no review screen.
 - **Climbing, finished.** Doc 1 §8's deferred list, rechecked against `main`.
 - **COROS imports checked against Apple Health**, the gap `TECHSTACK.md` names.
+- **Sessions left open.** Started and never finished: 15 in Shane's history,
+  the oldest from July. Each waits to record a wrong number, or sits as a
+  current session. Measure first; the brief is in
+  [tracker-runaway-finish](docs/specs/tracker-runaway-finish/plan.md),
+  "Next brief".
 - **Automation, one at a time through the slot:** owner loop M2 and M3
   ([spec](docs/specs/agent-ownership.md)).
 
