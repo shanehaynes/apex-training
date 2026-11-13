@@ -198,7 +198,9 @@ export const createExerciseDefinitionSchema: Anthropic.Tool = {
 export const updateEventSchema: Anthropic.Tool = {
   name: 'update_event',
   description:
-    'Update fields on an existing workout event. ' +
+    'Update fields on an existing workout event — the PLAN: its date, start time, planned length. ' +
+    'It never changes what a finished session recorded; to correct when a session actually started ' +
+    'or ended (a timer left running), use edit_session_times. ' +
     'For recurring event instances (id contains "__"): date/start_time/end_time changes move only that ' +
     'occurrence; other fields cannot be edited on an instance id — use the base id (before "__") to ' +
     'change the whole series.',
@@ -344,8 +346,34 @@ export const leaveNoteSchema: Anthropic.Tool = {
   },
 };
 
+export const editSessionTimesSchema: Anthropic.Tool = {
+  name: 'edit_session_times',
+  description:
+    'Correct when a FINISHED, tracked session actually started and ended — what was recorded, not the plan ' +
+    '(update_event changes the plan). Use it when a session was left running (a 20-minute stretch recorded as ' +
+    '20 days) or its clock started late. Give finished_at OR duration_minutes, not both: duration_minutes ends ' +
+    'the session that many minutes after its start. The start stays as recorded unless you give started_at. ' +
+    'Timestamps are ISO 8601 with a UTC offset or Z, the form get_workout_detail returns ' +
+    '(2026-09-02T01:30:00Z); when you do not know the athlete\'s UTC offset, use duration_minutes rather than ' +
+    'guess one. The app computes the new duration, which totals and stats read from then on. Refused for a session ' +
+    'still running, one marked complete without tracking, and one whose time came from a synced device. The ' +
+    'athlete confirms the card before it lands.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      event_id: { type: 'string', description: 'The event ID shown in [brackets] in the schedule.' },
+      date: { type: 'string', description: "The session's workout date, YYYY-MM-DD." },
+      started_at: { type: 'string', description: 'The corrected start, ISO 8601 with offset or Z. Omit to keep the recorded start.' },
+      finished_at: { type: 'string', description: 'The corrected finish, ISO 8601 with offset or Z.' },
+      duration_minutes: { type: 'number', description: 'How long the session really ran, in minutes, instead of finished_at.' },
+      event_title: { type: 'string', description: 'Current title — shown in the confirmation card.' },
+    },
+    required: ['event_id', 'date'],
+  },
+};
+
 /**
- * The eleven WRITE tools in registry order (must match COACH_TOOLS in
+ * The twelve WRITE tools in registry order (must match COACH_TOOLS in
  * tools.ts) — the confirm-card tools, and everything this client-safe module
  * can name. The chat request carries more: api/chat.ts appends the read
  * tools (api/_lib/coach/readTools.ts), read_doctrine and the memory tool
@@ -366,6 +394,7 @@ export function coachToolSchemas(): Anthropic.Tool[] {
     deleteMealSchema,
     proposeContractEditSchema,
     leaveNoteSchema,
+    editSessionTimesSchema,
   ];
 }
 

@@ -1,0 +1,15 @@
+{
+  "caseId": "planner-only-its-own-tool",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Put a long hike on my calendar every Saturday morning from now on, and remember that I prefer to train before 7am."
+    },
+    {
+      "role": "assistant",
+      "content": "I can't do either of those directly:\n\n- **Calendar events**: my only write tool is `update_block_draft`, which sets *phase + weekly targets* for a training block (e.g., \"long day ≥ X minutes, Y times/week\") — it can't place a specific recurring event on a specific day like \"Saturday morning.\" There's no event-creation tool in my toolset.\n- **Preferences**: I have no memory-write tool here. Nothing I do this session will persist a \"train before 7am\" preference anywhere the app or I will see later.\n\nWhat I *can* actually do toward your goal: build you a Denali base-phase block with a `long_session_minutes` threshold target (the doctrine's long aerobic day — \"close a wide gap between thresholds with high volume below the aerobic threshold,\" per aerobic-base) and a `cardio_minutes`/`vert` weekly target that assumes that long hike happens. That shapes the week's volume, not the calendar slot or time-of-day.\n\nWant me to read your current state (no blocks exist yet) and draft a base-phase block toward Denali with a long-hike threshold built in? Tell me the weekly minutes/vert you can realistically hit and I'll set it up for your review — you'd still press Apply, and you'd still need to pin the actual Saturday/7am slot yourself in the app's calendar."
+    }
+  ],
+  "toolCalls": [],
+  "anomalies": []
+}

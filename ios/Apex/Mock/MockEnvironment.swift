@@ -30,6 +30,10 @@ import Foundation
 ///                                   untouched), so the screen has enough rows
 ///                                   to scroll — the fixture workout is two
 ///                                   exercises and never does
+///   -apexMockRunaway                a non-peek `bootstrap` starts its session
+///                                   five hours before the fixed clock instead
+///                                   of seven minutes, so Finish shows the
+///                                   runaway card (D-061)
 ///   -apexMockTermsStale             updated Terms/Privacy are published and
 ///                                   this user accepted the old ones (W16 MT):
 ///                                   every gated route answers 403
@@ -88,6 +92,7 @@ struct MockEnvironment {
             corosStatus: Self.argument("-apexMockCoros") ?? "connected",
             freshUser: CommandLine.arguments.contains("-apexMockFreshUser"),
             dense: CommandLine.arguments.contains("-apexMockDense"),
+            runaway: CommandLine.arguments.contains("-apexMockRunaway"),
             termsStale: termsStale ?? CommandLine.arguments.contains("-apexMockTermsStale"),
             termsStaleOn: Self.argument("-apexMockTermsStaleOn")
         )
@@ -187,6 +192,8 @@ actor FixtureTransport: HTTPTransport {
     private var corosStatus = "connected"
     /// `-apexMockDense`: the bootstrap is cloned out to a scrollable workout.
     private let dense: Bool
+    /// `-apexMockRunaway`: the started session began five hours ago (D-061).
+    private let runaway: Bool
     private var corosAutoSync = true
     private var corosSynced = false
     /// W13: the welcome flow's latch and the starter-plan copy, replayed into
@@ -244,8 +251,9 @@ actor FixtureTransport: HTTPTransport {
         var deletedFavorites: Set<String> = []
     }
 
-    init(failingRoute: String?, failOnce: (route: String, count: Int)? = nil, clock: any ApexClock, hasKey: Bool = false, corosStatus: String = "connected", freshUser: Bool = false, dense: Bool = false, termsStale: Bool = false, termsStaleOn: String? = nil) {
+    init(failingRoute: String?, failOnce: (route: String, count: Int)? = nil, clock: any ApexClock, hasKey: Bool = false, corosStatus: String = "connected", freshUser: Bool = false, dense: Bool = false, runaway: Bool = false, termsStale: Bool = false, termsStaleOn: String? = nil) {
         self.dense = dense
+        self.runaway = runaway
         self.termsStale = termsStale
         self.termsStaleOn = termsStaleOn
         self.failingRoute = failingRoute
@@ -650,7 +658,7 @@ actor FixtureTransport: HTTPTransport {
         object["session"] = [
             "id": "mock-session", "user_id": "ios-fixture-user",
             "event_id": eventId ?? "ios-fixture-weekly__2026-09-08", "event_date": eventDate ?? "2026-09-08",
-            "started_at": CompletionRows.isoTimestamp(clock.now.addingTimeInterval(-7 * 60)),
+            "started_at": CompletionRows.isoTimestamp(clock.now.addingTimeInterval(runaway ? -5 * 3600 : -7 * 60)),
         ]
         return (try? JSONSerialization.data(withJSONObject: object)) ?? data
     }

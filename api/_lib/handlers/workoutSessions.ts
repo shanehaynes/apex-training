@@ -138,13 +138,20 @@ export const TIMESTAMP_WINDOW_BODY = 'timestamp-out-of-window';
 
 /**
  * Parse an optional client timestamp. Returns undefined when absent, the
- * Date when sane, or null after sending the 400 itself.
+ * Date when sane, or null after sending the 400 itself. `earliestMs` reaches
+ * the lower bound further back than the week for an instant the caller can
+ * vouch for: a finish at or after its own session's start is that session's
+ * real end, however long ago it began (docs/specs/tracker-runaway-finish, R4).
  */
-function clientTimestamp(res: VercelResponse, value: unknown, label: string): Date | null | undefined {
+function clientTimestamp(
+  res: VercelResponse, value: unknown, label: string, earliestMs: number = Infinity,
+): Date | null | undefined {
   if (value === undefined) return undefined;
   const t = typeof value === 'string' ? Date.parse(value) : NaN;
   const now = Date.now();
-  if (Number.isNaN(t) || t < now - MAX_PAST_MS || t > now + MAX_FUTURE_MS) {
+  // A NaN start would make Math.min NaN and drop the lower bound entirely.
+  const floor = Number.isNaN(earliestMs) ? now - MAX_PAST_MS : Math.min(now - MAX_PAST_MS, earliestMs);
+  if (Number.isNaN(t) || t < floor || t > now + MAX_FUTURE_MS) {
     // Truncated: this is unvalidated request data, and the log is not a place
     // to let a caller write as much of it as it likes.
     console.warn(`[api/workout-sessions] ${label} outside the accepted window:`, String(value).slice(0, 64));
@@ -477,10 +484,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return;
     }
 
-    const clientFinishedAt = clientTimestamp(res, body.finishedAt, 'finishedAt');
+    // A session left running is finished at the time the athlete says it
+    // ended, which can be weeks back: the window reaches back to its start.
+    const startedMs = new Date(session.started_at as string).getTime();
+    const clientFinishedAt = clientTimestamp(res, body.finishedAt, 'finishedAt', startedMs);
     if (clientFinishedAt === null) return;
     const finishedAt = clientFinishedAt ?? new Date();
-    const startedMs = new Date(session.started_at as string).getTime();
     if (finishedAt.getTime() < startedMs) {
       res.status(400).send('finishedAt precedes the session start');
       return;

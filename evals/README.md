@@ -70,7 +70,7 @@ npm run eval:diff -- evals/results/A.json evals/results/B.json
 
 All eval-infrastructure LLM calls default to `claude-sonnet-5`; the coach-model comparison (the suite run on both `claude-sonnet-5` and `claude-opus-4-8`) is the first decision this instrument exists to inform — whether production can move down a tier with quality held.
 
-Each result file records the model, **backend**, judge model, git commit, and a hash of the coach behavior surface (`prompt.ts`, `schemas.ts`, `tools.ts`, `model.ts` — so a prompt, schema, or executor edit between runs is visible in the diff), plus per-case cost, tokens, and latency. Full transcripts land in `results/transcripts/<runId>/` and are committed — they're the labeling substrate. Results written before the `backend` field existed do not carry it; readers fall back to `api`, which is what every one of them was.
+Each result file records the model, **backend**, judge model, git commit, and a hash of the coach behavior surface (`prompt.ts`, `schemas.ts`, `tools.ts`, `model.ts`, `sessionTimes.ts` — so a prompt, schema, or executor edit between runs is visible in the diff), plus per-case cost, tokens, and latency. Full transcripts land in `results/transcripts/<runId>/` and are committed — they're the labeling substrate. Results written before the `backend` field existed do not carry it; readers fall back to `api`, which is what every one of them was.
 
 ### Backends
 
@@ -135,14 +135,14 @@ Before this, a coach prompt edit could merge with no eval run at all: the `evals
 
 ```bash
 npm run eval:gate                              # local: run the suite on the subscription, decide, attest
-npm run eval:baseline -- evals/results/X.json  # promote an agent-sdk result to evals/baseline/<model>.json
+npm run eval:baseline -- evals/results/A.json evals/results/B.json evals/results/C.json  # the majority of three agent-sdk runs → evals/baseline/<model>.json
 npm run eval:hash                              # print the two hashes and the SDK version an attestation pins
 npm run eval:verify                            # token-free: does the committed attestation match this tree?
 ```
 
 `eval:gate` reads `evals/baseline/<model>.json`, runs the full suite via `--backend agent-sdk`, classifies the result against the baseline, and — on a pass — writes `evals/gate/attestation.json`.
 
-It runs the suite six cases at a time (`--concurrency`, forwarded to the runner on both the full run and the flake re-run, and recorded in the attestation) because a serial `agent-sdk` suite takes roughly twenty minutes against four; pass `--concurrency 1` to go back to serial. Cases share no fixture, backend or session, so there is no mechanism by which lane count should change a verdict — but that is an argument, not a measurement, and the progression variance below is large enough to swamp any attempt to measure it so far.
+It runs the suite six cases at a time (`--concurrency`, forwarded to the runner on both the full run and the re-runs, and recorded in the attestation) because a serial `agent-sdk` suite takes roughly twenty minutes against four; pass `--concurrency 1` to go back to serial. Cases share no fixture, backend or session, so there is no mechanism by which lane count should change a verdict — but that is an argument, not a measurement, and the progression variance below is large enough to swamp any attempt to measure it so far.
 
 **The gate enforces constraints, refusal and integrity. Progression is advisory:** it is still computed, printed under an "advisory (not gated)" heading and recorded in the attestation under `advisory`, but it never fails the gate, never triggers the flake re-run, and `eval:verify` ignores it. Progression is arithmetic over the schedule the coach actually wrote, and on multi-week planning cases the coach writes a materially different schedule every run — measured 2026-09-22, four of seven progression cases flipped between two runs of an identical tree, and a targeted re-run confirmed rather than cleared them. A single-sample baseline cannot gate that without failing unchanged code, which is how a gate teaches people to ignore it. The nightly API run is where progression is read.
 
@@ -150,7 +150,7 @@ It runs the suite six cases at a time (`--concurrency`, forwarded to the runner 
 
 It pins two hashes, and needs both:
 
-- **`promptFileHash`** — the coach behavior surface (`prompt.ts`, `schemas.ts`, `tools.ts`, `model.ts`). What the coach *is*.
+- **`promptFileHash`** — the coach behavior surface (`prompt.ts`, `schemas.ts`, `tools.ts`, `model.ts`, `sessionTimes.ts`). What the coach *is*.
 - **`evalSurfaceHash`** — sha256 over every file under `evals/cases/`, `evals/src/` and `evals/taxonomy/` (the constraints checker resolves exercise names through the taxonomy, so an entry there changes what a constraints verdict means), path and content, in sorted order. What the *question* was.
 
 Without the second, the gate could be satisfied by making the test easier: loosen a rubric, delete a case, and a stale attestation would still verify.
@@ -172,13 +172,25 @@ Editing `evals/src/` or `evals/cases/` therefore invalidates the attestation by 
 
 `evals/gate/` is deliberately **not** held. The attestation is evidence, not a standard: it is worthless the moment its hashes stop matching the tree, so forging one costs exactly as much as running the gate.
 
-Only an `agent-sdk` result may be promoted to a baseline. `eval:baseline` refuses an API-backend file, because the two runtimes differ in tool loop, `max_tokens` control and token accounting (see **Backends** above) and comparing across them produces noise that reads like regression.
+Only `agent-sdk` results may be promoted to a baseline. `eval:baseline` refuses an API-backend file, because the two runtimes differ in tool loop, `max_tokens` control and token accounting (see **Backends** above), and comparing across them produces noise that reads like regression.
 
-### The flake re-run
+**A baseline is the majority of three runs, never one sample** ([spec](../docs/specs/eval-gate-majority/requirements.md)). Measured 2026-11-09, `buried-contraindication` [constraints] passed about one run in four on an unchanged tree. A single promoted sample therefore set the standard by luck, and `main` failed its own gate against a fresh baseline.
 
-A model is not a pure function, so one bad sample is a suspicion, not a finding. Every case that regressed or errored is re-run **once**, with `--case a,b`, and only the second look counts: a case that is still bad is a confirmed regression, a case that recovers is a flake and its second verdict is what gets attested. There is no third look — that would be sampling until the answer is convenient.
+`eval:baseline` takes an odd number of full runs, at least three. They must agree on backend, model, `PROMPT_VERSION`, `promptFileHash` and case set, and none may have an errored case. Per case and dimension, it writes the status a strict majority of the runs gave, with the vote counts. No majority records `fail`, which lowers the bar for that case; the votes show it. A `majorityOf` record names the source files, which must be committed under `evals/results/`.
 
-The gate also fails on a `missingCases` (a baseline case the run did not produce) and on a new case that did not pass. A new case is absent from the held baseline by construction, so there is nothing for it to regress from; it has to stand on its own.
+`eval:verify` re-derives the baseline from those sources and fails three kinds of baseline: one with no `majorityOf`, one whose sources are missing, and one whose verdicts are not their majority. `eval:gate` refuses a single-sample baseline before spending anything. A refresh costs three full runs, each about 13 minutes and 7M subscription tokens.
+
+### The majority re-run
+
+A model is not a pure function, so one bad sample is a suspicion, not a finding. A suspect is a gated regression, an errored case, or a new case that did not pass. Each suspect is re-run once with `--case a,b`, and a third time only when its first two looks disagree; two looks that agree already form a majority a third could not change.
+
+The suspect's verdict is the per-dimension majority of its looks (`compare.ts` `majorityCase`, the same function the baseline uses). An errored look casts no vote, and a case that errored in two looks stays errored. No majority is `fail`. Its transcript hash comes from a look that matches the majority, and the attestation lists every re-run file under `rerunFiles`. There is never a fourth look: the rule is fixed before the run, not sampled until the answer is convenient.
+
+The majority is taken per dimension, not per look. So a case whose looks each fail a different gated dimension passes when each dimension passes two of three looks; a test pins this. On a single dimension the rule is stricter than the old one-re-run gate: a pass now needs two passing looks, not one. When no single look holds every majority verdict (three or more dimensions, or no majority at all), the attested transcript hash is `split:` followed by every look's hash. The attestation then never points at one transcript that disagrees with it.
+
+A source run is a distinct run. Promotion refuses the same file twice, the same `runId` twice, and two runs with identical transcripts, and the sources must agree on the judge model too. Known gap: `evals/results/` is neither held nor in the `coach-gate` path filter, so a PR that only deletes or edits a source run skips `eval:verify`. The next coach PR would then fail verify for a change it did not make.
+
+The gate also fails on `missingCases` (a baseline case the run did not produce) and on a new case that did not pass on the majority of its looks. A new case must pass every dimension, progression included, and is re-run like any suspect. A new case is absent from the held baseline by construction, so there is nothing for it to regress from; it has to stand on its own.
 
 ### Exit codes
 

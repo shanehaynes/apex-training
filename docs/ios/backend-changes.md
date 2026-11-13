@@ -568,6 +568,21 @@ refusal (400, 429, 500, 503) is `{ error }` with the sentence to show. The maile
 `apextraining://auth` hand-off. The app mirrors the handler's `EMAIL_RE` in
 `SignUp.isPlausibleEmail`, so an address the server refuses never reaches the check.
 
+## Runaway finish (docs/specs/tracker-runaway-finish M1)
+
+No new endpoint; two changes to `/api/workout-sessions` the app consumes in M2.
+
+- **`bootstrap`** adds `lastLoggedAt: string | null`: the latest `updated_at` among the
+  occurrence's set and cardio rows that are not autofilled. The Finish prompt's default for a
+  session that ran far past its plan. Optional to decode: an older server omits it.
+- **`finish { finishedAt? }`**: the lower bound is now the earlier of `server_now − 7d` and the
+  session's own `started_at`, so a finish inside the session's span is accepted however long
+  ago it began. Everything refused before is still refused with the same body (before the
+  week *and* the start → `timestamp-out-of-window`; inside the week but before the start →
+  "finishedAt precedes the session start"). One effect on the write queue: an offline finish
+  flushed more than a week late now lands with its real time instead of being re-sent
+  unstamped. `start` keeps its week.
+
 ## Not in this roadmap (Backlog)
 `device_tokens` migration + `/api/devices` + APNs sender (push).
 

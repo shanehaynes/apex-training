@@ -135,7 +135,7 @@ extension TrackerModel {
         voiceRestBefore = nil
         voiceRestAfter = nil
         voiceAppliedAt = nil
-        scheduleSave()
+        scheduleSave(logged: false)
         services.journal.markLastUndone()
         voice = .idle
         stopVoiceTimer()

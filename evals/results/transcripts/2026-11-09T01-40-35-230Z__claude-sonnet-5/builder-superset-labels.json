@@ -1,0 +1,160 @@
+{
+  "caseId": "builder-superset-labels",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Give me bench press 4x8 supersetted with bent-over rows 4x8, then 3x12 lateral raises on their own."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01Njxwzc85TFJ3VoEB9qmin4",
+          "name": "update_workout_draft",
+          "input": {
+            "exercises": [
+              {
+                "name": "Back Squat",
+                "sets": 0
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01Njxwzc85TFJ3VoEB9qmin4",
+          "content": "Draft updated: exercises (1). The user reviews and presses Apply."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "That was a mistake — fixing now with the correct exercises."
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_01GLD6qg2jXPgxzRkTxqALFn",
+          "name": "update_workout_draft",
+          "input": {
+            "exercises": [
+              {
+                "name": "Bench Press",
+                "category": "strength",
+                "muscle_groups": [
+                  "chest",
+                  "triceps",
+                  "shoulders"
+                ],
+                "sets": 4,
+                "reps": "8",
+                "superset": "A"
+              },
+              {
+                "name": "Barbell Row",
+                "sets": 4,
+                "reps": "8",
+                "superset": "A"
+              },
+              {
+                "name": "Lateral Raises",
+                "category": "strength",
+                "muscle_groups": [
+                  "shoulders"
+                ],
+                "sets": 3,
+                "reps": "12"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01GLD6qg2jXPgxzRkTxqALFn",
+          "content": "Draft updated: exercises (3). The user reviews and presses Apply."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Fixed. Draft now: A) Bench Press 4×8 / Barbell Row 4×8 superset, then Lateral Raises 3×12 solo. Bench Press and Lateral Raises are new library entries (no exact match existed). Review and Apply."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": "Draft's set — nothing more to add unless you want warmup/cooldown. Press Apply when ready."
+    }
+  ],
+  "toolCalls": [
+    {
+      "name": "update_workout_draft",
+      "input": {
+        "exercises": [
+          {
+            "name": "Back Squat",
+            "sets": 0
+          }
+        ]
+      },
+      "result": "Draft updated: exercises (1). The user reviews and presses Apply.",
+      "turn": 1,
+      "kind": "write",
+      "round": 0
+    },
+    {
+      "name": "update_workout_draft",
+      "input": {
+        "exercises": [
+          {
+            "name": "Bench Press",
+            "category": "strength",
+            "muscle_groups": [
+              "chest",
+              "triceps",
+              "shoulders"
+            ],
+            "sets": 4,
+            "reps": "8",
+            "superset": "A"
+          },
+          {
+            "name": "Barbell Row",
+            "sets": 4,
+            "reps": "8",
+            "superset": "A"
+          },
+          {
+            "name": "Lateral Raises",
+            "category": "strength",
+            "muscle_groups": [
+              "shoulders"
+            ],
+            "sets": 3,
+            "reps": "12"
+          }
+        ]
+      },
+      "result": "Draft updated: exercises (3). The user reviews and presses Apply.",
+      "turn": 1,
+      "kind": "write",
+      "round": 1
+    }
+  ],
+  "anomalies": []
+}

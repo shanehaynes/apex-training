@@ -1524,3 +1524,49 @@ final class AuthLinkUITests: XCTestCase {
     }
 
 }
+
+// MARK: - D-061 · runaway finish
+
+extension SmokeUITests {
+    /// Finish on a session five hours into a 60-minute plan asks when it
+    /// ended before anything is recorded (docs/specs/tracker-runaway-finish
+    /// R11); the unlogged-sets confirm comes first. `-apexMockRunaway` starts
+    /// the mock's session five hours back.
+    func testRunawayFinishAsksWhenItEnded() {
+        let app = XCUIApplication()
+        app.launchArguments += ["-apexUITest", "-apexMockClient", "-apexMockRunaway"]
+        app.launch()
+        signIn(app)
+
+        openEvent(app, card: "Fixture Push Day")
+        let start = app.buttons["schedule.event.start"]
+        XCTAssertTrue(start.waitForExistence(timeout: 10))
+        start.tap()
+        XCTAssertTrue(app.staticTexts["tracker.title"].waitForExistence(timeout: 20))
+
+        app.buttons["tracker.finish"].tap()
+        let finishAnyway = app.buttons["Finish anyway"]
+        XCTAssertTrue(finishAnyway.waitForExistence(timeout: 10), "the unlogged confirm comes first")
+        finishAnyway.tap()
+
+        let finishAt = app.buttons["tracker.finish-time.finish"]
+        XCTAssertTrue(finishAt.waitForExistence(timeout: 10), "the runaway card")
+        XCTAssertTrue(app.staticTexts.containing(NSPredicate(format: "label CONTAINS 'has run 5 h against a 1 h plan'")).firstMatch.exists)
+        XCTAssertTrue(app.buttons["tracker.finish-time.as-recorded"].exists)
+        XCTAssertTrue(app.buttons["tracker.finish-time.keep"].exists)
+        XCTAssertFalse(app.otherElements["tracker.summary"].exists, "nothing is recorded while it asks")
+        attachShot(app, name: "11-tracker-runaway-card")
+
+        finishAt.tap()
+        let summary = app.otherElements["tracker.summary"].firstMatch
+        XCTAssertTrue(summary.waitForExistence(timeout: 20) || app.staticTexts["Workout Complete"].waitForExistence(timeout: 20))
+        attachShot(app, name: "12-tracker-runaway-summary")
+    }
+
+    private func attachShot(_ app: XCUIApplication, name: String) {
+        let shot = XCTAttachment(screenshot: app.screenshot())
+        shot.name = name
+        shot.lifetime = .keepAlways
+        add(shot)
+    }
+}

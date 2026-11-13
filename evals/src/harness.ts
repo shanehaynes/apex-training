@@ -46,7 +46,9 @@ export async function runCase(
     : backendOrCallModel;
 
   const definitions = evalCase.fixture.definitions ?? loadLibrary();
-  const { deps, state } = createMemoryDeps(evalCase.fixture.events, definitions, evalCase.fixture.meals ?? []);
+  const { deps, state } = createMemoryDeps(
+    evalCase.fixture.events, definitions, evalCase.fixture.meals ?? [], evalCase.fixture.sessions ?? [],
+  );
   const today = parseISO(evalCase.fixture.today);
   const todayStr = evalCase.fixture.today;
 

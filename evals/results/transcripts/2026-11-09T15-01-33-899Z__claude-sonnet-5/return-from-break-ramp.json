@@ -1,0 +1,1145 @@
+{
+  "caseId": "return-from-break-ramp",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Plan my first 3 weeks back in the gym. Schedule all the sessions."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01EsEz9NQminPu3BCu3Ak3cU",
+          "name": "read_doctrine",
+          "input": {
+            "topic": "periodization"
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01EsEz9NQminPu3BCu3Ak3cU",
+          "content": "A training plan is a sequence of phases, each building the capacity the next one needs, ending at a date on which the athlete must be at their best. The sequence is fixed; the lengths, the weekly shape and the specific work are set by the objective.\n\n## The arc\n\nEvery cycle moves through the same five phases in the same order. The order comes from the capacity hierarchy: general before specific, base before intensity, load before rest.\n\n1. Transition. Purpose: re-establish the habit of training, restore movement quality, and prepare tissue for the loads to come. Content: low aerobic volume, all easy; general strength with an emphasis on movement quality, unilateral work, carries, core and posterior chain; daily mobility. This phase is short and unglamorous and skipping it is the most common source of early injury.\n\n2. Base. Purpose: build the aerobic foundation and raise max strength. Content: aerobic volume grows week over week, nearly all below the aerobic threshold; the long session grows first; max strength is trained heavy, low-rep, twice a week; mobility is maintained. This is the longest phase and the one that most determines the outcome.\n\n3. Specific. Purpose: convert the general capacities into the objective's actual demand. Content: aerobic volume holds or drops slightly while the long session becomes a rehearsal of the objective, on similar terrain with similar load and duration; max strength converts to muscular endurance through weighted uphill work; intensity that mimics the objective enters, one session per week at first; for a rock objective, climbing-specific strength and power take priority. The specific phase is where the plan starts to look like the objective.\n\n4. Taper and peak. Purpose: shed fatigue while keeping fitness, so the athlete arrives fresh and sharp. Content: volume drops by roughly a third to a half as a guideline, while a small amount of intensity and specificity is kept so the body stays primed. Nothing new is introduced. The athlete will feel restless and under-trained; this is the taper working.\n\n5. Recovery. Purpose: let the body and mind reset before the next cycle. Content: one to several weeks of unstructured, easy, enjoyable movement with no plan. Then the next transition begins.\n\n## How objective type shapes the phases\n\nThe arc is the same, but the weight of each phase changes with what the objective demands.\n\nAlpine climb or long mountain day. The aerobic base dominates and base is the longest phase. The specific phase rehearses long uphill efforts under a pack with the objective's vertical; muscular endurance is the key conversion; climbing-specific work is maintained, not built, unless the technical crux is near the athlete's limit.\n\nSki traverse or multi-day ski objective. As above, with the specific phase built on skinning under load and long consecutive days. Skiing itself is the best specific work once snow allows.\n\nRock project or technical climbing goal. The aerobic base is maintained rather than grown; climbing-specific strength and power take the place of muscular endurance in the specific phase; the base phase still builds max strength and finger strength because those are the slow adaptations. The result is a climbing plan with an aerobic floor under it, not an aerobic plan with climbing on top.\n\nHunting season. A long specific phase of loaded uphill hiking and carrying, with muscular endurance as the priority and general strength kept for the pack-out. The objective is repeated big days over weeks, so durability and recovery capacity outrank speed.\n\nWith several objectives in a year, the coach chooses one as the primary peak and treats the others as training events or as secondary peaks with a short taper. Two full peaks close together are not possible; the athlete picks.\n\n## Block lengths and the loading pattern\n\nLengths are guidelines and depend on the athlete's training history and the time available. The proportions matter more than the numbers.\n\n- Transition: roughly four to eight weeks. Shorter for an athlete coming off a consistent season, longer after a layoff or injury.\n- Base: roughly eight to sixteen weeks or more. The longer the objective and the wider the aerobic deficiency, the longer the base. An athlete with an aerobic deficiency stays in base until the gap closes.\n- Specific: roughly four to eight weeks. Long enough to convert strength to muscular endurance and rehearse the objective several times; short enough that specific fatigue does not accumulate into the taper.\n- Taper: roughly one to three weeks, longer for a longer objective and a larger preceding volume.\n- Recovery: one to several weeks.\n\nWithin a block, the loading pattern is a rise followed by a drop. The common patterns are three building weeks then one reduced week, or two then one for an athlete who recovers slowly or has high life stress. The building weeks raise volume gradually; the reduced week cuts volume by roughly a third to a half and keeps intensity light. The reduced week is not optional and not a reward; it is where the previous three weeks are consolidated into fitness.\n\nA block ends with a check: has the capacity it was meant to build actually moved? Aerobic threshold pace, a strength benchmark, a rehearsal effort on terrain. If it has, the next block begins. If it has not, the coach looks for the reason before moving on.\n\n## What a week looks like in each phase\n\nThe templates below are shapes, not schedules. The athlete's life, the pursuits and the weather set the days.\n\nTransition week:\n- Two general strength sessions, movement quality first, moderate load.\n- Three to four easy aerobic sessions, short, one of them slightly longer.\n- Daily mobility minimum.\n- One full rest day, and any pursuit outing counts as the long aerobic session.\n\nBase week:\n- Two max strength sessions, heavy and brief, on days that do not precede the long session.\n- One long easy aerobic session, growing week over week, on terrain and ideally under a light pack.\n- Two to four shorter easy aerobic sessions.\n- Mobility maintained daily.\n- One full rest day.\n\nSpecific week:\n- One muscular endurance session (weighted uphill work, loaded step-ups or hill repeats), which replaces one max strength session.\n- One max strength maintenance session, or a climbing-specific strength session for a rock objective.\n- One long session rehearsing the objective's demand.\n- One session of objective-specific intensity, once the base has earned it.\n- One to two short easy aerobic sessions for recovery and volume.\n- One full rest day, sometimes two.\n\nTaper week:\n- Volume cut substantially, sessions shorter, the long session shortened most.\n- One short session with a little intensity to stay sharp.\n- Strength reduced to a light maintenance dose or dropped in the final week.\n- Extra sleep, extra rest days.\n\n## When weeks are missed\n\nLife, illness and weather will remove weeks from any plan. The rule is: do not cram, extend.\n\n1. One missed session is absorbed. The plan continues as written.\n2. Up to a week missed for illness or life: resume at the load of the week before the gap, not the week that was planned, then progress from there. The objective date does not move, but the block may end a week later and the next block starts a week shorter.\n3. Two or more weeks missed: treat the return as a short transition. Resume at reduced volume, rebuild over one to two weeks, then continue the block. If the objective date is fixed, shorten the specific phase rather than the base; if the gap fell in base, the coach and athlete discuss whether the objective is still realistic.\n4. Never compress the missed volume into the following weeks. Doubling up violates gradualness and usually produces the injury that removes the next four weeks too.\n5. A missed reduced week is missed recovery, not missed volume, and it must be taken before the next building block starts.\n\nThe athlete's calendar in the app is the record. When the coach sees a gap, it asks what happened before changing anything, because illness, injury and a busy week each call for a different return.\n\n## How the coach applies this\n\n- Anchor every plan on a named objective with a date, and work backward through taper, specific, base and transition to set the block lengths.\n- Set the weight of each phase by the objective type, with the aerobic base dominant for alpine, ski and hunting objectives and climbing-specific work taking the specific phase for a rock objective.\n- Keep an athlete with an aerobic deficiency in base until the threshold gap closes, and shorten the specific phase rather than the base if the date is fixed.\n- Program each block as building weeks followed by one reduced week, using three-then-one as the default and two-then-one when recovery signals or life stress warrant it.\n- End each block with a concrete check of the capacity it was meant to build, and do not begin the next block until the check has been read.\n- Build a weekly template that names the long session, the strength sessions and the rest day first, then fills the remaining days with easy volume.\n- Introduce nothing new in the taper, and cut volume by roughly a third to a half while keeping a small dose of intensity.\n- When weeks are missed, resume at the load before the gap and extend the block, and never compress the missed volume into the following weeks.\n- Ask what caused a gap in the calendar before changing the plan, because illness, injury and a busy week call for different returns.\n\n## Signals that contradict this\n\n- A benchmark that has not moved at the end of a block, with good recovery signals and high completion, indicates the block's stimulus was too small and the next block should raise load rather than simply continue.\n- A benchmark that has not moved with poor recovery signals indicates the block was not absorbed, and the next block should begin with an extended reduced period rather than more load.\n- An athlete who arrives at the specific phase with a wide threshold gap has left base too early, and the coach should extend base and shorten the specific phase even if the plan said otherwise.\n- Rising fatigue, worsening sleep or falling motivation during a taper indicates the taper has cut too little or too late, and the remaining volume should drop further.\n- A pursuit calendar that already contains long outings most weekends means the plan's long session is being provided by the pursuits, and the coach should count those outings rather than add a second long session.\n- Two objectives placed within a few weeks of each other cannot both receive a full peak, and the coach should ask the athlete which one is primary before building either plan."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01M6FVksQw9WK2iVrZif9zGm",
+          "name": "read_doctrine",
+          "input": {
+            "topic": "strength"
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01M6FVksQw9WK2iVrZif9zGm",
+          "content": "Strength for a mountain athlete is the capacity to move the body and a load through the mountains for hours without breaking down, and to produce force when the terrain demands it. It is built in a fixed order, general then maximal then specific, and it is always the servant of the aerobic work rather than its rival.\n\n## What strength is for\n\nThe mountain athlete needs strength for four things: to protect joints and connective tissue under repeated loaded steps; to make every submaximal step cheaper, because a stronger muscle uses a smaller fraction of its capacity for the same work; to carry a pack up and, in hunting, a heavier one down; and to produce force on a hard move, a steep kick-turn or a mantle. None of these calls for large muscles. All of them call for high force relative to bodyweight, good coordination, and the ability to hold position under fatigue.\n\nThis sets the shape of the work: few exercises chosen for transfer, heavy loads when the goal is force, multi-joint and often unilateral movements because the mountains load one leg at a time, and a strict ceiling on strength volume because the recovery it costs is recovery the aerobic base needs.\n\n## Phase one: general strength in transition\n\nThe transition phase builds the movement quality and tissue tolerance that heavy loading will require. The goal is not to get strong yet; it is to earn the right to train heavy.\n\nContent, as a guideline:\n1. Movement quality first. Squat, hinge, lunge, push, pull and carry patterns performed well at moderate loads, with attention to position, depth and control. If a pattern cannot be done well unloaded, it is not loaded.\n2. Unilateral work. Step-ups, split squats, single-leg deadlifts and lunges, because they expose and correct left-right asymmetry and mimic the single-leg loading of steep terrain.\n3. Carries. Loaded carries in several positions build trunk stiffness, grip and the ability to walk under load, all of which transfer directly.\n4. Core and posterior chain, addressed below, at high frequency and moderate intensity.\n5. Two sessions per week, roughly eight to fifteen reps per set, moderate rest, moving toward heavier loads and lower reps as the phase closes.\n\nFour to eight weeks here, longer after a layoff or injury, until movement is clean and the athlete can handle moderate loads without soreness lasting into the next session.\n\n## Phase two: max strength in base\n\nMax strength raises the force ceiling. A higher ceiling makes every submaximal effort cheaper, which is the property mountain endurance actually uses. It is trained with heavy loads, few reps, long rests and few exercises, and it produces strength without size when done this way.\n\nRules, as guidelines:\n1. Heavy: loads at which roughly one to five clean reps are possible, progressing toward the heavier end as the phase continues.\n2. Low reps: sets of roughly one to five, with several sets per exercise. The last rep of each set is hard but clean; sets are not taken to failure, which costs recovery and teaches poor positions.\n3. Full recovery: roughly three to five minutes between heavy sets. This feels slow and it is the point. Short rest turns a strength session into a conditioning session and loses the adaptation.\n4. Few exercises: roughly three to five per session, all multi-joint, all with obvious transfer. A lower-body hinge or squat, a unilateral leg movement, a pull, a push, and a carry or core movement is a complete session.\n5. Twice a week, for roughly six to ten weeks, with at least two days between sessions.\n6. Progression by load, in small steps, when all sets are completed cleanly. When a step fails, hold the load rather than pushing.\n\nMax strength sessions are brief, often under an hour, and they should leave the athlete feeling strong rather than wrecked. Heavy soreness the next day means the session was too much or the transition was too short.\n\n## Phase three: conversion to muscular endurance\n\nMax strength is a ceiling; muscular endurance is the ability to work near a useful fraction of that ceiling for a long time. For the mountain athlete this means sustained uphill work under load: the capacity that decides the last two thousand feet of a big day. It is built in the specific phase by loading the actual movement pattern of the objective.\n\nForms, from most to least specific:\n1. Weighted uphill hiking or skinning. A pack heavier than the objective's, on steep terrain, for sustained periods at an effort the athlete can hold. This is the most specific form and the default for alpine, ski and hunting objectives.\n2. Hill repeats under load. Repeated steep climbs with a pack, with descents as recovery, when terrain or time limits a single long effort.\n3. High-rep loaded step-ups. Indoors, a box step-up with a loaded pack for many continuous reps or a fixed duration, progressing in load and duration week over week. This is the substitute when steep terrain is not available.\n\nProgression is by duration first, then load. One session per week replaces one max strength session; the other max strength session is kept as maintenance at reduced volume. The work is hard in a particular way, a deep local burn in the legs rather than breathlessness, and it produces significant fatigue, so it sits away from the long aerobic session and never on consecutive days. Four to eight weeks of this, on the platform of the max strength phase, turns a strong athlete into one who can climb for hours.\n\n## Core and posterior chain as prerequisites\n\nThe trunk and the posterior chain, meaning the glutes, hamstrings, spinal erectors and the muscles that hold the pelvis and spine in position, are not accessories. They are the structure everything else pushes against. A weak trunk leaks force on every step, a weak posterior chain shifts load to the knees and lower back, and both fail first under a heavy pack late in a day.\n\nFor this athlete they are the named current development focus, and the doctrine treats them accordingly:\n1. They are trained in every phase, at high frequency, as the first strength work in transition and never dropped.\n2. Posterior chain work is loaded and progressed like any other strength work: hinges, single-leg hinges, bridges and their loaded variants, moving toward heavy in base.\n3. Trunk work emphasizes holding position against load, resisting rotation and extension, and transferring force between the legs and the arms, rather than flexion for its own sake. Carries and unilateral lifts do much of this.\n4. No max strength or muscular endurance progression is allowed to outrun the trunk's ability to hold position under it. A lift that breaks position is reduced.\n\n## Strength never replaces aerobic work\n\nThe most common error in a strong athlete's plan is to let strength work grow until it steals from the aerobic base. Strength is a smaller, faster adaptation. The aerobic base is the larger, slower one, and it is the one the objective depends on. When the two compete, the base wins in every phase except the specific phase of a rock objective.\n\nScheduling rules:\n1. Two strength sessions per week is the ceiling in base and specific. More is decoration.\n2. Heavy strength sits on a day with only easy aerobic work, or on its own, and at least two days before the long session, because heavy legs ruin the long session and the long session is more important.\n3. When both must happen on one day, the easy aerobic work comes first and strength second; that order compromises neither much, and the reverse compromises the aerobic session.\n4. Muscular endurance and objective-specific intensity are never on consecutive days, and neither sits the day before the long session.\n5. In the taper, strength drops to a light maintenance dose and is removed in the final week.\n6. Strength volume never grows in the same week as aerobic volume. One variable at a time.\n\n## How the coach applies this\n\n- Program strength in the fixed order of general work in transition, max strength in base and muscular endurance conversion in the specific phase, and do not skip ahead.\n- Hold heavy loading until squat, hinge, lunge, push, pull and carry patterns are clean at moderate loads, and reduce any lift that breaks position.\n- Build max strength sessions from roughly three to five multi-joint exercises at loads allowing roughly one to five clean reps, with roughly three to five minutes of rest, twice a week, as guidelines.\n- Stop each heavy set short of failure and progress load in small steps only when all sets were completed cleanly.\n- Convert to muscular endurance in the specific phase with weighted uphill hiking, hill repeats under load or high-rep loaded step-ups, progressing duration before load, one session per week.\n- Keep core and posterior chain work in every phase and at high frequency, because they are the athlete's named development focus and the foundation every other lift depends on.\n- Cap strength at two sessions per week, place heavy strength at least two days before the long session, and never grow strength volume in the same week as aerobic volume.\n- Reduce strength to a light dose in the taper and remove it in the final week before the objective.\n\n## Signals that contradict this\n\n- Soreness that lasts into the next session after a max strength workout indicates the transition was too short or the load too high, and the coach should hold or reduce load rather than progress.\n- A long aerobic session logged with unusually high heart rate for its pace, or a completion rate on long sessions that falls once heavy strength begins, indicates the strength work is blunting the aerobic base and should be moved or reduced.\n- A lift that fails or loses position at a load that was previously clean, with no illness or missed sleep reported, indicates accumulated fatigue and calls for a reduced week rather than a heavier attempt.\n- An athlete already carrying high strength numbers relative to their bodyweight but a slow easy pace is one whose limiting capacity is aerobic, and the coach should not let a strength focus displace aerobic volume.\n- Any reported joint pain, swelling or named injury in a region a lift loads stops loading that region and points to a clinician, and no progression rule in this topic overrides that.\n- A rock objective in its specific phase is the one case where climbing-specific strength takes priority over muscular endurance, and the alpine default here does not apply."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01Q34ing7RVNbaGYWS8q63Lg",
+          "name": "get_training_blocks",
+          "input": {
+            "scope": "current",
+            "include_objectives": true
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01Q34ing7RVNbaGYWS8q63Lg",
+          "content": "{\"note\":\"no data for this athlete\"}"
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01UmzXxeKFgdn3AhoPpu4wdj",
+          "name": "get_prs",
+          "input": {
+            "scope": "all_time"
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01UmzXxeKFgdn3AhoPpu4wdj",
+          "content": "{\"note\":\"no data for this athlete\"}"
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01KgV6MSjkmGpydLdKpnvQXN",
+          "name": "search_history",
+          "input": {
+            "query": "illness"
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01KgV6MSjkmGpydLdKpnvQXN",
+          "content": "{\"note\":\"no data for this athlete\"}"
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "Two new movements the transition phase needs that aren't in your library yet — lunge pattern and carry — then I'll schedule the block."
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_01FZjjXjLbTHnM1Fngq9Bk9i",
+          "name": "create_exercise_definition",
+          "input": {
+            "canonical_name": "Reverse Lunge",
+            "category": "strength",
+            "is_unilateral": true,
+            "default_reps": "10 each leg",
+            "default_sets": 2,
+            "default_rest": "60s",
+            "equipment": [
+              "dumbbells"
+            ],
+            "muscle_groups": [
+              "quads",
+              "glutes",
+              "hamstrings",
+              "core"
+            ],
+            "technique_notes": "Step back into a long stride, drop rear knee toward floor under control, torso tall, drive through front heel to return. Exposes and corrects left-right asymmetry — the point of it in a return-to-training phase."
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01FZjjXjLbTHnM1Fngq9Bk9i",
+          "content": "Added \"Reverse Lunge\" (strength, unilateral) to the exercise library. Reference it by that exact name in create_event or set_event_exercises."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01XDpJccgsgzRqarBK65ZZA2",
+          "name": "create_exercise_definition",
+          "input": {
+            "canonical_name": "Farmer's Carry",
+            "category": "strength",
+            "is_unilateral": false,
+            "default_reps": "40m",
+            "default_sets": 3,
+            "default_rest": "60s",
+            "equipment": [
+              "dumbbells"
+            ],
+            "muscle_groups": [
+              "grip",
+              "trunk",
+              "traps",
+              "legs"
+            ],
+            "technique_notes": "Tall posture, braced trunk, shoulders down, steady unhurried pace for the set distance. Builds loaded-carry capacity that transfers directly to pack-carrying."
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01XDpJccgsgzRqarBK65ZZA2",
+          "content": "Added \"Farmer's Carry\" (strength) to the exercise library. Reference it by that exact name in create_event or set_event_exercises."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01RRZMGuVsL4Mdu7kqVAPnc5",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "General Strength — Transition Wk1",
+            "date": "2026-08-03",
+            "estimated_duration": 50,
+            "difficulty": 2,
+            "equipment": [
+              "barbell",
+              "dumbbells",
+              "cable machine"
+            ],
+            "description": "Week 1 of transition back after 2 months off. Moderate load, movement quality first — doctrine: \"if a pattern cannot be done well unloaded, it is not loaded.\" This is general strength, not max strength; heavy work waits until base phase.",
+            "repeat": {
+              "days": [
+                "MO",
+                "TH"
+              ],
+              "until": "2026-08-06"
+            },
+            "exercises": [
+              {
+                "name": "Back Squat",
+                "sets": 2,
+                "reps": "12-15",
+                "rest_period": "60-90s",
+                "notes": "Light. Full depth, control, no grinding reps."
+              },
+              {
+                "name": "Single-Leg RDL",
+                "sets": 2,
+                "reps": "10 each leg",
+                "rest_period": "60s"
+              },
+              {
+                "name": "Reverse Lunge",
+                "sets": 2,
+                "reps": "10 each leg",
+                "rest_period": "60s"
+              },
+              {
+                "name": "Push-Ups",
+                "sets": 2,
+                "reps": "12-15",
+                "rest_period": "60s"
+              },
+              {
+                "name": "Seated Cable Row",
+                "sets": 2,
+                "reps": "12-15",
+                "rest_period": "60s"
+              },
+              {
+                "name": "Farmer's Carry",
+                "sets": 3,
+                "reps": "40m",
+                "rest_period": "60s"
+              },
+              {
+                "name": "Dead Bug",
+                "sets": 2,
+                "reps": "10 each side",
+                "rest_period": "45s"
+              },
+              {
+                "name": "Banded Glute Bridges",
+                "sets": 2,
+                "reps": "15",
+                "rest_period": "45s"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01RRZMGuVsL4Mdu7kqVAPnc5",
+          "content": "Created \"General Strength — Transition Wk1\" repeating every Mon, Thu until 2026-08-06 from 2026-08-03 [evt-ai-1]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01WJXxyRbK9wy6JGqS4ZhWt7",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "General Strength — Transition Wk2",
+            "date": "2026-08-10",
+            "estimated_duration": 55,
+            "difficulty": 2,
+            "equipment": [
+              "barbell",
+              "dumbbells",
+              "cable machine"
+            ],
+            "description": "Week 2 of transition. Add a set, tighten rep range slightly, small load bump only if every Wk1 set was clean and pain-free.",
+            "repeat": {
+              "days": [
+                "MO",
+                "TH"
+              ],
+              "until": "2026-08-13"
+            },
+            "exercises": [
+              {
+                "name": "Back Squat",
+                "sets": 3,
+                "reps": "10-12",
+                "rest_period": "90s",
+                "notes": "Small load increase vs Wk1 only if all reps were clean."
+              },
+              {
+                "name": "Single-Leg RDL",
+                "sets": 3,
+                "reps": "8 each leg",
+                "rest_period": "60s"
+              },
+              {
+                "name": "Reverse Lunge",
+                "sets": 3,
+                "reps": "8 each leg",
+                "rest_period": "60s"
+              },
+              {
+                "name": "Push-Ups",
+                "sets": 3,
+                "reps": "10-12",
+                "rest_period": "60s"
+              },
+              {
+                "name": "Seated Cable Row",
+                "sets": 3,
+                "reps": "10-12",
+                "rest_period": "60s"
+              },
+              {
+                "name": "Farmer's Carry",
+                "sets": 3,
+                "reps": "50m",
+                "rest_period": "60s"
+              },
+              {
+                "name": "Dead Bug",
+                "sets": 3,
+                "reps": "10 each side",
+                "rest_period": "45s"
+              },
+              {
+                "name": "Banded Glute Bridges",
+                "sets": 3,
+                "reps": "15",
+                "rest_period": "45s"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01WJXxyRbK9wy6JGqS4ZhWt7",
+          "content": "Created \"General Strength — Transition Wk2\" repeating every Mon, Thu until 2026-08-13 from 2026-08-10 [evt-ai-2]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01VB8mRED4xVABUNxSL11QTr",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "General Strength — Transition Wk3",
+            "date": "2026-08-17",
+            "estimated_duration": 55,
+            "difficulty": 3,
+            "equipment": [
+              "barbell",
+              "dumbbells",
+              "cable machine"
+            ],
+            "description": "Week 3 of transition. Reps drop, load rises toward the heavier end of moderate — still general strength, not max strength yet. Reassess after this week before progressing further.",
+            "repeat": {
+              "days": [
+                "MO",
+                "TH"
+              ],
+              "until": "2026-08-20"
+            },
+            "exercises": [
+              {
+                "name": "Back Squat",
+                "sets": 3,
+                "reps": "8-10",
+                "rest_period": "90s",
+                "notes": "Heavier than Wk2 only if all Wk2 sets were clean."
+              },
+              {
+                "name": "Single-Leg RDL",
+                "sets": 3,
+                "reps": "8 each leg",
+                "rest_period": "60-90s",
+                "notes": "Heavier dumbbell than Wk2."
+              },
+              {
+                "name": "Reverse Lunge",
+                "sets": 3,
+                "reps": "8 each leg",
+                "rest_period": "60-90s"
+              },
+              {
+                "name": "Push-Ups",
+                "sets": 3,
+                "reps": "10-12",
+                "rest_period": "60s",
+                "notes": "Add a slow 3-count lowering if bodyweight reps feel easy."
+              },
+              {
+                "name": "Seated Cable Row",
+                "sets": 3,
+                "reps": "8-10",
+                "rest_period": "90s"
+              },
+              {
+                "name": "Farmer's Carry",
+                "sets": 3,
+                "reps": "60m",
+                "rest_period": "60s"
+              },
+              {
+                "name": "Dead Bug",
+                "sets": 3,
+                "reps": "12 each side",
+                "rest_period": "45s"
+              },
+              {
+                "name": "Banded Glute Bridges",
+                "sets": 4,
+                "reps": "15",
+                "rest_period": "45s"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01VB8mRED4xVABUNxSL11QTr",
+          "content": "Created \"General Strength — Transition Wk3\" repeating every Mon, Thu until 2026-08-20 from 2026-08-17 [evt-ai-3]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "**6 sessions scheduled, Mon/Thu, Aug 3–20.** Full-body, 8 moves each: squat (Back Squat), hinge (Single-Leg RDL), lunge (Reverse Lunge), push (Push-Ups), pull (Seated Cable Row), carry (Farmer's Carry), core/posterior chain (Dead Bug, Banded Glute Bridges).\n\nWhy this and not heavier work: doctrine puts a return after a 2-month layoff in **transition**, not base — \"resume at reduced volume, rebuild over one to two weeks\" and general strength is \"movement quality first... if a pattern cannot be done well unloaded, it is not loaded\" (periodization + strength doctrine). Two sessions/week, moderate load, 8–15 reps, easing toward heavier/lower-rep by week 3. No max-strength (1-5 rep, 3-5min rest) work yet — that's base phase, which starts once this movement-quality window is clean and pain-free, typically 4-8 weeks total in transition after a layoff this long. I kept you at 2x/week rather than your old 4x/week on purpose — doctrine caps transition volume there so tissue catches up before you load it hard.\n\nProgression: Wk1 2×12-15, Wk2 3×10-12 (+small load if Wk1 was clean), Wk3 3×8-10 (+load if Wk2 was clean).\n\nNot scheduled yet, worth adding: transition-phase doctrine also calls for 3-4 easy aerobic sessions/week and a daily mobility minimum. Want those added too, or just the lifting for now?"
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01YRDmS9Mk9L7GgfXu82vT28",
+          "name": "read_doctrine",
+          "input": {
+            "topic": "mobility"
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01YRDmS9Mk9L7GgfXu82vT28",
+          "content": "Mobility is the range of motion the athlete can control under load, and climbing, skiing and steep hiking each demand a specific floor of it. Below that floor, strength cannot be expressed, technique breaks down and load shifts to tissue that was not built for it, so mobility is a constraint the plan must satisfy, not a decoration added when time allows.\n\n## Why mobility is a constraint\n\nEvery movement the pursuits require has a range it happens in. A high step on rock needs hip flexion with the trunk upright. A deep kick-turn on skis needs hip rotation and ankle dorsiflexion. A long descent under a pack needs ankles and knees that absorb over a full range. A drop-knee, a stem, a rock-over, a mantle and an ice-tool swing overhead each need shoulder and thoracic range that most desk-bound adults have lost. When the range is missing, the athlete either cannot do the move, does it from a compromised position that loads the wrong tissue, or does it with force that a more mobile athlete would not need. All three cost energy and raise injury risk on a long day.\n\nThis is why mobility sits in the athlete's own ideal as a baseline: the dancer's precision and the climber's delicacy are both impossible without it, and mass that cannot move through range is a failure of the model.\n\n## The ranges the pursuits demand\n\nFour regions decide most of it. The coach programs to keep each at or above the floor and treats a deficit as a plan input.\n\n1. Hips. Flexion deep enough for a high step and a full squat with the heels down; rotation in both directions for stemming, drop-knees and kick-turns; extension enough for a full stride uphill and a strong hinge. The hips are where most restriction accumulates from sitting, and where most compensations in the lower back and knees originate.\n\n2. Ankles. Dorsiflexion enough to keep the heel down in a deep squat and to absorb a steep descent; plantarflexion and controlled inversion and eversion for edging on rock, skinning on sidehill and walking on uneven ground. Stiff ankles push load up the chain to the knees and hips.\n\n3. Thoracic spine. Extension and rotation enough to reach overhead without arching the lower back, to look up on a climb, to rotate the trunk on a ski turn, and to carry a pack with the shoulders back. A stiff mid-back is why many climbers' shoulders and lower backs hurt.\n\n4. Shoulders. Full overhead flexion, external rotation for hanging and tool placements, and the scapular control to hang from an arm without collapsing into the joint. The shoulder's range is only useful if it is controlled; passive flexibility without strength at end range is an injury risk in its own right.\n\n## The daily minimum\n\nMobility responds to frequency more than to duration. A short, daily practice keeps range that a long weekly session cannot. The guideline is roughly ten to fifteen minutes a day, every day, covering all four regions, built from movements the athlete can do anywhere without equipment.\n\nThe shape:\n1. Move each region through its full range under light control, not stretched passively at the end.\n2. Spend extra time on the region that is most restricted or that the day's session will load.\n3. Include a few positions held with active tension at end range, so the range is one the athlete owns rather than one that is merely available.\n4. Keep it easy enough that it never competes with training for recovery, and short enough that it is never skipped.\n\nThe app's daily routine slots are where this lives. It is scheduled, it is logged, and it counts as done when the minimum is met.\n\n## Placement around strength and aerobic work\n\n1. Before a strength session: dynamic movement through the ranges the session will load, plus specific preparation for the day's lifts. No long static holds before heavy work, because they reduce force output for a period afterward.\n2. After a strength session, or in the evening: the longer holds and the loaded end-range work, when tissue is warm and there is no force demand coming.\n3. Before an aerobic session: brief, dynamic, focused on ankles and hips. An easy aerobic session is itself a warmup.\n4. On rest days: the full daily minimum plus any extra work on the most restricted region, because this is where mobility gains are actually made.\n5. Dedicated mobility work never replaces a strength or aerobic session. When time is short, the daily minimum is done and the longer work waits.\n\n## Mobility problem, strength problem, or pain problem\n\nA restriction the athlete reports or the coach observes has one of three causes, and only the first two are the coach's to address.\n\n1. A mobility problem: the range is missing passively and actively, with no pain, and improves with consistent mobility work. Program the daily minimum with extra attention to that region and re-check in several weeks.\n\n2. A strength problem: the range is available passively but the athlete cannot control it or produce force in it, such as a squat that can be reached with assistance but not held unassisted, or a shoulder that reaches overhead but collapses under load. This is not fixed by stretching. Program strength at end range: loaded, controlled work through the full range, unilateral and slow, so the nervous system learns to own the position.\n\n3. A pain problem: the range is limited by pain, or pain appears at end range, or the restriction followed an incident, a fall, or a named injury. This is not the coach's to diagnose or treat. The coach stops loading that region and points the athlete to a clinician, exactly as the safety rules require. It does not prescribe stretches for pain, it does not interpret what the pain means, and it does not program around it as if it were a preference.\n\nWhen the athlete's description does not clearly separate these, the coach asks whether there is pain. If there is, or if it is unclear, it is a pain problem.\n\n## How the coach applies this\n\n- Treat mobility at the hips, ankles, thoracic spine and shoulders as a floor the plan must maintain, and program to close any deficit as a plan input rather than an afterthought.\n- Schedule a daily mobility minimum of roughly ten to fifteen minutes, as a guideline, built from active full-range movement and a few controlled end-range holds.\n- Place dynamic mobility before strength and aerobic sessions, longer holds and loaded end-range work after strength or in the evening, and the fullest mobility work on rest days.\n- Avoid long static holds immediately before heavy strength or power work.\n- Never let dedicated mobility work replace a strength or aerobic session; keep the daily minimum and let the longer work wait when time is short.\n- Sort any reported restriction into a mobility problem, a strength problem or a pain problem before programming for it, and ask about pain when the report is unclear.\n- Program end-range strength work, not stretching, for a range that is available passively but not controlled.\n- Stop loading a region and point to a clinician for any restriction that involves pain, followed an incident, or is a named injury.\n\n## Signals that contradict this\n\n- A restriction that does not change after several weeks of consistent daily mobility work is unlikely to be a pure mobility problem, and the coach should reconsider whether it is a strength or pain problem.\n- Any pain reported at end range, during a mobility movement, or after an incident moves the restriction out of the coach's scope and to a clinician.\n- An athlete who reports full passive range but loses position under load has a strength problem, and more stretching will not help and may increase joint laxity.\n- Force output that drops in a strength session after long pre-session static stretching indicates the mobility work is misplaced and belongs after the session.\n- Mobility sessions that grow long enough to displace strength or aerobic work, or that the athlete reports as fatiguing, have crossed from a baseline constraint into a competing session and should be shortened."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01PD5r5PEbDCeAJYghpVXfjy",
+          "name": "read_doctrine",
+          "input": {
+            "topic": "aerobic-base"
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01PD5r5PEbDCeAJYghpVXfjy",
+          "content": "Every mountain pursuit this athlete has is a long day at moderate output, and the capacity that decides how that day goes is aerobic. The base is built with large volumes of easy work, it takes months, and it is the part of training most athletes skip because it does not feel like effort.\n\n## Why aerobic capacity is the foundation\n\nA 6,000-foot alpine day, a two-day route, a ski traverse or a backcountry hunt is many hours of continuous work at an intensity the athlete must be able to sustain while thinking clearly, eating, and keeping something in reserve for the hard section or the retreat. That intensity is aerobic. What decides the day is how fast the athlete can move while staying aerobic, how much of the work is fueled by fat rather than limited glycogen, and how quickly the body clears fatigue between efforts.\n\nAerobic training builds these through adaptations that take months: more and larger mitochondria in the working muscles, more capillaries feeding them, a heart that pumps more blood per beat, and a shift toward fat as the fuel at a given pace. These adaptations respond best to long, easy, frequent work. They respond poorly to short hard work, which mainly trains the systems that deliver speed for minutes, not hours.\n\nThe base also sets the ceiling for everything built on it: muscular endurance is only as good as the aerobic system supplying it, and strength that cannot be sustained is not useful in the mountains. This is why the doctrine builds the base first and longest.\n\n## The two thresholds\n\nTwo intensities organize aerobic training.\n\nThe aerobic threshold (AeT) is the highest intensity at which the body is still working almost entirely aerobically, fueled largely by fat, with lactate barely above resting. Below it, the athlete can go for hours and recover quickly. Above it, the effort starts drawing on carbohydrate and accumulating fatigue that takes longer to clear. For a mountain athlete, this is the single most important number: the objective is spent below or near it, and most training belongs below it.\n\nThe anaerobic threshold (AnT) is the highest intensity the body can sustain for roughly an hour before lactate accumulates faster than it clears. Above it, the effort is measured in minutes. It marks the top of useful endurance intensity and the bottom of intensity that mainly serves speed.\n\nIn a well-trained endurance athlete these two thresholds sit close together, with AeT within roughly ten percent of AnT by heart rate. In an athlete whose aerobic system is undertrained relative to their high-intensity fitness, the gap is wide. That gap is the diagnosis that decides the prescription.\n\n## Estimating the thresholds in the field\n\nA lab test with gas exchange or blood lactate is the most accurate way to find both thresholds, and the coach should recommend one when the athlete has access. In its absence, three field methods estimate AeT, and the coach should cross-check at least two:\n\n1. Talk test. At or below AeT the athlete can speak in full sentences without gasping. The point at which sentences break into short phrases is the upper edge of AeT. This is the simplest and surprisingly reliable.\n2. Nasal breathing. Sustained nose-only breathing during a steady effort keeps most athletes at or below AeT. The point at which the athlete must open their mouth to keep pace is a usable AeT estimate.\n3. Heart-rate drift. On a long, steady effort at constant pace (roughly an hour after a warmup, on flat or consistently graded terrain), compare heart rate in the second half to the first. If pace is constant and heart rate rises by more than roughly five percent, the effort was above AeT. If the rise is under roughly three to five percent, the effort was at or below it. Repeat at a slightly higher heart rate until the drift crosses the line; the last heart rate that held is AeT. The app can compute this from any steady logged effort.\n\nIn all three, AeT feels easy, sustainable indefinitely and slightly boring; if the effort feels like work, it is above AeT.\n\nAnT is estimated from a sustained hard effort: the average heart rate over roughly thirty to sixty minutes of the hardest steady pace the athlete can hold, after a thorough warmup. This test is demanding and should be done rested, at most a few times a season.\n\nAll these estimates are guidelines with error of several beats. The coach treats them as working numbers, re-checks them every four to eight weeks in base, and expects AeT to rise as the base builds.\n\n## Aerobic deficiency\n\nWhen AeT sits well below AnT, with a gap of roughly ten percent or more of the AnT heart rate as the common working definition, the athlete is aerobically deficient. This is the usual profile of a strong, motivated athlete who trains hard often and easy rarely: they can go hard, but they cannot go long, and their easy pace is slow.\n\nThe prescription for aerobic deficiency is unambiguous:\n1. Nearly all aerobic volume goes below AeT until the gap closes. Below, not at.\n2. The moderate zone between AeT and AnT, the grey zone, is avoided. It is too hard to build the base and too easy to build anything else, and it produces fatigue that steals from the volume that would actually work.\n3. High-intensity work is removed or kept to a small maintenance dose.\n4. Volume is raised gradually. Because the work is easy, volume can grow more than the athlete expects, but the gradualness rule still holds.\n5. Strength training continues in parallel. It does not compete with easy aerobic volume for recovery the way intensity does.\n\nThis is the Uphill Athlete approach to the base, and this doctrine adopts it. The period feels too easy and the athlete will want to push; the coach holds the line. The base builds slowly, then fast, and the athlete who trusts the process for eight to twelve weeks typically sees their easy pace rise substantially at the same heart rate. Once AeT sits within roughly ten percent of AnT, the deficiency is closed and intensity can be added.\n\n## Zone distribution across a base phase\n\nAcross a base phase the guideline is that the large majority of aerobic time, roughly eighty percent or more, sits below AeT, and the small remainder sits near or above AnT. Time in the grey zone is minimized. This holds especially for a mountain athlete with limited hours: the fewer the hours, the more of them must be easy, because intensity is what the schedule cannot recover from.\n\nWithin the easy majority, variety comes from duration and terrain, not intensity: a long weekend outing on real terrain, several shorter weekday sessions, and steep hiking or ski touring under a light pack as the base builds. The long session is the most important session of the week and it grows first.\n\n## Volume progression and recovery weeks\n\n1. Establish a baseline from the athlete's actual recent history, not from what they aspire to.\n2. Raise weekly aerobic volume by roughly five to ten percent per week as a guideline, holding intensity constant.\n3. Every third or fourth week, reduce volume by roughly a third to a half. The recovery week is where the adaptation consolidates.\n4. Grow the long session first and most, then add frequency, then add duration to the weekday sessions.\n5. When the athlete cannot add hours, add vertical: steep terrain at the same heart rate is more specific and more productive for mountain work than flat distance.\n6. Track the easy pace at AeT heart rate. If it rises, the base is building. If it stalls for many weeks with good recovery, the stimulus needs to change, usually through more volume or more vertical.\n\n## When intensity earns its place\n\nHigher-intensity aerobic work is a tool for the later part of the plan, not the start of it. It earns its place when:\n1. The AeT to AnT gap has closed to roughly ten percent or less.\n2. The athlete has accumulated many consecutive weeks of consistent easy volume.\n3. The objective demands sustained efforts near AnT, such as a fast alpine push or a competitive run.\n\nIt enters as one session per week at first, in the form the objective demands: long uphill intervals near AnT for alpine objectives, tempo efforts for running. The easy volume is kept, not replaced; intensity on top of a reduced base is the fastest way back to deficiency.\n\n## How the coach applies this\n\n- Establish AeT and AnT estimates from at least two field methods before programming a base phase, and re-estimate every four to eight weeks.\n- When the AeT to AnT gap is roughly ten percent of AnT heart rate or more, prescribe nearly all aerobic volume below AeT, remove the grey zone, and hold high intensity to a small maintenance dose until the gap closes.\n- Keep roughly eighty percent or more of aerobic time below AeT across any base phase, as a guideline, and treat time between AeT and AnT as the first thing to cut.\n- Grow the weekly long session first and most, and prefer vertical over flat distance when the athlete cannot add hours.\n- Raise aerobic volume by roughly five to ten percent per week at most, and program a reduced week every third or fourth week.\n- Use heart-rate drift on logged steady efforts as the app's own evidence of where AeT sits and whether it is rising.\n- Add higher-intensity aerobic work only after the gap has closed and many consistent weeks are banked, as one session per week at first, without cutting easy volume.\n- Explain to the athlete in plain terms that the easy work feels too easy by design and that the payoff is a faster pace at the same heart rate.\n\n## Signals that contradict this\n\n- Heart-rate drift under roughly three to five percent on long efforts at a pace that also keeps rising over weeks indicates the base is building and the current prescription is working.\n- A gap between AeT and AnT that stays wide after twelve or more weeks of high easy volume with good recovery indicates the AeT estimate may be wrong or the volume is not truly easy, and both should be re-checked before adding more.\n- Easy sessions logged with average heart rate above the estimated AeT indicate the athlete is drifting into the grey zone, and the coach should slow the prescription rather than assume the base is being built.\n- A resting heart rate that rises or an HRV trend that falls during a base phase of only easy work indicates the volume increase has outrun recovery, or that life stress or illness is present, and volume should hold or drop.\n- An objective that is short and intense, such as a single-pitch performance goal or a race under an hour, is one where the base-heavy distribution should shift earlier toward intensity than the default alpine prescription.\n- An athlete reporting that easy sessions feel hard, or that their easy pace has slowed, is showing fatigue or illness rather than a need for more volume."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_013RDWrtVpeM3KrE9LWsTBSt",
+          "name": "create_event",
+          "input": {
+            "type": "cardio",
+            "title": "Easy Aerobic",
+            "date": "2026-08-04",
+            "estimated_duration": 25,
+            "difficulty": 1,
+            "description": "Transition-phase easy aerobic — all easy, below aerobic threshold. Talk test: full sentences, no gasping; if it feels like work, slow down. Any modality — walk, jog, bike, erg.",
+            "repeat": {
+              "days": [
+                "TU",
+                "WE",
+                "FR"
+              ],
+              "until": "2026-08-21"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_013RDWrtVpeM3KrE9LWsTBSt",
+          "content": "Created \"Easy Aerobic\" repeating every Tue, Wed, Fri until 2026-08-21 from 2026-08-04 [evt-ai-4]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_013pWKr9ho2BWqdmYRWDWZT3",
+          "name": "create_event",
+          "input": {
+            "type": "cardio",
+            "title": "Easy Aerobic — Long",
+            "date": "2026-08-09",
+            "estimated_duration": 40,
+            "difficulty": 1,
+            "description": "Week's slightly-longer easy session — still fully conversational, below aerobic threshold. Same rule: if it feels like effort, it's too hard.",
+            "repeat": {
+              "days": [
+                "SU"
+              ],
+              "until": "2026-08-23"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_013pWKr9ho2BWqdmYRWDWZT3",
+          "content": "Created \"Easy Aerobic — Long\" repeating every Sun until 2026-08-23 from 2026-08-09 [evt-ai-5]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_014JAzSizrSKxerDojDBFc7y",
+          "name": "create_event",
+          "input": {
+            "type": "stretching",
+            "title": "Daily Mobility Minimum",
+            "date": "2026-08-03",
+            "start_time": "7:00 AM",
+            "estimated_duration": 12,
+            "difficulty": 1,
+            "description": "Daily floor for hips, ankles, thoracic spine, shoulders — active full range plus a few end-range holds. Extra time on Sat (rest day) and on whatever the day's session loaded most.",
+            "repeat": {
+              "days": [
+                "MO",
+                "TU",
+                "WE",
+                "TH",
+                "FR",
+                "SA",
+                "SU"
+              ],
+              "until": "2026-08-23"
+            },
+            "exercises": [
+              {
+                "name": "Cat-Cow",
+                "reps": "10"
+              },
+              {
+                "name": "90/90 Hip Stretch",
+                "duration": "30s each side"
+              },
+              {
+                "name": "Calf / Ankle Dorsiflexion Stretch",
+                "duration": "30s each side"
+              },
+              {
+                "name": "Thoracic Extension over Foam Roller",
+                "duration": "45s"
+              },
+              {
+                "name": "Wall Arm Slides",
+                "reps": "10"
+              },
+              {
+                "name": "Deep Squat Hold",
+                "duration": "45s"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_014JAzSizrSKxerDojDBFc7y",
+          "content": "Created \"Daily Mobility Minimum\" repeating every Mon, Tue, Wed, Thu, Fri, Sat, Sun until 2026-08-23 from 2026-08-03 [evt-ai-6]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "**Full transition week now scheduled, Aug 3–23:**\n\n- **Mon/Thu** — General Strength (progressive, Wk1→Wk3 as before)\n- **Tue/Wed/Fri** — Easy Aerobic, 25 min, talk-test pace, any modality\n- **Sun** — Easy Aerobic (Long), 40 min, same easy intensity\n- **Sat** — full rest day\n- **Every day** — Daily Mobility Minimum, 12 min: hips (90/90, Deep Squat Hold), ankles (dorsiflexion stretch), thoracic (foam roller extension, Cat-Cow), shoulders (Wall Arm Slides)\n\nMatches the transition-week template exactly: 2 general strength, 3-4 easy aerobic, daily mobility, one full rest day. All aerobic work is easy/below-threshold by feel (talk test) — no threshold testing data exists yet to set it by heart rate, so go by breath, not pace.\n\nAfter these 3 weeks: reassess. If strength sets stayed clean and aerobic sessions felt easy, that's the transition phase closing — base phase starts (max strength 2x/week heavy, aerobic volume begins climbing 5-10%/week). If anything broke down, we extend transition rather than push into base on schedule, per doctrine's \"resume at the load before the gap\" rule."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": "Everything from the last two turns is already scheduled and confirmed — strength (Mon/Thu, 3 weeks), easy aerobic (Tue/Wed/Fri + Sun long), and daily mobility, all running Aug 3–23. There's no pending offer left open.\n\nWhat do you want me to continue with — extend the plan past week 3 into base phase, add something I haven't covered, or something else?"
+    }
+  ],
+  "toolCalls": [
+    {
+      "name": "read_doctrine",
+      "input": {
+        "topic": "periodization"
+      },
+      "result": "A training plan is a sequence of phases, each building the capacity the next one needs, ending at a date on which the athlete must be at their best. The sequence is fixed; the lengths, the weekly shape and the specific work are set by the objective.\n\n## The arc\n\nEvery cycle moves through the same five phases in the same order. The order comes from the capacity hierarchy: general before specific, base before intensity, load before rest.\n\n1. Transition. Purpose: re-establish the habit of training, restore movement quality, and prepare tissue for the loads to come. Content: low aerobic volume, all easy; general strength with an emphasis on movement quality, unilateral work, carries, core and posterior chain; daily mobility. This phase is short and unglamorous and skipping it is the most common source of early injury.\n\n2. Base. Purpose: build the aerobic foundation and raise max strength. Content: aerobic volume grows week over week, nearly all below the aerobic threshold; the long session grows first; max strength is trained heavy, low-rep, twice a week; mobility is maintained. This is the longest phase and the one that most determines the outcome.\n\n3. Specific. Purpose: convert the general capacities into the objective's actual demand. Content: aerobic volume holds or drops slightly while the long session becomes a rehearsal of the objective, on similar terrain with similar load and duration; max strength converts to muscular endurance through weighted uphill work; intensity that mimics the objective enters, one session per week at first; for a rock objective, climbing-specific strength and power take priority. The specific phase is where the plan starts to look like the objective.\n\n4. Taper and peak. Purpose: shed fatigue while keeping fitness, so the athlete arrives fresh and sharp. Content: volume drops by roughly a third to a half as a guideline, while a small amount of intensity and specificity is kept so the body stays primed. Nothing new is introduced. The athlete will feel restless and under-trained; this is the taper working.\n\n5. Recovery. Purpose: let the body and mind reset before the next cycle. Content: one to several weeks of unstructured, easy, enjoyable movement with no plan. Then the next transition begins.\n\n## How objective type shapes the phases\n\nThe arc is the same, but the weight of each phase changes with what the objective demands.\n\nAlpine climb or long mountain day. The aerobic base dominates and base is the longest phase. The specific phase rehearses long uphill efforts under a pack with the objective's vertical; muscular endurance is the key conversion; climbing-specific work is maintained, not built, unless the technical crux is near the athlete's limit.\n\nSki traverse or multi-day ski objective. As above, with the specific phase built on skinning under load and long consecutive days. Skiing itself is the best specific work once snow allows.\n\nRock project or technical climbing goal. The aerobic base is maintained rather than grown; climbing-specific strength and power take the place of muscular endurance in the specific phase; the base phase still builds max strength and finger strength because those are the slow adaptations. The result is a climbing plan with an aerobic floor under it, not an aerobic plan with climbing on top.\n\nHunting season. A long specific phase of loaded uphill hiking and carrying, with muscular endurance as the priority and general strength kept for the pack-out. The objective is repeated big days over weeks, so durability and recovery capacity outrank speed.\n\nWith several objectives in a year, the coach chooses one as the primary peak and treats the others as training events or as secondary peaks with a short taper. Two full peaks close together are not possible; the athlete picks.\n\n## Block lengths and the loading pattern\n\nLengths are guidelines and depend on the athlete's training history and the time available. The proportions matter more than the numbers.\n\n- Transition: roughly four to eight weeks. Shorter for an athlete coming off a consistent season, longer after a layoff or injury.\n- Base: roughly eight to sixteen weeks or more. The longer the objective and the wider the aerobic deficiency, the longer the base. An athlete with an aerobic deficiency stays in base until the gap closes.\n- Specific: roughly four to eight weeks. Long enough to convert strength to muscular endurance and rehearse the objective several times; short enough that specific fatigue does not accumulate into the taper.\n- Taper: roughly one to three weeks, longer for a longer objective and a larger preceding volume.\n- Recovery: one to several weeks.\n\nWithin a block, the loading pattern is a rise followed by a drop. The common patterns are three building weeks then one reduced week, or two then one for an athlete who recovers slowly or has high life stress. The building weeks raise volume gradually; the reduced week cuts volume by roughly a third to a half and keeps intensity light. The reduced week is not optional and not a reward; it is where the previous three weeks are consolidated into fitness.\n\nA block ends with a check: has the capacity it was meant to build actually moved? Aerobic threshold pace, a strength benchmark, a rehearsal effort on terrain. If it has, the next block begins. If it has not, the coach looks for the reason before moving on.\n\n## What a week looks like in each phase\n\nThe templates below are shapes, not schedules. The athlete's life, the pursuits and the weather set the days.\n\nTransition week:\n- Two general strength sessions, movement quality first, moderate load.\n- Three to four easy aerobic sessions, short, one of them slightly longer.\n- Daily mobility minimum.\n- One full rest day, and any pursuit outing counts as the long aerobic session.\n\nBase week:\n- Two max strength sessions, heavy and brief, on days that do not precede the long session.\n- One long easy aerobic session, growing week over week, on terrain and ideally under a light pack.\n- Two to four shorter easy aerobic sessions.\n- Mobility maintained daily.\n- One full rest day.\n\nSpecific week:\n- One muscular endurance session (weighted uphill work, loaded step-ups or hill repeats), which replaces one max strength session.\n- One max strength maintenance session, or a climbing-specific strength session for a rock objective.\n- One long session rehearsing the objective's demand.\n- One session of objective-specific intensity, once the base has earned it.\n- One to two short easy aerobic sessions for recovery and volume.\n- One full rest day, sometimes two.\n\nTaper week:\n- Volume cut substantially, sessions shorter, the long session shortened most.\n- One short session with a little intensity to stay sharp.\n- Strength reduced to a light maintenance dose or dropped in the final week.\n- Extra sleep, extra rest days.\n\n## When weeks are missed\n\nLife, illness and weather will remove weeks from any plan. The rule is: do not cram, extend.\n\n1. One missed session is absorbed. The plan continues as written.\n2. Up to a week missed for illness or life: resume at the load of the week before the gap, not the week that was planned, then progress from there. The objective date does not move, but the block may end a week later and the next block starts a week shorter.\n3. Two or more weeks missed: treat the return as a short transition. Resume at reduced volume, rebuild over one to two weeks, then continue the block. If the objective date is fixed, shorten the specific phase rather than the base; if the gap fell in base, the coach and athlete discuss whether the objective is still realistic.\n4. Never compress the missed volume into the following weeks. Doubling up violates gradualness and usually produces the injury that removes the next four weeks too.\n5. A missed reduced week is missed recovery, not missed volume, and it must be taken before the next building block starts.\n\nThe athlete's calendar in the app is the record. When the coach sees a gap, it asks what happened before changing anything, because illness, injury and a busy week each call for a different return.\n\n## How the coach applies this\n\n- Anchor every plan on a named objective with a date, and work backward through taper, specific, base and transition to set the block lengths.\n- Set the weight of each phase by the objective type, with the aerobic base dominant for alpine, ski and hunting objectives and climbing-specific work taking the specific phase for a rock objective.\n- Keep an athlete with an aerobic deficiency in base until the threshold gap closes, and shorten the specific phase rather than the base if the date is fixed.\n- Program each block as building weeks followed by one reduced week, using three-then-one as the default and two-then-one when recovery signals or life stress warrant it.\n- End each block with a concrete check of the capacity it was meant to build, and do not begin the next block until the check has been read.\n- Build a weekly template that names the long session, the strength sessions and the rest day first, then fills the remaining days with easy volume.\n- Introduce nothing new in the taper, and cut volume by roughly a third to a half while keeping a small dose of intensity.\n- When weeks are missed, resume at the load before the gap and extend the block, and never compress the missed volume into the following weeks.\n- Ask what caused a gap in the calendar before changing the plan, because illness, injury and a busy week call for different returns.\n\n## Signals that contradict this\n\n- A benchmark that has not moved at the end of a block, with good recovery signals and high completion, indicates the block's stimulus was too small and the next block should raise load rather than simply continue.\n- A benchmark that has not moved with poor recovery signals indicates the block was not absorbed, and the next block should begin with an extended reduced period rather than more load.\n- An athlete who arrives at the specific phase with a wide threshold gap has left base too early, and the coach should extend base and shorten the specific phase even if the plan said otherwise.\n- Rising fatigue, worsening sleep or falling motivation during a taper indicates the taper has cut too little or too late, and the remaining volume should drop further.\n- A pursuit calendar that already contains long outings most weekends means the plan's long session is being provided by the pursuits, and the coach should count those outings rather than add a second long session.\n- Two objectives placed within a few weeks of each other cannot both receive a full peak, and the coach should ask the athlete which one is primary before building either plan.",
+      "turn": 1,
+      "kind": "read",
+      "round": 0
+    },
+    {
+      "name": "read_doctrine",
+      "input": {
+        "topic": "strength"
+      },
+      "result": "Strength for a mountain athlete is the capacity to move the body and a load through the mountains for hours without breaking down, and to produce force when the terrain demands it. It is built in a fixed order, general then maximal then specific, and it is always the servant of the aerobic work rather than its rival.\n\n## What strength is for\n\nThe mountain athlete needs strength for four things: to protect joints and connective tissue under repeated loaded steps; to make every submaximal step cheaper, because a stronger muscle uses a smaller fraction of its capacity for the same work; to carry a pack up and, in hunting, a heavier one down; and to produce force on a hard move, a steep kick-turn or a mantle. None of these calls for large muscles. All of them call for high force relative to bodyweight, good coordination, and the ability to hold position under fatigue.\n\nThis sets the shape of the work: few exercises chosen for transfer, heavy loads when the goal is force, multi-joint and often unilateral movements because the mountains load one leg at a time, and a strict ceiling on strength volume because the recovery it costs is recovery the aerobic base needs.\n\n## Phase one: general strength in transition\n\nThe transition phase builds the movement quality and tissue tolerance that heavy loading will require. The goal is not to get strong yet; it is to earn the right to train heavy.\n\nContent, as a guideline:\n1. Movement quality first. Squat, hinge, lunge, push, pull and carry patterns performed well at moderate loads, with attention to position, depth and control. If a pattern cannot be done well unloaded, it is not loaded.\n2. Unilateral work. Step-ups, split squats, single-leg deadlifts and lunges, because they expose and correct left-right asymmetry and mimic the single-leg loading of steep terrain.\n3. Carries. Loaded carries in several positions build trunk stiffness, grip and the ability to walk under load, all of which transfer directly.\n4. Core and posterior chain, addressed below, at high frequency and moderate intensity.\n5. Two sessions per week, roughly eight to fifteen reps per set, moderate rest, moving toward heavier loads and lower reps as the phase closes.\n\nFour to eight weeks here, longer after a layoff or injury, until movement is clean and the athlete can handle moderate loads without soreness lasting into the next session.\n\n## Phase two: max strength in base\n\nMax strength raises the force ceiling. A higher ceiling makes every submaximal effort cheaper, which is the property mountain endurance actually uses. It is trained with heavy loads, few reps, long rests and few exercises, and it produces strength without size when done this way.\n\nRules, as guidelines:\n1. Heavy: loads at which roughly one to five clean reps are possible, progressing toward the heavier end as the phase continues.\n2. Low reps: sets of roughly one to five, with several sets per exercise. The last rep of each set is hard but clean; sets are not taken to failure, which costs recovery and teaches poor positions.\n3. Full recovery: roughly three to five minutes between heavy sets. This feels slow and it is the point. Short rest turns a strength session into a conditioning session and loses the adaptation.\n4. Few exercises: roughly three to five per session, all multi-joint, all with obvious transfer. A lower-body hinge or squat, a unilateral leg movement, a pull, a push, and a carry or core movement is a complete session.\n5. Twice a week, for roughly six to ten weeks, with at least two days between sessions.\n6. Progression by load, in small steps, when all sets are completed cleanly. When a step fails, hold the load rather than pushing.\n\nMax strength sessions are brief, often under an hour, and they should leave the athlete feeling strong rather than wrecked. Heavy soreness the next day means the session was too much or the transition was too short.\n\n## Phase three: conversion to muscular endurance\n\nMax strength is a ceiling; muscular endurance is the ability to work near a useful fraction of that ceiling for a long time. For the mountain athlete this means sustained uphill work under load: the capacity that decides the last two thousand feet of a big day. It is built in the specific phase by loading the actual movement pattern of the objective.\n\nForms, from most to least specific:\n1. Weighted uphill hiking or skinning. A pack heavier than the objective's, on steep terrain, for sustained periods at an effort the athlete can hold. This is the most specific form and the default for alpine, ski and hunting objectives.\n2. Hill repeats under load. Repeated steep climbs with a pack, with descents as recovery, when terrain or time limits a single long effort.\n3. High-rep loaded step-ups. Indoors, a box step-up with a loaded pack for many continuous reps or a fixed duration, progressing in load and duration week over week. This is the substitute when steep terrain is not available.\n\nProgression is by duration first, then load. One session per week replaces one max strength session; the other max strength session is kept as maintenance at reduced volume. The work is hard in a particular way, a deep local burn in the legs rather than breathlessness, and it produces significant fatigue, so it sits away from the long aerobic session and never on consecutive days. Four to eight weeks of this, on the platform of the max strength phase, turns a strong athlete into one who can climb for hours.\n\n## Core and posterior chain as prerequisites\n\nThe trunk and the posterior chain, meaning the glutes, hamstrings, spinal erectors and the muscles that hold the pelvis and spine in position, are not accessories. They are the structure everything else pushes against. A weak trunk leaks force on every step, a weak posterior chain shifts load to the knees and lower back, and both fail first under a heavy pack late in a day.\n\nFor this athlete they are the named current development focus, and the doctrine treats them accordingly:\n1. They are trained in every phase, at high frequency, as the first strength work in transition and never dropped.\n2. Posterior chain work is loaded and progressed like any other strength work: hinges, single-leg hinges, bridges and their loaded variants, moving toward heavy in base.\n3. Trunk work emphasizes holding position against load, resisting rotation and extension, and transferring force between the legs and the arms, rather than flexion for its own sake. Carries and unilateral lifts do much of this.\n4. No max strength or muscular endurance progression is allowed to outrun the trunk's ability to hold position under it. A lift that breaks position is reduced.\n\n## Strength never replaces aerobic work\n\nThe most common error in a strong athlete's plan is to let strength work grow until it steals from the aerobic base. Strength is a smaller, faster adaptation. The aerobic base is the larger, slower one, and it is the one the objective depends on. When the two compete, the base wins in every phase except the specific phase of a rock objective.\n\nScheduling rules:\n1. Two strength sessions per week is the ceiling in base and specific. More is decoration.\n2. Heavy strength sits on a day with only easy aerobic work, or on its own, and at least two days before the long session, because heavy legs ruin the long session and the long session is more important.\n3. When both must happen on one day, the easy aerobic work comes first and strength second; that order compromises neither much, and the reverse compromises the aerobic session.\n4. Muscular endurance and objective-specific intensity are never on consecutive days, and neither sits the day before the long session.\n5. In the taper, strength drops to a light maintenance dose and is removed in the final week.\n6. Strength volume never grows in the same week as aerobic volume. One variable at a time.\n\n## How the coach applies this\n\n- Program strength in the fixed order of general work in transition, max strength in base and muscular endurance conversion in the specific phase, and do not skip ahead.\n- Hold heavy loading until squat, hinge, lunge, push, pull and carry patterns are clean at moderate loads, and reduce any lift that breaks position.\n- Build max strength sessions from roughly three to five multi-joint exercises at loads allowing roughly one to five clean reps, with roughly three to five minutes of rest, twice a week, as guidelines.\n- Stop each heavy set short of failure and progress load in small steps only when all sets were completed cleanly.\n- Convert to muscular endurance in the specific phase with weighted uphill hiking, hill repeats under load or high-rep loaded step-ups, progressing duration before load, one session per week.\n- Keep core and posterior chain work in every phase and at high frequency, because they are the athlete's named development focus and the foundation every other lift depends on.\n- Cap strength at two sessions per week, place heavy strength at least two days before the long session, and never grow strength volume in the same week as aerobic volume.\n- Reduce strength to a light dose in the taper and remove it in the final week before the objective.\n\n## Signals that contradict this\n\n- Soreness that lasts into the next session after a max strength workout indicates the transition was too short or the load too high, and the coach should hold or reduce load rather than progress.\n- A long aerobic session logged with unusually high heart rate for its pace, or a completion rate on long sessions that falls once heavy strength begins, indicates the strength work is blunting the aerobic base and should be moved or reduced.\n- A lift that fails or loses position at a load that was previously clean, with no illness or missed sleep reported, indicates accumulated fatigue and calls for a reduced week rather than a heavier attempt.\n- An athlete already carrying high strength numbers relative to their bodyweight but a slow easy pace is one whose limiting capacity is aerobic, and the coach should not let a strength focus displace aerobic volume.\n- Any reported joint pain, swelling or named injury in a region a lift loads stops loading that region and points to a clinician, and no progression rule in this topic overrides that.\n- A rock objective in its specific phase is the one case where climbing-specific strength takes priority over muscular endurance, and the alpine default here does not apply.",
+      "turn": 1,
+      "kind": "read",
+      "round": 1
+    },
+    {
+      "name": "get_training_blocks",
+      "input": {
+        "scope": "current",
+        "include_objectives": true
+      },
+      "result": "{\"note\":\"no data for this athlete\"}",
+      "turn": 1,
+      "kind": "read",
+      "round": 2
+    },
+    {
+      "name": "get_prs",
+      "input": {
+        "scope": "all_time"
+      },
+      "result": "{\"note\":\"no data for this athlete\"}",
+      "turn": 1,
+      "kind": "read",
+      "round": 3
+    },
+    {
+      "name": "search_history",
+      "input": {
+        "query": "illness"
+      },
+      "result": "{\"note\":\"no data for this athlete\"}",
+      "turn": 1,
+      "kind": "read",
+      "round": 4
+    },
+    {
+      "name": "create_exercise_definition",
+      "input": {
+        "canonical_name": "Reverse Lunge",
+        "category": "strength",
+        "is_unilateral": true,
+        "default_reps": "10 each leg",
+        "default_sets": 2,
+        "default_rest": "60s",
+        "equipment": [
+          "dumbbells"
+        ],
+        "muscle_groups": [
+          "quads",
+          "glutes",
+          "hamstrings",
+          "core"
+        ],
+        "technique_notes": "Step back into a long stride, drop rear knee toward floor under control, torso tall, drive through front heel to return. Exposes and corrects left-right asymmetry — the point of it in a return-to-training phase."
+      },
+      "result": "Added \"Reverse Lunge\" (strength, unilateral) to the exercise library. Reference it by that exact name in create_event or set_event_exercises.",
+      "turn": 1,
+      "kind": "write",
+      "round": 5
+    },
+    {
+      "name": "create_exercise_definition",
+      "input": {
+        "canonical_name": "Farmer's Carry",
+        "category": "strength",
+        "is_unilateral": false,
+        "default_reps": "40m",
+        "default_sets": 3,
+        "default_rest": "60s",
+        "equipment": [
+          "dumbbells"
+        ],
+        "muscle_groups": [
+          "grip",
+          "trunk",
+          "traps",
+          "legs"
+        ],
+        "technique_notes": "Tall posture, braced trunk, shoulders down, steady unhurried pace for the set distance. Builds loaded-carry capacity that transfers directly to pack-carrying."
+      },
+      "result": "Added \"Farmer's Carry\" (strength) to the exercise library. Reference it by that exact name in create_event or set_event_exercises.",
+      "turn": 1,
+      "kind": "write",
+      "round": 6
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "General Strength — Transition Wk1",
+        "date": "2026-08-03",
+        "estimated_duration": 50,
+        "difficulty": 2,
+        "equipment": [
+          "barbell",
+          "dumbbells",
+          "cable machine"
+        ],
+        "description": "Week 1 of transition back after 2 months off. Moderate load, movement quality first — doctrine: \"if a pattern cannot be done well unloaded, it is not loaded.\" This is general strength, not max strength; heavy work waits until base phase.",
+        "repeat": {
+          "days": [
+            "MO",
+            "TH"
+          ],
+          "until": "2026-08-06"
+        },
+        "exercises": [
+          {
+            "name": "Back Squat",
+            "sets": 2,
+            "reps": "12-15",
+            "rest_period": "60-90s",
+            "notes": "Light. Full depth, control, no grinding reps."
+          },
+          {
+            "name": "Single-Leg RDL",
+            "sets": 2,
+            "reps": "10 each leg",
+            "rest_period": "60s"
+          },
+          {
+            "name": "Reverse Lunge",
+            "sets": 2,
+            "reps": "10 each leg",
+            "rest_period": "60s"
+          },
+          {
+            "name": "Push-Ups",
+            "sets": 2,
+            "reps": "12-15",
+            "rest_period": "60s"
+          },
+          {
+            "name": "Seated Cable Row",
+            "sets": 2,
+            "reps": "12-15",
+            "rest_period": "60s"
+          },
+          {
+            "name": "Farmer's Carry",
+            "sets": 3,
+            "reps": "40m",
+            "rest_period": "60s"
+          },
+          {
+            "name": "Dead Bug",
+            "sets": 2,
+            "reps": "10 each side",
+            "rest_period": "45s"
+          },
+          {
+            "name": "Banded Glute Bridges",
+            "sets": 2,
+            "reps": "15",
+            "rest_period": "45s"
+          }
+        ]
+      },
+      "result": "Created \"General Strength — Transition Wk1\" repeating every Mon, Thu until 2026-08-06 from 2026-08-03 [evt-ai-1].",
+      "turn": 1,
+      "kind": "write",
+      "round": 7
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "General Strength — Transition Wk2",
+        "date": "2026-08-10",
+        "estimated_duration": 55,
+        "difficulty": 2,
+        "equipment": [
+          "barbell",
+          "dumbbells",
+          "cable machine"
+        ],
+        "description": "Week 2 of transition. Add a set, tighten rep range slightly, small load bump only if every Wk1 set was clean and pain-free.",
+        "repeat": {
+          "days": [
+            "MO",
+            "TH"
+          ],
+          "until": "2026-08-13"
+        },
+        "exercises": [
+          {
+            "name": "Back Squat",
+            "sets": 3,
+            "reps": "10-12",
+            "rest_period": "90s",
+            "notes": "Small load increase vs Wk1 only if all reps were clean."
+          },
+          {
+            "name": "Single-Leg RDL",
+            "sets": 3,
+            "reps": "8 each leg",
+            "rest_period": "60s"
+          },
+          {
+            "name": "Reverse Lunge",
+            "sets": 3,
+            "reps": "8 each leg",
+            "rest_period": "60s"
+          },
+          {
+            "name": "Push-Ups",
+            "sets": 3,
+            "reps": "10-12",
+            "rest_period": "60s"
+          },
+          {
+            "name": "Seated Cable Row",
+            "sets": 3,
+            "reps": "10-12",
+            "rest_period": "60s"
+          },
+          {
+            "name": "Farmer's Carry",
+            "sets": 3,
+            "reps": "50m",
+            "rest_period": "60s"
+          },
+          {
+            "name": "Dead Bug",
+            "sets": 3,
+            "reps": "10 each side",
+            "rest_period": "45s"
+          },
+          {
+            "name": "Banded Glute Bridges",
+            "sets": 3,
+            "reps": "15",
+            "rest_period": "45s"
+          }
+        ]
+      },
+      "result": "Created \"General Strength — Transition Wk2\" repeating every Mon, Thu until 2026-08-13 from 2026-08-10 [evt-ai-2].",
+      "turn": 1,
+      "kind": "write",
+      "round": 8
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "General Strength — Transition Wk3",
+        "date": "2026-08-17",
+        "estimated_duration": 55,
+        "difficulty": 3,
+        "equipment": [
+          "barbell",
+          "dumbbells",
+          "cable machine"
+        ],
+        "description": "Week 3 of transition. Reps drop, load rises toward the heavier end of moderate — still general strength, not max strength yet. Reassess after this week before progressing further.",
+        "repeat": {
+          "days": [
+            "MO",
+            "TH"
+          ],
+          "until": "2026-08-20"
+        },
+        "exercises": [
+          {
+            "name": "Back Squat",
+            "sets": 3,
+            "reps": "8-10",
+            "rest_period": "90s",
+            "notes": "Heavier than Wk2 only if all Wk2 sets were clean."
+          },
+          {
+            "name": "Single-Leg RDL",
+            "sets": 3,
+            "reps": "8 each leg",
+            "rest_period": "60-90s",
+            "notes": "Heavier dumbbell than Wk2."
+          },
+          {
+            "name": "Reverse Lunge",
+            "sets": 3,
+            "reps": "8 each leg",
+            "rest_period": "60-90s"
+          },
+          {
+            "name": "Push-Ups",
+            "sets": 3,
+            "reps": "10-12",
+            "rest_period": "60s",
+            "notes": "Add a slow 3-count lowering if bodyweight reps feel easy."
+          },
+          {
+            "name": "Seated Cable Row",
+            "sets": 3,
+            "reps": "8-10",
+            "rest_period": "90s"
+          },
+          {
+            "name": "Farmer's Carry",
+            "sets": 3,
+            "reps": "60m",
+            "rest_period": "60s"
+          },
+          {
+            "name": "Dead Bug",
+            "sets": 3,
+            "reps": "12 each side",
+            "rest_period": "45s"
+          },
+          {
+            "name": "Banded Glute Bridges",
+            "sets": 4,
+            "reps": "15",
+            "rest_period": "45s"
+          }
+        ]
+      },
+      "result": "Created \"General Strength — Transition Wk3\" repeating every Mon, Thu until 2026-08-20 from 2026-08-17 [evt-ai-3].",
+      "turn": 1,
+      "kind": "write",
+      "round": 9
+    },
+    {
+      "name": "read_doctrine",
+      "input": {
+        "topic": "mobility"
+      },
+      "result": "Mobility is the range of motion the athlete can control under load, and climbing, skiing and steep hiking each demand a specific floor of it. Below that floor, strength cannot be expressed, technique breaks down and load shifts to tissue that was not built for it, so mobility is a constraint the plan must satisfy, not a decoration added when time allows.\n\n## Why mobility is a constraint\n\nEvery movement the pursuits require has a range it happens in. A high step on rock needs hip flexion with the trunk upright. A deep kick-turn on skis needs hip rotation and ankle dorsiflexion. A long descent under a pack needs ankles and knees that absorb over a full range. A drop-knee, a stem, a rock-over, a mantle and an ice-tool swing overhead each need shoulder and thoracic range that most desk-bound adults have lost. When the range is missing, the athlete either cannot do the move, does it from a compromised position that loads the wrong tissue, or does it with force that a more mobile athlete would not need. All three cost energy and raise injury risk on a long day.\n\nThis is why mobility sits in the athlete's own ideal as a baseline: the dancer's precision and the climber's delicacy are both impossible without it, and mass that cannot move through range is a failure of the model.\n\n## The ranges the pursuits demand\n\nFour regions decide most of it. The coach programs to keep each at or above the floor and treats a deficit as a plan input.\n\n1. Hips. Flexion deep enough for a high step and a full squat with the heels down; rotation in both directions for stemming, drop-knees and kick-turns; extension enough for a full stride uphill and a strong hinge. The hips are where most restriction accumulates from sitting, and where most compensations in the lower back and knees originate.\n\n2. Ankles. Dorsiflexion enough to keep the heel down in a deep squat and to absorb a steep descent; plantarflexion and controlled inversion and eversion for edging on rock, skinning on sidehill and walking on uneven ground. Stiff ankles push load up the chain to the knees and hips.\n\n3. Thoracic spine. Extension and rotation enough to reach overhead without arching the lower back, to look up on a climb, to rotate the trunk on a ski turn, and to carry a pack with the shoulders back. A stiff mid-back is why many climbers' shoulders and lower backs hurt.\n\n4. Shoulders. Full overhead flexion, external rotation for hanging and tool placements, and the scapular control to hang from an arm without collapsing into the joint. The shoulder's range is only useful if it is controlled; passive flexibility without strength at end range is an injury risk in its own right.\n\n## The daily minimum\n\nMobility responds to frequency more than to duration. A short, daily practice keeps range that a long weekly session cannot. The guideline is roughly ten to fifteen minutes a day, every day, covering all four regions, built from movements the athlete can do anywhere without equipment.\n\nThe shape:\n1. Move each region through its full range under light control, not stretched passively at the end.\n2. Spend extra time on the region that is most restricted or that the day's session will load.\n3. Include a few positions held with active tension at end range, so the range is one the athlete owns rather than one that is merely available.\n4. Keep it easy enough that it never competes with training for recovery, and short enough that it is never skipped.\n\nThe app's daily routine slots are where this lives. It is scheduled, it is logged, and it counts as done when the minimum is met.\n\n## Placement around strength and aerobic work\n\n1. Before a strength session: dynamic movement through the ranges the session will load, plus specific preparation for the day's lifts. No long static holds before heavy work, because they reduce force output for a period afterward.\n2. After a strength session, or in the evening: the longer holds and the loaded end-range work, when tissue is warm and there is no force demand coming.\n3. Before an aerobic session: brief, dynamic, focused on ankles and hips. An easy aerobic session is itself a warmup.\n4. On rest days: the full daily minimum plus any extra work on the most restricted region, because this is where mobility gains are actually made.\n5. Dedicated mobility work never replaces a strength or aerobic session. When time is short, the daily minimum is done and the longer work waits.\n\n## Mobility problem, strength problem, or pain problem\n\nA restriction the athlete reports or the coach observes has one of three causes, and only the first two are the coach's to address.\n\n1. A mobility problem: the range is missing passively and actively, with no pain, and improves with consistent mobility work. Program the daily minimum with extra attention to that region and re-check in several weeks.\n\n2. A strength problem: the range is available passively but the athlete cannot control it or produce force in it, such as a squat that can be reached with assistance but not held unassisted, or a shoulder that reaches overhead but collapses under load. This is not fixed by stretching. Program strength at end range: loaded, controlled work through the full range, unilateral and slow, so the nervous system learns to own the position.\n\n3. A pain problem: the range is limited by pain, or pain appears at end range, or the restriction followed an incident, a fall, or a named injury. This is not the coach's to diagnose or treat. The coach stops loading that region and points the athlete to a clinician, exactly as the safety rules require. It does not prescribe stretches for pain, it does not interpret what the pain means, and it does not program around it as if it were a preference.\n\nWhen the athlete's description does not clearly separate these, the coach asks whether there is pain. If there is, or if it is unclear, it is a pain problem.\n\n## How the coach applies this\n\n- Treat mobility at the hips, ankles, thoracic spine and shoulders as a floor the plan must maintain, and program to close any deficit as a plan input rather than an afterthought.\n- Schedule a daily mobility minimum of roughly ten to fifteen minutes, as a guideline, built from active full-range movement and a few controlled end-range holds.\n- Place dynamic mobility before strength and aerobic sessions, longer holds and loaded end-range work after strength or in the evening, and the fullest mobility work on rest days.\n- Avoid long static holds immediately before heavy strength or power work.\n- Never let dedicated mobility work replace a strength or aerobic session; keep the daily minimum and let the longer work wait when time is short.\n- Sort any reported restriction into a mobility problem, a strength problem or a pain problem before programming for it, and ask about pain when the report is unclear.\n- Program end-range strength work, not stretching, for a range that is available passively but not controlled.\n- Stop loading a region and point to a clinician for any restriction that involves pain, followed an incident, or is a named injury.\n\n## Signals that contradict this\n\n- A restriction that does not change after several weeks of consistent daily mobility work is unlikely to be a pure mobility problem, and the coach should reconsider whether it is a strength or pain problem.\n- Any pain reported at end range, during a mobility movement, or after an incident moves the restriction out of the coach's scope and to a clinician.\n- An athlete who reports full passive range but loses position under load has a strength problem, and more stretching will not help and may increase joint laxity.\n- Force output that drops in a strength session after long pre-session static stretching indicates the mobility work is misplaced and belongs after the session.\n- Mobility sessions that grow long enough to displace strength or aerobic work, or that the athlete reports as fatiguing, have crossed from a baseline constraint into a competing session and should be shortened.",
+      "turn": 2,
+      "kind": "read",
+      "round": 0
+    },
+    {
+      "name": "read_doctrine",
+      "input": {
+        "topic": "aerobic-base"
+      },
+      "result": "Every mountain pursuit this athlete has is a long day at moderate output, and the capacity that decides how that day goes is aerobic. The base is built with large volumes of easy work, it takes months, and it is the part of training most athletes skip because it does not feel like effort.\n\n## Why aerobic capacity is the foundation\n\nA 6,000-foot alpine day, a two-day route, a ski traverse or a backcountry hunt is many hours of continuous work at an intensity the athlete must be able to sustain while thinking clearly, eating, and keeping something in reserve for the hard section or the retreat. That intensity is aerobic. What decides the day is how fast the athlete can move while staying aerobic, how much of the work is fueled by fat rather than limited glycogen, and how quickly the body clears fatigue between efforts.\n\nAerobic training builds these through adaptations that take months: more and larger mitochondria in the working muscles, more capillaries feeding them, a heart that pumps more blood per beat, and a shift toward fat as the fuel at a given pace. These adaptations respond best to long, easy, frequent work. They respond poorly to short hard work, which mainly trains the systems that deliver speed for minutes, not hours.\n\nThe base also sets the ceiling for everything built on it: muscular endurance is only as good as the aerobic system supplying it, and strength that cannot be sustained is not useful in the mountains. This is why the doctrine builds the base first and longest.\n\n## The two thresholds\n\nTwo intensities organize aerobic training.\n\nThe aerobic threshold (AeT) is the highest intensity at which the body is still working almost entirely aerobically, fueled largely by fat, with lactate barely above resting. Below it, the athlete can go for hours and recover quickly. Above it, the effort starts drawing on carbohydrate and accumulating fatigue that takes longer to clear. For a mountain athlete, this is the single most important number: the objective is spent below or near it, and most training belongs below it.\n\nThe anaerobic threshold (AnT) is the highest intensity the body can sustain for roughly an hour before lactate accumulates faster than it clears. Above it, the effort is measured in minutes. It marks the top of useful endurance intensity and the bottom of intensity that mainly serves speed.\n\nIn a well-trained endurance athlete these two thresholds sit close together, with AeT within roughly ten percent of AnT by heart rate. In an athlete whose aerobic system is undertrained relative to their high-intensity fitness, the gap is wide. That gap is the diagnosis that decides the prescription.\n\n## Estimating the thresholds in the field\n\nA lab test with gas exchange or blood lactate is the most accurate way to find both thresholds, and the coach should recommend one when the athlete has access. In its absence, three field methods estimate AeT, and the coach should cross-check at least two:\n\n1. Talk test. At or below AeT the athlete can speak in full sentences without gasping. The point at which sentences break into short phrases is the upper edge of AeT. This is the simplest and surprisingly reliable.\n2. Nasal breathing. Sustained nose-only breathing during a steady effort keeps most athletes at or below AeT. The point at which the athlete must open their mouth to keep pace is a usable AeT estimate.\n3. Heart-rate drift. On a long, steady effort at constant pace (roughly an hour after a warmup, on flat or consistently graded terrain), compare heart rate in the second half to the first. If pace is constant and heart rate rises by more than roughly five percent, the effort was above AeT. If the rise is under roughly three to five percent, the effort was at or below it. Repeat at a slightly higher heart rate until the drift crosses the line; the last heart rate that held is AeT. The app can compute this from any steady logged effort.\n\nIn all three, AeT feels easy, sustainable indefinitely and slightly boring; if the effort feels like work, it is above AeT.\n\nAnT is estimated from a sustained hard effort: the average heart rate over roughly thirty to sixty minutes of the hardest steady pace the athlete can hold, after a thorough warmup. This test is demanding and should be done rested, at most a few times a season.\n\nAll these estimates are guidelines with error of several beats. The coach treats them as working numbers, re-checks them every four to eight weeks in base, and expects AeT to rise as the base builds.\n\n## Aerobic deficiency\n\nWhen AeT sits well below AnT, with a gap of roughly ten percent or more of the AnT heart rate as the common working definition, the athlete is aerobically deficient. This is the usual profile of a strong, motivated athlete who trains hard often and easy rarely: they can go hard, but they cannot go long, and their easy pace is slow.\n\nThe prescription for aerobic deficiency is unambiguous:\n1. Nearly all aerobic volume goes below AeT until the gap closes. Below, not at.\n2. The moderate zone between AeT and AnT, the grey zone, is avoided. It is too hard to build the base and too easy to build anything else, and it produces fatigue that steals from the volume that would actually work.\n3. High-intensity work is removed or kept to a small maintenance dose.\n4. Volume is raised gradually. Because the work is easy, volume can grow more than the athlete expects, but the gradualness rule still holds.\n5. Strength training continues in parallel. It does not compete with easy aerobic volume for recovery the way intensity does.\n\nThis is the Uphill Athlete approach to the base, and this doctrine adopts it. The period feels too easy and the athlete will want to push; the coach holds the line. The base builds slowly, then fast, and the athlete who trusts the process for eight to twelve weeks typically sees their easy pace rise substantially at the same heart rate. Once AeT sits within roughly ten percent of AnT, the deficiency is closed and intensity can be added.\n\n## Zone distribution across a base phase\n\nAcross a base phase the guideline is that the large majority of aerobic time, roughly eighty percent or more, sits below AeT, and the small remainder sits near or above AnT. Time in the grey zone is minimized. This holds especially for a mountain athlete with limited hours: the fewer the hours, the more of them must be easy, because intensity is what the schedule cannot recover from.\n\nWithin the easy majority, variety comes from duration and terrain, not intensity: a long weekend outing on real terrain, several shorter weekday sessions, and steep hiking or ski touring under a light pack as the base builds. The long session is the most important session of the week and it grows first.\n\n## Volume progression and recovery weeks\n\n1. Establish a baseline from the athlete's actual recent history, not from what they aspire to.\n2. Raise weekly aerobic volume by roughly five to ten percent per week as a guideline, holding intensity constant.\n3. Every third or fourth week, reduce volume by roughly a third to a half. The recovery week is where the adaptation consolidates.\n4. Grow the long session first and most, then add frequency, then add duration to the weekday sessions.\n5. When the athlete cannot add hours, add vertical: steep terrain at the same heart rate is more specific and more productive for mountain work than flat distance.\n6. Track the easy pace at AeT heart rate. If it rises, the base is building. If it stalls for many weeks with good recovery, the stimulus needs to change, usually through more volume or more vertical.\n\n## When intensity earns its place\n\nHigher-intensity aerobic work is a tool for the later part of the plan, not the start of it. It earns its place when:\n1. The AeT to AnT gap has closed to roughly ten percent or less.\n2. The athlete has accumulated many consecutive weeks of consistent easy volume.\n3. The objective demands sustained efforts near AnT, such as a fast alpine push or a competitive run.\n\nIt enters as one session per week at first, in the form the objective demands: long uphill intervals near AnT for alpine objectives, tempo efforts for running. The easy volume is kept, not replaced; intensity on top of a reduced base is the fastest way back to deficiency.\n\n## How the coach applies this\n\n- Establish AeT and AnT estimates from at least two field methods before programming a base phase, and re-estimate every four to eight weeks.\n- When the AeT to AnT gap is roughly ten percent of AnT heart rate or more, prescribe nearly all aerobic volume below AeT, remove the grey zone, and hold high intensity to a small maintenance dose until the gap closes.\n- Keep roughly eighty percent or more of aerobic time below AeT across any base phase, as a guideline, and treat time between AeT and AnT as the first thing to cut.\n- Grow the weekly long session first and most, and prefer vertical over flat distance when the athlete cannot add hours.\n- Raise aerobic volume by roughly five to ten percent per week at most, and program a reduced week every third or fourth week.\n- Use heart-rate drift on logged steady efforts as the app's own evidence of where AeT sits and whether it is rising.\n- Add higher-intensity aerobic work only after the gap has closed and many consistent weeks are banked, as one session per week at first, without cutting easy volume.\n- Explain to the athlete in plain terms that the easy work feels too easy by design and that the payoff is a faster pace at the same heart rate.\n\n## Signals that contradict this\n\n- Heart-rate drift under roughly three to five percent on long efforts at a pace that also keeps rising over weeks indicates the base is building and the current prescription is working.\n- A gap between AeT and AnT that stays wide after twelve or more weeks of high easy volume with good recovery indicates the AeT estimate may be wrong or the volume is not truly easy, and both should be re-checked before adding more.\n- Easy sessions logged with average heart rate above the estimated AeT indicate the athlete is drifting into the grey zone, and the coach should slow the prescription rather than assume the base is being built.\n- A resting heart rate that rises or an HRV trend that falls during a base phase of only easy work indicates the volume increase has outrun recovery, or that life stress or illness is present, and volume should hold or drop.\n- An objective that is short and intense, such as a single-pitch performance goal or a race under an hour, is one where the base-heavy distribution should shift earlier toward intensity than the default alpine prescription.\n- An athlete reporting that easy sessions feel hard, or that their easy pace has slowed, is showing fatigue or illness rather than a need for more volume.",
+      "turn": 2,
+      "kind": "read",
+      "round": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "cardio",
+        "title": "Easy Aerobic",
+        "date": "2026-08-04",
+        "estimated_duration": 25,
+        "difficulty": 1,
+        "description": "Transition-phase easy aerobic — all easy, below aerobic threshold. Talk test: full sentences, no gasping; if it feels like work, slow down. Any modality — walk, jog, bike, erg.",
+        "repeat": {
+          "days": [
+            "TU",
+            "WE",
+            "FR"
+          ],
+          "until": "2026-08-21"
+        }
+      },
+      "result": "Created \"Easy Aerobic\" repeating every Tue, Wed, Fri until 2026-08-21 from 2026-08-04 [evt-ai-4].",
+      "turn": 2,
+      "kind": "write",
+      "round": 2
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "cardio",
+        "title": "Easy Aerobic — Long",
+        "date": "2026-08-09",
+        "estimated_duration": 40,
+        "difficulty": 1,
+        "description": "Week's slightly-longer easy session — still fully conversational, below aerobic threshold. Same rule: if it feels like effort, it's too hard.",
+        "repeat": {
+          "days": [
+            "SU"
+          ],
+          "until": "2026-08-23"
+        }
+      },
+      "result": "Created \"Easy Aerobic — Long\" repeating every Sun until 2026-08-23 from 2026-08-09 [evt-ai-5].",
+      "turn": 2,
+      "kind": "write",
+      "round": 3
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "stretching",
+        "title": "Daily Mobility Minimum",
+        "date": "2026-08-03",
+        "start_time": "7:00 AM",
+        "estimated_duration": 12,
+        "difficulty": 1,
+        "description": "Daily floor for hips, ankles, thoracic spine, shoulders — active full range plus a few end-range holds. Extra time on Sat (rest day) and on whatever the day's session loaded most.",
+        "repeat": {
+          "days": [
+            "MO",
+            "TU",
+            "WE",
+            "TH",
+            "FR",
+            "SA",
+            "SU"
+          ],
+          "until": "2026-08-23"
+        },
+        "exercises": [
+          {
+            "name": "Cat-Cow",
+            "reps": "10"
+          },
+          {
+            "name": "90/90 Hip Stretch",
+            "duration": "30s each side"
+          },
+          {
+            "name": "Calf / Ankle Dorsiflexion Stretch",
+            "duration": "30s each side"
+          },
+          {
+            "name": "Thoracic Extension over Foam Roller",
+            "duration": "45s"
+          },
+          {
+            "name": "Wall Arm Slides",
+            "reps": "10"
+          },
+          {
+            "name": "Deep Squat Hold",
+            "duration": "45s"
+          }
+        ]
+      },
+      "result": "Created \"Daily Mobility Minimum\" repeating every Mon, Tue, Wed, Thu, Fri, Sat, Sun until 2026-08-23 from 2026-08-03 [evt-ai-6].",
+      "turn": 2,
+      "kind": "write",
+      "round": 4
+    }
+  ],
+  "anomalies": [
+    "unscriptedRead:get_training_blocks",
+    "unscriptedRead:get_prs",
+    "unscriptedRead:search_history"
+  ]
+}
