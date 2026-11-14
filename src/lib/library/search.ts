@@ -1,0 +1,64 @@
+import type { ExerciseDefinition } from '../../types/workout';
+
+/**
+ * Words the library search treats as the same word. Each group is a set of
+ * interchangeable whole words: a query that uses one also matches names that
+ * use any other, so "single" finds "One Arm …" movements and "one" finds
+ * "Single …" ones. Shane asked for single ↔ one (2026-11-11).
+ */
+export const SEARCH_SYNONYMS: readonly (readonly string[])[] = [
+  ['single', 'one'],
+];
+
+const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+const synonymsOf = new Map<string, readonly string[]>(
+  SEARCH_SYNONYMS.flatMap(group => group.map(word => [word, group] as const)),
+);
+const SYNONYM_WORD = new RegExp(`\\b(${[...synonymsOf.keys()].map(escape).join('|')})\\b`, 'g');
+
+/**
+ * What a query matches, as patterns: the query itself as a plain substring
+ * (the search as it always was), then one pattern per synonym swap. Only a
+ * whole word of the query is swapped, so a half-typed "sing" stays as typed,
+ * and the swapped-in word must be a whole word in the name too, so "one" finds
+ * "Single-Leg RDL" but not "Prone YTWs", and "single" not "Singles".
+ */
+export function searchPatterns(query: string): RegExp[] {
+  const base = query.trim().toLowerCase();
+  if (!base) return [];
+  // Split into literal text and synonym words: odd indexes are the words.
+  const parts = base.split(SYNONYM_WORD);
+  const variants: string[][] = [[]];
+  parts.forEach((part, i) => {
+    // Swap at most the first four synonym words, so a pasted run of them
+    // cannot multiply the patterns without bound.
+    const options = i % 2 === 1 && i < 9
+      ? (synonymsOf.get(part) ?? [part]).map(w => `\\b${escape(w)}\\b`)
+      : [escape(part)];
+    const next: string[][] = [];
+    for (const v of variants) for (const o of options) next.push([...v, o]);
+    variants.splice(0, variants.length, ...next);
+  });
+  const plain = escape(base);
+  const swapped = variants
+    .map(v => v.join(''))
+    .filter(src => src.replace(/\\b/g, '') !== plain);
+  return [new RegExp(plain), ...swapped.map(src => new RegExp(src))];
+}
+
+/**
+ * A matcher for one search: a movement matches when any pattern is in its
+ * name, an alias or a muscle group. An empty query matches everything. The
+ * patterns are built once per query, not once per movement.
+ */
+export function librarySearch(query: string): (def: ExerciseDefinition) => boolean {
+  const patterns = searchPatterns(query);
+  if (patterns.length === 0) return () => true;
+  return def => [def.canonicalName, ...def.aliases, ...def.muscleGroups]
+    .some(field => { const f = field.toLowerCase(); return patterns.some(p => p.test(f)); });
+}
+
+export function matchesLibrarySearch(def: ExerciseDefinition, query: string): boolean {
+  return librarySearch(query)(def);
+}

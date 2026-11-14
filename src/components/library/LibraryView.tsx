@@ -7,6 +7,7 @@ import { useCalendar } from '../../context/calendar';
 import { useSchedule } from '../../context/schedule';
 import { buildAliasIndex, countDefinitionReferences, matchDefinitionByName, nearMatchDefinitions } from '../../lib/schedule/definitions';
 import { fetchLastPerformedRows } from '../../lib/library/repo';
+import { librarySearch } from '../../lib/library/search';
 import { lastPerformedByCanonical } from '../../lib/library/stats';
 import ExerciseDetail from './ExerciseDetail';
 import CreateDefinitionInline from '../modal/CreateDefinitionInline';
@@ -45,13 +46,9 @@ export default function LibraryView() {
   }, [definitions, events]);
 
   const { active, archived } = useMemo(() => {
-    const needle = search.trim().toLowerCase();
+    const searched = librarySearch(search);
     const matches = (def: ExerciseDefinition) =>
-      (category === 'all' || def.category === category) &&
-      (!needle ||
-        def.canonicalName.toLowerCase().includes(needle) ||
-        def.aliases.some(a => a.toLowerCase().includes(needle)) ||
-        def.muscleGroups.some(m => m.toLowerCase().includes(needle)));
+      (category === 'all' || def.category === category) && searched(def);
     const all = [...definitions.values()]
       .filter(matches)
       .sort((a, b) => a.canonicalName.localeCompare(b.canonicalName));

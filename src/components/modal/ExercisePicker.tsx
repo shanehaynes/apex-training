@@ -5,6 +5,7 @@ import { Search, X } from 'lucide-react';
 import { useSchedule } from '../../context/schedule';
 import { buildAliasIndex, matchDefinitionByName, nearMatchDefinitions } from '../../lib/schedule/definitions';
 import { fetchLastPerformedRows } from '../../lib/library/repo';
+import { librarySearch } from '../../lib/library/search';
 import { lastPerformedByCanonical } from '../../lib/library/stats';
 import CreateDefinitionInline from './CreateDefinitionInline';
 import { enqueue, dequeue, type QueuedPick } from '../../lib/schedule/pickerQueue';
@@ -110,13 +111,8 @@ export default function ExercisePicker({ onSelect, onDone, onClose, initialCateg
   [definitions, category, categories]);
 
   const results = useMemo(() => {
-    const needle = query.trim().toLowerCase();
     return pickable
-      .filter(def =>
-        !needle ||
-        def.canonicalName.toLowerCase().includes(needle) ||
-        def.aliases.some(a => a.toLowerCase().includes(needle)) ||
-        def.muscleGroups.some(m => m.toLowerCase().includes(needle)))
+      .filter(librarySearch(query))
       .sort((a, b) => a.canonicalName.localeCompare(b.canonicalName));
   }, [pickable, query]);
 
