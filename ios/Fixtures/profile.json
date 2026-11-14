@@ -22,7 +22,7 @@
       "id": "claude-opus-5-5",
       "label": "Opus 5.5",
       "badge": "claude opus 5.5",
-      "blurb": "Newest and sharpest, and 20% cheaper than Opus 5. The default.",
+      "blurb": "The newest and sharpest Opus, 20% cheaper than Opus 5. The default.",
       "inputPerMTok": 4,
       "outputPerMTok": 20
     },
@@ -43,12 +43,33 @@
       "outputPerMTok": 25
     },
     {
+      "id": "claude-sonnet-5-5",
+      "label": "Sonnet 5.5",
+      "badge": "claude sonnet 5.5",
+      "blurb": "Half the price. The newest Sonnet.",
+      "inputPerMTok": 2,
+      "outputPerMTok": 10
+    },
+    {
       "id": "claude-sonnet-5",
       "label": "Sonnet 5",
       "badge": "claude sonnet 5",
-      "blurb": "Half the price. Handles most coaching turns well.",
+      "blurb": "The previous Sonnet, at the same price.",
       "inputPerMTok": 2,
       "outputPerMTok": 10
+    },
+    {
+      "id": "claude-haiku-5-5",
+      "label": "Haiku 5.5",
+      "badge": "claude haiku 5.5",
+      "blurb": "A fortieth of the price, or an eighth on prompts over 100K tokens.",
+      "inputPerMTok": 0.1,
+      "outputPerMTok": 0.5,
+      "longPrompt": {
+        "overTokens": 100000,
+        "inputPerMTok": 0.5,
+        "outputPerMTok": 2.5
+      }
     },
     {
       "id": "claude-haiku-4-5-20251001",

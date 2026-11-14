@@ -160,26 +160,48 @@ public struct ProfileResponse: Codable, Sendable, Equatable {
         public let badge: String
         /// One line on what you trade away by picking it.
         public let blurb: String
+        /// $/MTok, or, where `longPrompt` is set, the rate up to its threshold.
         public let inputPerMTok: Double
         public let outputPerMTok: Double
+        /// The higher rate on a model priced by prompt length (Haiku 5.5); nil
+        /// on a flat-priced one, and on a catalog cached before it existed.
+        public let longPrompt: LongPromptPrice?
 
-        public init(id: String, label: String, badge: String, blurb: String, inputPerMTok: Double, outputPerMTok: Double) {
+        public init(id: String, label: String, badge: String, blurb: String, inputPerMTok: Double, outputPerMTok: Double, longPrompt: LongPromptPrice? = nil) {
             self.id = id
             self.label = label
             self.badge = badge
             self.blurb = blurb
             self.inputPerMTok = inputPerMTok
             self.outputPerMTok = outputPerMTok
+            self.longPrompt = longPrompt
         }
 
         /// e.g. "$3/$15 per Mtok" — the web's `priceLabel`, shown in the picker
-        /// so the saving is visible at the point of choice.
+        /// so the saving is visible at the point of choice. A long-prompt rate
+        /// is part of the price, so it is shown too.
         public var priceLabel: String {
-            "$\(trim(inputPerMTok))/$\(trim(outputPerMTok)) per Mtok"
+            let base = "$\(trim(inputPerMTok))/$\(trim(outputPerMTok)) per Mtok"
+            guard let long = longPrompt else { return base }
+            return "\(base), $\(trim(long.inputPerMTok))/$\(trim(long.outputPerMTok)) over \(long.overTokens / 1000)K-token prompts"
         }
 
         private func trim(_ value: Double) -> String {
             value == value.rounded() ? String(Int(value)) : String(value)
+        }
+    }
+
+    /// The web's `LongPromptPrice`: a prompt over `overTokens` (every input
+    /// token, cache included) pays these prices instead.
+    public struct LongPromptPrice: Codable, Sendable, Equatable {
+        public let overTokens: Int
+        public let inputPerMTok: Double
+        public let outputPerMTok: Double
+
+        public init(overTokens: Int, inputPerMTok: Double, outputPerMTok: Double) {
+            self.overTokens = overTokens
+            self.inputPerMTok = inputPerMTok
+            self.outputPerMTok = outputPerMTok
         }
     }
 

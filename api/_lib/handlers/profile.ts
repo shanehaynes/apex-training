@@ -179,8 +179,8 @@ function onboardingState(
 // The picker's options, so a native client never hand-ports the catalog
 // (D-008). `params` is deliberately omitted: it is a server request shape,
 // not something a picker renders.
-const coachModelCatalog = () => COACH_MODELS.map(({ id, label, badge, blurb, inputPerMTok, outputPerMTok }) => ({
-  id, label, badge, blurb, inputPerMTok, outputPerMTok,
+const coachModelCatalog = () => COACH_MODELS.map(({ id, label, badge, blurb, inputPerMTok, outputPerMTok, longPrompt }) => ({
+  id, label, badge, blurb, inputPerMTok, outputPerMTok, ...(longPrompt ? { longPrompt } : {}),
 }));
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
