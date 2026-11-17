@@ -84,16 +84,7 @@ struct PlannedSetsEditor: View {
                 }
                 table
                 untimedHint
-                addColumns
-                if isAuthored {
-                    HStack(spacing: Spacing.sm) {
-                        chip("Remove per-set targets", tint: ApexPalette.dangerText) {
-                            entry.plannedSets = nil
-                            preset = nil
-                        }
-                        .accessibilityIdentifier("editor.planned.\(entry.id).remove")
-                    }
-                }
+                actions
             }
         }
         .accessibilityElement(children: .contain)
@@ -122,14 +113,23 @@ struct PlannedSetsEditor: View {
         }
     }
 
-    /// "+ Reps", "+ Rest": a column the prescription does not name yet.
-    @ViewBuilder private var addColumns: some View {
+    /// One row under the table: "+ Reps", "+ Rest" for a column the
+    /// prescription does not name yet, then "Remove per-set targets". One row,
+    /// wrapping only when it must, so the card is no taller than it needs.
+    @ViewBuilder private var actions: some View {
         let addable = PlannedSets.addable(fields)
-        if !addable.isEmpty {
-            HStack(spacing: Spacing.xs) {
+        if !addable.isEmpty || isAuthored {
+            FlowLayout(spacing: Spacing.xs) {
                 ForEach(addable, id: \.self) { field in
                     chip("+ \(field.label)") { added.insert(field) }
                         .accessibilityIdentifier("editor.planned.\(entry.id).add.\(field.rawValue)")
+                }
+                if isAuthored {
+                    chip("Remove per-set targets", tint: ApexPalette.dangerText) {
+                        entry.plannedSets = nil
+                        preset = nil
+                    }
+                    .accessibilityIdentifier("editor.planned.\(entry.id).remove")
                 }
             }
         }
