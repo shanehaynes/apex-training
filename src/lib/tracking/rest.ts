@@ -52,3 +52,48 @@ export function parseRestSeconds(text: string | null | undefined): number | null
 
   return null;
 }
+
+// ─── Per-set rest ────────────────────────────────────────────────────────────
+
+/**
+ * The rest after one set: the row's own `targetRest` when it overrides the
+ * exercise, else the exercise's `restPeriod`. An extra set (no plan row)
+ * rests like the exercise.
+ */
+export function restFor(planned: { targetRest?: string } | undefined, restPeriod: string | undefined): string | undefined {
+  return planned?.targetRest?.trim() || restPeriod?.trim() || undefined;
+}
+
+/**
+ * The rest line on a tracker card, from each planned set's rest in order.
+ * One value for every set reads as itself ("90s"); sets that differ read as
+ * runs in set order, a run longer than one carrying its count
+ * ("2 min ×3 · 90s"), and a set with no rest as "none". Null when no set has
+ * a rest. The numbers are the athlete's own text, never recomputed.
+ */
+export function restSummary(rests: ReadonlyArray<string | undefined>): string | null {
+  const values = rests.map(r => r?.trim() || '');
+  if (!values.some(Boolean)) return null;
+  const runs: { value: string; count: number }[] = [];
+  for (const value of values) {
+    const last = runs[runs.length - 1];
+    if (last && last.value === value) last.count += 1;
+    else runs.push({ value, count: 1 });
+  }
+  if (runs.length === 1) return runs[0].value;
+  return runs.map(r => `${r.value || 'none'}${r.count > 1 ? ` ×${r.count}` : ''}`).join(' · ');
+}
+
+/**
+ * A tracker card's rest line: `restSummary` over the planned sets (extras
+ * are not planned), each set's rest per `restFor`; the exercise's own rest
+ * when there are no planned sets (cardio). Null when nothing rests.
+ */
+export function restLine(tracked: {
+  exercise: { restPeriod?: string };
+  sets: ReadonlyArray<{ isExtra: boolean; planned: { targetRest?: string } }>;
+}): string | null {
+  const planned = tracked.sets.filter(s => !s.isExtra);
+  if (!planned.length) return tracked.exercise.restPeriod?.trim() || null;
+  return restSummary(planned.map(s => restFor(s.planned, tracked.exercise.restPeriod)));
+}

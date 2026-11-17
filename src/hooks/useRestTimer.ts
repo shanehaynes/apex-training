@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { TrackedSection } from '../lib/db/types';
 import type { TrackedSectionGroup } from '../lib/tracking/plan';
-import { parseRestSeconds } from '../lib/tracking/rest';
+import { parseRestSeconds, restFor } from '../lib/tracking/rest';
 
 /**
  * The rest countdown between sets (D-015 on web). It stores the absolute
@@ -89,7 +89,8 @@ export function loggedRowKeys(groups: TrackedSectionGroup[]): string[] {
  * A set row committed (its reps or duration went empty → non-empty, or its
  * ghost was tapped). Claims the row in `started` and answers the rest to
  * run, or null: the row already started a timer this session, the exercise
- * is not on screen, or its rest text does not parse. The claim happens
+ * is not on screen, or its rest text (the set's own, else the exercise's)
+ * does not parse. The claim happens
  * either way — a row never starts twice (R2.2), parseable rest or not.
  */
 export function claimRest(
@@ -104,7 +105,9 @@ export function claimRest(
   started.add(key);
   const tracked = groups?.find(g => g.section === section)?.exercises.find(t => t.exercise.id === exerciseId);
   if (!tracked) return null;
-  const seconds = parseRestSeconds(tracked.exercise.restPeriod);
+  // The set's own rest when the plan gives it one, else the exercise's.
+  const set = tracked.sets.find(s => s.setNumber === setNumber);
+  const seconds = parseRestSeconds(restFor(set?.planned, tracked.exercise.restPeriod));
   return seconds === null ? null : { seconds, label: tracked.exercise.name };
 }
 

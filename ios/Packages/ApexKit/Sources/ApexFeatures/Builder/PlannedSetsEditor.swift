@@ -4,18 +4,21 @@ import SwiftUI
 
 /// `PlannedSetsEditor.tsx`: the "Per-set targets" disclosure under an
 /// entry's prescription. One row per set, a column per dimension the
-/// prescription names, and three presets that fill the rows — ramp,
-/// pyramid, top set + back-offs. Rows stay editable after a preset. Every
-/// edit writes `plannedSets` whole through `PlannedSets` (ApexCore); this
-/// view only renders.
+/// prescription names (and any the athlete adds: weight, reps, duration,
+/// rest), and three presets that fill the rows — ramp, pyramid, top set +
+/// back-offs. Rows stay editable after a preset. Every edit writes
+/// `plannedSets` whole through `PlannedSets` (ApexCore); this view only
+/// renders.
 ///
-/// Editing the base prescription no longer clears the table — "Apply to all
-/// sets" refills it from the base on purpose, "Remove per-set targets"
-/// drops it on purpose.
+/// A cell holds an override. An empty one shows the set-level value it
+/// follows as its prompt, so a base edit reaches it; "Remove per-set
+/// targets" drops every override on purpose.
 struct PlannedSetsEditor: View {
     @Binding var entry: Exercise
     @State private var isOpen: Bool
     @State private var preset: Preset?
+    /// Columns added by hand; once a cell in one holds a value, `fields` keeps it.
+    @State private var added: Set<PlannedSets.Field> = []
 
     enum Preset: String, CaseIterable, Identifiable {
         case ramp, pyramid, topSet
@@ -35,7 +38,7 @@ struct PlannedSetsEditor: View {
     }
 
     private var isAuthored: Bool { !(entry.plannedSets ?? []).isEmpty }
-    private var fields: [PlannedSets.Field] { PlannedSets.fields(for: entry) }
+    private var fields: [PlannedSets.Field] { PlannedSets.fields(for: entry, adding: added) }
     private var rows: [PlannedSet] { PlannedSets.tableRows(for: entry) }
     private var count: Int { PlannedSets.count(for: entry) }
 
@@ -72,7 +75,7 @@ struct PlannedSetsEditor: View {
                 presets
                 if let preset {
                     PresetForm(preset: preset, fields: fields, entry: entry, rows: rows) { filled in
-                        entry.plannedSets = filled
+                        entry.plannedSets = PlannedSets.stored(filled)
                         self.preset = nil
                     } onCancel: {
                         self.preset = nil
@@ -80,10 +83,9 @@ struct PlannedSetsEditor: View {
                     .id(preset)
                 }
                 table
+                addColumns
                 if isAuthored {
                     HStack(spacing: Spacing.sm) {
-                        chip("Apply to all sets") { entry.plannedSets = PlannedSets.uniform(count, base: entry) }
-                            .accessibilityIdentifier("editor.planned.\(entry.id).applyBase")
                         chip("Remove per-set targets", tint: ApexPalette.dangerText) {
                             entry.plannedSets = nil
                             preset = nil
@@ -108,6 +110,19 @@ struct PlannedSetsEditor: View {
         }
     }
 
+    /// "+ Reps", "+ Rest": a column the prescription does not name yet.
+    @ViewBuilder private var addColumns: some View {
+        let addable = PlannedSets.addable(fields)
+        if !addable.isEmpty {
+            HStack(spacing: Spacing.xs) {
+                ForEach(addable, id: \.self) { field in
+                    chip("+ \(field.label)") { added.insert(field) }
+                        .accessibilityIdentifier("editor.planned.\(entry.id).add.\(field.rawValue)")
+                }
+            }
+        }
+    }
+
     private var table: some View {
         VStack(spacing: Spacing.xs) {
             HStack(spacing: Spacing.xs) {
@@ -124,9 +139,9 @@ struct PlannedSetsEditor: View {
                         .frame(width: 28, alignment: .trailing)
                     ForEach(fields, id: \.self) { field in
                         cell(Binding(
-                            get: { value(of: row, field) },
-                            set: { entry.plannedSets = PlannedSets.setting(rows, setNumber: row.setNumber, field: field, to: $0) }
-                        ))
+                            get: { field.value(of: row) ?? "" },
+                            set: { entry.plannedSets = PlannedSets.stored(PlannedSets.setting(rows, setNumber: row.setNumber, field: field, to: $0)) }
+                        ), prompt: PlannedSets.inherited(entry, field) ?? "—")
                         .accessibilityLabel("Set \(row.setNumber) \(field.label.lowercased())")
                         .accessibilityIdentifier("editor.planned.\(entry.id).\(row.setNumber).\(field.rawValue)")
                     }
@@ -135,16 +150,8 @@ struct PlannedSetsEditor: View {
         }
     }
 
-    private func value(of row: PlannedSet, _ field: PlannedSets.Field) -> String {
-        switch field {
-        case .weight: row.targetWeight ?? ""
-        case .reps: row.targetReps ?? ""
-        case .duration: row.targetDuration ?? ""
-        }
-    }
-
-    private func cell(_ text: Binding<String>) -> some View {
-        TextField("", text: text, prompt: Text("—").foregroundStyle(ApexColor.textMuted))
+    private func cell(_ text: Binding<String>, prompt: String) -> some View {
+        TextField("", text: text, prompt: Text(prompt).foregroundStyle(ApexColor.textMuted))
             .font(.apex(.mono, size: TypeScale.sm, relativeTo: .callout))
             .foregroundStyle(ApexColor.textPrimary)
             .autocorrectionDisabled()
@@ -200,13 +207,7 @@ private struct PresetForm: View {
         _backoffs = State(initialValue: String(max(0, rows.count - 1)))
     }
 
-    private var base: String? {
-        switch field {
-        case .weight: entry.weight
-        case .reps: entry.reps
-        case .duration: entry.duration
-        }
-    }
+    private var base: String? { field.base(of: entry) }
 
     private var isReady: Bool {
         guard PlannedSets.parse(first) != nil else { return false }

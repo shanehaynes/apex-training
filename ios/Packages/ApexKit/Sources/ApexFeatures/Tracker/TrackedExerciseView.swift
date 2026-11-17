@@ -106,7 +106,7 @@ struct TrackedExerciseView: View, Equatable {
                 .frame(minHeight: 44)
                 .accessibilityIdentifier("tracker.use-last.\(tracked.exercise.id)")
             }
-            if let rest = tracked.exercise.restPeriod, !rest.isEmpty {
+            if let rest = PlannedSets.restLine(restPeriod: tracked.exercise.restPeriod, sets: tracked.sets) {
                 Text("Rest \(rest)")
                     .font(.apex(.mono, size: TypeScale.micro, relativeTo: .caption2))
                     // Rest is a fact about the set, not a status (ux-review §3.4).

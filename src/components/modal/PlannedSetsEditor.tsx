@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { ChevronRight } from 'lucide-react';
 import {
-  TARGET_LABELS, parseTarget, pyramidSets, rampSets, setCount, setTarget, tableRows, targetFields,
-  topSetBackoffs, uniformSets, unitFor,
+  BASE_FIELD, TARGET_LABELS, addableFields, inheritedTarget, parseTarget, pyramidSets, rampSets, setCount,
+  setTarget, storedSets, tableRows, targetFields, topSetBackoffs, unitFor,
 } from '../../lib/builder/plannedSets';
 import type { TargetField } from '../../lib/builder/plannedSets';
 import type { Exercise, PlannedSet } from '../../types/workout';
@@ -16,13 +16,6 @@ const PRESET_LABELS: Record<Preset, string> = {
   topset: 'Top set + back-offs',
 };
 
-/** Which base field a target column mirrors, for the unit a preset inherits. */
-const BASE_OF: Record<TargetField, 'weight' | 'reps' | 'duration'> = {
-  targetWeight: 'weight',
-  targetReps: 'reps',
-  targetDuration: 'duration',
-};
-
 interface Props {
   entry: Exercise;
   /** Writes the whole table (or `undefined` to remove it). */
@@ -31,25 +24,31 @@ interface Props {
 
 /**
  * The "Per-set targets" disclosure on an editor card: one row per set, a
- * column per dimension the prescription names, and three presets that fill
- * the rows (ramp, pyramid, top set + back-offs). Rows stay editable after a
- * preset. Every edit writes `plannedSets` whole; the builders in
+ * column per dimension the prescription names (and any the athlete adds:
+ * weight, reps, duration, rest), and three presets that fill the rows (ramp,
+ * pyramid, top set + back-offs). Rows stay editable after a preset. Every
+ * edit writes `plannedSets` whole; the builders in
  * src/lib/builder/plannedSets.ts do the arithmetic, this only renders.
  *
- * Editing the base prescription no longer clears the table — "Apply to all
- * sets" refills it from the base on purpose, and "Remove per-set targets"
- * drops it on purpose.
+ * A cell holds an override. An empty one shows the set-level value it
+ * follows as its placeholder, so a base edit reaches it; "Remove per-set
+ * targets" drops every override on purpose.
  */
 export default function PlannedSetsEditor({ entry, onChange }: Props) {
   const authored = !!entry.plannedSets?.length;
   const [open, setOpen] = useState(authored);
   const [preset, setPreset] = useState<Preset | null>(null);
+  // Columns added by hand stay until the card unmounts; once a cell in one
+  // holds a value, targetFields keeps it on its own.
+  const [added, setAdded] = useState<TargetField[]>([]);
 
-  const fields = targetFields(entry);
+  const fields = targetFields(entry, added);
+  const addable = addableFields(fields);
   const rows = tableRows(entry);
   const count = setCount(entry);
 
-  const fill = (next: PlannedSet[]) => { onChange(next); setPreset(null); };
+  const write = (next: PlannedSet[]) => onChange(storedSets(next));
+  const fill = (next: PlannedSet[]) => { write(next); setPreset(null); };
 
   return (
     <div className={`planned-sets${authored ? ' planned-sets--authored' : ''}`}>
@@ -107,8 +106,9 @@ export default function PlannedSetsEditor({ entry, onChange }: Props) {
                     <td key={f}>
                       <input
                         value={r[f] ?? ''}
+                        placeholder={inheritedTarget(entry, f) ?? '—'}
                         aria-label={`Set ${r.setNumber} ${TARGET_LABELS[f].toLowerCase()}`}
-                        onChange={e => onChange(setTarget(rows, r.setNumber, f, e.target.value))}
+                        onChange={e => write(setTarget(rows, r.setNumber, f, e.target.value))}
                       />
                     </td>
                   ))}
@@ -117,20 +117,28 @@ export default function PlannedSetsEditor({ entry, onChange }: Props) {
             </tbody>
           </table>
 
+          {addable.length > 0 && (
+            <div className="planned-sets__add" role="group" aria-label="Add a column">
+              {addable.map(f => (
+                <button
+                  key={f}
+                  type="button"
+                  className="planned-sets__action planned-sets__action--add"
+                  onClick={() => setAdded(a => [...a, f])}
+                >
+                  + {TARGET_LABELS[f]}
+                </button>
+              ))}
+            </div>
+          )}
+
           {authored && (
             <div className="planned-sets__actions">
               <button
                 type="button"
-                className="planned-sets__action"
-                onClick={() => onChange(uniformSets(count, entry))}
-                title="Every set gets the base weight, reps and duration"
-              >
-                Apply to all sets
-              </button>
-              <button
-                type="button"
                 className="planned-sets__action planned-sets__action--remove"
                 onClick={() => { onChange(undefined); setPreset(null); }}
+                title="Every set follows the set-level fields again"
               >
                 Remove per-set targets
               </button>
@@ -158,7 +166,7 @@ function PresetForm({
   const [backoffs, setBackoffs] = useState(String(Math.max(0, rows.length - 1)));
   const [percent, setPercent] = useState('80');
 
-  const base = entry[BASE_OF[field]];
+  const base = entry[BASE_FIELD[field]];
   const first = parseTarget(a);
   const second = parseTarget(b);
   const n = parseInt(backoffs, 10);

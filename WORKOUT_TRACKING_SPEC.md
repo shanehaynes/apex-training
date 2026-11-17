@@ -301,9 +301,11 @@ send only what was actually touched.
    *Resolved since:* the exercise editor's "Per-set targets" disclosure (web
    `src/components/modal/PlannedSetsEditor.tsx`, iOS `PlannedSetsEditor.swift`) authors the
    rows — one per set, with Ramp / Pyramid / Top set + back-offs presets over the pure builders
-   in `src/lib/builder/plannedSets.ts` (`ApexCore/Schedule/PlannedSets.swift`). Editing the
-   base prescription keeps the rows; "Apply to all sets" and "Remove per-set targets" are the
-   explicit ways back. The coach's tools still cannot author them (follow-up).
+   in `src/lib/builder/plannedSets.ts` (`ApexCore/Schedule/PlannedSets.swift`). A row holds
+   overrides of weight, reps, duration and rest; an empty cell follows the set-level field,
+   so editing the base reaches every set that has not overridden it, and "Remove per-set
+   targets" is the explicit way back (docs/specs/per-set-fields). The coach's tools still
+   cannot author them (follow-up).
 3. **Exercise ID stability** (Section 3.2) is unverified. If ids are regenerated on every
    event edit rather than preserved, the unique constraints on `workout_set_logs`/
    `workout_cardio_logs` will silently orphan historical logs the first time someone edits
@@ -387,8 +389,9 @@ Resolve these before or during implementation — don't guess:
    authoring was manual DB/JSON edits until the exercise editor's "Per-set targets"
    disclosure (web and iOS) took it over: a row per set, Ramp / Pyramid / Top set + back-offs
    presets, rows editable after a preset, the set count resizing the table, and no silent
-   clear on a prescription edit — "Apply to all sets" and "Remove per-set targets" are the
-   explicit replacements. Pure builders: `src/lib/builder/plannedSets.ts`,
+   clear on a prescription edit. Each row holds overrides only (weight, reps, duration and
+   rest, any of which can be added as a column); an empty cell follows the set-level field,
+   and "Remove per-set targets" is the explicit way back (docs/specs/per-set-fields). Pure builders: `src/lib/builder/plannedSets.ts`,
    `ApexCore/Schedule/PlannedSets.swift`; proof: `e2e/mock/planned-sets.spec.ts`.
 6. **Finish confirmation** — yes, but only when unlogged planned sets exist ("N planned
    sets unlogged — recorded as 0. Finish anyway?").

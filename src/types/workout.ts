@@ -25,12 +25,16 @@ export type AscentStyle = 'flash' | 'redpoint' | 'follow' | 'attempt';
  * Per-set planned target, for ramps/pyramids where sets differ. When absent,
  * the tracker synthesizes uniform targets from the legacy sets/reps/weight/
  * duration fields (see src/lib/tracking/plan.ts) — no backfill required.
+ * Each field is an override: one a row leaves empty follows the exercise's
+ * own weight, reps, duration or restPeriod.
  */
 export interface PlannedSet {
   setNumber: number;
   targetWeight?: string;
   targetReps?: string;
   targetDuration?: string;
+  /** The rest after this set, free text like `restPeriod` ("90s", "2 min"). */
+  targetRest?: string;
 }
 
 export type ExerciseCategory = 'strength' | 'stretch' | 'cardio' | 'skill' | 'mobility' | 'climbing';

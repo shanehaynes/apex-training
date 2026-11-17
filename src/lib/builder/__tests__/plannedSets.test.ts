@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
-  formatNumber, parseTarget, pyramidSets, rampSets, resizeSets, setCount, setTarget, tableRows,
-  targetFields, topSetBackoffs, uniformSets, unitFor, withPrescriptionPatch,
+  addableFields, blankSets, formatNumber, inheritedTarget, parseTarget, pyramidSets, rampSets, resizeSets, setCount,
+  setTarget, storedSets, tableRows, targetFields, topSetBackoffs, unitFor, withPrescriptionPatch,
 } from '../plannedSets';
 import type { Exercise, PlannedSet } from '../../../types/workout';
 
@@ -10,6 +10,16 @@ const pullUps: Exercise = {
 };
 
 const weights = (rows: PlannedSet[]) => rows.map(r => r.targetWeight);
+
+/** Rows that each restate the base — what tables authored before overrides held. */
+function uniformSets(count: number, base: Exercise): PlannedSet[] {
+  return Array.from({ length: Math.max(1, count) }, (_, i) => ({
+    setNumber: i + 1,
+    ...(base.weight ? { targetWeight: base.weight } : {}),
+    ...(base.reps ? { targetReps: base.reps } : {}),
+    ...(base.duration ? { targetDuration: base.duration } : {}),
+  }));
+}
 
 describe('targetFields', () => {
   it('shows the dimensions the base prescription names', () => {
@@ -25,6 +35,35 @@ describe('targetFields', () => {
   it('falls back to weight + reps when nothing is named', () => {
     expect(targetFields({ sets: 3 })).toEqual(['targetWeight', 'targetReps']);
   });
+
+  it('shows rest when the base or a row names it', () => {
+    expect(targetFields({ ...pullUps, restPeriod: '2 min' })).toEqual(['targetWeight', 'targetReps', 'targetRest']);
+    expect(targetFields({ sets: 2, reps: '5', plannedSets: [{ setNumber: 1, targetRest: '90s' }, { setNumber: 2 }] }))
+      .toEqual(['targetReps', 'targetRest']);
+  });
+
+  it('adds the columns asked for, in table order', () => {
+    // The screenshot's case: only a weight is set, and the athlete wants reps per set.
+    expect(targetFields({ sets: 3, weight: '65' }, ['targetRest', 'targetReps']))
+      .toEqual(['targetWeight', 'targetReps', 'targetRest']);
+    expect(targetFields({ sets: 3 }, ['targetDuration'])).toEqual(['targetWeight', 'targetReps', 'targetDuration']);
+  });
+});
+
+describe('addableFields', () => {
+  it('is every column not on the table', () => {
+    expect(addableFields(['targetWeight'])).toEqual(['targetReps', 'targetDuration', 'targetRest']);
+    expect(addableFields(['targetWeight', 'targetReps', 'targetDuration', 'targetRest'])).toEqual([]);
+  });
+});
+
+describe('inheritedTarget', () => {
+  it('is the set-level value an empty cell follows', () => {
+    const entry = { ...pullUps, restPeriod: '2 min' };
+    expect(inheritedTarget(entry, 'targetWeight')).toBe('~35 lbs');
+    expect(inheritedTarget(entry, 'targetRest')).toBe('2 min');
+    expect(inheritedTarget(entry, 'targetDuration')).toBeUndefined();
+  });
 });
 
 describe('setCount', () => {
@@ -36,16 +75,13 @@ describe('setCount', () => {
   });
 });
 
-describe('uniformSets', () => {
-  it('repeats the base prescription once per set, with only the fields it names', () => {
-    expect(uniformSets(2, pullUps)).toEqual([
-      { setNumber: 1, targetWeight: '~35 lbs', targetReps: '4–6' },
-      { setNumber: 2, targetWeight: '~35 lbs', targetReps: '4–6' },
-    ]);
+describe('blankSets', () => {
+  it('is one row per set with no overrides', () => {
+    expect(blankSets(2)).toEqual([{ setNumber: 1 }, { setNumber: 2 }]);
   });
 
   it('never produces an empty table', () => {
-    expect(uniformSets(0, pullUps)).toHaveLength(1);
+    expect(blankSets(0)).toHaveLength(1);
   });
 });
 
@@ -57,27 +93,33 @@ describe('resizeSets', () => {
   ];
 
   it('keeps existing rows and repeats the last one for new sets', () => {
-    expect(weights(resizeSets(ramp, 5, pullUps))).toEqual(['20 lbs', '30 lbs', '40 lbs', '40 lbs', '40 lbs']);
-    expect(resizeSets(ramp, 5, pullUps).map(r => r.setNumber)).toEqual([1, 2, 3, 4, 5]);
+    expect(weights(resizeSets(ramp, 5))).toEqual(['20 lbs', '30 lbs', '40 lbs', '40 lbs', '40 lbs']);
+    expect(resizeSets(ramp, 5).map(r => r.setNumber)).toEqual([1, 2, 3, 4, 5]);
   });
 
   it('drops rows past the new count', () => {
-    expect(weights(resizeSets(ramp, 2, pullUps))).toEqual(['20 lbs', '30 lbs']);
+    expect(weights(resizeSets(ramp, 2))).toEqual(['20 lbs', '30 lbs']);
   });
 
-  it('fills from the base when there is no row to repeat', () => {
-    expect(resizeSets([], 2, pullUps)).toEqual(uniformSets(2, pullUps));
+  it('adds rows that follow the base when there is no row to repeat', () => {
+    expect(resizeSets([], 2)).toEqual(blankSets(2));
+  });
+
+  it("carries a row's rest like any other override", () => {
+    expect(resizeSets([{ setNumber: 1, targetRest: '3 min' }], 2)).toEqual([
+      { setNumber: 1, targetRest: '3 min' }, { setNumber: 2, targetRest: '3 min' },
+    ]);
   });
 
   it('renumbers rows that arrived out of order', () => {
-    const rows = resizeSets([{ setNumber: 7, targetWeight: '1' }, { setNumber: 9, targetWeight: '2' }], 2, pullUps);
+    const rows = resizeSets([{ setNumber: 7, targetWeight: '1' }, { setNumber: 9, targetWeight: '2' }], 2);
     expect(rows.map(r => r.setNumber)).toEqual([1, 2]);
   });
 });
 
 describe('tableRows', () => {
-  it('shows the base repeated when nothing is authored', () => {
-    expect(tableRows(pullUps)).toEqual(uniformSets(4, pullUps));
+  it('shows blank rows that follow the base when nothing is authored', () => {
+    expect(tableRows(pullUps)).toEqual(blankSets(4));
   });
 
   it('shows the authored rows at the current count', () => {
@@ -92,6 +134,19 @@ describe('setTarget', () => {
     expect(setTarget(rows, 2, 'targetWeight', ' 40 lbs ')[1]).toEqual({ setNumber: 2, targetWeight: '40 lbs', targetReps: '4–6' });
     expect(setTarget(rows, 1, 'targetReps', '')[0]).toEqual({ setNumber: 1, targetWeight: '~35 lbs' });
     expect(setTarget(rows, 1, 'targetReps', '')[1]).toEqual(rows[1]);
+  });
+
+  it('writes only the override on a blank row', () => {
+    expect(setTarget(blankSets(3), 2, 'targetReps', '8')).toEqual([{ setNumber: 1 }, { setNumber: 2, targetReps: '8' }, { setNumber: 3 }]);
+    expect(setTarget(blankSets(2), 2, 'targetRest', '3 min')[1]).toEqual({ setNumber: 2, targetRest: '3 min' });
+  });
+});
+
+describe('storedSets', () => {
+  it('keeps rows while any overrides something, else stores nothing', () => {
+    expect(storedSets(blankSets(3))).toBeUndefined();
+    expect(storedSets(setTarget(blankSets(3), 3, 'targetRest', '3 min'))).toHaveLength(3);
+    expect(storedSets(setTarget(setTarget(blankSets(2), 1, 'targetReps', '8'), 1, 'targetReps', ''))).toBeUndefined();
   });
 });
 
@@ -181,6 +236,7 @@ describe('withPrescriptionPatch', () => {
   };
 
   it('keeps the authored rows when the base weight or reps change', () => {
+    // Rows that restate the base (authored before overrides) keep their copies.
     const next = withPrescriptionPatch(authored, { reps: '5', weight: '40 lbs' });
     expect(next.reps).toBe('5');
     expect(next.weight).toBe('40 lbs');
@@ -199,5 +255,14 @@ describe('withPrescriptionPatch', () => {
 
   it('is a plain merge without authored rows', () => {
     expect(withPrescriptionPatch(pullUps, { sets: 6 })).toEqual({ ...pullUps, sets: 6 });
+  });
+});
+
+describe('presets on rows that follow the base', () => {
+  it('write only the column asked for', () => {
+    expect(rampSets(blankSets(3), 'targetRest', 60, 120, { unit: 's' })).toEqual([
+      { setNumber: 1, targetRest: '60s' }, { setNumber: 2, targetRest: '90s' }, { setNumber: 3, targetRest: '120s' },
+    ]);
+    expect(unitFor('60', '90s')).toBe('s');
   });
 });

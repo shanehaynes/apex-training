@@ -6,10 +6,10 @@ import { sessionResponse } from '../lib/intercept.mjs';
 
 // Per-set targets are authored in the exercise editor: the "Per-set targets"
 // disclosure on a card shows one row per set, a preset fills the rows (here
-// a ramp), the rows stay editable, a base-prescription edit keeps them, and
-// the tracker — which already honoured plannedSets — renders what was
-// authored. "Apply to all sets" and "Remove per-set targets" are the only
-// ways back to uniform rows / no rows.
+// a ramp), the rows stay editable, any field can be added as a column (here
+// rest), and the tracker renders what was authored. A cell holds an
+// override: an empty one shows, and plans, the set-level value it follows,
+// so a base edit reaches it. "Remove per-set targets" drops every override.
 
 interface Patch { id: string | null; body: { fields?: { exercises?: Array<{ id: string; plannedSets?: unknown }> } } }
 
@@ -61,7 +61,7 @@ test('a ramp authored in the editor is what the tracker plans', async ({ page })
   const card = page.locator('.editor-card', { hasText: 'Weighted Pull-Ups' });
   await expect(card).toBeVisible();
 
-  // Closed by default when nothing is authored; opens onto the base repeated.
+  // Closed by default when nothing is authored; opens onto rows that follow the base.
   const toggle = card.locator('.planned-sets__toggle');
   await expect(toggle).toHaveAttribute('aria-expanded', 'false');
   await toggle.click();
@@ -70,10 +70,12 @@ test('a ramp authored in the editor is what the tracker plans', async ({ page })
   const repsCells = rows.locator('input[aria-label$="reps"]');
   await expect(rows).toHaveCount(4);
   await expect(card.locator('.planned-sets__table thead th')).toHaveText(['Set', 'Weight', 'Reps']);
-  expect(await values(weightCells)).toEqual(['~35 lbs', '~35 lbs', '~35 lbs', '~35 lbs']);
+  expect(await values(weightCells)).toEqual(['', '', '', '']);
+  await expect(weightCells.first()).toHaveAttribute('placeholder', '~35 lbs');
   await expect(card.locator('.planned-sets__badge')).toHaveCount(0);
+  await expect(card.locator('.planned-sets__add button')).toHaveText(['+ Duration', '+ Rest']);
 
-  // Ramp 20 → 35: the unit comes off the base weight.
+  // Ramp 20 → 35: the unit comes off the base weight; reps still follow the base.
   const ramp = async () => {
     await card.locator('.planned-sets__preset', { hasText: 'Ramp' }).click();
     const form = card.locator('.planned-sets__form');
@@ -85,56 +87,63 @@ test('a ramp authored in the editor is what the tracker plans', async ({ page })
   };
   await ramp();
   expect(await values(weightCells)).toEqual(['20 lbs', '25 lbs', '30 lbs', '35 lbs']);
-  expect(await values(repsCells)).toEqual(['4–6', '4–6', '4–6', '4–6']);
+  expect(await values(repsCells)).toEqual(['', '', '', '']);
   await expect(card.locator('.planned-sets__badge')).toHaveText('4 sets authored');
   await shot(page, 'planned-sets-ramp');
 
-  // Apply to all sets is the explicit way back to the base; Remove drops the rows.
-  await card.locator('.planned-sets__action', { hasText: 'Apply to all sets' }).click();
-  expect(await values(weightCells)).toEqual(['~35 lbs', '~35 lbs', '~35 lbs', '~35 lbs']);
+  // Remove drops every override.
   await card.locator('.planned-sets__action', { hasText: 'Remove per-set targets' }).click();
   await expect(card.locator('.planned-sets__badge')).toHaveCount(0);
-  await expect(card.locator('.planned-sets__action')).toHaveCount(0);
+  await expect(card.locator('.planned-sets__actions')).toHaveCount(0);
+  expect(await values(weightCells)).toEqual(['', '', '', '']);
 
-  // Ramp again, then edit the base: the rows stay, and the table follows the set count.
+  // Ramp again, then edit the base: the overrides stay, the empty cells follow it,
+  // and the table follows the set count.
   await ramp();
   await card.locator('.editor-field', { hasText: 'Reps' }).locator('input').fill('5');
   expect(await values(weightCells)).toEqual(['20 lbs', '25 lbs', '30 lbs', '35 lbs']);
-  expect(await values(repsCells), 'authored rows are not rewritten by a base edit').toEqual(['4–6', '4–6', '4–6', '4–6']);
+  await expect(repsCells.first(), 'an empty cell follows a base edit').toHaveAttribute('placeholder', '5');
   await card.locator('.editor-field', { hasText: 'Sets' }).locator('input').fill('5');
   await expect(rows).toHaveCount(5);
   expect(await values(weightCells)).toEqual(['20 lbs', '25 lbs', '30 lbs', '35 lbs', '35 lbs']);
 
-  // Rows stay editable after a preset.
+  // Rows stay editable after a preset, and a field the base leaves empty can be added.
   await rows.nth(4).locator('input[aria-label$="weight"]').fill('37.5 lbs');
   expect(await values(weightCells)).toEqual(['20 lbs', '25 lbs', '30 lbs', '35 lbs', '37.5 lbs']);
+  await card.locator('.planned-sets__add button', { hasText: '+ Rest' }).click();
+  await expect(card.locator('.planned-sets__table thead th')).toHaveText(['Set', 'Weight', 'Reps', 'Rest']);
+  await rows.nth(4).locator('input[aria-label$="rest"]').fill('3 min');
+  await shot(page, 'planned-sets-rest');
 
-  // Save to the whole series: the PATCH carries the rows.
+  // Save to the whole series: the PATCH carries the overrides only.
   await page.locator('.exercise-editor__save', { hasText: 'Save exercises' }).click();
   await page.locator('.exercise-editor__save', { hasText: 'Whole series' }).click();
   await expect(page.locator('.exercise-editor')).toHaveCount(0);
   expect(patches).toHaveLength(1);
   const saved = patches[0].body.fields?.exercises?.find(e => e.id === 'stuart-a-3');
   expect(saved?.plannedSets).toEqual([
-    { setNumber: 1, targetWeight: '20 lbs', targetReps: '4–6' },
-    { setNumber: 2, targetWeight: '25 lbs', targetReps: '4–6' },
-    { setNumber: 3, targetWeight: '30 lbs', targetReps: '4–6' },
-    { setNumber: 4, targetWeight: '35 lbs', targetReps: '4–6' },
-    { setNumber: 5, targetWeight: '37.5 lbs', targetReps: '4–6' },
+    { setNumber: 1, targetWeight: '20 lbs' },
+    { setNumber: 2, targetWeight: '25 lbs' },
+    { setNumber: 3, targetWeight: '30 lbs' },
+    { setNumber: 4, targetWeight: '35 lbs' },
+    { setNumber: 5, targetWeight: '37.5 lbs', targetRest: '3 min' },
   ]);
 
-  // Reopening the editor finds the rows authored and the disclosure open.
+  // Reopening the editor finds the rows authored, the disclosure open and the rest column kept.
   await page.locator('.modal-edit-exercises').click();
   await expect(card.locator('.planned-sets__toggle')).toHaveAttribute('aria-expanded', 'true');
   await expect(card.locator('.planned-sets__badge')).toHaveText('5 sets authored');
+  await expect(card.locator('.planned-sets__table thead th')).toHaveText(['Set', 'Weight', 'Reps', 'Rest']);
   await page.locator('.exercise-editor__cancel', { hasText: 'Cancel' }).click();
 
-  // The tracker plans each set from the authored row, not the base.
+  // The tracker plans each set from its row, filling what the row leaves to the base.
   await page.locator('.modal-completion__btn--start').click();
   const tracked = page.locator('.tracker-exercise', { has: page.locator('.tracker-exercise__name', { hasText: 'Weighted Pull-Ups' }) });
   await expect(tracked.locator('.tracker-set:not(.tracker-set--head)')).toHaveCount(5, { timeout: 15000 });
   await expect(tracked.locator('.tracker-set:not(.tracker-set--head) .tracker-set__planned'))
-    .toHaveText(['20 lbs × 4–6', '25 lbs × 4–6', '30 lbs × 4–6', '35 lbs × 4–6', '37.5 lbs × 4–6']);
+    .toHaveText(['20 lbs × 5', '25 lbs × 5', '30 lbs × 5', '35 lbs × 5', '37.5 lbs × 5']);
+  // Only set 5 rests, so the card says which.
+  await expect(tracked.locator('.tracker-exercise__rest')).toHaveText('Rest none ×4 · 3 min');
   await shot(page, 'planned-sets-tracker');
 });
 
@@ -153,8 +162,8 @@ test('pyramid and top-set presets fill the column they are asked for', async ({ 
   await pyramid.getByLabel('Peak').fill('3');
   await pyramid.locator('.planned-sets__fill').click();
   expect(await values(clean.locator('.planned-sets__row input[aria-label$="reps"]'))).toEqual(['5', '4', '4', '5']);
-  expect(await values(clean.locator('.planned-sets__row input[aria-label$="weight"]')))
-    .toEqual(['~115 lbs (85% max)', '~115 lbs (85% max)', '~115 lbs (85% max)', '~115 lbs (85% max)']);
+  // Weight is not the preset's column, so every set keeps following the base.
+  expect(await values(clean.locator('.planned-sets__row input[aria-label$="weight"]'))).toEqual(['', '', '', '']);
 
   // Pistol Squats: 3 sets at 15–20 lbs — a top set with two back-offs at 80%.
   const pistols = page.locator('.editor-card', { hasText: 'Pistol Squats' });

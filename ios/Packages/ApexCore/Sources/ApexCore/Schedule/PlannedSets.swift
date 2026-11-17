@@ -8,35 +8,44 @@ import Foundation
 /// the same unit. Form state only — the server stores whatever rows the
 /// editor sends, and the tracker still synthesises uniform rows for an
 /// exercise without any.
+///
+/// A row holds overrides only: an empty cell follows the set-level field, so
+/// editing the base reaches every set that has not said otherwise. The
+/// server's `resolvePlannedSets` fills the same way for the tracker.
 public enum PlannedSets {
-    /// A column of the table, named after the `PlannedSet` field it edits.
+    /// A column of the table, named after the `PlannedSet` field it edits, in
+    /// the order the table shows them.
     public enum Field: String, CaseIterable, Sendable, Hashable {
         case weight = "targetWeight"
         case reps = "targetReps"
         case duration = "targetDuration"
+        case rest = "targetRest"
 
         public var label: String {
             switch self {
             case .weight: "Weight"
             case .reps: "Reps"
             case .duration: "Duration"
+            case .rest: "Rest"
             }
         }
 
-        /// The base prescription this column mirrors.
-        func base(of entry: Exercise) -> String? {
+        /// The set-level prescription field this column overrides.
+        public func base(of entry: Exercise) -> String? {
             switch self {
             case .weight: entry.weight
             case .reps: entry.reps
             case .duration: entry.duration
+            case .rest: entry.restPeriod
             }
         }
 
-        func value(of row: PlannedSet) -> String? {
+        public func value(of row: PlannedSet) -> String? {
             switch self {
             case .weight: row.targetWeight
             case .reps: row.targetReps
             case .duration: row.targetDuration
+            case .rest: row.targetRest
             }
         }
 
@@ -45,13 +54,43 @@ public enum PlannedSets {
     }
 
     /// `targetFields`: every dimension the base prescription or any authored
-    /// row names; weight + reps when nothing is named.
-    public static func fields(for entry: Exercise) -> [Field] {
+    /// row names, plus any added by hand, in table order; weight + reps when
+    /// nothing is named.
+    public static func fields(for entry: Exercise, adding added: Set<Field> = []) -> [Field] {
         let rows = entry.plannedSets ?? []
         let named = Field.allCases.filter { field in
             !(field.base(of: entry) ?? "").isEmpty || rows.contains { !(field.value(of: $0) ?? "").isEmpty }
         }
-        return named.isEmpty ? [.weight, .reps] : named
+        let shown = named.isEmpty ? [Field.weight, .reps] : named
+        return Field.allCases.filter { shown.contains($0) || added.contains($0) }
+    }
+
+    /// `addableFields`: the columns the table does not show yet.
+    public static func addable(_ shown: [Field]) -> [Field] {
+        Field.allCases.filter { !shown.contains($0) }
+    }
+
+    /// `inheritedTarget`: what an empty cell resolves to — the set-level value.
+    public static func inherited(_ entry: Exercise, _ field: Field) -> String? {
+        guard let value = field.base(of: entry), !value.isEmpty else { return nil }
+        return value
+    }
+
+    /// `resolvePlannedSets` for display (the event sheet): each authored row
+    /// with the weight, reps and duration it leaves empty filled from the
+    /// exercise. Rest stays an override (`rest(for:of:)` falls back). Nil
+    /// without authored rows.
+    public static func resolved(for entry: Exercise) -> [PlannedSet]? {
+        guard let rows = entry.plannedSets, !rows.isEmpty else { return nil }
+        return rows.map { source in
+            row(
+                source.setNumber,
+                weight: nonEmpty(source.targetWeight) ?? entry.weight,
+                reps: nonEmpty(source.targetReps) ?? entry.reps,
+                duration: nonEmpty(source.targetDuration) ?? entry.duration,
+                rest: source.targetRest
+            )
+        }
     }
 
     /// `setCount`: `sets` when stated, else the authored rows, else 1.
@@ -61,33 +100,42 @@ public enum PlannedSets {
         return authored > 0 ? authored : 1
     }
 
-    /// `uniformSets`: one row per set, every row the base — "Apply to all sets".
-    public static func uniform(_ count: Int, base: Exercise) -> [PlannedSet] {
-        (1...max(1, count)).map { row($0, weight: base.weight, reps: base.reps, duration: base.duration) }
+    /// `blankSets`: one row per set with no overrides — every set follows the base.
+    public static func blank(_ count: Int) -> [PlannedSet] {
+        (1...max(1, count)).map { PlannedSet(setNumber: $0) }
     }
 
     /// `resizeSets`: existing rows stay, rows past the count go, new rows
-    /// repeat the last one (or the base when there is nothing to repeat).
-    public static func resize(_ rows: [PlannedSet], to count: Int, base: Exercise) -> [PlannedSet] {
+    /// repeat the last one (or follow the base when there is nothing to repeat).
+    public static func resize(_ rows: [PlannedSet], to count: Int) -> [PlannedSet] {
         (0..<max(1, count)).map { index in
-            let source = index < rows.count ? rows[index] : rows.last ?? uniform(1, base: base)[0]
+            let source = index < rows.count ? rows[index] : rows.last ?? PlannedSet(setNumber: index + 1)
             return row(index + 1, like: source)
         }
     }
 
-    /// `tableRows`: the authored rows at the current count, else the base repeated.
+    /// `tableRows`: the authored rows at the current count, else blank rows that follow the base.
     public static func tableRows(for entry: Exercise) -> [PlannedSet] {
         let count = count(for: entry)
-        if let rows = entry.plannedSets, !rows.isEmpty { return resize(rows, to: count, base: entry) }
-        return uniform(count, base: entry)
+        if let rows = entry.plannedSets, !rows.isEmpty { return resize(rows, to: count) }
+        return blank(count)
     }
 
-    /// `setTarget`: one cell edited; empty text clears the target.
+    /// `setTarget`: one cell edited; empty text clears the override.
     public static func setting(_ rows: [PlannedSet], setNumber: Int, field: Field, to value: String) -> [PlannedSet] {
         rows.map { existing in
             guard existing.setNumber == setNumber else { return existing }
             return row(existing.setNumber, like: existing, field: field, value: value.trimmingCharacters(in: .whitespaces))
         }
+    }
+
+    /// `storedSets`: the rows while any overrides something, else nil — blank
+    /// rows plan exactly what the base does.
+    public static func stored(_ rows: [PlannedSet]) -> [PlannedSet]? {
+        let overrides = rows.contains { candidate in
+            Field.allCases.contains { !($0.value(of: candidate) ?? "").isEmpty }
+        }
+        return overrides ? rows : nil
     }
 
     /// `withPrescriptionPatch` for the one field that matters: a new set
@@ -96,9 +144,46 @@ public enum PlannedSets {
         var next = entry
         next.sets = sets
         if let rows = entry.plannedSets, !rows.isEmpty {
-            next.plannedSets = resize(rows, to: count(for: next), base: next)
+            next.plannedSets = resize(rows, to: count(for: next))
         }
         return next
+    }
+
+    // MARK: - Rest (`src/lib/tracking/rest.ts`)
+
+    /// `restFor`: the set's own rest when it overrides the exercise, else the
+    /// exercise's `restPeriod`.
+    public static func rest(for planned: PlannedSet?, restPeriod: String?) -> String? {
+        nonEmpty(planned?.targetRest?.trimmingCharacters(in: .whitespaces))
+            ?? nonEmpty(restPeriod?.trimmingCharacters(in: .whitespaces))
+    }
+
+    /// `restSummary`: one value when every set rests the same ("90s"); runs in
+    /// set order when they differ ("2 min ×3 · 90s"), a set with no rest as
+    /// "none"; nil when nothing rests. The athlete's own text, never recomputed.
+    public static func restSummary(_ rests: [String?]) -> String? {
+        let values = rests.map { $0?.trimmingCharacters(in: .whitespaces) ?? "" }
+        guard values.contains(where: { !$0.isEmpty }) else { return nil }
+        var runs: [(value: String, count: Int)] = []
+        for value in values {
+            if let last = runs.last, last.value == value {
+                runs[runs.count - 1].count += 1
+            } else {
+                runs.append((value: value, count: 1))
+            }
+        }
+        if runs.count == 1 { return runs[0].value }
+        return runs.map { run in
+            (run.value.isEmpty ? "none" : run.value) + (run.count > 1 ? " ×\(run.count)" : "")
+        }.joined(separator: " · ")
+    }
+
+    /// `restLine`: a tracker card's rest line, over its planned (non-extra)
+    /// sets; the exercise's own rest when none are planned (cardio).
+    public static func restLine(restPeriod: String?, sets: [TrackedSet]) -> String? {
+        let planned = sets.filter { !$0.isExtra }
+        if planned.isEmpty { return nonEmpty(restPeriod?.trimmingCharacters(in: .whitespaces)) }
+        return restSummary(planned.map { rest(for: $0.planned, restPeriod: restPeriod) })
     }
 
     // MARK: - Numbers inside free text
@@ -204,13 +289,19 @@ public enum PlannedSets {
 
     // MARK: - Rows
 
+    private static func nonEmpty(_ text: String?) -> String? {
+        guard let text, !text.isEmpty else { return nil }
+        return text
+    }
+
     /// A row with only the fields that carry a value (`PlannedSet`'s fields are `let`).
-    private static func row(_ setNumber: Int, weight: String?, reps: String?, duration: String?) -> PlannedSet {
+    private static func row(_ setNumber: Int, weight: String?, reps: String?, duration: String?, rest: String?) -> PlannedSet {
         PlannedSet(
             setNumber: setNumber,
-            targetWeight: (weight ?? "").isEmpty ? nil : weight,
-            targetReps: (reps ?? "").isEmpty ? nil : reps,
-            targetDuration: (duration ?? "").isEmpty ? nil : duration
+            targetWeight: nonEmpty(weight),
+            targetReps: nonEmpty(reps),
+            targetDuration: nonEmpty(duration),
+            targetRest: nonEmpty(rest)
         )
     }
 
@@ -219,7 +310,8 @@ public enum PlannedSets {
             setNumber,
             weight: field == .weight ? value : source.targetWeight,
             reps: field == .reps ? value : source.targetReps,
-            duration: field == .duration ? value : source.targetDuration
+            duration: field == .duration ? value : source.targetDuration,
+            rest: field == .rest ? value : source.targetRest
         )
     }
 }

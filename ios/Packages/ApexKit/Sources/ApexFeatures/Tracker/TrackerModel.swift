@@ -413,7 +413,11 @@ public final class TrackerModel {
     /// set. A finished workout's edits are corrections, not sets.
     func restCommitted(_ key: SetKey) {
         guard !isFinished, let set = editor.set(at: key) else { return }
-        let prescription = editor.exercise(section: key.section, id: key.exerciseId)?.exercise.restPeriod
+        // The set's own rest when the plan gives it one, else the exercise's.
+        let prescription = PlannedSets.rest(
+            for: set.planned,
+            restPeriod: editor.exercise(section: key.section, id: key.exerciseId)?.exercise.restPeriod
+        )
         let now = services.clock.now
         var started = false
         for field in [SetField.reps, .duration] where !set[field].isEmpty {

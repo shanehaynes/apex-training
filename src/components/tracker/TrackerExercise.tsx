@@ -17,6 +17,7 @@ import ExerciseNotes, { type NoteSection } from './ExerciseNotes';
 import QuarterPrTicker from './QuarterPrTicker';
 import { quarterBestDescription, quarterBestFields, quarterBestHeading, quarterBestSummary } from '../../lib/tracking/quarterBest';
 import { selectOnNextFrame } from './selectOnFocus';
+import { restLine as restLineFor } from '../../lib/tracking/rest';
 import '../../styles/climbing.css';
 import '../../styles/percent-1rm.css';
 
@@ -391,6 +392,7 @@ export default function TrackerExercise({
   }
 
   const { exercise, substitutedFrom } = tracked;
+  const restLine = restLineFor(tracked);
   const isClimb = exercise.category === 'climbing';
   const definition = exercise.definitionId ? definitions.get(exercise.definitionId) : undefined;
   const swappedTo = substitutedFrom || tracked.isAdded ? definition : undefined;
@@ -501,9 +503,9 @@ export default function TrackerExercise({
             <X size={14} strokeWidth={1.5} />
           </button>
         )}
-        {exercise.restPeriod && (
+        {restLine && (
           <span className="tracker-exercise__rest" style={{ color: accentColor }}>
-            Rest {exercise.restPeriod}
+            Rest {restLine}
           </span>
         )}
       </div>
