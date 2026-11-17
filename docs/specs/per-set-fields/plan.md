@@ -54,9 +54,13 @@ Delivers: (a new requirement set, drafted in Next brief)
 - Added columns live in the editor's state until a cell holds a value; an empty added column is not stored (nothing to store).
 - The rest line runs use "×n" and "none" for a set without rest; it is the athlete's text, never parsed or recomputed.
 - Column order is fixed (weight, reps, duration, rest), matching the card.
+- A rest preset writes seconds ("90s") when neither the input nor the base names a unit, and steps by 5 s or half minutes, because the timer reads no bare number (ruling R2.5 stays strict). A rest cell typed without a unit gets a one-line note under the table that no timer starts for that set, rather than a silent rewrite of the athlete's text.
+- A set-count change that leaves no override stores no table, on both platforms (review finding).
+- The iOS event sheet's per-set line shows a row's rest, so a table that varies only rest does not read as identical sets.
 
 ## Session log
 - 2026-11-17 · M1 built on `feat/per-set-fields`. Not verified here: Playwright (the sandbox cannot download a browser; CI runs `e2e/mock/planned-sets.spec.ts`) and Swift (no toolchain on this Linux box; CI's `swift test` and the iOS job build it).
+- 2026-11-17 · Reviewer findings fixed on the same branch: rest presets and unitless rest, empty table after a shorter count, rest step, rest on the iOS event sheet. Not fixed: the iOS tracker and event-sheet wiring have no test of their own (helpers are tested; a TrackerModel test is in the next brief), and retyping Sets passes through intermediate counts (older than this branch).
 
 ## Learned
 
@@ -77,3 +81,7 @@ set's resolved targets when a table exists. It is a coach tool change, so
 the `eval-analyst` agent runs the coach evals before it ships, and the
 confirmation card must show the per-set values the athlete is approving
 (Mission VII).
+
+Also in M2 (iOS proof gap from review): a `TrackerModel` test that commits
+a set whose row rests "3 min" under an exercise resting "90s" and expects a
+180 s timer, and an event-sheet test over rows that leave weight empty.

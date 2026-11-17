@@ -1,4 +1,5 @@
 import type { Exercise, PlannedSet } from '../../types/workout';
+import { parseRestSeconds } from '../tracking/rest';
 
 // ─── Per-set target authoring ────────────────────────────────────────────────
 // The pure half of the exercise editor's "Per-set targets" disclosure
@@ -155,13 +156,37 @@ function formatTarget(value: number, unit: string): string {
   return `${formatNumber(value)}${unit}`;
 }
 
-/** Plate math for weight, whole units for everything else. */
-export function stepFor(field: TargetField): number {
-  return field === 'targetWeight' ? 2.5 : 1;
+/**
+ * Plate math for weight; half minutes or 5 s for rest, by the unit written;
+ * whole units for everything else.
+ */
+export function stepFor(field: TargetField, unit = ''): number {
+  if (field === 'targetWeight') return 2.5;
+  if (field === 'targetRest') return /^\s*m/i.test(unit) ? 0.5 : 5;
+  return 1;
+}
+
+/**
+ * What a preset writes for `field` from the user's first input and the
+ * set-level target: the unit per `unitFor`, and for rest seconds when nothing
+ * names one, because the rest timer reads no bare number ("90" times
+ * nothing, "90s" does); the step per `stepFor` with that unit.
+ */
+export function presetOptions(field: TargetField, typed: string, base: string | undefined): Required<PresetOptions> {
+  const unit = unitFor(typed, base) || (field === 'targetRest' ? 's' : '');
+  return { unit, step: stepFor(field, unit) };
 }
 
 function snap(value: number, step: number): number {
   return Math.round(value / step) * step;
+}
+
+/**
+ * The sets whose own rest the timer cannot read ("90", "a while"), so the
+ * editor can say so: the card shows that text and no countdown starts.
+ */
+export function untimedRests(rows: readonly PlannedSet[]): number[] {
+  return rows.filter(r => !!r.targetRest?.trim() && parseRestSeconds(r.targetRest) === null).map(r => r.setNumber);
 }
 
 // ─── Presets ─────────────────────────────────────────────────────────────────
@@ -234,7 +259,8 @@ export function topSetBackoffs(
 export function withPrescriptionPatch(entry: Exercise, patch: Partial<Exercise>): Exercise {
   const next = { ...entry, ...patch };
   if (!entry.plannedSets?.length || !('sets' in patch)) return next;
-  return { ...next, plannedSets: resizeSets(entry.plannedSets, setCount(next)) };
+  // A shorter table can leave no override behind: store none, as storedSets does.
+  return { ...next, plannedSets: storedSets(resizeSets(entry.plannedSets, setCount(next))) };
 }
 
 /** A row with only the fields that carry a value, so JSON and equality stay tidy. */

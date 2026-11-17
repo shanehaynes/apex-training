@@ -550,7 +550,7 @@ struct ExerciseRow: View {
             }
             if let planned = PlannedSets.resolved(for: exercise), planned.count > 1 {
                 Text(planned.map { set in
-                    [set.targetWeight, set.targetReps.map { "×\($0)" }, set.targetDuration].compactMap { $0 }.joined(separator: " ")
+                    [set.targetWeight, set.targetReps.map { "×\($0)" }, set.targetDuration, set.targetRest.map { "rest \($0)" }].compactMap { $0 }.joined(separator: " ")
                 }.joined(separator: " · "))
                 .font(.apex(.mono, size: TypeScale.micro, relativeTo: .caption2))
                 .foregroundStyle(ApexColor.textMuted)

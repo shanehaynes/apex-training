@@ -265,4 +265,45 @@ final class PlannedSetsTests: XCTestCase {
         XCTAssertEqual(next.sets, 6)
         XCTAssertNil(next.plannedSets)
     }
+
+    func testSettingSetsStoresNoTableWhenAShorterCountLeavesNoOverride() {
+        let lastOnly = entry(sets: 3, reps: "5", planned: [
+            PlannedSet(setNumber: 1), PlannedSet(setNumber: 2), PlannedSet(setNumber: 3, targetReps: "3"),
+        ])
+        XCTAssertNil(PlannedSets.settingSets(lastOnly, to: 2).plannedSets)
+    }
+
+    // MARK: presetOptions / untimedRests
+
+    func testPresetOptionsWriteRestInSecondsWhenNothingNamesAUnit() {
+        let options = PlannedSets.presetOptions(field: .rest, typed: "60", base: nil)
+        XCTAssertEqual(options.unit, "s")
+        XCTAssertEqual(options.step, 5)
+        let rows = PlannedSets.ramp(PlannedSets.blank(3), field: .rest, first: 60, last: 120, step: options.step, unit: options.unit)
+        XCTAssertEqual(rows.map(\.targetRest), ["60s", "90s", "120s"])
+        XCTAssertEqual(PlannedSets.untimedRests(rows), [])
+    }
+
+    func testPresetOptionsStepRestInMinutesByHalfMinutes() {
+        let options = PlannedSets.presetOptions(field: .rest, typed: "1 min", base: nil)
+        XCTAssertEqual(options.unit, " min")
+        XCTAssertEqual(options.step, 0.5)
+        let rows = PlannedSets.ramp(PlannedSets.blank(3), field: .rest, first: 1, last: 2, step: options.step, unit: options.unit)
+        XCTAssertEqual(rows.map(\.targetRest), ["1 min", "1.5 min", "2 min"])
+    }
+
+    func testPresetOptionsTakeTheBaseUnitAndLeaveOtherFieldsAsBefore() {
+        XCTAssertEqual(PlannedSets.presetOptions(field: .rest, typed: "2", base: "3 min").unit, " min")
+        XCTAssertEqual(PlannedSets.presetOptions(field: .weight, typed: "20", base: "~35 lbs").unit, " lbs")
+        XCTAssertEqual(PlannedSets.presetOptions(field: .weight, typed: "20", base: "~35 lbs").step, 2.5)
+        XCTAssertEqual(PlannedSets.presetOptions(field: .reps, typed: "5", base: "4–6").unit, "")
+        XCTAssertEqual(PlannedSets.presetOptions(field: .reps, typed: "5", base: "4–6").step, 1)
+    }
+
+    func testUntimedRestsNameTheSetsTheTimerCannotRead() {
+        XCTAssertEqual(PlannedSets.untimedRests([
+            PlannedSet(setNumber: 1, targetRest: "a while"), PlannedSet(setNumber: 2, targetRest: "90s"),
+            PlannedSet(setNumber: 3),
+        ]), [1])
+    }
 }

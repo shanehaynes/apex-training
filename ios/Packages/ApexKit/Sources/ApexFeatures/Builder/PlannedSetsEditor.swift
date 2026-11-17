@@ -83,6 +83,7 @@ struct PlannedSetsEditor: View {
                     .id(preset)
                 }
                 table
+                untimedHint
                 addColumns
                 if isAuthored {
                     HStack(spacing: Spacing.sm) {
@@ -107,6 +108,17 @@ struct PlannedSetsEditor: View {
                 }
                 .accessibilityIdentifier("editor.planned.\(entry.id).preset.\(option.rawValue)")
             }
+        }
+    }
+
+    /// A per-set rest the timer cannot read: the card shows it, no countdown runs.
+    @ViewBuilder private var untimedHint: some View {
+        let untimed = PlannedSets.untimedRests(rows)
+        if !untimed.isEmpty {
+            Text("No timer starts for set \(untimed.map(String.init).joined(separator: ", ")): a rest needs s or min.")
+                .font(.apex(.display, size: TypeScale.xs, relativeTo: .caption))
+                .foregroundStyle(ApexColor.textMuted)
+                .accessibilityIdentifier("editor.planned.\(entry.id).untimed")
         }
     }
 
@@ -284,17 +296,17 @@ private struct PresetForm: View {
 
     private func fill() {
         guard let a = PlannedSets.parse(first) else { return }
-        let unit = PlannedSets.unit(typed: first, base: base)
+        let options = PlannedSets.presetOptions(field: field, typed: first, base: base)
         switch preset {
         case .ramp:
             guard let b = PlannedSets.parse(second) else { return }
-            onFill(PlannedSets.ramp(rows, field: field, first: a.value, last: b.value, unit: unit))
+            onFill(PlannedSets.ramp(rows, field: field, first: a.value, last: b.value, step: options.step, unit: options.unit))
         case .pyramid:
             guard let b = PlannedSets.parse(second) else { return }
-            onFill(PlannedSets.pyramid(rows, field: field, low: a.value, peak: b.value, unit: unit))
+            onFill(PlannedSets.pyramid(rows, field: field, low: a.value, peak: b.value, step: options.step, unit: options.unit))
         case .topSet:
             guard let n = Int(backoffs), let pct = Double(percent) else { return }
-            onFill(PlannedSets.topSetBackoffs(rows, field: field, top: a.value, backoffs: n, percent: pct, unit: unit))
+            onFill(PlannedSets.topSetBackoffs(rows, field: field, top: a.value, backoffs: n, percent: pct, step: options.step, unit: options.unit))
         }
     }
 

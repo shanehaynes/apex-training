@@ -1,7 +1,8 @@
+import { parseRestSeconds } from '../../tracking/rest';
 import { describe, it, expect } from 'vitest';
 import {
   addableFields, blankSets, formatNumber, inheritedTarget, parseTarget, pyramidSets, rampSets, resizeSets, setCount,
-  setTarget, storedSets, tableRows, targetFields, topSetBackoffs, unitFor, withPrescriptionPatch,
+  setTarget, storedSets, tableRows, targetFields, topSetBackoffs, unitFor, withPrescriptionPatch, presetOptions, untimedRests,
 } from '../plannedSets';
 import type { Exercise, PlannedSet } from '../../../types/workout';
 
@@ -253,6 +254,14 @@ describe('withPrescriptionPatch', () => {
     expect(withPrescriptionPatch(authored, { sets: undefined }).plannedSets).toEqual(authored.plannedSets);
   });
 
+  it('stores no table when a shorter count leaves no override behind', () => {
+    const lastOnly: Exercise = {
+      ...pullUps, sets: 3, reps: '5',
+      plannedSets: [{ setNumber: 1 }, { setNumber: 2 }, { setNumber: 3, targetReps: '3' }],
+    };
+    expect(withPrescriptionPatch(lastOnly, { sets: 2 }).plannedSets).toBeUndefined();
+  });
+
   it('is a plain merge without authored rows', () => {
     expect(withPrescriptionPatch(pullUps, { sets: 6 })).toEqual({ ...pullUps, sets: 6 });
   });
@@ -264,5 +273,38 @@ describe('presets on rows that follow the base', () => {
       { setNumber: 1, targetRest: '60s' }, { setNumber: 2, targetRest: '90s' }, { setNumber: 3, targetRest: '120s' },
     ]);
     expect(unitFor('60', '90s')).toBe('s');
+  });
+});
+
+describe('presetOptions', () => {
+  it('writes rest in seconds when nothing names a unit, so the timer can read it', () => {
+    const options = presetOptions('targetRest', '60', undefined);
+    expect(options).toEqual({ unit: 's', step: 5 });
+    const rows = rampSets(blankSets(3), 'targetRest', 60, 120, options);
+    expect(rows.map(r => r.targetRest)).toEqual(['60s', '90s', '120s']);
+    expect(rows.map(r => parseRestSeconds(r.targetRest))).toEqual([60, 90, 120]);
+    expect(untimedRests(rows)).toEqual([]);
+  });
+
+  it('steps rest in minutes by half minutes', () => {
+    const options = presetOptions('targetRest', '1 min', undefined);
+    expect(options).toEqual({ unit: ' min', step: 0.5 });
+    expect(rampSets(blankSets(3), 'targetRest', 1, 2, options).map(r => r.targetRest))
+      .toEqual(['1 min', '1.5 min', '2 min']);
+  });
+
+  it('takes the base rest unit, and leaves other fields as before', () => {
+    expect(presetOptions('targetRest', '2', '3 min')).toEqual({ unit: ' min', step: 0.5 });
+    expect(presetOptions('targetWeight', '20', '~35 lbs')).toEqual({ unit: ' lbs', step: 2.5 });
+    expect(presetOptions('targetReps', '5', '4–6')).toEqual({ unit: '', step: 1 });
+  });
+});
+
+describe('untimedRests', () => {
+  it('names the sets whose rest the timer cannot read', () => {
+    expect(untimedRests([
+      { setNumber: 1, targetRest: '90' }, { setNumber: 2, targetRest: '90s' },
+      { setNumber: 3 }, { setNumber: 4, targetRest: 'a while' },
+    ])).toEqual([1, 4]);
   });
 });

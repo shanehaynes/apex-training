@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { ChevronRight } from 'lucide-react';
 import {
   BASE_FIELD, TARGET_LABELS, addableFields, inheritedTarget, parseTarget, pyramidSets, rampSets, setCount,
-  setTarget, storedSets, tableRows, targetFields, topSetBackoffs, unitFor,
+  setTarget, storedSets, tableRows, targetFields, topSetBackoffs, presetOptions, untimedRests,
 } from '../../lib/builder/plannedSets';
 import type { TargetField } from '../../lib/builder/plannedSets';
 import type { Exercise, PlannedSet } from '../../types/workout';
@@ -45,6 +45,7 @@ export default function PlannedSetsEditor({ entry, onChange }: Props) {
   const fields = targetFields(entry, added);
   const addable = addableFields(fields);
   const rows = tableRows(entry);
+  const untimed = untimedRests(rows);
   const count = setCount(entry);
 
   const write = (next: PlannedSet[]) => onChange(storedSets(next));
@@ -117,6 +118,12 @@ export default function PlannedSetsEditor({ entry, onChange }: Props) {
             </tbody>
           </table>
 
+          {untimed.length > 0 && (
+            <p className="planned-sets__hint" role="note">
+              No timer starts for set {untimed.join(', ')}: a rest needs s or min.
+            </p>
+          )}
+
           {addable.length > 0 && (
             <div className="planned-sets__add" role="group" aria-label="Add a column">
               {addable.map(f => (
@@ -178,10 +185,10 @@ function PresetForm({
 
   const apply = () => {
     if (!ready || !first) return;
-    const unit = unitFor(a, base);
-    if (preset === 'ramp') onFill(rampSets(rows, field, first.value, second!.value, { unit }));
-    else if (preset === 'pyramid') onFill(pyramidSets(rows, field, first.value, second!.value, { unit }));
-    else onFill(topSetBackoffs(rows, field, first.value, n, pct, { unit }));
+    const options = presetOptions(field, a, base);
+    if (preset === 'ramp') onFill(rampSets(rows, field, first.value, second!.value, options));
+    else if (preset === 'pyramid') onFill(pyramidSets(rows, field, first.value, second!.value, options));
+    else onFill(topSetBackoffs(rows, field, first.value, n, pct, options));
   };
 
   const placeholder = base && parseTarget(base) ? base : TARGET_LABELS[field].toLowerCase();

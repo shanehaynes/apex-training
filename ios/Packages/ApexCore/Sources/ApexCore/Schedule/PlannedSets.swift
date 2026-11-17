@@ -51,6 +51,12 @@ public enum PlannedSets {
 
         /// Plate math for weight, whole units for everything else (`stepFor`).
         public var step: Double { self == .weight ? 2.5 : 1 }
+
+        /// `stepFor` with the unit written: rest steps by half minutes or 5 s.
+        public func step(unit: String) -> Double {
+            guard self == .rest else { return step }
+            return unit.trimmingCharacters(in: .whitespaces).lowercased().hasPrefix("m") ? 0.5 : 5
+        }
     }
 
     /// `targetFields`: every dimension the base prescription or any authored
@@ -144,9 +150,18 @@ public enum PlannedSets {
         var next = entry
         next.sets = sets
         if let rows = entry.plannedSets, !rows.isEmpty {
-            next.plannedSets = resize(rows, to: count(for: next))
+            // A shorter table can leave no override behind: store none.
+            next.plannedSets = stored(resize(rows, to: count(for: next)))
         }
         return next
+    }
+
+    /// `untimedRests`: the sets whose own rest the timer cannot read.
+    public static func untimedRests(_ rows: [PlannedSet]) -> [Int] {
+        rows.filter { row in
+            guard let rest = nonEmpty(row.targetRest?.trimmingCharacters(in: .whitespaces)) else { return false }
+            return RestTimer.seconds(fromRest: rest) == nil
+        }.map(\.setNumber)
     }
 
     // MARK: - Rest (`src/lib/tracking/rest.ts`)
@@ -228,6 +243,14 @@ public enum PlannedSets {
             return inherited.suffix
         }
         return ""
+    }
+
+    /// `presetOptions`: the unit a preset writes, seconds for a rest nothing
+    /// names a unit for (the timer reads no bare number), and the step for it.
+    public static func presetOptions(field: Field, typed: String, base: String?) -> (unit: String, step: Double) {
+        let own = unit(typed: typed, base: base)
+        let unit = own.isEmpty && field == .rest ? "s" : own
+        return (unit, field.step(unit: unit))
     }
 
     /// `formatNumber`: 147.5 → "147.5", 150 → "150" — no trailing zeros or float noise.
