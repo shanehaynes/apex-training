@@ -195,12 +195,20 @@ public struct PlannedSet: Codable, Sendable, Equatable {
     public let targetWeight: String?
     public let targetReps: String?
     public let targetDuration: String?
+    /// The rest after this set ("90s", "2 min") when it overrides the
+    /// exercise's `restPeriod`. Each field is an override: one a row leaves
+    /// empty follows the exercise's own value.
+    public let targetRest: String?
 
-    public init(setNumber: Int, targetWeight: String? = nil, targetReps: String? = nil, targetDuration: String? = nil) {
+    public init(
+        setNumber: Int, targetWeight: String? = nil, targetReps: String? = nil, targetDuration: String? = nil,
+        targetRest: String? = nil
+    ) {
         self.setNumber = setNumber
         self.targetWeight = targetWeight
         self.targetReps = targetReps
         self.targetDuration = targetDuration
+        self.targetRest = targetRest
     }
 }
 

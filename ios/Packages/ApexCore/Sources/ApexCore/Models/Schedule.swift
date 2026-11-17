@@ -119,8 +119,9 @@ public struct Exercise: Codable, Sendable, Equatable, Identifiable {
     public var weight: String?
     public var duration: String?
     public var restPeriod: String?
-    /// Per-set ramp targets; cleared when a prescription field is edited
-    /// (`EventExerciseEditor` rule) because they no longer describe it.
+    /// Per-set targets, each field an override of the set-level one
+    /// (`PlannedSets.resolved(for:)` fills the rest). A prescription edit
+    /// keeps them; a new set count resizes them (`PlannedSets.settingSets`).
     public var plannedSets: [PlannedSet]?
     /// Superset/circuit label ("A", "B"): consecutive entries in one section
     /// sharing a label are performed together. `var` for the editor:

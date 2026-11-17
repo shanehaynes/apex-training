@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseRestSeconds } from '../rest';
+import { parseRestSeconds, restFor, restLine, restSummary } from '../rest';
 import { parseDurationSeconds } from '../records';
 
 // Ruling R2.5: `Ns`, `N sec`, `N min`, `M:SS`, and a range `A-B` / `A–B` with
@@ -98,5 +98,46 @@ describe('parseRestSeconds — rejects', () => {
   it('treats null and undefined as no prescription', () => {
     expect(parseRestSeconds(null)).toBeNull();
     expect(parseRestSeconds(undefined)).toBeNull();
+  });
+});
+
+describe('restFor — a set\'s rest', () => {
+  it('is the row\'s own rest, else the exercise\'s', () => {
+    expect(restFor({ targetRest: '3 min' }, '90s')).toBe('3 min');
+    expect(restFor({}, '90s')).toBe('90s');
+    expect(restFor({ targetRest: '  ' }, '90s')).toBe('90s');
+    expect(restFor(undefined, '90s')).toBe('90s');
+    expect(restFor({}, undefined)).toBeUndefined();
+  });
+});
+
+describe('restSummary — the card\'s rest line', () => {
+  it('reads one value when every set rests the same', () => {
+    expect(restSummary(['90s', '90s', '90s'])).toBe('90s');
+  });
+
+  it('reads runs in set order when sets differ', () => {
+    expect(restSummary(['2 min', '2 min', '2 min', '90s'])).toBe('2 min ×3 · 90s');
+    expect(restSummary(['60s', '90s', '60s'])).toBe('60s · 90s · 60s');
+  });
+
+  it('names a set with no rest, and is null when nothing rests', () => {
+    expect(restSummary(['3 min', undefined])).toBe('3 min · none');
+    expect(restSummary([undefined, ''])).toBeNull();
+    expect(restSummary([])).toBeNull();
+  });
+});
+
+describe('restLine — a tracked exercise', () => {
+  const set = (targetRest?: string, isExtra = false) => ({ isExtra, planned: { targetRest } });
+
+  it('summarizes the planned sets and leaves extras out', () => {
+    expect(restLine({ exercise: { restPeriod: '90s' }, sets: [set(), set('3 min'), set(undefined, true)] })).toBe('90s · 3 min');
+    expect(restLine({ exercise: { restPeriod: '90s' }, sets: [set(), set()] })).toBe('90s');
+  });
+
+  it('is the exercise\'s rest when nothing is planned per set (cardio)', () => {
+    expect(restLine({ exercise: { restPeriod: '2 min' }, sets: [] })).toBe('2 min');
+    expect(restLine({ exercise: {}, sets: [] })).toBeNull();
   });
 });

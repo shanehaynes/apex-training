@@ -92,6 +92,11 @@ export interface TrackedSectionGroup {
  * Per-set targets for an exercise: `plannedSets` when authored, otherwise
  * `sets` (default 1) identical rows synthesized from the legacy uniform
  * reps/weight/duration strings. Old events keep working with no backfill.
+ *
+ * An authored row holds overrides: a weight, reps or duration it leaves
+ * empty is the exercise's own, so a set-level edit reaches every set that
+ * has not said otherwise. Rest is not filled in here (no set log records
+ * it); `restFor` reads a row's own rest and falls back to `restPeriod`.
  */
 export function resolvePlannedSets(exercise: Exercise): PlannedSet[] {
   // A climbing pitch is one set whose target grade rides the free-text
@@ -100,7 +105,19 @@ export function resolvePlannedSets(exercise: Exercise): PlannedSet[] {
   if (exercise.category === 'climbing') {
     return [{ setNumber: 1, targetWeight: exercise.grade }];
   }
-  if (exercise.plannedSets?.length) return exercise.plannedSets;
+  if (exercise.plannedSets?.length) {
+    return exercise.plannedSets.map(row => {
+      const out: PlannedSet = { setNumber: row.setNumber };
+      const weight = row.targetWeight || exercise.weight;
+      const reps = row.targetReps || exercise.reps;
+      const duration = row.targetDuration || exercise.duration;
+      if (weight) out.targetWeight = weight;
+      if (reps) out.targetReps = reps;
+      if (duration) out.targetDuration = duration;
+      if (row.targetRest) out.targetRest = row.targetRest;
+      return out;
+    });
+  }
   const count = exercise.sets && exercise.sets > 0 ? exercise.sets : 1;
   return Array.from({ length: count }, (_, i) => ({
     setNumber: i + 1,

@@ -89,6 +89,27 @@ describe('resolvePlannedSets', () => {
     const planned = resolvePlannedSets(ramp);
     expect(planned.map(p => p.targetWeight)).toEqual(['135lb', '165lb', '185lb']);
   });
+
+  it('fills what an authored row leaves empty from the exercise itself', () => {
+    // Only set 3 overrides its reps; every set keeps the set-level weight.
+    const overrides: Exercise = {
+      ...strength,
+      plannedSets: [{ setNumber: 1 }, { setNumber: 2 }, { setNumber: 3, targetReps: '3' }],
+    };
+    expect(resolvePlannedSets(overrides)).toEqual([
+      { setNumber: 1, targetWeight: '185lb', targetReps: '5' },
+      { setNumber: 2, targetWeight: '185lb', targetReps: '5' },
+      { setNumber: 3, targetWeight: '185lb', targetReps: '3' },
+    ]);
+  });
+
+  it('keeps a row\'s own rest and adds no rest it did not override', () => {
+    const rests: Exercise = {
+      ...strength, restPeriod: '2 min',
+      plannedSets: [{ setNumber: 1 }, { setNumber: 2, targetRest: '3 min' }],
+    };
+    expect(resolvePlannedSets(rests).map(p => p.targetRest)).toEqual([undefined, '3 min']);
+  });
 });
 
 describe('buildTrackerModel', () => {

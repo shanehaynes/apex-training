@@ -1,4 +1,5 @@
 import type { Exercise, PlannedSet } from '../../types/workout';
+import { parseRestSeconds } from '../tracking/rest';
 
 // ─── Per-set target authoring ────────────────────────────────────────────────
 // The pure half of the exercise editor's "Per-set targets" disclosure
@@ -6,39 +7,57 @@ import type { Exercise, PlannedSet } from '../../types/workout';
 // is the iOS mirror). Targets are free text ("~35 lbs", "4–6", "90 sec/side")
 // because that is what the prescription fields and the tracker take; the
 // presets read the leading number out of a target, do their arithmetic, and
-// write it back wearing the same unit. Nothing here touches the tracker's
-// resolvePlannedSets: an exercise without plannedSets still synthesizes
-// uniform rows from the base prescription.
+// write it back wearing the same unit.
+//
+// A row holds overrides only. An empty cell follows the set-level field
+// (`sets`/`reps`/`weight`/`duration`/`restPeriod`), so editing the base
+// still reaches every set that has not said otherwise; the tracker's
+// resolvePlannedSets (src/lib/tracking/plan.ts) does the same fill.
 
-export type TargetField = 'targetWeight' | 'targetReps' | 'targetDuration';
+export type TargetField = 'targetWeight' | 'targetReps' | 'targetDuration' | 'targetRest';
 
-export const TARGET_FIELDS: readonly TargetField[] = ['targetWeight', 'targetReps', 'targetDuration'];
+/** Every column, in the order the table shows them. */
+export const TARGET_FIELDS: readonly TargetField[] = ['targetWeight', 'targetReps', 'targetDuration', 'targetRest'];
 
 export const TARGET_LABELS: Record<TargetField, string> = {
   targetWeight: 'Weight',
   targetReps: 'Reps',
   targetDuration: 'Duration',
+  targetRest: 'Rest',
 };
 
-/** The base prescription a target column mirrors. */
-const BASE_FIELD: Record<TargetField, 'weight' | 'reps' | 'duration'> = {
+/** The set-level prescription field a target column overrides. */
+export const BASE_FIELD: Record<TargetField, 'weight' | 'reps' | 'duration' | 'restPeriod'> = {
   targetWeight: 'weight',
   targetReps: 'reps',
   targetDuration: 'duration',
+  targetRest: 'restPeriod',
 };
 
-export type BasePrescription = Pick<Exercise, 'sets' | 'reps' | 'weight' | 'duration' | 'plannedSets'>;
+export type BasePrescription = Pick<Exercise, 'sets' | 'reps' | 'weight' | 'duration' | 'restPeriod' | 'plannedSets'>;
 
 /**
  * The columns the table shows: every dimension the base prescription or any
- * authored row names. An exercise that names none gets weight + reps — the
+ * authored row names, plus any the athlete added by hand (`added`), in
+ * TARGET_FIELDS order. An exercise that names none gets weight + reps — the
  * strength default, and the two a ramp is usually written in.
  */
-export function targetFields(entry: BasePrescription): TargetField[] {
-  const fields = TARGET_FIELDS.filter(field =>
+export function targetFields(entry: BasePrescription, added: readonly TargetField[] = []): TargetField[] {
+  const named = TARGET_FIELDS.filter(field =>
     !!entry[BASE_FIELD[field]] || (entry.plannedSets ?? []).some(row => !!row[field]),
   );
-  return fields.length ? fields : ['targetWeight', 'targetReps'];
+  const fields = named.length ? named : ['targetWeight', 'targetReps'] as TargetField[];
+  return TARGET_FIELDS.filter(field => fields.includes(field) || added.includes(field));
+}
+
+/** The columns the table does not show yet, which the editor offers to add. */
+export function addableFields(shown: readonly TargetField[]): TargetField[] {
+  return TARGET_FIELDS.filter(field => !shown.includes(field));
+}
+
+/** What an empty cell in `field` resolves to: the set-level value, or nothing. */
+export function inheritedTarget(entry: BasePrescription, field: TargetField): string | undefined {
+  return entry[BASE_FIELD[field]] || undefined;
 }
 
 /** How many rows the table has: `sets` when stated, else the authored rows, else 1. */
@@ -47,40 +66,45 @@ export function setCount(entry: BasePrescription): number {
   return entry.plannedSets?.length || 1;
 }
 
-/** One row per set, every row the base prescription — "Apply to all sets". */
-export function uniformSets(count: number, base: BasePrescription): PlannedSet[] {
-  return Array.from({ length: Math.max(1, count) }, (_, i) => row(i + 1, {
-    targetWeight: base.weight,
-    targetReps: base.reps,
-    targetDuration: base.duration,
-  }));
+/** One row per set with no overrides: every set follows the base prescription. */
+export function blankSets(count: number): PlannedSet[] {
+  return Array.from({ length: Math.max(1, count) }, (_, i) => ({ setNumber: i + 1 }));
 }
 
 /**
  * The table at a new set count: existing rows stay as they are, rows past
  * the count go, and new rows repeat the last one (a 5th set of a 4-set ramp
- * is most likely another top set), or the base when there is nothing to
- * repeat. Set numbers are always 1..count.
+ * is most likely another top set), or follow the base when there is nothing
+ * to repeat. Set numbers are always 1..count.
  */
-export function resizeSets(rows: PlannedSet[], count: number, base: BasePrescription): PlannedSet[] {
+export function resizeSets(rows: PlannedSet[], count: number): PlannedSet[] {
   const target = Math.max(1, count);
   const out: PlannedSet[] = [];
   for (let i = 0; i < target; i++) {
-    const source = rows[i] ?? rows[rows.length - 1] ?? uniformSets(1, base)[0];
+    const source = rows[i] ?? rows[rows.length - 1] ?? { setNumber: i + 1 };
     out.push(row(i + 1, source));
   }
   return out;
 }
 
-/** The rows the editor shows: the authored ones at the current count, else the base repeated. */
+/** The rows the editor shows: the authored ones at the current count, else blank rows that follow the base. */
 export function tableRows(entry: BasePrescription): PlannedSet[] {
   const count = setCount(entry);
-  return entry.plannedSets?.length ? resizeSets(entry.plannedSets, count, entry) : uniformSets(count, entry);
+  return entry.plannedSets?.length ? resizeSets(entry.plannedSets, count) : blankSets(count);
 }
 
-/** One cell edited; empty text clears the target. */
+/** One cell edited; empty text clears the override, so the set follows the base again. */
 export function setTarget(rows: PlannedSet[], setNumber: number, field: TargetField, value: string): PlannedSet[] {
   return rows.map(r => (r.setNumber === setNumber ? row(r.setNumber, { ...r, [field]: value.trim() || undefined }) : r));
+}
+
+/**
+ * What the editor stores: the rows while any of them overrides something,
+ * else nothing — a table of blank rows plans exactly what the base does, so
+ * it is not kept as "authored".
+ */
+export function storedSets(rows: PlannedSet[]): PlannedSet[] | undefined {
+  return rows.some(r => TARGET_FIELDS.some(field => !!r[field])) ? rows : undefined;
 }
 
 // ─── Numbers inside free text ────────────────────────────────────────────────
@@ -132,13 +156,37 @@ function formatTarget(value: number, unit: string): string {
   return `${formatNumber(value)}${unit}`;
 }
 
-/** Plate math for weight, whole units for everything else. */
-export function stepFor(field: TargetField): number {
-  return field === 'targetWeight' ? 2.5 : 1;
+/**
+ * Plate math for weight; half minutes or 5 s for rest, by the unit written;
+ * whole units for everything else.
+ */
+export function stepFor(field: TargetField, unit = ''): number {
+  if (field === 'targetWeight') return 2.5;
+  if (field === 'targetRest') return /^\s*m/i.test(unit) ? 0.5 : 5;
+  return 1;
+}
+
+/**
+ * What a preset writes for `field` from the user's first input and the
+ * set-level target: the unit per `unitFor`, and for rest seconds when nothing
+ * names one, because the rest timer reads no bare number ("90" times
+ * nothing, "90s" does); the step per `stepFor` with that unit.
+ */
+export function presetOptions(field: TargetField, typed: string, base: string | undefined): Required<PresetOptions> {
+  const unit = unitFor(typed, base) || (field === 'targetRest' ? 's' : '');
+  return { unit, step: stepFor(field, unit) };
 }
 
 function snap(value: number, step: number): number {
   return Math.round(value / step) * step;
+}
+
+/**
+ * The sets whose own rest the timer cannot read ("90", "a while"), so the
+ * editor can say so: the card shows that text and no countdown starts.
+ */
+export function untimedRests(rows: readonly PlannedSet[]): number[] {
+  return rows.filter(r => !!r.targetRest?.trim() && parseRestSeconds(r.targetRest) === null).map(r => r.setNumber);
 }
 
 // ─── Presets ─────────────────────────────────────────────────────────────────
@@ -205,14 +253,14 @@ export function topSetBackoffs(
 
 /**
  * A prescription edit on an entry that has per-set targets: a new set count
- * resizes the table; anything else leaves it alone (the old rule cleared the
- * rows on every edit — now "Apply to all sets" is the explicit way to refill
- * them from the base).
+ * resizes the table; anything else leaves it alone. A base edit reaches every
+ * cell a row leaves empty, because an empty cell follows the base.
  */
 export function withPrescriptionPatch(entry: Exercise, patch: Partial<Exercise>): Exercise {
   const next = { ...entry, ...patch };
   if (!entry.plannedSets?.length || !('sets' in patch)) return next;
-  return { ...next, plannedSets: resizeSets(entry.plannedSets, setCount(next), next) };
+  // A shorter table can leave no override behind: store none, as storedSets does.
+  return { ...next, plannedSets: storedSets(resizeSets(entry.plannedSets, setCount(next))) };
 }
 
 /** A row with only the fields that carry a value, so JSON and equality stay tidy. */
@@ -221,5 +269,6 @@ function row(setNumber: number, source: Partial<PlannedSet>): PlannedSet {
   if (source.targetWeight) out.targetWeight = source.targetWeight;
   if (source.targetReps) out.targetReps = source.targetReps;
   if (source.targetDuration) out.targetDuration = source.targetDuration;
+  if (source.targetRest) out.targetRest = source.targetRest;
   return out;
 }

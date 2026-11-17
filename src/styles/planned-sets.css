@@ -176,3 +176,23 @@
   flex-wrap: wrap;
   gap: 6px;
 }
+
+/* "+ Reps", "+ Rest": a column the prescription does not name yet. */
+.planned-sets__add {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.planned-sets__action--add {
+  border-style: dashed;
+}
+
+.planned-sets__table input::placeholder { color: var(--text-muted); }
+
+/* A per-set rest the timer cannot read: the card shows it, no countdown runs. */
+.planned-sets__hint {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}

@@ -105,6 +105,26 @@ describe('rest timer — row ledger', () => {
     expect(claimRest(groups({ curl: { restPeriod: '' } }), new Set(), 'exercise', 'curl', 1)).toBeNull();
   });
 
+  it('a set with its own rest starts that rest; the others start the exercise\'s', () => {
+    const plan = groups({ pullups: { restPeriod: '90s' } });
+    plan[0].exercises[0].sets[1].planned = { ...plan[0].exercises[0].sets[1].planned, targetRest: '3 min' };
+    const started = new Set<string>();
+    expect(claimRest(plan, started, 'exercise', 'pullups', 1)).toEqual({ seconds: 90, label: 'Weighted Pull-Ups' });
+    expect(claimRest(plan, started, 'exercise', 'pullups', 2)).toEqual({ seconds: 180, label: 'Weighted Pull-Ups' });
+  });
+
+  it('a set rest authored in the editor reaches the timer through the tracker model', () => {
+    const plan = buildTrackerModel({
+      id: 'evt', title: 'Pull day', date: '2026-10-10', type: 'weights',
+      exercises: [{
+        id: 'pullups', name: 'Weighted Pull-Ups', category: 'strength', sets: 2, reps: '5', restPeriod: '90s',
+        plannedSets: [{ setNumber: 1, targetRest: '2 min' }, { setNumber: 2 }],
+      }],
+    } as Parameters<typeof buildTrackerModel>[0]);
+    expect(claimRest(plan, new Set(), 'exercise', 'pullups', 1)).toEqual({ seconds: 120, label: 'Weighted Pull-Ups' });
+    expect(claimRest(plan, new Set(), 'exercise', 'pullups', 2)).toEqual({ seconds: 90, label: 'Weighted Pull-Ups' });
+  });
+
   it('an exercise that is not on screen starts nothing', () => {
     expect(claimRest(groups(), new Set(), 'exercise', 'missing', 1)).toBeNull();
     expect(claimRest(groups(), new Set(), 'warmup', 'pullups', 1)).toBeNull();
